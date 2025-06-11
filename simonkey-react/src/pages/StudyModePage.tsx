@@ -64,6 +64,11 @@ const StudyModePage = () => {
   // Estado para conceptos fallados en estudio libre
   const [freeModeReviewQueue, setFreeModeReviewQueue] = useState<Concept[]>([]);
   
+  // Al inicio del componente:
+  const [reviewedConceptIds, setReviewedConceptIds] = useState<Set<string>>(new Set());
+  const [masteredConceptIds, setMasteredConceptIds] = useState<Set<string>>(new Set());
+  const [reviewingConceptIds, setReviewingConceptIds] = useState<Set<string>>(new Set());
+  
   // Cargar cuadernos del usuario
   useEffect(() => {
     const fetchNotebooks = async () => {
@@ -207,6 +212,10 @@ const StudyModePage = () => {
         // Orden fijo (alfabético por término, por ejemplo)
         concepts = concepts.sort((a, b) => a.término.localeCompare(b.término));
         setFreeModeReviewQueue([]); // Limpiar la cola de fallados
+        setReviewQueue([]);
+        setSessionReviewQueue([]);
+        setUniqueConceptIds(new Set());
+        setUniqueConceptsCount(0);
       } else if (studyMode === StudyMode.QUIZ) {
         concepts = await studyService.getConceptsForQuiz(
           auth.currentUser.uid,
@@ -223,22 +232,21 @@ const StudyModePage = () => {
       // Optimizar mezclando adecuadamente para mejor retención
       const optimizedConcepts = studyService.optimizeConceptOrder(concepts);
       
-      // Calcular el número real de conceptos que se van a estudiar
-      // Esto incluye los conceptos iniciales más los que pueden agregarse durante la sesión
-      const estimatedTotalConcepts = optimizedConcepts.length;
+      // SOLUCIÓN RADICAL: Total fijo e inmutable
+      const totalConcepts = Object.freeze(optimizedConcepts.length);
       
       setAllConcepts(optimizedConcepts);
       setCurrentConcepts(optimizedConcepts);
       
-      // Inicializar métricas para esta sesión con el conteo real
-      setMetrics({
-        totalConcepts: estimatedTotalConcepts,
+      // Inicializar métricas para esta sesión con el total FIJO e INMUTABLE
+      setMetrics(Object.freeze({
+        totalConcepts: totalConcepts, // Este número NUNCA cambiará durante la sesión
         conceptsReviewed: 0,
         mastered: 0,
         reviewing: 0,
         timeSpent: 0,
         startTime: new Date()
-      });
+      }));
       
       // Iniciar tracking de tiempo
       const timer = window.setInterval(() => {
@@ -262,6 +270,10 @@ const StudyModePage = () => {
       // When you start a new session, initialize the set with the initial concepts
       setUniqueConceptIds(new Set(optimizedConcepts.map(c => c.id)));
       setUniqueConceptsCount(optimizedConcepts.length);
+      
+      setReviewedConceptIds(new Set());
+      setMasteredConceptIds(new Set());
+      setReviewingConceptIds(new Set());
       
     } catch (error) {
       console.error("Error al iniciar sesión de estudio:", error);
@@ -287,12 +299,13 @@ const StudyModePage = () => {
       const conceptIndex = currentConcepts.findIndex(c => c.id === conceptId);
       if (conceptIndex === -1) return;
       
-      // Actualizar métricas según la calidad de respuesta
+      // PROTECCIÓN RADICAL: Solo actualizar contadores, NUNCA el total
       setMetrics(prev => ({
         ...prev,
         conceptsReviewed: prev.conceptsReviewed + 1,
         mastered: quality === ResponseQuality.MASTERED ? prev.mastered + 1 : prev.mastered,
-        reviewing: quality === ResponseQuality.REVIEW_LATER ? prev.reviewing + 1 : prev.reviewing
+        reviewing: quality === ResponseQuality.REVIEW_LATER ? prev.reviewing + 1 : prev.reviewing,
+        // totalConcepts se mantiene INMUTABLE
       }));
       
       // Mostrar feedback apropiado según la calidad de respuesta
@@ -302,40 +315,32 @@ const StudyModePage = () => {
         showFeedback('info', 'Revisaremos este concepto más tarde');
       }
       
-      // Si la calidad es REVIEW_LATER, añadir a la cola de repaso para esta sesión
-      if (quality === ResponseQuality.REVIEW_LATER && studyMode !== StudyMode.SMART) {
-        setReviewQueue(prev => [...prev, currentConcepts[conceptIndex]]);
-        setSessionReviewQueue(prev => [...prev, currentConcepts[conceptIndex]]);
-        
-        // Actualizar el total de conceptos para incluir los que se agregarán a la cola
-        setMetrics(prev => ({
-          ...prev,
-          totalConcepts: prev.totalConcepts + 1
-        }));
+      // Eliminar concepto de la lista actual (siempre)
+      const updatedConcepts = [...currentConcepts];
+      updatedConcepts.splice(conceptIndex, 1);
+      setCurrentConcepts(updatedConcepts);
+      
+      // Si es estudio libre, guardar fallados para repaso posterior (sin repetir en la sesión)
+      if (studyMode === StudyMode.FREE && quality === ResponseQuality.REVIEW_LATER) {
+        setFreeModeReviewQueue(prev => prev.some(c => c.id === conceptId) ? prev : [...prev, currentConcepts[conceptIndex]]);
       }
       
-      // Si es estudio libre:
-      if (studyMode === StudyMode.FREE) {
-        // No actualizar SRS ni puntos, solo registrar fallos en la cola local
-        if (quality === ResponseQuality.REVIEW_LATER) {
-          setFreeModeReviewQueue(prev => [...prev, currentConcepts[conceptIndex]]);
-        }
-        // Eliminar concepto de la lista actual
-        const updatedConcepts = [...currentConcepts];
-        updatedConcepts.splice(conceptIndex, 1);
-        setCurrentConcepts(updatedConcepts);
-        // Si termina la sesión, mostrar opción de repasar fallados
-        if (updatedConcepts.length === 0 && freeModeReviewQueue.length > 0) {
-          setCurrentConcepts([...freeModeReviewQueue]);
+      // Si es repaso inteligente, puedes agregar a la cola de repaso SOLO si no está ya
+      if (studyMode === StudyMode.SMART && quality === ResponseQuality.REVIEW_LATER) {
+        setReviewQueue(prev => prev.some(c => c.id === conceptId) ? prev : [...prev, currentConcepts[conceptIndex]]);
+        setSessionReviewQueue(prev => prev.some(c => c.id === conceptId) ? prev : [...prev, currentConcepts[conceptIndex]]);
+      }
+      
+      // Si termina la sesión, finalizarla y guardar los fallados para repaso posterior
+      if (updatedConcepts.length === 0) {
+        if (studyMode === StudyMode.FREE) {
+          setSessionReviewQueue([...freeModeReviewQueue]); // Guardar los fallados para repaso inmediato
           setFreeModeReviewQueue([]);
-          showFeedback('info', '¡Ahora repasa solo los que te costaron trabajo!');
-        } else if (updatedConcepts.length === 0) {
-          completeStudySession();
         }
-        return;
+        completeStudySession();
       }
       
-      // En handleConceptResponse, each time a concept is presented:
+      // Actualizar el set de conceptos únicos estudiados
       if (!uniqueConceptIds.has(conceptId)) {
         setUniqueConceptIds(prev => {
           const newSet = new Set(prev);
@@ -343,6 +348,15 @@ const StudyModePage = () => {
           setUniqueConceptsCount(newSet.size);
           return newSet;
         });
+      }
+
+      // Trackear IDs únicos de la sesión
+      setReviewedConceptIds(prev => new Set(prev).add(conceptId));
+      if (quality === ResponseQuality.MASTERED) {
+        setMasteredConceptIds(prev => new Set(prev).add(conceptId));
+      }
+      if (quality === ResponseQuality.REVIEW_LATER) {
+        setReviewingConceptIds(prev => new Set(prev).add(conceptId));
       }
     } catch (error) {
       console.error("Error al procesar respuesta:", error);
@@ -667,85 +681,79 @@ const StudyModePage = () => {
   
   // 2. Renderizar sesión de estudio activa
   const renderActiveSession = () => {
-    if (currentConcepts.length === 0) {
+    // SOLUCIÓN RADICAL: Usar directamente el índice del array, no las métricas
+    const currentIndex = allConcepts.length - currentConcepts.length + 1;
+    const totalConcepts = allConcepts.length; // Total fijo, nunca cambia
+    
+    const currentConcept = currentConcepts[0];
+
+    // PROTECCIÓN EXTRA: Si no hay concepto actual, no renderizar tarjeta
+    if (!currentConcept) {
       return (
-        <div className="study-session-empty">
-          <i className="fas fa-check-circle"></i>
-          <h3>¡No hay conceptos disponibles!</h3>
-          <p>Parece que no hay conceptos para estudiar en este momento.</p>
-          <button 
-            className="back-to-selection-button"
-            onClick={startNewSession}
-          >
-            Volver a selección
-          </button>
+        <div className="study-session-container">
+          <div className="no-concepts-message">
+            <i className="fas fa-check-circle"></i>
+            <h3>¡Sesión completada!</h3>
+            <p>Has revisado todos los conceptos disponibles.</p>
+            <button
+              className="session-action-button"
+              onClick={completeStudySession}
+            >
+              Finalizar sesión
+            </button>
+          </div>
         </div>
       );
     }
-    
-    const currentConcept = currentConcepts[0];
-    
+
     return (
       <div className="study-session-container">
-        {/* Barra de progreso y estadísticas */}
-        <div className="study-progress-bar">
-          <div className="progress-text">
-            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-              <span style={{ fontWeight: 700, fontSize: 16 }}>
-                <span role="img" aria-label="libro">📚</span> {uniqueConceptsCount} conceptos diferentes
-                <span style={{ color: '#34C759', fontWeight: 600, marginLeft: 8 }} title="Cada concepto puede aparecer más de una vez si necesitas repasarlo. ¡Eso es bueno para tu memoria!">
-                  <span role="img" aria-label="repeat">🔁</span> {metrics.totalConcepts} repasos
-                </span>
-              </span>
-              <span style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                <span role="img" aria-label="info">ℹ️</span> Los repasos incluyen los conceptos que marcaste como "Revisar después".
-              </span>
-              {reviewQueue.length > 0 && (
-                <span className="queue-info"> (+{reviewQueue.length} pendientes)</span>
-              )}
-            </span>
-            <span className="time-counter">
-              <i className="fas fa-clock"></i> {formatStudyTime(metrics.timeSpent)}
-            </span>
+        {/* Nueva cabecera minimalista centrada */}
+        <div className="study-session-header-minimal">
+          <div className="card-counter">
+            <span className="card-number">{currentIndex}</span>
+            <span className="card-divider">/</span>
+            <span className="card-total">{totalConcepts}</span>
           </div>
-          <div className="progress-track">
-            <div 
-              className="progress-fill"
-              style={{ width: `${sessionProgress}%` }}
-            ></div>
+          <div className="concepts-total">
+            <span>Conceptos diferentes a repasar: <b>{uniqueConceptsCount}</b></span>
           </div>
         </div>
-        
-        {/* Tarjeta de estudio swipeable */}
-        <div className="study-card-container">
-          <SwipeableStudyCard
-            concept={currentConcept}
-            onResponse={(quality) => handleConceptResponse(currentConcept.id, quality)}
-            reviewMode={studyMode === StudyMode.SMART}
-            quizMode={studyMode === StudyMode.QUIZ}
-          />
+        {/* Layout principal con tarjeta y botones laterales */}
+        <div className="study-session-layout">
+          {/* Botón de respuesta izquierdo - Revisar después */}
+          <div className="response-buttons">
+            <button 
+              className="response-button review-later"
+              onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.REVIEW_LATER)}
+              title="Revisar después - Este concepto necesita más práctica"
+            >
+              <i className="fas fa-redo"></i>
+              <span>Revisar<br/>después</span>
+            </button>
+          </div>
+          {/* Tarjeta de estudio swipeable */}
+          <div className="study-card-container">
+            <SwipeableStudyCard
+              concept={currentConcept}
+              onResponse={(quality) => handleConceptResponse(currentConcept.id, quality)}
+              reviewMode={studyMode === StudyMode.SMART}
+              quizMode={studyMode === StudyMode.QUIZ}
+            />
+          </div>
+          {/* Botón de respuesta derecho - Dominado */}
+          <div className="response-buttons">
+            <button 
+              className="response-button mastered"
+              onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.MASTERED)}
+              title="Dominado - ¡Lo tienes claro!"
+            >
+              <i className="fas fa-check-double"></i>
+              <span>Dominado</span>
+            </button>
+          </div>
         </div>
-        
-        {/* Botones de respuesta (alternativa a swipe) */}
-        <div className="response-buttons">
-          <button 
-            className="response-button review-later"
-            onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.REVIEW_LATER)}
-          >
-            <i className="fas fa-redo"></i>
-            <span>Revisar después</span>
-          </button>
-          
-          <button 
-            className="response-button mastered"
-            onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.MASTERED)}
-          >
-            <i className="fas fa-check-double"></i>
-            <span>Dominado</span>
-          </button>
-        </div>
-        
-        {/* Botón para pasar o finalizar */}
+        {/* Botón para finalizar sesión */}
         <button
           className="session-action-button"
           onClick={completeStudySession}
@@ -778,7 +786,7 @@ const StudyModePage = () => {
             <div className="stat-icon">
               <i className="fas fa-book"></i>
             </div>
-            <div className="stat-value">{metrics.conceptsReviewed}</div>
+            <div className="stat-value">{reviewedConceptIds.size}</div>
             <div className="stat-label">Conceptos estudiados</div>
           </div>
           
@@ -786,7 +794,7 @@ const StudyModePage = () => {
             <div className="stat-icon">
               <i className="fas fa-check-circle"></i>
             </div>
-            <div className="stat-value">{metrics.mastered}</div>
+            <div className="stat-value">{masteredConceptIds.size}</div>
             <div className="stat-label">Dominados</div>
           </div>
           
@@ -794,7 +802,7 @@ const StudyModePage = () => {
             <div className="stat-icon">
               <i className="fas fa-sync-alt"></i>
             </div>
-            <div className="stat-value">{metrics.reviewing}</div>
+            <div className="stat-value">{reviewingConceptIds.size}</div>
             <div className="stat-label">Para repasar</div>
           </div>
           
@@ -850,17 +858,17 @@ const StudyModePage = () => {
           </button>
         </div>
         
-        {studyMode === StudyMode.FREE && freeModeReviewQueue.length > 0 && (
+        {studyMode === StudyMode.FREE && sessionReviewQueue.length > 0 && (
           <button
             className="action-button review-pending"
             onClick={() => {
-              setCurrentConcepts([...freeModeReviewQueue]);
-              setFreeModeReviewQueue([]);
+              setCurrentConcepts([...sessionReviewQueue]);
+              setSessionReviewQueue([]);
               setSessionActive(true);
               setSessionComplete(false);
             }}
           >
-            <i className="fas fa-redo"></i> Repasar los que no dominaste ({freeModeReviewQueue.length})
+            <i className="fas fa-redo"></i> Repasar los que no dominaste ({sessionReviewQueue.length})
           </button>
         )}
       </div>

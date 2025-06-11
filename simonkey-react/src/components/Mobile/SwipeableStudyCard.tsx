@@ -136,6 +136,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
           </div>
           
           <div className="swipe-hints">
+            {/*
             <div className="swipe-hint left">
               <div className="arrow-indicator">
                 <i className="fas fa-arrow-left"></i>
@@ -148,6 +149,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
                 <i className="fas fa-arrow-right"></i>
               </div>
             </div>
+            */}
           </div>
         </div>
         
