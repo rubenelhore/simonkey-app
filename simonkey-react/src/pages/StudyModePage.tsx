@@ -6,24 +6,8 @@ import { db, auth } from '../services/firebase';
 import SwipeableStudyCard from '../components/Mobile/SwipeableStudyCard';
 import FeedbackMessage from '../components/FeedbackMessage';
 import { useStudyService } from '../hooks/useStudyService';
-import { Concept, ResponseQuality, StudyMode } from '../types/interfaces';
+import { Concept, ResponseQuality, StudyMode, Notebook, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudyModePage.css';
-
-interface Notebook {
-  id: string;
-  title: string;
-  color: string;
-}
-
-interface StudySessionMetrics {
-  totalConcepts: number;
-  conceptsReviewed: number;
-  mastered: number;
-  reviewing: number;
-  timeSpent: number;
-  startTime: Date;
-  endTime?: Date;
-}
 
 const StudyModePage = () => {
   const navigate = useNavigate();

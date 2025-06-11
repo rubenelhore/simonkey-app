@@ -17,18 +17,12 @@ import {
   increment 
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Concept } from '../types/interfaces';
+import { Concept, StudyMode } from '../types/interfaces';
 
 // Constantes y tipos
 enum ResponseQuality {
   REVIEW_LATER = 0,  // Revisar después (swipe izquierda)
   MASTERED = 1       // Dominado (swipe derecha)
-}
-
-enum StudyMode {
-  STUDY = 'study',
-  REVIEW = 'review',
-  QUIZ = 'quiz'
 }
 
 interface LearningData {
