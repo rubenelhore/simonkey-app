@@ -1,0 +1,362 @@
+/* Estilos corregidos para la página de configuración de voz */
+/* Asegurar scroll en todos los dispositivos */
+html, body, #root {
+  height: auto !important; 
+  min-height: 100%;
+  overflow: visible !important;
+  overflow-y: auto !important;
+  position: static !important;
+}
+
+.voice-settings-container {
+  min-height: 100vh;
+  background-color: var(--background-color, #f5f7fa);
+  color: var(--text-color, #333);
+  display: block !important; /* Cambiar de flex a block para evitar problemas */
+  /* IMPORTANTE: Permitir scroll en la página completa */
+  overflow-y: auto !important;
+  position: relative;
+  /* Asegurarnos que el contenedor principal ocupe todo el espacio disponible */
+  width: 100%;
+  height: auto !important; /* Permitir que crezca según el contenido */
+}
+
+.voice-settings-header {
+  background-color: var(--primary-color, #4F46E5);
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky; /* Mantener el encabezado pegado mientras se desplaza */
+  top: 0;
+  z-index: 10;
+  width: 100%;
+}
+
+.voice-settings-header .header-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.voice-settings-header h1 {
+  flex-grow: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.voice-settings-header .back-button {
+  background-color: white;
+  color: var(--primary-color, #4F46E5);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.voice-settings-header .back-button:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.voice-settings-main {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  /* IMPORTANTE: Asegurar que el contenido principal pueda ser desplazable */
+  overflow-y: visible !important;
+  width: 100%;
+  /* Añadir padding bottom para asegurar que los botones de guardado sean accesibles */
+  padding-bottom: 2rem;
+  height: auto !important;
+}
+
+.settings-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  /* IMPORTANTE: No limitar el overflow */
+  overflow: visible;
+  /* Asegurar que el card se ajuste al ancho del contenedor */
+  width: 100%;
+  height: auto;
+}
+
+.settings-section {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #eee;
+  /* Asegurar que las secciones no rompan el layout */
+  width: 100%;
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
+}
+
+.settings-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color, #4F46E5);
+}
+
+.section-description {
+  color: #6c757d;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.voice-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: white;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  background-repeat: no-repeat;
+}
+
+.range-input {
+  width: 100%;
+  height: 6px;
+  appearance: none;
+  border-radius: 3px;
+  background-color: #e9ecef;
+  margin-bottom: 0.5rem;
+}
+
+.range-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--primary-color, #4F46E5);
+  cursor: pointer;
+}
+
+.range-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--primary-color, #4F46E5);
+  cursor: pointer;
+  border: none;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color, #4F46E5);
+}
+
+.test-text-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.test-voice-button {
+  background-color: var(--primary-color, #4F46E5);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.test-voice-button:hover {
+  background-color: #4338ca;
+}
+
+/* Hacer que la sección de acciones sea visible siempre */
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.save-success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 0.75rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Asegurar que los botones de acción permanezcan en el flujo del documento */
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  width: 100%;
+}
+
+.cancel-button,
+.save-button {
+  padding: 0.75rem 1.25rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cancel-button {
+  background-color: white;
+  border: 1px solid #6c757d;
+  color: #6c757d;
+}
+
+.save-button {
+  background-color: var(--primary-color, #4F46E5);
+  border: none;
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #f8f9fa;
+}
+
+.save-button:hover {
+  background-color: #4338ca;
+}
+
+.save-button:disabled {
+  background-color: #a5a1f7;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* SOLUCIÓN PARA DISPOSITIVOS MÓVILES */
+@media (max-width: 768px) {
+  html, body {
+    height: auto !important; /* Forzar altura */
+    overflow: visible !important; /* Permitir scroll explícitamente */
+    -webkit-overflow-scrolling: touch; /* Mejor scroll en iOS */
+    position: static !important; /* Prevenir que position interfiera con scroll */
+    overscroll-behavior: auto; /* Permitir overscroll */
+  }
+  
+  .voice-settings-container {
+    /* Hacer contenedor scrollable */
+    height: auto !important; /* Cambiar a auto en lugar de 100% */
+    min-height: 100vh;
+    max-height: none !important; /* No limitar altura máxima */
+    overflow-y: auto !important; /* Forzar scroll en Y si es necesario */
+    -webkit-overflow-scrolling: touch; /* Comportamiento suave en iOS */
+    position: relative; 
+    touch-action: pan-y; /* Permitir pan vertical */
+    overscroll-behavior-y: auto; /* Comportamiento de overscroll natural */
+  }
+  
+  .voice-settings-main {
+    overflow-y: visible !important; 
+    height: auto;
+    padding-bottom: 100px; /* Espacio adicional al final */
+  }
+  
+  .settings-card {
+    padding: 1.5rem;
+    overflow: visible; /* Asegurar que no limita el overflow */
+  }
+  
+  .settings-section h2 {
+    font-size: 1.1rem;
+  }
+  
+  /* Mantener botones de acción siempre visibles en móviles */
+  .action-buttons {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    padding: 1rem 0;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+  
+  .cancel-button,
+  .save-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

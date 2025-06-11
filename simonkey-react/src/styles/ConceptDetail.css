@@ -1,0 +1,612 @@
+/* Estilos para la página de detalle de concepto */
+
+.concept-detail-container {
+  min-height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.concept-detail-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--notebook-color, var(--primary-color));
+  color: white;
+  box-shadow: var(--shadow);
+  padding: 0 2rem;
+  height: var(--header-height);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.concept-detail-header .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.concept-detail-header .breadcrumb {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  padding: 10px 0;
+}
+
+.concept-detail-header .back-button {
+  position: absolute;
+  left: 0;
+}
+
+.concept-detail-header .centered-title {
+  flex-grow: 1;
+  text-align: center;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: white;
+  border: none;
+  color: var(--notebook-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button i {
+  color: var(--notebook-color);
+  font-size: 1.2rem;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.85);
+  transform: translateX(-2px);
+}
+
+.delete-concept-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.delete-concept-button i {
+  margin-right: 0.5rem;
+}
+
+.delete-concept-button:hover:not(:disabled) {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-concept-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.concept-detail-main {
+  flex: 1;
+  max-width: 1000px;
+  margin: 3rem auto;
+  padding: 0 2rem;
+}
+
+/* Contenedor para las dos tarjetas (concepto y notas) */
+.concept-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 992px) {
+  .concept-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.concept-card-detail {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 2rem;
+  height: fit-content;
+}
+
+.concept-term {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+}
+
+.concept-definition, .concept-source {
+  margin-bottom: 2rem;
+}
+
+.concept-definition h3, .concept-source h3 {
+  font-size: 1.1rem;
+  color: var(--light-text);
+  margin-bottom: 0.5rem;
+}
+
+.concept-definition p {
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.concept-source cite {
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--light-text);
+}
+
+/* Acciones adicionales dentro de la tarjeta */
+.concept-actions {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.edit-concept-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  background-color: transparent;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.edit-concept-button i {
+  margin-right: 0.5rem;
+}
+
+.edit-concept-button:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.error-container h2 {
+  color: var(--danger-color);
+}
+
+/* Estilos para el formulario de edición */
+.edit-form {
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--light-text);
+}
+
+.edit-input, .edit-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.edit-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.save-button, .cancel-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.save-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.cancel-button {
+  background-color: var(--light-gray, #f0f0f0);
+  color: var(--dark-text);
+}
+
+.save-button:hover {
+  background-color: var(--primary-hover, #0056b3);
+}
+
+.cancel-button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Estilos para la tarjeta de notas personales */
+.personal-notes-card {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-left: 4px solid #ffc107;
+}
+
+.personal-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.personal-notes-header h2 {
+  font-size: 1.4rem;
+  color: #5c5b5b;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.personal-notes-header h2 i {
+  color: #ffc107;
+}
+
+.edit-notes-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid #ffc107;
+  color: #5c5b5b;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.edit-notes-button i {
+  margin-right: 0.5rem;
+  color: #ffc107;
+}
+
+.edit-notes-button:hover {
+  background-color: #ffc107;
+  color: white;
+}
+
+.edit-notes-button:hover i {
+  color: white;
+}
+
+.notes-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-notes-button, .cancel-notes-button {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.85rem;
+  border: none;
+}
+
+.save-notes-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-notes-button i {
+  margin-right: 0.5rem;
+}
+
+.save-notes-button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.cancel-notes-button {
+  background-color: #f8f9fa;
+  color: #5c5b5b;
+  border: 1px solid #ddd;
+}
+
+.cancel-notes-button i {
+  margin-right: 0.5rem;
+}
+
+.cancel-notes-button:hover:not(:disabled) {
+  background-color: #e2e6ea;
+}
+
+.save-notes-button:disabled, .cancel-notes-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.personal-notes-content {
+  flex: 1;
+  background-color: #fffdf5;
+  border-radius: 4px;
+  padding: 1.5rem;
+  min-height: 200px;
+}
+
+.notes-text {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #333;
+  white-space: pre-line;
+}
+
+.notes-text p {
+  margin-bottom: 0.75rem;
+}
+
+.empty-notes {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #888;
+  text-align: center;
+  padding: 1rem;
+}
+
+.empty-notes p {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.notes-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
+  padding: 1rem;
+  border: 1px solid #ffe38f;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  font-family: inherit;
+  color: #333;
+  background-color: #fff;
+  resize: vertical;
+  transition: all 0.3s ease;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: #ffc107;
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+}
+
+.notes-textarea::placeholder {
+  color: #aaa;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .concept-detail-header {
+    padding: 0 1rem;
+  }
+  
+  .concept-detail-main {
+    padding: 0 1rem;
+  }
+  
+  .breadcrumb h1 {
+    font-size: 1.2rem;
+  }
+  
+  .delete-concept-button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .personal-notes-card {
+    padding: 1.5rem;
+  }
+
+  .personal-notes-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .personal-notes-header h2 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .notes-edit-actions {
+    width: 100%;
+  }
+  
+  .save-notes-button, .cancel-notes-button {
+    flex-grow: 1;
+    justify-content: center;
+  }
+}
+
+/* Estilos para la navegación entre conceptos */
+.concept-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.concept-nav-button {
+  background-color: var(--card-background);
+  border: none;
+  border-radius: 50%;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  color: var(--text-color);
+  font-size: 1.2rem;
+}
+
+.concept-nav-button i {
+  color: var(--primary-color); /* El ícono en azul primario */
+  transition: color 0.2s ease;
+}
+
+.concept-nav-button:hover:not(:disabled) {
+  background-color: var(--primary-color);
+}
+
+.concept-nav-button:hover:not(:disabled) i {
+  color: white; /* El ícono cambia a blanco al pasar el mouse */
+}
+
+.concept-nav-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.concept-nav-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.concept-nav-button:disabled i {
+  color: var(--light-text);
+}
+
+.concept-pagination {
+  background-color: var(--card-background);
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  font-weight: 500;
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease; /* Añadir esta transición */
+  animation: fadeEffect 0.5s ease; /* Añadir esta animación */
+}
+
+@media (max-width: 768px) {
+  .concept-navigation {
+    margin-bottom: 1.5rem;
+  }
+  
+  .concept-nav-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1rem;
+  }
+  
+  .concept-pagination {
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Para añadir un efecto visual cuando se pasa de página */
+@keyframes fadeEffect {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+.concept-card-detail, .personal-notes-card {
+  animation: fadeEffect 0.3s ease-in;
+}
+
+/* Estilo para el botón de navegación en estado de navegación */
+.concept-nav-button.navigating {
+  background-color: var(--light-gray);
+  cursor: wait;
+}
+
+/* Estilos para el botón de auto-lectura */
+.auto-read-toggle {
+  background-color: var(--card-background);
+  border: none;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  color: var(--notebook-color);
+  margin-left: 10px;
+}
+
+.auto-read-toggle:hover {
+  background-color: var(--notebook-color);
+  color: white;
+}

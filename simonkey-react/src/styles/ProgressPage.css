@@ -1,0 +1,395 @@
+/* src/styles/ProgressPage.css */
+
+.progress-page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #F5F7FA;
+  }
+  
+  .progress-page-header {
+    background-color: #6147FF;
+    color: white;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  .back-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+  }
+  
+  .back-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .header-content h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  .header-spacer {
+    width: 40px;
+  }
+  
+  .progress-page-main {
+    flex: 1;
+    padding: 1.5rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  /* Loading & Error States */
+  .loading-container, .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+  }
+  
+  .error-container i {
+    font-size: 3rem;
+    color: #EF4444;
+    margin-bottom: 1rem;
+  }
+  
+  .error-container p {
+    margin-bottom: 1.5rem;
+    color: #6B7280;
+  }
+  
+  .error-container button {
+    background-color: #6147FF;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .error-container button:hover {
+    background-color: #5840E0;
+  }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(97, 71, 255, 0.2);
+    border-radius: 50%;
+    border-top-color: #6147FF;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Progress Summary Cards */
+  .progress-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .summary-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .summary-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  
+  .summary-icon.concepts {
+    background-color: #EFF6FF;
+    color: #3B82F6;
+  }
+  
+  .summary-icon.mastery {
+    background-color: #ECFDF5;
+    color: #10B981;
+  }
+  
+  .summary-icon.time {
+    background-color: #FEF2F2;
+    color: #EF4444;
+  }
+  
+  .summary-content {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.3rem;
+  }
+  
+  .summary-label {
+    font-size: 0.9rem;
+    color: #6B7280;
+  }
+  
+  /* Charts Section */
+  .progress-charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .chart-container {
+    background-color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .chart-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #374151;
+  }
+  
+  .period-selector {
+    display: flex;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .period-selector button {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  
+  .period-selector button.active {
+    background-color: #6147FF;
+    color: white;
+  }
+  
+  .period-selector button:not(.active) {
+    color: #6B7280;
+  }
+  
+  .period-selector button:not(.active):hover {
+    background-color: #F3F4F6;
+  }
+  
+  .chart-content {
+    height: 300px;
+  }
+  
+  .empty-chart {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9CA3AF;
+  }
+  
+  /* Custom Tooltip */
+  .custom-tooltip {
+    background-color: #374151;
+    color: white;
+    padding: 0.8rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .tooltip-label {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  
+  .tooltip-value {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+  
+  /* Progress Insights */
+  .progress-insights {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .insight-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: flex-start;
+  }
+  
+  .insight-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background-color: #FEF3C7;
+    color: #F59E0B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .insight-content h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    color: #374151;
+  }
+  
+  .insight-content p {
+    margin: 0;
+    color: #6B7280;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  
+  /* Responsive */
+  @media (max-width: 900px) {
+    .progress-charts {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .progress-summary {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    
+    .progress-insights {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .progress-page-main {
+      padding: 1rem;
+    }
+    
+    .summary-card, .chart-container, .insight-card {
+      padding: 1rem;
+    }
+    
+    .summary-icon {
+      width: 40px;
+      height: 40px;
+      font-size: 1rem;
+    }
+    
+    .summary-value {
+      font-size: 1.2rem;
+    }
+    
+    .chart-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .insight-content h3 {
+      font-size: 1rem;
+    }
+  }
+  
+  /* For recharts components */
+  .recharts-default-tooltip {
+    background-color: #374151 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    padding: 10px !important;
+  }
+  
+  .recharts-tooltip-label {
+    color: white !important;
+    font-weight: 600 !important;
+  }
+  
+  .recharts-tooltip-item {
+    color: white !important;
+  }
+  
+  .recharts-tooltip-item-name,
+  .recharts-tooltip-item-value {
+    color: white !important;
+  }
+  
+  .recharts-cartesian-axis-tick-value {
+    fill: #6B7280 !important;
+    font-size: 12px !important;
+  }
+  
+  .recharts-legend-item-text {
+    color: #374151 !important;
+  }
+  
+  /* Pie chart labels */
+  .recharts-pie-label-text {
+    font-size: 12px !important;
+    fill: #4B5563 !important;
+  }

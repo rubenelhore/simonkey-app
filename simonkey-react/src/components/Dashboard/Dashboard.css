@@ -1,0 +1,730 @@
+/* src/components/Dashboard/Dashboard.css */
+/* Contenedor principal del dashboard */
+.dashboard-container {
+    margin-bottom: 2rem;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 1.5rem;
+  }
+  
+  .dashboard-header h2 {
+    font-size: 1.5rem;
+    color: var(--notebook-color, var(--primary-color));
+    margin: 0;
+  }
+  
+  /* Grid layout */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+  }
+  
+  /* En pantallas pequeñas y medianas, mostrar en una columna */
+  @media (max-width: 992px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  /* Estilos para la tarjeta de estadísticas */
+  .stats-summary {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .stats-summary h3 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    font-size: 1.25rem;
+    color: #333;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  
+  .stat-card {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .stat-card:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-3px);
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    background-color: #e0e7ff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    font-size: 1.25rem;
+  }
+  
+  .stat-content {
+    flex: 1;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #333;
+  }
+  
+  .stat-label {
+    font-size: 0.9rem;
+    color: #666;
+  }
+  
+  .progress-bar {
+    height: 4px;
+    background-color: #e0e0e0;
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  
+  /* Estilos para actividad reciente */
+  .recent-activity {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  
+  .activity-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #333;
+  }
+  
+  .see-all-button {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .see-all-button:hover {
+    text-decoration: underline;
+  }
+  
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .activity-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+  }
+  
+  .activity-item:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .activity-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+  }
+  
+  .activity-content {
+    flex: 1;
+  }
+  
+  .activity-text {
+    font-size: 0.95rem;
+    color: #333;
+    margin-bottom: 0.25rem;
+  }
+  
+  .activity-time {
+    font-size: 0.85rem;
+    color: #777;
+  }
+  
+  .empty-activity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    color: #777;
+  }
+  
+  .empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+  
+  .empty-subtext {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+  
+  /* Estilos para la tarjeta de racha */
+  .streak-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .streak-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  
+  .streak-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .streak-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+  }
+  
+  .streak-title i {
+    color: #ff6b6b;
+    font-size: 1.25rem;
+  }
+  
+  .streak-count {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .streak-count span {
+    color: #ff6b6b;
+  }
+  
+  .streak-calendar {
+    display: flex;
+    justify-content: space-between;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .day-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: 32px;
+    height: 50px;
+  }
+  
+  .day-label {
+    font-size: 0.9rem;
+    color: #666;
+  }
+  
+  .day-indicator.active {
+    position: relative;
+  }
+  
+  .day-indicator.active .day-label {
+    color: #ff6b6b;
+    font-weight: 600;
+  }
+  
+  .day-indicator.active i {
+    color: #ff6b6b;
+    font-size: 1.1rem;
+  }
+  
+  .weekly-goal {
+    margin-bottom: 1rem;
+  }
+  
+  .goal-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+  
+  .goal-percentage {
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .goal-progress-bar {
+    height: 6px;
+    background-color: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  
+  .goal-progress-fill {
+    height: 100%;
+    background-color: #ff6b6b;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  
+  .streak-motivation {
+    background-color: #f0f9ff;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    color: #0077b6;
+    text-align: center;
+  }
+  
+  /* Estilos para acciones rápidas */
+  .quick-actions-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .quick-actions-card h3 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    font-size: 1.1rem;
+    color: #333;
+  }
+  
+  .action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .action-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .action-button i {
+    font-size: 1.5rem;
+  }
+  
+  .action-button span {
+    font-size: 0.9rem;
+  }
+  
+  .create-notebook {
+    background-color: #e0f7fa;
+    color: #0097a7;
+  }
+  
+  .create-notebook:hover {
+    background-color: #b2ebf2;
+  }
+  
+  .study-mode {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+  }
+  
+  .study-mode:hover {
+    background-color: #e1bee7;
+  }
+  
+  .action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .continue-studying h4 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+  
+  .recent-notebooks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .recent-notebook {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    border-left: 4px solid;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .recent-notebook:hover {
+    background-color: #f0f0f0;
+    transform: translateX(5px);
+  }
+  
+  .notebook-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+  }
+  
+  .notebook-title {
+    flex: 1;
+    font-size: 0.95rem;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .notebook-arrow {
+    color: #999;
+    font-size: 0.85rem;
+  }
+  
+  .empty-notebooks {
+    text-align: center;
+    padding: 1.5rem;
+    color: #777;
+    font-size: 0.9rem;
+  }
+  
+  .loading-notebooks {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  
+  /* Estilos para recordatorios */
+  .reminder-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .reminder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  
+  .reminder-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .reminder-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+  }
+  
+  .reminder-title i {
+    color: #f59e0b;
+    font-size: 1.25rem;
+  }
+  
+  .toggle-expand-button {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .toggle-expand-button:hover {
+    color: #666;
+  }
+  
+  .reminder-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+  }
+  
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .toggle-switch label {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+  }
+  
+  .toggle-switch label:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  .toggle-switch input:checked + label {
+    background-color: #f59e0b;
+  }
+  
+  .toggle-switch input:checked + label:before {
+    transform: translateX(26px);
+  }
+  
+  .reminder-settings {
+    background-color: #fffbeb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .reminder-days,
+  .reminder-time {
+    margin-bottom: 1.25rem;
+  }
+  
+  .reminder-days h4,
+  .reminder-time h4 {
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem 0;
+    color: #333;
+  }
+  
+  .days-selector {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .day-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ddd;
+    background-color: white;
+    color: #666;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .day-button.active {
+    background-color: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+  }
+  
+  .day-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .time-input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  
+  .time-input:disabled {
+    background-color: #f9f9f9;
+    cursor: not-allowed;
+  }
+  
+  .reminder-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .save-button {
+    padding: 0.5rem 1rem;
+    background-color: #f59e0b;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+  }
+  
+  .save-button:hover {
+    background-color: #e67700;
+  }
+  
+  .save-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .button-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .save-success-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #16a34a;
+    font-size: 0.9rem;
+  }
+  
+  .save-success-message i {
+    font-size: 1rem;
+  }
+  
+  .reminder-footer {
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+  }
+  
+  .reminder-footer p {
+    margin: 0;
+  }
+  
+  /* Spinners */
+  .dashboard-loading,
+  .card-loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+  }
+  
+  .spinner,
+  .card-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .card-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Estilos para tarjetas en estado de carga */
+  .streak-card.loading,
+  .reminder-card.loading {
+    min-height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }

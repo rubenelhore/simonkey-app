@@ -1,0 +1,286 @@
+:root {
+  --shared-notebook-color: var(--primary-color);
+}
+
+.shared-notebook-container {
+  min-height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-notebook-header {
+  background-color: var(--shared-notebook-color);
+  color: white;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  height: var(--header-height);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.shared-notebook-header .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.shared-notebook-main {
+  flex: 1;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+.shared-info-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 2rem;
+}
+
+.shared-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 1rem;
+}
+
+.shared-header h2 {
+  color: var(--shared-notebook-color);
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+}
+
+.shared-by {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.concepts-preview {
+  margin-bottom: 2rem;
+}
+
+.concepts-preview h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.concept-preview-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.concept-preview-item {
+  padding: 0.75rem 1rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  border-left: 3px solid var(--shared-notebook-color);
+}
+
+.concept-term {
+  font-weight: 500;
+}
+
+.and-more {
+  text-align: center;
+  font-style: italic;
+  color: #666;
+  padding: 0.5rem;
+}
+
+.auth-prompt {
+  background-color: #f5f5f5;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.login-button, 
+.register-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-button {
+  background-color: var(--shared-notebook-color);
+  color: white;
+}
+
+.login-button:hover {
+  filter: brightness(1.1);
+}
+
+.register-button {
+  background-color: white;
+  color: var(--shared-notebook-color);
+  border: 1px solid var(--shared-notebook-color);
+}
+
+.register-button:hover {
+  background-color: #f0f0ff;
+}
+
+.error-container {
+  text-align: center;
+  padding: 3rem;
+}
+
+.error-icon {
+  font-size: 3rem;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.primary-button {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.spinner-small {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Estilos para los botones de acción en el detalle de cuaderno */
+.notebook-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Estilos específicos para el botón de compartir */
+.share-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.share-button:hover {
+  filter: brightness(1.1);
+}
+
+/* Estilos específicos para el botón de guardar */
+.save-button {
+  background-color: white;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.save-button:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+}
+
+/* Estilos para el modal de compartir */
+.share-modal-content {
+  padding: 1rem 0;
+}
+
+.share-link-container {
+  margin: 1rem 0;
+}
+
+.copy-success {
+  color: #28a745;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Estilos para páginas de cuadernos compartidos */
+.shared-notebook-view {
+  padding: 2rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin-top: 2rem;
+}
+
+.shared-notebook-banner {
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary-color);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.save-notification {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background-color: #4caf50;
+  color: white;
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+  opacity: 0;
+  animation-fill-mode: forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}

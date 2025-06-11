@@ -1,0 +1,117 @@
+/* Estilos para los controles de Text-to-Speech */
+.text-to-speech-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  
+  .text-to-speech-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    background-color: var(--notebook-color, var(--primary-color));
+    color: white;
+  }
+  
+  .text-to-speech-button.playing {
+    background-color: var(--notebook-color, var(--primary-color));
+    opacity: 0.9;
+    animation: pulse 2s infinite;
+  }
+  
+  .text-to-speech-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-to-speech-button i {
+    font-size: 1rem;
+  }
+  
+  /* Botón específico para detener */
+  .text-to-speech-stop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background-color: #f44336;
+    color: white;
+  }
+  
+  .text-to-speech-stop:hover {
+    background-color: #e53935;
+    transform: scale(1.05);
+  }
+  
+  /* Estilos específicos para la tarjeta de concepto */
+  .concept-tts-button {
+    margin-top: 1rem;
+    margin-right: auto;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background-color: var(--primary-color);
+    opacity: 0.85;
+  }
+  
+  /* Estilos específicos para la tarjeta de notas personales */
+  .notes-tts-button {
+    margin-top: 1rem;
+    margin-right: auto;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background-color: #ffc107;
+    color: #333;
+  }
+  
+  /* Animación de pulso para indicar reproducción */
+  @keyframes pulse {
+    0% {
+      opacity: 0.9;
+    }
+    50% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 0.9;
+    }
+  }
+  
+  /* Estilos responsive */
+  @media (max-width: 768px) {
+    .text-to-speech-button {
+      padding: 0.4rem 0.7rem;
+      font-size: 0.8rem;
+    }
+    
+    .text-to-speech-stop {
+      width: 28px;
+      height: 28px;
+    }
+    
+    .button-text {
+      display: none; /* Ocultar texto en móviles, mostrar solo ícono */
+    }
+    
+    .text-to-speech-button.icon-only {
+      padding: 0.4rem;
+      width: 32px;
+      height: 32px;
+      justify-content: center;
+    }
+  }

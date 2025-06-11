@@ -1,0 +1,212 @@
+.tool-page-container {
+  /* Cambiar de página completa a overlay */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background-color: var(--background-color, #f5f5f5);
+  color: var(--text-color, #333);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Permite scroll dentro del overlay */
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+  /* Opcional: agregar animación de entrada */
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tool-page-header {
+  display: flex;
+  align-items: center;
+  background-color: var(--card-background, #ffffff);
+  box-shadow: var(--shadow, 0 4px 12px rgba(0, 0, 0, 0.1));
+  padding: 0 2rem;
+  height: 70px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tool-page-header .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid var(--primary-color, #ffc107);
+  color: var(--primary-color, #ffc107);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.back-button:hover {
+  background-color: var(--primary-color, #ffc107);
+  color: white;
+}
+
+.breadcrumb h1 {
+  font-size: 1.4rem;
+  color: var(--text-color, #333);
+  margin: 0;
+}
+
+.tool-page-content {
+  flex: 1;
+  max-width: 1000px;
+  margin: 3rem auto;
+  padding: 0 2rem;
+}
+
+@media (max-width: 768px) {
+  .tool-page-header {
+    padding: 0 1rem;
+  }
+  
+  .tool-page-content {
+    padding: 0 1rem;
+    margin: 2rem auto;
+  }
+  
+  .breadcrumb h1 {
+    font-size: 1.2rem;
+  }
+}
+
+/* Botón para cerrar el overlay */
+.close-overlay {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-color, #333);
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-overlay:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Nuevo estilo de overlay */
+.tool-overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.tool-overlay-content {
+  background-color: var(--card-background, #ffffff);
+  border-radius: 8px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  width: 80%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: scaleIn 0.2s ease-out;
+  overflow: hidden;
+}
+
+.tool-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color, #eaeaea);
+}
+
+.tool-overlay-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text-color, #333);
+}
+
+.tool-overlay-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px); /* Altura máxima menos el header */
+}
+
+.close-overlay {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-color, #333);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.close-overlay:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .tool-overlay-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .tool-overlay-header {
+    padding: 0.8rem 1rem;
+  }
+  
+  .tool-overlay-body {
+    padding: 1rem;
+  }
+}

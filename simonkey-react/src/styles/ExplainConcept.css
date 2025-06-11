@@ -1,0 +1,210 @@
+.explain-concept-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: var(--card-background, #ffffff);
+  border-radius: 8px;
+  box-shadow: var(--shadow, 0 4px 12px rgba(0, 0, 0, 0.1));
+}
+
+.explain-concept-container h2 {
+  color: var(--primary-color, #ffc107);
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  border-bottom: 2px solid var(--primary-color, #ffc107);
+  padding-bottom: 0.5rem;
+}
+
+.concept-selector {
+  margin-bottom: 2rem;
+}
+
+.concept-selector label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-color, #333);
+}
+
+.concept-selector select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: var(--text-color, #333);
+  background-color: #fff;
+}
+
+.concept-selector select:focus {
+  outline: none;
+  border-color: var(--primary-color, #ffc107);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
+}
+
+.explanation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.explanation-buttons button {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  color: var(--text-color, #333);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.explanation-buttons button:hover:not(:disabled) {
+  background-color: #f9f9f9;
+  border-color: var(--primary-color, #ffc107);
+}
+
+.explanation-buttons button.active {
+  background-color: var(--primary-color, #ffc107);
+  color: white;
+  border-color: var(--primary-color, #ffc107);
+}
+
+.explanation-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.explanation-container {
+  min-height: 200px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  padding: 1.5rem;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.loading-animation {
+  font-size: 2rem;
+  color: var(--primary-color, #ffc107);
+  margin-bottom: 1rem;
+}
+
+.explanation-content {
+  padding: 1rem;
+}
+
+.explanation-content h3 {
+  margin-bottom: 1rem;
+  color: var(--primary-color, #ffc107);
+  font-size: 1.4rem;
+}
+
+.explanation-content p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-color, #333);
+}
+
+.empty-explanation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  color: #888;
+}
+
+/* Estilos para la definición del concepto seleccionado */
+.concept-definition {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+  border-left: 4px solid var(--primary-color);
+}
+
+.concept-definition h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #5c5b5b;
+}
+
+.concept-definition p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* Estilos para el botón de guardar en notas */
+.save-to-notes {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.save-notes-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.save-notes-button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.save-notes-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.save-success {
+  color: #28a745;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .explanation-buttons {
+    flex-direction: column;
+  }
+  
+  .explanation-buttons button {
+    width: 100%;
+  }
+}
