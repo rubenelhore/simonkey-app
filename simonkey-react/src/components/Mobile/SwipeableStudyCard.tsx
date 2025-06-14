@@ -3,20 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { useSwipe } from '../../hooks/useSwipe';
 import './SwipeableStudyCard.css';
 import TextToSpeech from '../TextToSpeech';
-import { Concept, ResponseQuality } from '../../types/interfaces';
+import { Concept, ResponseQuality, StudyLockState } from '../../types/interfaces';
 
 interface SwipeableStudyCardProps {
   concept: Concept;
   reviewMode: boolean;
   quizMode: boolean;
   onResponse: (quality: ResponseQuality) => Promise<void>;
+  lockState?: StudyLockState;
+  onLockComplete?: () => void;
 }
 
 const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({ 
   concept, 
   reviewMode, 
   quizMode,
-  onResponse 
+  onResponse,
+  lockState,
+  onLockComplete
 }) => {
   const [flipped, setFlipped] = useState(false);
   const [confidence, setConfidence] = useState<string | null>(null);
@@ -24,11 +28,41 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   const [isExiting, setIsExiting] = useState(false);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [lockTimer, setLockTimer] = useState<number>(5);
+  const [isLocked, setIsLocked] = useState(false);
+  const [canEvaluate, setCanEvaluate] = useState(false);
   
   // Reset flipped state when concept changes
   useEffect(() => {
     setFlipped(false);
+    setIsLocked(false);
+    setCanEvaluate(false);
+    setLockTimer(5);
   }, [concept.id]);
+  
+  // Manejar candado de 5 segundos para estudio inteligente
+  useEffect(() => {
+    if (reviewMode && flipped && !isLocked && !canEvaluate) {
+      setIsLocked(true);
+      setLockTimer(5);
+      
+      const timer = setInterval(() => {
+        setLockTimer(prev => {
+          if (prev <= 1) {
+            setIsLocked(false);
+            setCanEvaluate(true);
+            if (onLockComplete) {
+              onLockComplete();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [flipped, reviewMode, isLocked, canEvaluate, onLockComplete]);
   
   const { swipeHandlers, swipeDirection, swiping, resetSwipe } = useSwipe({
     threshold: 100,
@@ -43,6 +77,11 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   }, [swipeDirection, resetSwipe]);
   
   const handleSwipe = (direction: string) => {
+    // En modo estudio inteligente, solo permitir swipe después del candado
+    if (reviewMode && !canEvaluate) {
+      return;
+    }
+    
     if (direction === 'left' || direction === 'right') {
       setExitDirection(direction);
       setIsExiting(true);
@@ -119,59 +158,106 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
     return style;
   };
   
-  return (
-    <div
-      className={`swipeable-card ${flipped ? 'flipped' : ''}`}
-      style={getCardStyle()}
-      {...handlers}
-    >
-      <div className="card-inner">
-        <div className="card-front">
-          <div className="term">{concept.término}</div>
-          <div className="hint">
-            <span>Toca para ver definición</span>
-            <div className="hint-icon">
-              <i className="fas fa-hand-point-up"></i>
-            </div>
+  const renderLockOverlay = () => {
+    if (!reviewMode || !isLocked) return null;
+    
+    return (
+      <div className="lock-overlay">
+        <div className="lock-content">
+          <div className="lock-icon">
+            <i className="fas fa-lock"></i>
           </div>
-          
-          <div className="swipe-hints">
-            {/*
-            <div className="swipe-hint left">
-              <div className="arrow-indicator">
-                <i className="fas fa-arrow-left"></i>
-              </div>
-              <span>Revisar después</span>
-            </div>
-            <div className="swipe-hint right">
-              <span>Dominado</span>
-              <div className="arrow-indicator">
-                <i className="fas fa-arrow-right"></i>
-              </div>
-            </div>
-            */}
+          <div className="lock-timer">
+            <span className="timer-number">{lockTimer}</span>
+            <span className="timer-text">segundos</span>
           </div>
-        </div>
-        
-        <div className="card-back">
-          <div className="definition">
-            <h3>Definición:</h3>
-            <p>{concept.definición}</p>
-            
-            <div className="text-to-speech-container" onClick={(e) => e.stopPropagation()}>
-              <TextToSpeech text={concept.definición} iconOnly={true} />
-            </div>
-          </div>
-          
-          <div className="source">
-            <span>Fuente: {concept.fuente}</span>
-          </div>
-  
-          <div className="tap-hint">
-            <span>Toca para volver</span>
+          <div className="lock-message">
+            Estudiando concepto...
           </div>
         </div>
       </div>
+    );
+  };
+  
+  const renderEvaluationButtons = () => {
+    if (!reviewMode || !canEvaluate) return null;
+    
+    return (
+      <div className="evaluation-buttons">
+        <button 
+          className="eval-button review-later"
+          onClick={() => onResponse(ResponseQuality.REVIEW_LATER)}
+        >
+          <i className="fas fa-redo"></i>
+          <span>Revisar después</span>
+        </button>
+        <button 
+          className="eval-button mastered"
+          onClick={() => onResponse(ResponseQuality.MASTERED)}
+        >
+          <i className="fas fa-check-double"></i>
+          <span>Dominado</span>
+        </button>
+      </div>
+    );
+  };
+  
+  return (
+    <div className="swipeable-card-container">
+      <div
+        className={`swipeable-card ${flipped ? 'flipped' : ''} ${isLocked ? 'locked' : ''}`}
+        style={getCardStyle()}
+        {...handlers}
+      >
+        <div className="card-inner">
+          <div className="card-front">
+            <div className="term">{concept.término}</div>
+            <div className="hint">
+              <span>Toca para ver definición</span>
+              <div className="hint-icon">
+                <i className="fas fa-hand-point-up"></i>
+              </div>
+            </div>
+            
+            {reviewMode && (
+              <div className="study-mode-indicator">
+                <i className="fas fa-brain"></i>
+                <span>Modo Inteligente</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="card-back">
+            <div className="definition">
+              <h3>Definición:</h3>
+              <p>{concept.definición}</p>
+              
+              <div className="text-to-speech-container" onClick={(e) => e.stopPropagation()}>
+                <TextToSpeech text={concept.definición} iconOnly={true} />
+              </div>
+            </div>
+            
+            <div className="source">
+              <span>Fuente: {concept.fuente}</span>
+            </div>
+    
+            <div className="tap-hint">
+              <span>Toca para volver</span>
+            </div>
+            
+            {reviewMode && canEvaluate && (
+              <div className="evaluation-ready">
+                <i className="fas fa-unlock"></i>
+                <span>¡Listo para evaluar!</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {renderLockOverlay()}
+      </div>
+      
+      {renderEvaluationButtons()}
     </div>
   );
 };

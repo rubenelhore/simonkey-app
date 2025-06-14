@@ -22,6 +22,7 @@ import OnboardingComponent from './components/Onboarding/OnboardingComponent';
 import MobileNavigation from './components/Mobile/MobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
 import StudyModePage from './pages/StudyModePage';
+import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -225,6 +226,12 @@ const AppContent: React.FC = () => {
         <Route
           path="/profile"
           element={user.isAuthenticated ? <ProfilePage /> : <Navigate to="/login" replace />}
+        />
+        
+        {/* Nueva ruta para quiz */}
+        <Route
+          path="/quiz"
+          element={user.isAuthenticated ? <QuizModePage /> : <Navigate to="/login" replace />}
         />
       </Routes>
       {user.isAuthenticated && <MobileNavigation />}

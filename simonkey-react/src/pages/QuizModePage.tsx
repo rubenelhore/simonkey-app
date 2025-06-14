@@ -1,0 +1,775 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { db, auth } from '../services/firebase';
+import { 
+  Concept, 
+  Notebook, 
+  QuizQuestion, 
+  QuizOption, 
+  QuizResponse, 
+  QuizSession,
+  QuizStats,
+  QuizTimerState,
+  QuizTimerConfig
+} from '../types/interfaces';
+import { useQuizTimer } from '../hooks/useQuizTimer';
+import { 
+  calculateFinalQuizScore,
+  formatTime,
+  getTimerStateClass,
+  getTimerColor
+} from '../utils/quizTimer';
+import '../styles/QuizModePage.css';
+
+const QuizModePage: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Estado principal
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [quizAvailable, setQuizAvailable] = useState<boolean>(true);
+  const [quizLimitMessage, setQuizLimitMessage] = useState<string>('');
+  
+  // Estado de la sesión de quiz
+  const [quizSession, setQuizSession] = useState<QuizSession | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [responses, setResponses] = useState<QuizResponse[]>([]);
+  const [sessionActive, setSessionActive] = useState<boolean>(false);
+  const [sessionComplete, setSessionComplete] = useState<boolean>(false);
+  
+  // Estado del timer y puntuación
+  const [score, setScore] = useState<number>(0);
+  const [maxScore, setMaxScore] = useState<number>(0);
+  const [timeRemaining, setTimeRemaining] = useState<number>(600);
+  const [finalScore, setFinalScore] = useState<number>(0);
+  
+  // Estado de UI
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState<boolean>(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
+
+  // Configuración del timer
+  const timerConfig: QuizTimerConfig = {
+    totalTime: 600,
+    warningThreshold: 60,
+    criticalThreshold: 30,
+    autoSubmit: true
+  };
+
+  // Hook del timer
+  const {
+    timerState,
+    timeRemaining: timerTimeRemaining,
+    isRunning,
+    isWarning,
+    isCritical,
+    isTimeUp,
+    start,
+    stop,
+    reset,
+    formattedTime,
+    timerClass,
+    timerColor,
+    progress
+  } = useQuizTimer({
+    config: timerConfig,
+    onTimeUp: handleTimeUp,
+    onWarning: () => console.log('¡Advertencia! Menos de 1 minuto'),
+    onCritical: () => console.log('¡Crítico! Menos de 30 segundos')
+  });
+
+  // Manejar tiempo agotado
+  function handleTimeUp() {
+    if (sessionActive && !sessionComplete) {
+      completeQuizSession(score, 0);
+    }
+  }
+
+  // Cargar cuadernos al montar el componente
+  useEffect(() => {
+    fetchNotebooks();
+  }, []);
+
+  // Pre-seleccionar cuaderno si viene de StudyModePage
+  useEffect(() => {
+    if (location.state && location.state.notebookId && notebooks.length > 0) {
+      const notebook = notebooks.find(n => n.id === location.state.notebookId);
+      if (notebook) {
+        setSelectedNotebook(notebook);
+        checkQuizAvailability(notebook.id);
+      }
+    }
+  }, [location.state, notebooks]);
+
+  // Verificar disponibilidad del quiz (máximo 1 por semana)
+  const checkQuizAvailability = async (notebookId: string) => {
+    if (!auth.currentUser) return;
+
+    try {
+      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      const limitsDoc = await getDoc(limitsRef);
+      
+      if (limitsDoc.exists()) {
+        const limits = limitsDoc.data();
+        const lastQuizDate = limits.lastQuizDate?.toDate();
+        
+        if (lastQuizDate) {
+          const now = new Date();
+          const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysSinceLastQuiz < 7) {
+            setQuizAvailable(false);
+            const daysRemaining = 7 - daysSinceLastQuiz;
+            setQuizLimitMessage(`Puedes hacer otro quiz en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
+          } else {
+            setQuizAvailable(true);
+            setQuizLimitMessage('');
+          }
+        } else {
+          setQuizAvailable(true);
+          setQuizLimitMessage('');
+        }
+      } else {
+        setQuizAvailable(true);
+        setQuizLimitMessage('');
+      }
+    } catch (error) {
+      console.error('Error checking quiz availability:', error);
+      setQuizAvailable(true);
+    }
+  };
+
+  // Cargar cuadernos del usuario
+  const fetchNotebooks = async () => {
+    if (!auth.currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const notebooksQuery = query(
+        collection(db, 'notebooks'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      
+      const querySnapshot = await getDocs(notebooksQuery);
+      const notebooksData: Notebook[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        notebooksData.push({
+          id: doc.id,
+          ...doc.data()
+        } as Notebook);
+      });
+      
+      setNotebooks(notebooksData);
+    } catch (error) {
+      console.error('Error fetching notebooks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generar preguntas de quiz
+  const generateQuizQuestions = useCallback(async (notebookId: string): Promise<QuizQuestion[]> => {
+    try {
+      if (!auth.currentUser) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Obtener conceptos del cuaderno usando una consulta filtrada por cuaderno
+      const conceptsQuery = query(
+        collection(db, 'conceptos'),
+        where('cuadernoId', '==', notebookId)
+      );
+      
+      const conceptDocs = await getDocs(conceptsQuery);
+      const allConcepts: Concept[] = [];
+      
+      // Procesar los documentos de conceptos
+      for (const doc of conceptDocs.docs) {
+        const conceptosData = doc.data().conceptos || [];
+        conceptosData.forEach((concepto: any, index: number) => {
+          allConcepts.push({
+            id: `${doc.id}-${index}`,
+            término: concepto.término,
+            definición: concepto.definición,
+            fuente: concepto.fuente,
+            usuarioId: concepto.usuarioId,
+            docId: doc.id,
+            index,
+            notasPersonales: concepto.notasPersonales,
+            reviewId: concepto.reviewId,
+            dominado: concepto.dominado
+          } as Concept);
+        });
+      }
+
+      if (allConcepts.length < 4) {
+        throw new Error('Se necesitan al menos 4 conceptos para generar el quiz');
+      }
+
+      // Seleccionar 10 conceptos aleatorios para el quiz (o todos si hay menos de 10)
+      const maxQuestions = Math.min(10, allConcepts.length);
+      const shuffledConcepts = allConcepts.sort(() => 0.5 - Math.random());
+      const selectedConcepts = shuffledConcepts.slice(0, maxQuestions);
+
+      // Generar preguntas
+      const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
+        // Seleccionar 3 distractores aleatorios
+        const otherConcepts = allConcepts.filter(c => c.id !== concept.id);
+        const distractors = otherConcepts
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 3);
+
+        // Crear opciones
+        const options: QuizOption[] = [
+          {
+            id: `option-${index}-correct`,
+            term: concept.término,
+            isCorrect: true,
+            conceptId: concept.id
+          },
+          ...distractors.map((distractor, distractorIndex) => ({
+            id: `option-${index}-${distractorIndex}`,
+            term: distractor.término,
+            isCorrect: false,
+            conceptId: distractor.id
+          }))
+        ];
+
+        // Mezclar las opciones aleatoriamente
+        const shuffledOptions = options.sort(() => 0.5 - Math.random());
+
+        return {
+          id: `question-${index}`,
+          definition: concept.definición,
+          correctAnswer: concept,
+          options: shuffledOptions,
+          source: concept.fuente
+        };
+      });
+
+      return quizQuestions;
+    } catch (error) {
+      console.error('Error generating quiz questions:', error);
+      throw error;
+    }
+  }, []);
+
+  // Iniciar sesión de quiz
+  const startQuizSession = async () => {
+    if (!selectedNotebook || !quizAvailable) return;
+
+    try {
+      setLoading(true);
+      
+      // Verificar disponibilidad del quiz
+      await checkQuizAvailability(selectedNotebook.id);
+      if (!quizAvailable) {
+        setLoading(false);
+        return;
+      }
+      
+      // Generar preguntas
+      const quizQuestions = await generateQuizQuestions(selectedNotebook.id);
+      setQuestions(quizQuestions);
+      setMaxScore(quizQuestions.length);
+      
+      // Inicializar sesión
+      const session: QuizSession = {
+        id: `quiz-${Date.now()}`,
+        userId: auth.currentUser!.uid,
+        notebookId: selectedNotebook.id,
+        notebookTitle: selectedNotebook.title,
+        questions: quizQuestions,
+        responses: [],
+        startTime: new Date(),
+        score: 0,
+        maxScore: quizQuestions.length,
+        accuracy: 0,
+        timeBonus: 0,
+        finalScore: 0
+      };
+      
+      setQuizSession(session);
+      setCurrentQuestionIndex(0);
+      setResponses([]);
+      setScore(0);
+      setSessionActive(true);
+      setSessionComplete(false);
+      
+      // Iniciar timer
+      start();
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error starting quiz session:', error);
+      setLoading(false);
+    }
+  };
+
+  // Manejar respuesta del usuario
+  const handleAnswerSelection = (optionId: string) => {
+    if (!sessionActive || selectedOption) return;
+
+    setSelectedOption(optionId);
+    
+    const currentQuestion = questions[currentQuestionIndex];
+    const selectedOptionData = currentQuestion.options.find(opt => opt.id === optionId);
+    const correctOption = currentQuestion.options.find(opt => opt.isCorrect);
+    
+    if (!selectedOptionData || !correctOption) return;
+
+    const isCorrect = selectedOptionData.isCorrect;
+    const response: QuizResponse = {
+      questionId: currentQuestion.id,
+      selectedOptionId: optionId,
+      correctOptionId: correctOption.id,
+      isCorrect,
+      timeSpent: 0, // Calcularemos el tiempo real después
+      timestamp: new Date()
+    };
+
+    setResponses(prev => [...prev, response]);
+    
+    if (isCorrect) {
+      setScore(prev => prev + 1);
+      setFeedbackMessage('¡Correcto! 🎉');
+      setFeedbackType('success');
+    } else {
+      setFeedbackMessage(`Incorrecto. La respuesta correcta era: ${correctOption.term}`);
+      setFeedbackType('error');
+    }
+
+    setShowFeedback(true);
+
+    // Avanzar a la siguiente pregunta después de 2 segundos
+    setTimeout(() => {
+      setShowFeedback(false);
+      setSelectedOption(null);
+      
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        // Quiz completado
+        const finalTimeRemaining = timerTimeRemaining;
+        const finalScoreResult = calculateFinalQuizScore(score + (isCorrect ? 1 : 0), questions.length, finalTimeRemaining);
+        completeQuizSession(finalScoreResult.finalScore, finalTimeRemaining);
+      }
+    }, 2000);
+  };
+
+  // Completar sesión de quiz
+  const completeQuizSession = async (finalScoreValue: number, timeRemainingValue: number) => {
+    if (!quizSession || !auth.currentUser) return;
+
+    try {
+      setSessionActive(false);
+      setSessionComplete(true);
+      stop();
+      
+      const correctAnswers = responses.filter(r => r.isCorrect).length;
+      const accuracy = (correctAnswers / questions.length) * 100;
+      
+      const finalScoreResult = calculateFinalQuizScore(correctAnswers, questions.length, timeRemainingValue);
+      
+      // Actualizar sesión con resultados finales
+      const completedSession: QuizSession = {
+        ...quizSession,
+        endTime: new Date(),
+        totalTime: 600 - timeRemainingValue,
+        timeRemaining: timeRemainingValue,
+        score: correctAnswers,
+        accuracy,
+        timeBonus: finalScoreResult.timeBonus,
+        finalScore: finalScoreResult.finalScore
+      };
+      
+      setQuizSession(completedSession);
+      setFinalScore(finalScoreResult.finalScore);
+      
+      // Guardar resultados en Firestore
+      await saveQuizResults(completedSession);
+      
+      // Actualizar límites de quiz
+      await updateQuizLimits();
+      
+    } catch (error) {
+      console.error('Error completing quiz session:', error);
+    }
+  };
+
+  // Guardar resultados del quiz
+  const saveQuizResults = async (session: QuizSession) => {
+    if (!auth.currentUser) return;
+
+    try {
+      const quizResultsRef = doc(db, 'users', auth.currentUser.uid, 'quizResults', session.id);
+      await setDoc(quizResultsRef, {
+        ...session,
+        startTime: Timestamp.fromDate(session.startTime),
+        endTime: session.endTime ? Timestamp.fromDate(session.endTime) : null,
+        createdAt: Timestamp.now()
+      });
+
+      // Actualizar estadísticas del cuaderno
+      const notebookStatsRef = doc(db, 'users', auth.currentUser.uid, 'quizStats', session.notebookId);
+      const statsDoc = await getDoc(notebookStatsRef);
+      
+      if (statsDoc.exists()) {
+        const currentStats = statsDoc.data();
+        await updateDoc(notebookStatsRef, {
+          totalQuizzes: (currentStats.totalQuizzes || 0) + 1,
+          totalQuestions: (currentStats.totalQuestions || 0) + session.questions.length,
+          correctAnswers: (currentStats.correctAnswers || 0) + session.score,
+          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore),
+          lastQuizDate: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      } else {
+        await setDoc(notebookStatsRef, {
+          totalQuizzes: 1,
+          totalQuestions: session.questions.length,
+          correctAnswers: session.score,
+          maxScore: session.finalScore,
+          lastQuizDate: Timestamp.now(),
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      }
+    } catch (error) {
+      console.error('Error saving quiz results:', error);
+    }
+  };
+
+  // Actualizar límites de quiz
+  const updateQuizLimits = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      await setDoc(limitsRef, {
+        userId: auth.currentUser.uid,
+        lastQuizDate: new Date(),
+        quizCountThisWeek: 1,
+        weekStartDate: getWeekStartDate(),
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating quiz limits:', error);
+    }
+  };
+
+  // Obtener fecha de inicio de la semana actual
+  const getWeekStartDate = (): Date => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    return weekStart;
+  };
+
+  // Renderizar selección de cuaderno
+  const renderNotebookSelection = () => (
+    <div className="quiz-notebook-selection">
+      <h2>Selecciona un cuaderno para el quiz</h2>
+      
+      {loading ? (
+        <div className="loading-notebooks">
+          <div className="loading-spinner"></div>
+          <p>Cargando cuadernos...</p>
+        </div>
+      ) : notebooks.length === 0 ? (
+        <div className="empty-notebooks">
+          <i className="fas fa-book-open"></i>
+          <h3>No tienes cuadernos</h3>
+          <p>Crea un cuaderno con conceptos para poder hacer quizzes</p>
+          <button
+            className="create-notebook-button"
+            onClick={() => navigate('/notebooks')}
+          >
+            <i className="fas fa-plus"></i>
+            Crear cuaderno
+          </button>
+        </div>
+      ) : (
+        <div className="notebooks-list">
+          {notebooks.map((notebook) => (
+            <div
+              key={notebook.id}
+              className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
+              onClick={() => {
+                setSelectedNotebook(notebook);
+                checkQuizAvailability(notebook.id);
+              }}
+            >
+              <div className="notebook-color" style={{ backgroundColor: notebook.color }}></div>
+              <div className="notebook-title">{notebook.title}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {selectedNotebook && (
+        <div className="quiz-options">
+          <div className="quiz-info">
+            <h3>¿Listo para el quiz?</h3>
+            <p>
+              Se te mostrarán definiciones y deberás seleccionar el término correcto.
+              <br />
+              <strong>10 preguntas aleatorias</strong> con <strong>10 minutos</strong> de tiempo.
+              <br />
+              <strong>Puntuación:</strong> Respuestas correctas × tiempo restante
+            </p>
+            
+            {!quizAvailable && (
+              <div className="quiz-limit-warning">
+                <i className="fas fa-clock"></i>
+                <span>{quizLimitMessage}</span>
+              </div>
+            )}
+          </div>
+          
+          <button
+            className={`start-quiz-button ${!quizAvailable ? 'disabled' : ''}`}
+            onClick={startQuizSession}
+            disabled={loading || !quizAvailable}
+          >
+            {loading ? (
+              <><i className="fas fa-spinner fa-spin"></i> Preparando quiz...</>
+            ) : !quizAvailable ? (
+              <><i className="fas fa-lock"></i> Quiz no disponible</>
+            ) : (
+              <><i className="fas fa-play"></i> Comenzar quiz</>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Renderizar pregunta actual
+  const renderCurrentQuestion = () => {
+    if (!questions[currentQuestionIndex]) return null;
+
+    const question = questions[currentQuestionIndex];
+    const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+    return (
+      <div className="quiz-session-container">
+        {/* Header con progreso y timer */}
+        <div className="quiz-header">
+          <div className="quiz-progress">
+            <div className="progress-bar">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <div className="progress-text">
+              Pregunta {currentQuestionIndex + 1} de {questions.length}
+            </div>
+          </div>
+          
+          {/* Timer */}
+          <div className={`quiz-timer ${timerClass}`}>
+            <div className="timer-display">
+              <i className="fas fa-clock"></i>
+              <span className="timer-text">{formattedTime}</span>
+            </div>
+            <div className="timer-progress">
+              <div 
+                className="timer-progress-fill" 
+                style={{ 
+                  width: `${progress}%`,
+                  backgroundColor: timerColor
+                }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="quiz-score">
+            <span className="score-label">Puntuación:</span>
+            <span className={`score-value ${score >= 0 ? 'positive' : 'negative'}`}>
+              {score >= 0 ? '+' : ''}{score}
+            </span>
+          </div>
+        </div>
+
+        {/* Pregunta */}
+        <div className="quiz-question-container">
+          <div className="question-definition">
+            <h3>Definición:</h3>
+            <p>{question.definition}</p>
+            <div className="question-source">
+              <span>Fuente: {question.source}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Opciones de respuesta */}
+        <div className="quiz-options-container">
+          {question.options.map((option) => (
+            <button
+              key={option.id}
+              className={`quiz-option ${
+                selectedOption === option.id 
+                  ? option.isCorrect 
+                    ? 'correct' 
+                    : 'incorrect'
+                  : ''
+              } ${selectedOption ? 'disabled' : ''}`}
+              onClick={() => handleAnswerSelection(option.id)}
+              disabled={selectedOption !== null}
+            >
+              <span className="option-text">{option.term}</span>
+              {selectedOption === option.id && (
+                <i className={`fas ${option.isCorrect ? 'fa-check' : 'fa-times'}`}></i>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Feedback */}
+        {showFeedback && (
+          <div className={`quiz-feedback ${feedbackType}`}>
+            <i className={`fas ${feedbackType === 'success' ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
+            <span>{feedbackMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Renderizar resultados finales
+  const renderQuizResults = () => {
+    if (!quizSession) return null;
+
+    const correctAnswers = responses.filter(r => r.isCorrect).length;
+    const totalTime = quizSession.totalTime || 0;
+
+    return (
+      <div className="quiz-results">
+        <div className="results-header">
+          <i className="fas fa-trophy"></i>
+          <h2>¡Quiz completado!</h2>
+        </div>
+        
+        <div className="results-stats">
+          <div className="stat-item">
+            <div className="stat-icon">
+              <i className="fas fa-star"></i>
+            </div>
+            <div className="stat-value">{finalScore}</div>
+            <div className="stat-label">Puntuación final</div>
+          </div>
+          
+          <div className="stat-item">
+            <div className="stat-icon">
+              <i className="fas fa-check-circle"></i>
+            </div>
+            <div className="stat-value">{correctAnswers}/{questions.length}</div>
+            <div className="stat-label">Respuestas correctas</div>
+          </div>
+          
+          <div className="stat-item">
+            <div className="stat-icon">
+              <i className="fas fa-percentage"></i>
+            </div>
+            <div className="stat-value">{Math.round((correctAnswers / questions.length) * 100)}%</div>
+            <div className="stat-label">Precisión</div>
+          </div>
+          
+          <div className="stat-item">
+            <div className="stat-icon">
+              <i className="fas fa-clock"></i>
+            </div>
+            <div className="stat-value">{Math.round(totalTime)}s</div>
+            <div className="stat-label">Tiempo total</div>
+          </div>
+          
+          {quizSession.timeBonus > 0 && (
+            <div className="stat-item bonus">
+              <div className="stat-icon">
+                <i className="fas fa-bolt"></i>
+              </div>
+              <div className="stat-value">+{quizSession.timeBonus}</div>
+              <div className="stat-label">Bonus por tiempo</div>
+            </div>
+          )}
+        </div>
+        
+        <div className="results-actions">
+          <button
+            className="action-button primary"
+            onClick={() => {
+              setSessionComplete(false);
+              setSessionActive(false);
+              setSelectedNotebook(null);
+              reset();
+            }}
+          >
+            <i className="fas fa-redo"></i> Nuevo quiz
+          </button>
+          
+          <button
+            className="action-button secondary"
+            onClick={() => navigate('/study')}
+          >
+            <i className="fas fa-home"></i> Volver a estudio
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="quiz-mode-container">
+      <header className="quiz-mode-header">
+        <div className="header-content">
+          <button
+            className="back-button"
+            onClick={() => {
+              if (sessionActive) {
+                if (window.confirm("¿Seguro que quieres salir? Tu progreso se perderá.")) {
+                  navigate('/notebooks');
+                }
+              } else {
+                navigate('/notebooks');
+              }
+            }}
+          >
+            {sessionActive ? <i className="fas fa-times"></i> : <i className="fas fa-arrow-left"></i>}
+          </button>
+          
+          <h1>
+            {selectedNotebook ? selectedNotebook.title : 'Quiz'}
+            {sessionActive && (
+              <span className="mode-badge quiz">
+                Quiz
+              </span>
+            )}
+          </h1>
+          
+          <div className="header-spacer"></div>
+        </div>
+      </header>
+      
+      <main className="quiz-mode-main">
+        {!sessionActive && !sessionComplete && renderNotebookSelection()}
+        {sessionActive && renderCurrentQuestion()}
+        {sessionComplete && renderQuizResults()}
+      </main>
+    </div>
+  );
+};
+
+export default QuizModePage; 
