@@ -1,9 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { StudyDashboardData, Notebook, StudyMode } from '../types/interfaces';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { StudyDashboardData, Notebook, StudyMode, LearningData } from '../types/interfaces';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useStudyService } from '../hooks/useStudyService';
+import { getNextSmartStudyDate } from '../utils/sm3Algorithm';
 import '../styles/StudyDashboard.css';
+
+// Función auxiliar para obtener datos de aprendizaje
+const getLearningDataForNotebook = async (userId: string, notebookId: string): Promise<LearningData[]> => {
+  try {
+    const learningRef = collection(db, 'users', userId, 'learningData');
+    const learningQuery = query(
+      learningRef,
+      where('notebookId', '==', notebookId)
+    );
+    
+    const learningSnapshot = await getDocs(learningQuery);
+    const learningData: LearningData[] = [];
+    
+    learningSnapshot.forEach(doc => {
+      const data = doc.data();
+      learningData.push({
+        ...data,
+        nextReviewDate: data.nextReviewDate?.toDate() || new Date(),
+        lastReviewDate: data.lastReviewDate?.toDate() || new Date()
+      } as LearningData);
+    });
+    
+    return learningData;
+  } catch (err) {
+    console.error('Error getting learning data:', err);
+    return [];
+  }
+};
 
 interface StudyDashboardProps {
   notebook: Notebook | null;
@@ -221,6 +250,37 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     let studyLimits = null;
     try {
       console.log('Consultando límites de quiz reales...');
+      
+      // Primero, verificar si el cuaderno es recientemente creado (menos de 24 horas)
+      const notebookRef = doc(db, 'notebooks', notebookId);
+      const notebookDoc = await getDoc(notebookRef);
+      
+      let isRecentlyCreatedNotebook = false;
+      if (notebookDoc.exists()) {
+        const notebookData = notebookDoc.data();
+        const notebookCreatedAt = notebookData.createdAt?.toDate();
+        
+        if (notebookCreatedAt) {
+          const now = new Date();
+          const hoursSinceCreation = (now.getTime() - notebookCreatedAt.getTime()) / (1000 * 60 * 60);
+          
+          console.log('🔍 Análisis del cuaderno en dashboard:', {
+            notebookId,
+            createdAt: notebookCreatedAt.toISOString(),
+            hoursSinceCreation: hoursSinceCreation,
+            isRecentlyCreated: hoursSinceCreation < 24
+          });
+          
+          // Marcar como recientemente creado, pero NO permitir quiz inmediatamente
+          if (hoursSinceCreation < 24) {
+            isRecentlyCreatedNotebook = true;
+            console.log('✅ Cuaderno recientemente creado detectado');
+          }
+        }
+      }
+
+      // SIEMPRE verificar límites de quiz, independientemente de si el cuaderno es reciente
+      console.log('🔍 Verificando límites de quiz...');
       const limitsRef = doc(db, 'users', userId, 'limits', 'study');
       const limitsDoc = await getDoc(limitsRef);
       
@@ -256,12 +316,24 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             console.log('✅ Quiz disponible (pasó más de 7 días)');
           }
         } else {
-          isQuizAvailable = true;
-          console.log('✅ Primer quiz, disponible (no hay lastQuizDate)');
+          // No hay lastQuizDate, verificar si es un cuaderno recientemente creado
+          if (isRecentlyCreatedNotebook) {
+            isQuizAvailable = true;
+            console.log('✅ Primer quiz para cuaderno recientemente creado, disponible');
+          } else {
+            isQuizAvailable = true;
+            console.log('✅ Primer quiz, disponible (no hay lastQuizDate)');
+          }
         }
       } else {
-        isQuizAvailable = true;
-        console.log('⚠️ No se encontraron límites de quiz, asumiendo disponible');
+        // No hay límites previos, verificar si es un cuaderno recientemente creado
+        if (isRecentlyCreatedNotebook) {
+          isQuizAvailable = true;
+          console.log('✅ Primer quiz para cuaderno recientemente creado, disponible (sin límites previos)');
+        } else {
+          isQuizAvailable = true;
+          console.log('⚠️ No se encontraron límites de quiz, asumiendo disponible');
+        }
       }
     } catch (error) {
       console.error('❌ Error consultando límites:', error);
@@ -278,9 +350,39 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       formula: `${completedSmartSessions} × ${maxQuizScore} = ${generalScore}`
     });
 
-    const nextSmartStudyDate = totalConcepts > 0 
-      ? new Date(Date.now() + 24 * 60 * 60 * 1000) // Mañana si hay conceptos
-      : new Date(); // Hoy si no hay conceptos
+    // Calcular próxima fecha de estudio inteligente usando SM-3
+    let nextSmartStudyDate = new Date();
+    if (totalConcepts > 0) {
+      try {
+        const learningData = await getLearningDataForNotebook(userId, notebookId);
+        const nextDate = getNextSmartStudyDate(learningData);
+        
+        if (nextDate) {
+          nextSmartStudyDate = nextDate;
+          console.log('📅 Próxima fecha de estudio inteligente:', nextSmartStudyDate.toISOString());
+        } else {
+          // No hay conceptos listos ni fechas futuras programadas
+          // Esto significa que todos los conceptos ya fueron estudiados recientemente
+          // y están programados para fechas muy lejanas
+          const futureDates = learningData
+            .map(data => new Date(data.nextReviewDate))
+            .filter(date => date > new Date())
+            .sort((a, b) => a.getTime() - b.getTime());
+          
+          if (futureDates.length > 0) {
+            nextSmartStudyDate = futureDates[0];
+            console.log('📅 Próxima fecha de estudio inteligente (futura):', nextSmartStudyDate.toISOString());
+          } else {
+            // No hay fechas futuras, usar mañana como fallback
+            nextSmartStudyDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            console.log('📅 No hay fechas futuras, usando fallback (mañana)');
+          }
+        }
+      } catch (error) {
+        console.log('Error calculating next smart study date, using fallback:', error);
+        nextSmartStudyDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Mañana como fallback
+      }
+    }
 
     // Usar los datos reales de límites para determinar disponibilidad
     const isFreeStudyAvailable = totalConcepts > 0 && (studyLimits?.isFreeStudyAvailable !== false);
@@ -291,10 +393,11 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       try {
         const reviewableCount = await studyService.getReviewableConceptsCount(userId, notebookId);
         isSmartStudyAvailable = reviewableCount > 0;
+        console.log('🔍 Conceptos listos para repaso:', reviewableCount);
       } catch (error) {
         console.log('Error checking reviewable concepts, using fallback:', error);
-        // En caso de error, usar la lógica anterior
-        isSmartStudyAvailable = totalConcepts > 0;
+        // En caso de error, asumir que NO está disponible (más seguro)
+        isSmartStudyAvailable = false;
       }
     }
     
@@ -304,7 +407,10 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     let lastFreeStudyDate = studyLimits?.lastFreeStudyDate 
       ? (() => {
           try {
-            const date = new Date(studyLimits.lastFreeStudyDate);
+            // Manejar Timestamps de Firestore correctamente
+            const date = studyLimits.lastFreeStudyDate instanceof Timestamp 
+              ? studyLimits.lastFreeStudyDate.toDate() 
+              : new Date(studyLimits.lastFreeStudyDate);
             return isNaN(date.getTime()) ? undefined : date;
           } catch (error) {
             console.warn('Fecha inválida en lastFreeStudyDate:', studyLimits.lastFreeStudyDate);
@@ -315,26 +421,36 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
 
     // Calcular próxima fecha de estudio libre
     let nextFreeStudyDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Por defecto mañana
-    if (lastFreeStudyDate) {
-      const now = new Date();
-      const daysSinceLastFreeStudy = Math.floor((now.getTime() - lastFreeStudyDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSinceLastFreeStudy < 1) {
-        const nextFreeStudy = new Date(lastFreeStudyDate);
-        nextFreeStudy.setDate(nextFreeStudy.getDate() + 1);
-        nextFreeStudyDate = nextFreeStudy;
-      }
-    }
-
+    
     // Verificar disponibilidad real de estudio libre usando el servicio
     let actualFreeStudyAvailable = isFreeStudyAvailable;
     if (totalConcepts > 0 && studyLimits) {
       try {
+        console.log('🔍 Verificando límites de estudio libre...');
+        console.log('🔍 Límites actuales:', studyLimits);
+        console.log('🔍 lastFreeStudyDate:', lastFreeStudyDate ? lastFreeStudyDate.toISOString() : 'undefined');
+        
         actualFreeStudyAvailable = await studyService.checkFreeStudyLimit(userId);
+        
+        console.log('🔍 Resultado de checkFreeStudyLimit:', actualFreeStudyAvailable);
       } catch (error) {
         console.log('Error checking free study limit, using fallback:', error);
         // En caso de error, usar la lógica anterior
         actualFreeStudyAvailable = isFreeStudyAvailable;
       }
+    } else {
+      console.log('🔍 No hay conceptos o límites, usando fallback para estudio libre:', isFreeStudyAvailable);
+    }
+    
+    // Si el estudio libre NO está disponible hoy, la próxima fecha es mañana
+    if (!actualFreeStudyAvailable) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0); // Inicio del día
+      nextFreeStudyDate = tomorrow;
+      console.log('📅 Estudio libre no disponible hoy, próximo disponible mañana:', nextFreeStudyDate.toISOString());
+    } else {
+      console.log('✅ Estudio libre disponible hoy');
     }
 
     console.log('📊 DATOS REALES FINALES:', {
@@ -403,7 +519,16 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       return 'Hoy';
     }
 
-    // Formato normal
+    // Si es en más de 7 días, mostrar la fecha completa
+    const daysDiff = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 7) {
+      return date.toLocaleDateString('es-ES', { 
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    // Formato normal para fechas cercanas
     return date.toLocaleDateString('es-ES', { 
       weekday: 'long',
       month: 'short',
@@ -471,10 +596,75 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
-              fontSize: '11px'
+              fontSize: '11px',
+              marginRight: '8px'
             }}
           >
             🔄 Refresh Dashboard
+          </button>
+          
+          <button
+            onClick={async () => {
+              if (!notebook) return;
+              console.log('🔍 DEBUG: Verificando datos de aprendizaje...');
+              
+              try {
+                // Verificar datos de aprendizaje
+                const learningData = await getLearningDataForNotebook(userId, notebook.id);
+                console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
+                
+                // Verificar conceptos del cuaderno
+                const conceptsQuery = query(
+                  collection(db, 'conceptos'),
+                  where('cuadernoId', '==', notebook.id)
+                );
+                const conceptDocs = await getDocs(conceptsQuery);
+                const allConcepts: any[] = [];
+                
+                conceptDocs.forEach(doc => {
+                  const conceptosData = doc.data().conceptos || [];
+                  conceptosData.forEach((concepto: any, index: number) => {
+                    allConcepts.push({
+                      id: concepto.id || `${doc.id}-${index}`,
+                      término: concepto.término
+                    });
+                  });
+                });
+                
+                console.log('📋 Conceptos del cuaderno:', allConcepts.length);
+                console.log('🎯 Conceptos:', allConcepts);
+                
+                // Verificar conceptos listos para repaso
+                const reviewableCount = await studyService.getReviewableConceptsCount(userId, notebook.id);
+                console.log('✅ Conceptos listos para repaso:', reviewableCount);
+                
+                // Verificar si hay coincidencias
+                const learningIds = learningData.map(data => data.conceptId);
+                const conceptIds = allConcepts.map(c => c.id);
+                
+                console.log('🔍 COMPARACIÓN DE IDs:');
+                console.log('📊 IDs en datos de aprendizaje:', learningIds);
+                console.log('📋 IDs en conceptos del cuaderno:', conceptIds);
+                
+                const matches = learningIds.filter(id => conceptIds.includes(id));
+                console.log('✅ IDs que coinciden:', matches.length, 'de', learningIds.length);
+                console.log('🎯 IDs coincidentes:', matches);
+                
+              } catch (error) {
+                console.error('❌ Error en debug:', error);
+              }
+            }}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            🔍 Debug Data
           </button>
         </div>
       )}
@@ -566,30 +756,6 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Información adicional */}
-      <div className="dashboard-info">
-        {dashboardData.isFreeStudyAvailable ? (
-          <>
-            <p>
-              <strong>Score General:</strong> Estudios inteligentes completados × Puntuación máxima del quiz.
-            </p>
-            <p>
-              <strong>Estudio Inteligente:</strong> Algoritmo de estudio inteligente SM-3. Disponible cada que tu memoria necesita repasar.
-            </p>
-            <p>
-              <strong>Quiz:</strong> 10 conceptos aleatorios a contestar en 10 minutos.
-            </p>
-            <p>
-              <strong>Estudio Libre:</strong> Repasa todos los conceptos. Disponible una vez al día.
-            </p>
-          </>
-        ) : (
-          <p>
-            <strong>Agrega conceptos a este cuaderno</strong> para comenzar a estudiar. Ve a la sección de cuadernos y agrega algunos conceptos.
-          </p>
-        )}
       </div>
     </div>
   );

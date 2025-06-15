@@ -93,6 +93,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   
   const handleSwipe = (direction: string) => {
     // En modo estudio inteligente, solo permitir swipe después del candado
+    // En modo estudio libre, permitir swipe siempre
     if (reviewMode && !canEvaluate) {
       return;
     }
@@ -174,7 +175,15 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   };
   
   const renderEvaluationButtons = () => {
-    if (!reviewMode || !canEvaluate) return null;
+    // Show buttons for both smart study (reviewMode) and free study modes
+    // For smart study: only when canEvaluate is true (after lock)
+    // For free study: always show buttons
+    if (reviewMode && !canEvaluate) return null;
+    
+    // For free study mode, we don't need the lock mechanism
+    const shouldShowButtons = reviewMode ? canEvaluate : true;
+    
+    if (!shouldShowButtons) return null;
     
     return (
       <div className="evaluation-buttons">

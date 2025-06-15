@@ -861,8 +861,9 @@
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 36px !important;
+  font-weight: 800 !important;
+  font-family: 'Poppins', sans-serif !important;
   color: var(--text-dark);
   margin-bottom: 5px;
   background: linear-gradient(135deg, var(--primary-color), #34C759);

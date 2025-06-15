@@ -285,14 +285,24 @@ const NotebookDetail = () => {
         2. La definición NO puede contener información que revele directamente el término
         3. Usa sinónimos, descripciones funcionales o características para definir el concepto
         4. La definición debe ser clara y específica sin mencionar el término exacto
+        5. PRESERVA información importante como:
+           - Números específicos (ej: "más de 200 estructuras", "10 minutos")
+           - Fechas exactas (ej: "en 1893", "durante la década de 1960")
+           - Palabras clave como "único", "primero", "mayor", "menor", "más", "menos"
+           - Comparaciones específicas (ej: "superando en número a Egipto")
+           - Características distintivas (ej: "con capacidad de renovación parcial")
         
         Ejemplos CORRECTOS:
-        - Término: "Hígado" → Definición: "Órgano vital que procesa toxinas y produce bilis"
+        - Término: "Pirámides de Sudán" → Definición: "Estructuras antiguas, con más de 200 estructuras, superando en número a Egipto"
+        - Término: "Hígado" → Definición: "Único órgano interno con capacidad de renovación parcial"
+        - Término: "Nueva Zelanda" → Definición: "Primer país en conceder el derecho al voto femenino, en 1893"
         - Término: "Mitocondria" → Definición: "Orgánulo celular responsable de la producción de energía"
         
         Ejemplos INCORRECTOS:
         - Término: "Hígado" → Definición: "El hígado es un órgano que..."
         - Término: "Mitocondria" → Definición: "La mitocondria es un orgánulo..."
+        - Término: "Pirámides de Sudán" → Definición: "Estructuras antiguas, superando en número a las de Egipto" (falta "más de 200")
+        - Término: "Hígado" → Definición: "Órgano interno con capacidad de renovación parcial" (falta "Único")
         
         Extrae al menos 10 conceptos importantes si el documento es lo suficientemente extenso.
         Asegúrate de que el resultado sea únicamente el array JSON, sin texto adicional.

@@ -171,6 +171,21 @@ const StudyModePage = () => {
     }
   }, [selectedNotebook]);
   
+  // Actualizar tiempo de estudio mientras la sesión está activa
+  useEffect(() => {
+    if (!sessionActive || !sessionTimer) return;
+    
+    const interval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - sessionTimer) / 1000);
+      setMetrics(prev => ({
+        ...prev,
+        timeSpent: elapsedSeconds
+      }));
+    }, 1000); // Actualizar cada segundo
+    
+    return () => clearInterval(interval);
+  }, [sessionActive, sessionTimer]);
+  
   // Función para refrescar datos del dashboard
   const refreshDashboardData = useCallback(async () => {
     if (!selectedNotebook || !auth.currentUser) return;
@@ -212,6 +227,9 @@ const StudyModePage = () => {
     }
     
     const sessionMode = mode || studyMode;
+    
+    // Actualizar el modo de estudio para que se muestre correctamente en el header
+    setStudyMode(sessionMode);
     
     // Si el modo seleccionado es QUIZ, redirigir al QuizModePage
     if (sessionMode === StudyMode.QUIZ) {
@@ -798,37 +816,6 @@ const StudyModePage = () => {
                 </p>
               </div>
             )}
-            
-            <div className="summary-actions">
-              {sessionReviewQueue.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 10 }}>
-                  <button
-                    className="action-button review-pending"
-                    onClick={startImmediateReviewSession}
-                    style={{ marginBottom: 4 }}
-                  >
-                    <i className="fas fa-redo"></i> ¡Refuerza lo que más te costó! ({sessionReviewQueue.length})
-                  </button>
-                  <span style={{ fontSize: 13, color: '#FF6B6B', opacity: 0.85, textAlign: 'center', maxWidth: 320 }}>
-                    Repasa inmediatamente los conceptos que marcaste como "Revisar después". Esto no afecta tu progreso futuro, pero te ayuda a reforzar lo aprendido hoy.
-                  </span>
-                </div>
-              )}
-              
-              <button
-                className="action-button secondary"
-                onClick={startNewSession}
-              >
-                <i className="fas fa-redo"></i> Nueva sesión
-              </button>
-              
-              <button
-                className="action-button primary"
-                onClick={() => navigate('/notebooks')}
-              >
-                <i className="fas fa-home"></i> Volver a inicio
-              </button>
-            </div>
           </div>
         )}
       </main>

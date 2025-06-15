@@ -253,7 +253,12 @@ export const getNextQuizDate = (lastQuizDate?: Date): Date => {
  * Verificar si el estudio libre está disponible hoy
  */
 export const isFreeStudyAvailable = (lastFreeStudyDate?: Date): boolean => {
-  if (!lastFreeStudyDate) return true;
+  console.log('🔍 isFreeStudyAvailable llamado con:', lastFreeStudyDate);
+  
+  if (!lastFreeStudyDate) {
+    console.log('✅ No hay lastFreeStudyDate, estudio libre disponible');
+    return true;
+  }
   
   const today = new Date();
   const lastStudy = new Date(lastFreeStudyDate);
@@ -261,5 +266,15 @@ export const isFreeStudyAvailable = (lastFreeStudyDate?: Date): boolean => {
   today.setHours(0, 0, 0, 0);
   lastStudy.setHours(0, 0, 0, 0);
   
-  return today.getTime() !== lastStudy.getTime();
+  const isAvailable = today.getTime() !== lastStudy.getTime();
+  
+  console.log('🔍 Cálculo de disponibilidad:', {
+    today: today.toISOString(),
+    lastStudy: lastStudy.toISOString(),
+    todayTime: today.getTime(),
+    lastStudyTime: lastStudy.getTime(),
+    isAvailable: isAvailable
+  });
+  
+  return isAvailable;
 }; 

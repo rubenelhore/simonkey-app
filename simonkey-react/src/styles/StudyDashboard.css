@@ -1,4 +1,21 @@
 /* StudyDashboard.css */
+
+/* Forzar tipografía Poppins en todo el dashboard */
+.study-dashboard,
+.study-dashboard *,
+.dashboard-card,
+.dashboard-card *,
+.score-card,
+.score-card *,
+.study-card,
+.study-card *,
+.quiz-card,
+.quiz-card *,
+.free-study-card,
+.free-study-card * {
+  font-family: 'Poppins', sans-serif !important;
+}
+
 .study-dashboard {
   background: white;
   border-radius: 16px;
@@ -9,6 +26,7 @@
   position: relative;
   overflow: hidden;
   border: 1px solid #e5e5ea;
+  font-family: 'Poppins', sans-serif !important;
 }
 
 .study-dashboard::before {
@@ -105,6 +123,7 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
+  font-family: 'Poppins', sans-serif !important;
   color: #333;
   text-align: center;
 }
@@ -151,7 +170,7 @@
 .score-value {
   font-size: 1.4rem;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', sans-serif !important;
   margin-bottom: 6px;
   color: #22c55e;
 }
@@ -174,6 +193,7 @@
 .date-value {
   font-size: 1.4rem;
   font-weight: 700;
+  font-family: 'Poppins', sans-serif !important;
   margin-bottom: 6px;
   color: #3b82f6;
 }
@@ -206,6 +226,7 @@
 .availability-status {
   font-size: 1.4rem;
   font-weight: 700;
+  font-family: 'Poppins', sans-serif !important;
   margin-bottom: 6px;
   color: #8b5cf6;
 }

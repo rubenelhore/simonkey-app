@@ -14,7 +14,8 @@ import {
   serverTimestamp, 
   Timestamp, 
   addDoc,
-  increment 
+  increment,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { 
@@ -147,18 +148,32 @@ export const useStudyService = () => {
   const checkFreeStudyLimit = useCallback(
     async (userId: string): Promise<boolean> => {
       try {
+        console.log('🔍 checkFreeStudyLimit llamado para usuario:', userId);
+        
         const limitsRef = doc(db, 'users', userId, 'limits', 'study');
         const limitsDoc = await getDoc(limitsRef);
         
+        console.log('🔍 Documento de límites existe:', limitsDoc.exists());
+        
         if (!limitsDoc.exists()) {
+          console.log('✅ No hay límites previos, estudio libre disponible');
           return true; // Primera vez, puede estudiar
         }
         
         const limits = limitsDoc.data() as StudyLimits;
+        console.log('🔍 Límites encontrados:', limits);
+        
         const lastFreeStudyDate = limits.lastFreeStudyDate instanceof Timestamp 
           ? limits.lastFreeStudyDate.toDate() 
           : limits.lastFreeStudyDate;
-        return isFreeStudyAvailable(lastFreeStudyDate);
+        
+        console.log('🔍 lastFreeStudyDate procesado:', lastFreeStudyDate);
+        console.log('🔍 Tipo de lastFreeStudyDate:', typeof lastFreeStudyDate);
+        
+        const isAvailable = isFreeStudyAvailable(lastFreeStudyDate);
+        console.log('🔍 Resultado de isFreeStudyAvailable:', isAvailable);
+        
+        return isAvailable;
       } catch (err) {
         console.error('Error checking free study limit:', err);
         return true; // En caso de error, permitir estudio
@@ -570,18 +585,54 @@ export const useStudyService = () => {
   const getReviewableConcepts = useCallback(
     async (userId: string, notebookId: string): Promise<Concept[]> => {
       try {
+        console.log('🔍 getReviewableConcepts llamado para:', { userId, notebookId });
+        
         const learningData = await getLearningDataForNotebook(userId, notebookId);
+        console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
+        
         const readyForReview = getConceptsReadyForReview(learningData);
+        console.log('✅ Conceptos listos para repaso:', readyForReview.length);
+        console.log('🎯 IDs de conceptos listos:', readyForReview.map(data => data.conceptId));
         
         if (readyForReview.length === 0) {
+          console.log('❌ No hay conceptos listos para repaso');
           return [];
         }
         
         // Obtener los conceptos correspondientes
         const conceptIds = readyForReview.map(data => data.conceptId);
-        const concepts = await getConceptsByIds(conceptIds, userId, notebookId);
+        console.log('🔍 Buscando conceptos con IDs:', conceptIds);
         
-        return concepts;
+        const concepts = await getConceptsByIds(conceptIds, userId, notebookId);
+        console.log('✅ Conceptos encontrados para estudio:', concepts.length);
+        console.log('🎯 Conceptos para estudio:', concepts.map(c => ({ id: c.id, término: c.término })));
+        
+        // Filtrar conceptos que realmente existen en el cuaderno
+        const validConcepts = concepts.filter(concept => concept.id && concept.término);
+        console.log('✅ Conceptos válidos para estudio:', validConcepts.length);
+        
+        if (validConcepts.length === 0) {
+          console.log('⚠️ No se encontraron conceptos válidos. Limpiando datos de aprendizaje obsoletos...');
+          
+          // Limpiar datos de aprendizaje para conceptos que ya no existen
+          const allNotebookConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+          const validConceptIds = new Set(allNotebookConcepts.map(c => c.id));
+          
+          // Eliminar datos de aprendizaje para conceptos que ya no existen
+          for (const learningItem of readyForReview) {
+            if (!validConceptIds.has(learningItem.conceptId)) {
+              console.log('🗑️ Eliminando datos de aprendizaje para concepto obsoleto:', learningItem.conceptId);
+              try {
+                const learningRef = doc(db, 'users', userId, 'learningData', learningItem.conceptId);
+                await deleteDoc(learningRef);
+              } catch (err) {
+                console.error('Error eliminando datos de aprendizaje obsoleto:', err);
+              }
+            }
+          }
+        }
+        
+        return validConcepts;
       } catch (err) {
         console.error('Error getting reviewable concepts:', err);
         return [];
@@ -630,11 +681,24 @@ export const useStudyService = () => {
         }
         
         console.log('📋 Todos los conceptos encontrados:', allConcepts.map(c => ({ id: c.id, término: c.término })));
+        console.log('🔍 IDs de conceptos en el cuaderno:', allConcepts.map(c => c.id));
+        console.log('🎯 IDs buscados:', conceptIds);
         
         // Filtrar solo los conceptos que están en la lista de IDs buscados
-        const filteredConcepts = allConcepts.filter(concept => 
-          conceptIds.includes(concept.id)
-        );
+        const filteredConcepts = allConcepts.filter(concept => {
+          // Verificar si el ID del concepto coincide directamente
+          if (conceptIds.includes(concept.id)) {
+            return true;
+          }
+          
+          // Verificar si coincide con el ID generado usando docId-index
+          const generatedId = `${concept.docId}-${concept.index}`;
+          if (conceptIds.includes(generatedId)) {
+            return true;
+          }
+          
+          return false;
+        });
         
         console.log('✅ Conceptos encontrados:', filteredConcepts.length, 'de', conceptIds.length);
         console.log('🎯 Conceptos filtrados:', filteredConcepts.map(c => ({ id: c.id, término: c.término })));
@@ -654,8 +718,29 @@ export const useStudyService = () => {
   const getReviewableConceptsCount = useCallback(
     async (userId: string, notebookId: string): Promise<number> => {
       try {
+        console.log('🔍 getReviewableConceptsCount llamado para:', { userId, notebookId });
+        
         const learningData = await getLearningDataForNotebook(userId, notebookId);
+        console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
+        console.log('📋 Datos de aprendizaje:', learningData.map(data => ({
+          conceptId: data.conceptId,
+          nextReviewDate: data.nextReviewDate?.toISOString()
+        })));
+        
         const readyForReview = getConceptsReadyForReview(learningData);
+        console.log('✅ Conceptos listos para repaso:', readyForReview.length);
+        console.log('🎯 IDs de conceptos listos:', readyForReview.map(data => data.conceptId));
+        
+        // Verificar que los conceptos realmente existen en el cuaderno
+        if (readyForReview.length > 0) {
+          const conceptIds = readyForReview.map(data => data.conceptId);
+          const validConcepts = await getConceptsByIds(conceptIds, userId, notebookId);
+          const actualValidConcepts = validConcepts.filter(concept => concept.id && concept.término);
+          
+          console.log('✅ Conceptos válidos para repaso:', actualValidConcepts.length);
+          return actualValidConcepts.length;
+        }
+        
         return readyForReview.length;
       } catch (err) {
         console.error('Error getting reviewable concepts count:', err);
@@ -723,8 +808,10 @@ export const useStudyService = () => {
         for (const doc of conceptDocs.docs) {
           const conceptosData = doc.data().conceptos || [];
           conceptosData.forEach((concepto: any, index: number) => {
+            // Usar el ID que se generó al crear el concepto (UUID) o generar uno como fallback
+            const conceptId = concepto.id || `${doc.id}-${index}`;
             allConcepts.push({
-              id: `${doc.id}-${index}`,
+              id: conceptId,
               término: concepto.término,
               definición: concepto.definición,
               fuente: concepto.fuente,
