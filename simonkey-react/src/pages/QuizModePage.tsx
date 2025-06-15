@@ -32,6 +32,7 @@ const QuizModePage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [quizAvailable, setQuizAvailable] = useState<boolean>(true);
   const [quizLimitMessage, setQuizLimitMessage] = useState<string>('');
+  const [autoStartAttempted, setAutoStartAttempted] = useState<boolean>(false);
   
   // Estado de la sesión de quiz
   const [quizSession, setQuizSession] = useState<QuizSession | null>(null);
@@ -95,20 +96,52 @@ const QuizModePage: React.FC = () => {
     fetchNotebooks();
   }, []);
 
-  // Pre-seleccionar cuaderno si viene de StudyModePage
+  // Pre-seleccionar cuaderno si viene de StudyModePage e iniciar quiz automáticamente
   useEffect(() => {
-    if (location.state && location.state.notebookId && notebooks.length > 0) {
+    console.log('useEffect ejecutado:', { 
+      hasLocationState: !!location.state, 
+      notebookId: location.state?.notebookId, 
+      notebooksLength: notebooks.length,
+      autoStartAttempted
+    });
+    
+    if (location.state && location.state.notebookId && notebooks.length > 0 && !autoStartAttempted) {
       const notebook = notebooks.find(n => n.id === location.state.notebookId);
+      console.log('Buscando cuaderno:', location.state.notebookId, 'Encontrado:', !!notebook);
+      
       if (notebook) {
+        console.log('Cuaderno encontrado, iniciando quiz automáticamente:', notebook.title);
         setSelectedNotebook(notebook);
-        checkQuizAvailability(notebook.id);
+        setAutoStartAttempted(true);
+        
+        // Verificar disponibilidad y iniciar automáticamente
+        const startQuizAutomatically = async () => {
+          try {
+            console.log('Verificando disponibilidad del quiz...');
+            const isAvailable = await checkQuizAvailabilitySync(notebook.id);
+            
+            console.log('Quiz disponible:', isAvailable);
+            if (isAvailable) {
+              console.log('Iniciando sesión automáticamente...');
+              await startQuizSession(true);
+              console.log('Sesión iniciada exitosamente');
+            } else {
+              console.log('Quiz no disponible, mostrando mensaje de límite');
+            }
+          } catch (error) {
+            console.error('Error al verificar disponibilidad:', error);
+          }
+        };
+        
+        startQuizAutomatically();
       }
     }
   }, [location.state, notebooks]);
 
-  // Verificar disponibilidad del quiz (máximo 1 por semana)
-  const checkQuizAvailability = async (notebookId: string) => {
-    if (!auth.currentUser) return;
+  // Verificar disponibilidad del quiz (máximo 1 por semana) - versión síncrona
+  const checkQuizAvailabilitySync = async (notebookId: string): Promise<boolean> => {
+    console.log('checkQuizAvailabilitySync llamado para:', notebookId);
+    if (!auth.currentUser) return false;
 
     try {
       const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
@@ -121,27 +154,44 @@ const QuizModePage: React.FC = () => {
         if (lastQuizDate) {
           const now = new Date();
           const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
+          console.log('Días desde último quiz:', daysSinceLastQuiz);
           
           if (daysSinceLastQuiz < 7) {
-            setQuizAvailable(false);
             const daysRemaining = 7 - daysSinceLastQuiz;
             setQuizLimitMessage(`Puedes hacer otro quiz en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
+            console.log('Quiz no disponible, días restantes:', daysRemaining);
+            setQuizAvailable(false);
+            return false;
           } else {
-            setQuizAvailable(true);
             setQuizLimitMessage('');
+            console.log('Quiz disponible');
+            setQuizAvailable(true);
+            return true;
           }
         } else {
-          setQuizAvailable(true);
           setQuizLimitMessage('');
+          console.log('Primer quiz, disponible');
+          setQuizAvailable(true);
+          return true;
         }
       } else {
-        setQuizAvailable(true);
         setQuizLimitMessage('');
+        console.log('No hay límites, quiz disponible');
+        setQuizAvailable(true);
+        return true;
       }
     } catch (error) {
       console.error('Error checking quiz availability:', error);
+      setQuizLimitMessage('');
+      console.log('Error en verificación, asumiendo disponible');
       setQuizAvailable(true);
+      return true;
     }
+  };
+
+  // Verificar disponibilidad del quiz (máximo 1 por semana) - versión para estado
+  const checkQuizAvailability = async (notebookId: string) => {
+    await checkQuizAvailabilitySync(notebookId);
   };
 
   // Cargar cuadernos del usuario
@@ -264,21 +314,46 @@ const QuizModePage: React.FC = () => {
   }, []);
 
   // Iniciar sesión de quiz
-  const startQuizSession = async () => {
-    if (!selectedNotebook || !quizAvailable) return;
+  const startQuizSession = async (skipAvailabilityCheck: boolean = false) => {
+    console.log('startQuizSession llamado:', { 
+      selectedNotebook: !!selectedNotebook, 
+      quizAvailable, 
+      skipAvailabilityCheck 
+    });
+    
+    if (!selectedNotebook) {
+      console.error('No hay cuaderno seleccionado');
+      return;
+    }
+    
+    // Si se salta la verificación de disponibilidad, asumir que está disponible
+    if (skipAvailabilityCheck) {
+      console.log('Saltando verificación de disponibilidad, asumiendo disponible');
+    } else if (!quizAvailable) {
+      console.error('Quiz no disponible');
+      return;
+    }
 
     try {
+      console.log('Iniciando sesión de quiz...');
       setLoading(true);
       
-      // Verificar disponibilidad del quiz
-      await checkQuizAvailability(selectedNotebook.id);
-      if (!quizAvailable) {
-        setLoading(false);
-        return;
+      // Verificar disponibilidad del quiz solo si no se saltó la verificación
+      if (!skipAvailabilityCheck) {
+        console.log('Verificando disponibilidad...');
+        await checkQuizAvailability(selectedNotebook.id);
+        if (!quizAvailable) {
+          console.error('Quiz no disponible después de verificación');
+          setLoading(false);
+          return;
+        }
       }
       
+      console.log('Generando preguntas...');
       // Generar preguntas
       const quizQuestions = await generateQuizQuestions(selectedNotebook.id);
+      console.log('Preguntas generadas:', quizQuestions.length);
+      
       setQuestions(quizQuestions);
       setMaxScore(quizQuestions.length);
       
@@ -298,6 +373,7 @@ const QuizModePage: React.FC = () => {
         finalScore: 0
       };
       
+      console.log('Sesión creada:', session.id);
       setQuizSession(session);
       setCurrentQuestionIndex(0);
       setResponses([]);
@@ -308,9 +384,10 @@ const QuizModePage: React.FC = () => {
       // Iniciar timer
       start();
       
+      console.log('Sesión iniciada correctamente');
       setLoading(false);
     } catch (error) {
-      console.error('Error starting quiz session:', error);
+      console.error("Error al iniciar sesión:", error);
       setLoading(false);
     }
   };
@@ -401,6 +478,12 @@ const QuizModePage: React.FC = () => {
       // Actualizar límites de quiz
       await updateQuizLimits();
       
+      console.log('✅ Quiz completado y guardado exitosamente:', {
+        finalScore: finalScoreResult.finalScore,
+        correctAnswers,
+        notebookId: completedSession.notebookId
+      });
+      
     } catch (error) {
       console.error('Error completing quiz session:', error);
     }
@@ -411,6 +494,15 @@ const QuizModePage: React.FC = () => {
     if (!auth.currentUser) return;
 
     try {
+      console.log('💾 Guardando resultados del quiz:', {
+        sessionId: session.id,
+        notebookId: session.notebookId,
+        score: session.score,
+        finalScore: session.finalScore,
+        accuracy: session.accuracy
+      });
+
+      // 1. Guardar resultado del quiz
       const quizResultsRef = doc(db, 'users', auth.currentUser.uid, 'quizResults', session.id);
       await setDoc(quizResultsRef, {
         ...session,
@@ -418,34 +510,50 @@ const QuizModePage: React.FC = () => {
         endTime: session.endTime ? Timestamp.fromDate(session.endTime) : null,
         createdAt: Timestamp.now()
       });
+      console.log('✅ Resultado del quiz guardado');
 
-      // Actualizar estadísticas del cuaderno
+      // 2. Actualizar estadísticas del cuaderno
       const notebookStatsRef = doc(db, 'users', auth.currentUser.uid, 'quizStats', session.notebookId);
       const statsDoc = await getDoc(notebookStatsRef);
       
+      const baseStats = {
+        totalQuizzes: 1,
+        totalQuestions: session.questions.length,
+        correctAnswers: session.score,
+        maxScore: session.finalScore,
+        lastQuizDate: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+
       if (statsDoc.exists()) {
         const currentStats = statsDoc.data();
-        await updateDoc(notebookStatsRef, {
+        const updatedStats = {
+          ...baseStats,
           totalQuizzes: (currentStats.totalQuizzes || 0) + 1,
           totalQuestions: (currentStats.totalQuestions || 0) + session.questions.length,
           correctAnswers: (currentStats.correctAnswers || 0) + session.score,
-          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore),
-          lastQuizDate: Timestamp.now(),
-          updatedAt: Timestamp.now()
+          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore)
+        };
+        
+        console.log('📊 Actualizando estadísticas existentes:', {
+          antes: currentStats,
+          despues: updatedStats
         });
+        
+        await updateDoc(notebookStatsRef, updatedStats);
       } else {
-        await setDoc(notebookStatsRef, {
-          totalQuizzes: 1,
-          totalQuestions: session.questions.length,
-          correctAnswers: session.score,
-          maxScore: session.finalScore,
-          lastQuizDate: Timestamp.now(),
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
-        });
+        const newStats = {
+          ...baseStats,
+          createdAt: Timestamp.now()
+        };
+        console.log('📊 Creando nuevas estadísticas:', newStats);
+        await setDoc(notebookStatsRef, newStats);
       }
+      
+      console.log('✅ Estadísticas del cuaderno actualizadas');
     } catch (error) {
-      console.error('Error saving quiz results:', error);
+      console.error('❌ Error saving quiz results:', error);
+      throw error; // Re-lanzar el error para que se maneje en completeQuizSession
     }
   };
 
@@ -540,7 +648,7 @@ const QuizModePage: React.FC = () => {
           
           <button
             className={`start-quiz-button ${!quizAvailable ? 'disabled' : ''}`}
-            onClick={startQuizSession}
+            onClick={() => startQuizSession()}
             disabled={loading || !quizAvailable}
           >
             {loading ? (
@@ -710,6 +818,18 @@ const QuizModePage: React.FC = () => {
         <div className="results-actions">
           <button
             className="action-button primary"
+            onClick={() => navigate('/study', { 
+              state: { 
+                refreshDashboard: true,
+                notebookId: quizSession.notebookId 
+              } 
+            })}
+          >
+            <i className="fas fa-home"></i> Ver mi progreso
+          </button>
+          
+          <button
+            className="action-button secondary"
             onClick={() => {
               setSessionComplete(false);
               setSessionActive(false);
@@ -718,13 +838,6 @@ const QuizModePage: React.FC = () => {
             }}
           >
             <i className="fas fa-redo"></i> Nuevo quiz
-          </button>
-          
-          <button
-            className="action-button secondary"
-            onClick={() => navigate('/study')}
-          >
-            <i className="fas fa-home"></i> Volver a estudio
           </button>
         </div>
       </div>
@@ -772,4 +885,4 @@ const QuizModePage: React.FC = () => {
   );
 };
 
-export default QuizModePage; 
+export default QuizModePage;

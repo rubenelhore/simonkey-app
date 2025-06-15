@@ -41,7 +41,6 @@ const StudyModePage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [sessionActive, setSessionActive] = useState<boolean>(false);
   const [sessionComplete, setSessionComplete] = useState<boolean>(false);
-  const [dashboardVisible, setDashboardVisible] = useState<boolean>(true);
   const [feedback, setFeedback] = useState<{
     visible: boolean;
     message: string;
@@ -79,6 +78,13 @@ const StudyModePage = () => {
       const notebook = notebooks.find(n => n.id === location.state.notebookId);
       if (notebook) {
         setSelectedNotebook(notebook);
+        
+        // Si viene con refreshDashboard, mostrar mensaje de éxito
+        if (location.state.refreshDashboard) {
+          showFeedback('success', '¡Quiz completado! Tu progreso se ha actualizado');
+          // Limpiar el estado para evitar mostrar el mensaje repetidamente
+          window.history.replaceState({}, document.title);
+        }
       }
     }
   }, [location.state, notebooks]);
@@ -199,14 +205,16 @@ const StudyModePage = () => {
   };
   
   // Iniciar nueva sesión de estudio
-  const startStudySession = async () => {
+  const startStudySession = async (mode?: StudyMode) => {
     if (!selectedNotebook || !auth.currentUser) {
       showFeedback('warning', 'Debes seleccionar un cuaderno primero');
       return;
     }
     
+    const sessionMode = mode || studyMode;
+    
     // Si el modo seleccionado es QUIZ, redirigir al QuizModePage
-    if (studyMode === StudyMode.QUIZ) {
+    if (sessionMode === StudyMode.QUIZ) {
       navigate('/quiz', { 
         state: { 
           notebookId: selectedNotebook.id,
@@ -223,7 +231,7 @@ const StudyModePage = () => {
       const session = await studyService.createStudySession(
         auth.currentUser.uid, 
         selectedNotebook.id,
-        studyMode
+        sessionMode
       );
       
       setSessionId(session.id);
@@ -231,7 +239,7 @@ const StudyModePage = () => {
       // Cargar conceptos según el modo seleccionado
       let concepts: Concept[];
       
-      if (studyMode === StudyMode.SMART) {
+      if (sessionMode === StudyMode.SMART) {
         // Obtener conceptos listos para repaso inteligente
         concepts = await studyService.getReviewableConcepts(
           auth.currentUser.uid, 
@@ -578,7 +586,6 @@ const StudyModePage = () => {
               <>
                 {/* Lista de cuadernos */}
                 <div className="notebooks-section">
-                  <h3>Mis Cuadernos</h3>
                   <div className="notebooks-list">
                     {notebooks.map(notebook => (
                       <div
@@ -587,21 +594,16 @@ const StudyModePage = () => {
                         onClick={() => handleSelectNotebook(notebook)}
                         style={{ borderColor: notebook.color }}
                       >
-                        <div className="notebook-color" style={{ backgroundColor: notebook.color }}></div>
+                        <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
+                          {selectedNotebook?.id === notebook.id && (
+                            <div className="selected-indicator">
+                              <i className="fas fa-check"></i>
+                            </div>
+                          )}
+                        </div>
                         <div className="notebook-info">
                           <div className="notebook-title">{notebook.title}</div>
-                          <div className="notebook-stats">
-                            <span className="stat-item">
-                              <i className="fas fa-brain"></i>
-                              Conceptos: {allConcepts.filter(c => c.docId === notebook.id).length}
-                            </span>
-                          </div>
                         </div>
-                        {selectedNotebook?.id === notebook.id && (
-                          <div className="selected-indicator">
-                            <i className="fas fa-check"></i>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -610,131 +612,12 @@ const StudyModePage = () => {
                 {selectedNotebook && (
                   <>
                     {/* Dashboard de estudio */}
-                    <div className="dashboard-section">
-                      <div className="dashboard-header">
-                        <h3>Dashboard de Progreso</h3>
-                        <button 
-                          className="dashboard-toggle"
-                          onClick={() => setDashboardVisible(!dashboardVisible)}
-                        >
-                          <i className={`fas fa-chevron-${dashboardVisible ? 'up' : 'down'}`}></i>
-                        </button>
-                      </div>
-                      
-                      {dashboardVisible && (
-                        <div className="dashboard-container">
-                          <StudyDashboard
-                            notebook={selectedNotebook}
-                            userId={auth.currentUser?.uid || ''}
-                            onRefresh={refreshDashboardData}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Opciones de estudio */}
-                    <div className="study-options">
-                      <div className="study-mode-selector">
-                        <h3>Modo de Estudio</h3>
-                        <p className="mode-selector-description">
-                          Elige cómo quieres estudiar hoy
-                        </p>
-                        
-                        <div className="mode-buttons">
-                          <button
-                            className={`mode-button ${studyMode === StudyMode.SMART ? 'active' : ''}`}
-                            onClick={() => setStudyMode(StudyMode.SMART)}
-                          >
-                            <div className="mode-icon">
-                              <i className="fas fa-brain"></i>
-                            </div>
-                            <div className="mode-content">
-                              <span className="mode-title">Repaso Inteligente</span>
-                              <p className="mode-description">
-                                Solo los conceptos que tu memoria necesita repasar hoy
-                              </p>
-                              <div className="mode-features">
-                                <span className="feature">
-                                  <i className="fas fa-clock"></i> 5s de candado por concepto
-                                </span>
-                                <span className="feature">
-                                  <i className="fas fa-calendar"></i> Disponible diariamente
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                          
-                          <button
-                            className={`mode-button ${studyMode === StudyMode.FREE ? 'active' : ''}`}
-                            onClick={() => setStudyMode(StudyMode.FREE)}
-                          >
-                            <div className="mode-icon">
-                              <i className="fas fa-infinity"></i>
-                            </div>
-                            <div className="mode-content">
-                              <span className="mode-title">Estudio Libre</span>
-                              <p className="mode-description">
-                                Repasa cualquier concepto, tantas veces como quieras
-                              </p>
-                              <div className="mode-features">
-                                <span className="feature">
-                                  <i className="fas fa-unlock"></i> Sin límites de tiempo
-                                </span>
-                                <span className="feature">
-                                  <i className="fas fa-star"></i> 1 sesión por día
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                          
-                          <button
-                            className={`mode-button ${studyMode === StudyMode.QUIZ ? 'active' : ''}`}
-                            onClick={() => setStudyMode(StudyMode.QUIZ)}
-                          >
-                            <div className="mode-icon">
-                              <i className="fas fa-check-circle"></i>
-                            </div>
-                            <div className="mode-content">
-                              <span className="mode-title">Quiz</span>
-                              <p className="mode-description">
-                                Pon a prueba tu memoria con preguntas de opción múltiple
-                              </p>
-                              <div className="mode-features">
-                                <span className="feature">
-                                  <i className="fas fa-clock"></i> 10 minutos
-                                </span>
-                                <span className="feature">
-                                  <i className="fas fa-calendar-week"></i> 1 por semana
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="session-actions">
-                        <button
-                          className="start-session-button"
-                          onClick={startStudySession}
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <><i className="fas fa-spinner fa-spin"></i> Preparando...</>
-                          ) : studyMode === StudyMode.QUIZ ? (
-                            <><i className="fas fa-play"></i> Comenzar Quiz</>
-                          ) : (
-                            <><i className="fas fa-play"></i> Comenzar Sesión</>
-                          )}
-                        </button>
-                        
-                        {studyMode === StudyMode.QUIZ && (
-                          <div className="quiz-info">
-                            <i className="fas fa-info-circle"></i>
-                            <span>El quiz se abrirá en una nueva página</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <StudyDashboard
+                      notebook={selectedNotebook}
+                      userId={auth.currentUser?.uid || ''}
+                      onRefresh={refreshDashboardData}
+                      onStartSession={startStudySession}
+                    />
                   </>
                 )}
               </>

@@ -71,6 +71,8 @@ export interface StudyDashboardData {
   smartStudiesCount: number; // Número de estudios inteligentes completados
   maxQuizScore: number;      // Puntuación máxima del quiz para este cuaderno
   isFreeStudyAvailable: boolean; // Si el estudio libre está disponible hoy
+  isSmartStudyAvailable: boolean; // Si el estudio inteligente está disponible
+  isQuizAvailable: boolean;  // Si el quiz está disponible (considerando límites y conceptos)
   lastFreeStudyDate?: Date;  // Última fecha de estudio libre
 }
 
