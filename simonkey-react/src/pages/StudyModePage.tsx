@@ -206,8 +206,8 @@ const StudyModePage = () => {
   
   // Iniciar nueva sesión de estudio
   const startStudySession = async (mode?: StudyMode) => {
-    if (!selectedNotebook || !auth.currentUser) {
-      showFeedback('warning', 'Debes seleccionar un cuaderno primero');
+    if (!auth.currentUser || !selectedNotebook) {
+      showFeedback('warning', 'Por favor selecciona un cuaderno para estudiar');
       return;
     }
     
@@ -277,9 +277,20 @@ const StudyModePage = () => {
       setSessionTimer(Date.now());
       
       showFeedback('success', `Sesión iniciada con ${concepts.length} conceptos`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al iniciar sesión:", error);
-      showFeedback('warning', 'Error al iniciar la sesión de estudio');
+      
+      // Manejar específicamente el error de límite de estudio libre
+      if (error.message === 'Ya has usado tu sesión de estudio libre hoy') {
+        showFeedback('warning', 'Ya has usado tu sesión de estudio libre hoy. El estudio libre está disponible una vez al día. Puedes usar el estudio inteligente para repasar conceptos específicos.');
+        
+        // No cambiar automáticamente el modo, dejar que el usuario decida
+        setLoading(false);
+        return;
+      } else {
+        showFeedback('warning', 'Error al iniciar la sesión de estudio. Por favor, intenta de nuevo.');
+      }
+      
       setLoading(false);
     }
   };
@@ -618,6 +629,62 @@ const StudyModePage = () => {
                       onRefresh={refreshDashboardData}
                       onStartSession={startStudySession}
                     />
+                    
+                    {/* Temporary reset button for development */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div style={{ 
+                        marginTop: '20px', 
+                        padding: '10px', 
+                        backgroundColor: '#f0f0f0', 
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={async () => {
+                              if (auth.currentUser) {
+                                await studyService.resetFreeStudyLimit(auth.currentUser.uid);
+                                showFeedback('success', 'Límite de estudio libre reseteado para pruebas');
+                              }
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#ff6b6b',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🔄 Reset Free Study Limit (Dev Only)
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              if (auth.currentUser) {
+                                await studyService.resetQuizLimit(auth.currentUser.uid);
+                                showFeedback('success', 'Límite de quiz reseteado para pruebas');
+                              }
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#4ecdc4',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🎯 Reset Quiz Limit (Dev Only)
+                          </button>
+                        </div>
+                        <p style={{ fontSize: '11px', color: '#666', marginTop: '5px' }}>
+                          Solo para desarrollo - resetea los límites de estudio
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </>
@@ -656,9 +723,6 @@ const StudyModePage = () => {
                       <span className="card-divider">/</span>
                       <span className="card-total">{totalConcepts}</span>
                     </div>
-                    <div className="concepts-total">
-                      <span>Conceptos diferentes a repasar: <b>{uniqueConceptsCount}</b></span>
-                    </div>
                   </div>
                   
                   <div className="study-session-layout">
@@ -672,33 +736,6 @@ const StudyModePage = () => {
                       />
                     </div>
                   </div>
-                  
-                  <div className="response-buttons-bottom">
-                    <button 
-                      className="response-button review-later"
-                      onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.REVIEW_LATER)}
-                      title="Revisar después - Este concepto necesita más práctica"
-                    >
-                      <i className="fas fa-redo"></i>
-                      <span>Revisar después</span>
-                    </button>
-                    
-                    <button 
-                      className="response-button mastered"
-                      onClick={() => handleConceptResponse(currentConcept.id, ResponseQuality.MASTERED)}
-                      title="Dominado - ¡Lo tienes claro!"
-                    >
-                      <i className="fas fa-check-double"></i>
-                      <span>Dominado</span>
-                    </button>
-                  </div>
-                  
-                  <button
-                    className="session-action-button"
-                    onClick={completeStudySession}
-                  >
-                    Finalizar sesión
-                  </button>
                 </>
               );
             })()}

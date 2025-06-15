@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { 
   Concept, 
@@ -114,22 +114,15 @@ const QuizModePage: React.FC = () => {
         setSelectedNotebook(notebook);
         setAutoStartAttempted(true);
         
-        // Verificar disponibilidad y iniciar automáticamente
+        // Si viene del dashboard, asumir que está disponible (ya fue verificado)
         const startQuizAutomatically = async () => {
           try {
-            console.log('Verificando disponibilidad del quiz...');
-            const isAvailable = await checkQuizAvailabilitySync(notebook.id);
-            
-            console.log('Quiz disponible:', isAvailable);
-            if (isAvailable) {
-              console.log('Iniciando sesión automáticamente...');
-              await startQuizSession(true);
-              console.log('Sesión iniciada exitosamente');
-            } else {
-              console.log('Quiz no disponible, mostrando mensaje de límite');
-            }
+            console.log('Iniciando sesión automáticamente desde dashboard...');
+            // Pasar el notebook directamente para evitar problemas de timing
+            await startQuizSessionWithNotebook(notebook, true);
+            console.log('Sesión iniciada exitosamente');
           } catch (error) {
-            console.error('Error al verificar disponibilidad:', error);
+            console.error('Error al iniciar sesión automáticamente:', error);
           }
         };
         
@@ -140,50 +133,57 @@ const QuizModePage: React.FC = () => {
 
   // Verificar disponibilidad del quiz (máximo 1 por semana) - versión síncrona
   const checkQuizAvailabilitySync = async (notebookId: string): Promise<boolean> => {
-    console.log('checkQuizAvailabilitySync llamado para:', notebookId);
+    console.log('🔍 checkQuizAvailabilitySync llamado para:', notebookId);
+    console.log('🔍 Estado actual - quizAvailable:', quizAvailable, 'quizLimitMessage:', quizLimitMessage);
+    
     if (!auth.currentUser) return false;
 
     try {
       const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
       const limitsDoc = await getDoc(limitsRef);
       
+      console.log('🔍 Documento de límites existe:', limitsDoc.exists());
+      
       if (limitsDoc.exists()) {
         const limits = limitsDoc.data();
         const lastQuizDate = limits.lastQuizDate?.toDate();
         
+        console.log('🔍 Límites encontrados:', limits);
+        console.log('🔍 Última fecha de quiz:', lastQuizDate);
+        
         if (lastQuizDate) {
           const now = new Date();
           const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
-          console.log('Días desde último quiz:', daysSinceLastQuiz);
+          console.log('🔍 Días desde último quiz:', daysSinceLastQuiz);
           
           if (daysSinceLastQuiz < 7) {
             const daysRemaining = 7 - daysSinceLastQuiz;
             setQuizLimitMessage(`Puedes hacer otro quiz en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
-            console.log('Quiz no disponible, días restantes:', daysRemaining);
+            console.log('❌ Quiz no disponible, días restantes:', daysRemaining);
             setQuizAvailable(false);
             return false;
           } else {
             setQuizLimitMessage('');
-            console.log('Quiz disponible');
+            console.log('✅ Quiz disponible');
             setQuizAvailable(true);
             return true;
           }
         } else {
           setQuizLimitMessage('');
-          console.log('Primer quiz, disponible');
+          console.log('✅ Primer quiz, disponible');
           setQuizAvailable(true);
           return true;
         }
       } else {
         setQuizLimitMessage('');
-        console.log('No hay límites, quiz disponible');
+        console.log('✅ No hay límites, quiz disponible');
         setQuizAvailable(true);
         return true;
       }
     } catch (error) {
-      console.error('Error checking quiz availability:', error);
+      console.error('❌ Error checking quiz availability:', error);
       setQuizLimitMessage('');
-      console.log('Error en verificación, asumiendo disponible');
+      console.log('✅ Error en verificación, asumiendo disponible');
       setQuizAvailable(true);
       return true;
     }
@@ -326,9 +326,21 @@ const QuizModePage: React.FC = () => {
       return;
     }
     
+    return startQuizSessionWithNotebook(selectedNotebook, skipAvailabilityCheck);
+  };
+
+  const startQuizSessionWithNotebook = async (notebook: Notebook, skipAvailabilityCheck: boolean = false) => {
+    console.log('startQuizSessionWithNotebook llamado:', { 
+      notebook: notebook.title, 
+      quizAvailable, 
+      skipAvailabilityCheck 
+    });
+    
     // Si se salta la verificación de disponibilidad, asumir que está disponible
     if (skipAvailabilityCheck) {
       console.log('Saltando verificación de disponibilidad, asumiendo disponible');
+      setQuizAvailable(true);
+      setQuizLimitMessage('');
     } else if (!quizAvailable) {
       console.error('Quiz no disponible');
       return;
@@ -341,7 +353,7 @@ const QuizModePage: React.FC = () => {
       // Verificar disponibilidad del quiz solo si no se saltó la verificación
       if (!skipAvailabilityCheck) {
         console.log('Verificando disponibilidad...');
-        await checkQuizAvailability(selectedNotebook.id);
+        await checkQuizAvailability(notebook.id);
         if (!quizAvailable) {
           console.error('Quiz no disponible después de verificación');
           setLoading(false);
@@ -349,10 +361,20 @@ const QuizModePage: React.FC = () => {
         }
       }
       
+      // IMPORTANTE: Aplicar el límite INMEDIATAMENTE al iniciar el quiz
+      console.log('Aplicando límite de quiz al iniciar...');
+      await updateQuizLimits();
+      
       console.log('Generando preguntas...');
       // Generar preguntas
-      const quizQuestions = await generateQuizQuestions(selectedNotebook.id);
+      const quizQuestions = await generateQuizQuestions(notebook.id);
       console.log('Preguntas generadas:', quizQuestions.length);
+      
+      if (quizQuestions.length === 0) {
+        console.error('No se pudieron generar preguntas');
+        setLoading(false);
+        return;
+      }
       
       setQuestions(quizQuestions);
       setMaxScore(quizQuestions.length);
@@ -361,8 +383,8 @@ const QuizModePage: React.FC = () => {
       const session: QuizSession = {
         id: `quiz-${Date.now()}`,
         userId: auth.currentUser!.uid,
-        notebookId: selectedNotebook.id,
-        notebookTitle: selectedNotebook.title,
+        notebookId: notebook.id,
+        notebookTitle: notebook.title,
         questions: quizQuestions,
         responses: [],
         startTime: new Date(),
@@ -445,6 +467,12 @@ const QuizModePage: React.FC = () => {
 
   // Completar sesión de quiz
   const completeQuizSession = async (finalScoreValue: number, timeRemainingValue: number) => {
+    console.log('🏁 INICIANDO completeQuizSession:', {
+      finalScoreValue,
+      timeRemainingValue,
+      quizSessionExists: !!quizSession
+    });
+    
     if (!quizSession || !auth.currentUser) return;
 
     try {
@@ -456,6 +484,14 @@ const QuizModePage: React.FC = () => {
       const accuracy = (correctAnswers / questions.length) * 100;
       
       const finalScoreResult = calculateFinalQuizScore(correctAnswers, questions.length, timeRemainingValue);
+      
+      console.log('🎯 CÁLCULO DEL SCORE FINAL:', {
+        correctAnswers,
+        totalQuestions: questions.length,
+        timeRemaining: timeRemainingValue,
+        finalScoreResult,
+        formula: `Math.max(${correctAnswers}, ${correctAnswers} × ${timeRemainingValue}) = ${finalScoreResult.finalScore}`
+      });
       
       // Actualizar sesión con resultados finales
       const completedSession: QuizSession = {
@@ -475,8 +511,8 @@ const QuizModePage: React.FC = () => {
       // Guardar resultados en Firestore
       await saveQuizResults(completedSession);
       
-      // Actualizar límites de quiz
-      await updateQuizLimits();
+      // NOTA: Los límites ya se aplicaron al iniciar el quiz, no al finalizar
+      console.log('✅ Quiz completado exitosamente. Los límites ya fueron aplicados al iniciar.');
       
       console.log('✅ Quiz completado y guardado exitosamente:', {
         finalScore: finalScoreResult.finalScore,
@@ -502,25 +538,78 @@ const QuizModePage: React.FC = () => {
         accuracy: session.accuracy
       });
 
+      // Recursive function to remove undefined values from objects
+      const removeUndefinedValues = (obj: any): any => {
+        if (obj === null || obj === undefined) {
+          return null;
+        }
+        
+        if (Array.isArray(obj)) {
+          return obj.map(item => removeUndefinedValues(item)).filter(item => item !== null);
+        }
+        
+        if (typeof obj === 'object') {
+          const cleaned: any = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              cleaned[key] = removeUndefinedValues(value);
+            }
+          }
+          return cleaned;
+        }
+        
+        return obj;
+      };
+
+      // Create a completely clean object with only defined values
+      const cleanQuizResultData: any = {
+        id: session.id,
+        userId: session.userId || auth.currentUser.uid,
+        notebookId: session.notebookId,
+        notebookTitle: session.notebookTitle,
+        questions: session.questions,
+        responses: session.responses,
+        startTime: Timestamp.fromDate(session.startTime),
+        score: session.score,
+        maxScore: session.maxScore,
+        accuracy: session.accuracy,
+        timeBonus: session.timeBonus,
+        finalScore: session.finalScore,
+        createdAt: Timestamp.now()
+      };
+
+      // Only add optional fields if they exist and are not undefined
+      if (session.endTime) {
+        cleanQuizResultData.endTime = Timestamp.fromDate(session.endTime);
+      }
+      if (session.totalTime !== undefined && session.totalTime !== null) {
+        cleanQuizResultData.totalTime = session.totalTime;
+      }
+      if (session.timeRemaining !== undefined && session.timeRemaining !== null) {
+        cleanQuizResultData.timeRemaining = session.timeRemaining;
+      }
+      
+      // Clean all undefined values recursively
+      const finalCleanData = removeUndefinedValues(cleanQuizResultData);
+      
+      console.log('🧹 Datos limpios para guardar:', finalCleanData);
+      
       // 1. Guardar resultado del quiz
       const quizResultsRef = doc(db, 'users', auth.currentUser.uid, 'quizResults', session.id);
-      await setDoc(quizResultsRef, {
-        ...session,
-        startTime: Timestamp.fromDate(session.startTime),
-        endTime: session.endTime ? Timestamp.fromDate(session.endTime) : null,
-        createdAt: Timestamp.now()
-      });
+      
+      await setDoc(quizResultsRef, finalCleanData);
       console.log('✅ Resultado del quiz guardado');
 
       // 2. Actualizar estadísticas del cuaderno
       const notebookStatsRef = doc(db, 'users', auth.currentUser.uid, 'quizStats', session.notebookId);
+      console.log('💾 Guardando en ruta:', `users/${auth.currentUser.uid}/quizStats/${session.notebookId}`);
       const statsDoc = await getDoc(notebookStatsRef);
       
       const baseStats = {
         totalQuizzes: 1,
-        totalQuestions: session.questions.length,
-        correctAnswers: session.score,
-        maxScore: session.finalScore,
+        totalQuestions: session.questions?.length || 0,
+        correctAnswers: session.score || 0,
+        maxScore: session.finalScore || 0,
         lastQuizDate: Timestamp.now(),
         updatedAt: Timestamp.now()
       };
@@ -530,10 +619,17 @@ const QuizModePage: React.FC = () => {
         const updatedStats = {
           ...baseStats,
           totalQuizzes: (currentStats.totalQuizzes || 0) + 1,
-          totalQuestions: (currentStats.totalQuestions || 0) + session.questions.length,
-          correctAnswers: (currentStats.correctAnswers || 0) + session.score,
-          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore)
+          totalQuestions: (currentStats.totalQuestions || 0) + (session.questions?.length || 0),
+          correctAnswers: (currentStats.correctAnswers || 0) + (session.score || 0),
+          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore || 0)
         };
+        
+        console.log('🏆 ACTUALIZANDO MAX SCORE:', {
+          currentMaxScore: currentStats.maxScore || 0,
+          newFinalScore: session.finalScore || 0,
+          newMaxScore: Math.max(currentStats.maxScore || 0, session.finalScore || 0),
+          formula: `Math.max(${currentStats.maxScore || 0}, ${session.finalScore || 0}) = ${Math.max(currentStats.maxScore || 0, session.finalScore || 0)}`
+        });
         
         console.log('📊 Actualizando estadísticas existentes:', {
           antes: currentStats,
@@ -557,21 +653,59 @@ const QuizModePage: React.FC = () => {
     }
   };
 
-  // Actualizar límites de quiz
+  // Actualizar límites de quiz (ahora se aplica al INICIAR el quiz)
   const updateQuizLimits = async () => {
     if (!auth.currentUser) return;
 
     try {
+      console.log('🔄 Aplicando límite de quiz semanal...');
+      
       const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      const currentDate = new Date();
+      
       await setDoc(limitsRef, {
         userId: auth.currentUser.uid,
-        lastQuizDate: new Date(),
+        lastQuizDate: currentDate,
         quizCountThisWeek: 1,
         weekStartDate: getWeekStartDate(),
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       }, { merge: true });
+      
+      console.log('✅ Límite de quiz aplicado exitosamente:', {
+        lastQuizDate: currentDate.toISOString(),
+        quizCountThisWeek: 1
+      });
+      
     } catch (error) {
-      console.error('Error updating quiz limits:', error);
+      console.error('❌ Error aplicando límite de quiz:', error);
+    }
+  };
+
+  // Función temporal para resetear límites de quiz (SOLO PARA DESARROLLO)
+  const resetQuizLimits = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      console.log('🔄 Reseteando límites de quiz...');
+      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      
+      // Eliminar el documento de límites para permitir quiz inmediato
+      await setDoc(limitsRef, {
+        userId: auth.currentUser.uid,
+        lastQuizDate: null,
+        quizCountThisWeek: 0,
+        weekStartDate: new Date(),
+        updatedAt: Timestamp.now()
+      });
+      
+      console.log('✅ Límites de quiz reseteados');
+      setQuizAvailable(true);
+      setQuizLimitMessage('');
+      
+      // Recargar disponibilidad
+      await checkQuizAvailabilitySync(selectedNotebook?.id || '');
+    } catch (error) {
+      console.error('❌ Error reseteando límites:', error);
     }
   };
 
@@ -646,19 +780,39 @@ const QuizModePage: React.FC = () => {
             )}
           </div>
           
-          <button
-            className={`start-quiz-button ${!quizAvailable ? 'disabled' : ''}`}
-            onClick={() => startQuizSession()}
-            disabled={loading || !quizAvailable}
-          >
-            {loading ? (
-              <><i className="fas fa-spinner fa-spin"></i> Preparando quiz...</>
-            ) : !quizAvailable ? (
-              <><i className="fas fa-lock"></i> Quiz no disponible</>
-            ) : (
-              <><i className="fas fa-play"></i> Comenzar quiz</>
-            )}
-          </button>
+          <div className="quiz-buttons">
+            <button
+              className={`start-quiz-button ${!quizAvailable ? 'disabled' : ''}`}
+              onClick={() => startQuizSession()}
+              disabled={loading || !quizAvailable}
+            >
+              {loading ? (
+                <><i className="fas fa-spinner fa-spin"></i> Preparando quiz...</>
+              ) : !quizAvailable ? (
+                <><i className="fas fa-lock"></i> Quiz no disponible</>
+              ) : (
+                <><i className="fas fa-play"></i> Comenzar quiz</>
+              )}
+            </button>
+            
+            {/* Botón temporal para resetear límites (SOLO PARA DESARROLLO) */}
+            <button
+              className="reset-limits-button"
+              onClick={resetQuizLimits}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fas fa-sync-alt"></i> Resetear límites (Desarrollo)
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -852,7 +1006,7 @@ const QuizModePage: React.FC = () => {
             className="back-button"
             onClick={() => {
               if (sessionActive) {
-                if (window.confirm("¿Seguro que quieres salir? Tu progreso se perderá.")) {
+                if (window.confirm("⚠️ ¿Estás seguro de que quieres salir?\n\nSi cierras el quiz ahora, no podrás hacer otro quiz hasta la próxima semana. Tu progreso actual se perderá.\n\n¿Quieres continuar con el quiz?")) {
                   navigate('/notebooks');
                 }
               } else {

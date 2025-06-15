@@ -95,12 +95,15 @@ export const updateLearningData = (
  * Crear datos de aprendizaje iniciales para un nuevo concepto
  */
 export const createInitialLearningData = (conceptId: string): LearningData => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Establecer a inicio del día para que coincida con la lógica de comparación
+  
   return {
     conceptId,
     easeFactor: 2.5,        // Factor de facilidad inicial
     interval: 1,            // Intervalo inicial: 1 día
     repetitions: 0,         // Sin repeticiones aún
-    nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Mañana
+    nextReviewDate: today,  // HOY - disponible inmediatamente para estudio inteligente
     lastReviewDate: new Date(),
     quality: 0,
     consecutiveCorrect: 0,
@@ -125,11 +128,27 @@ export const getConceptsReadyForReview = (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  return learningDataArray.filter(data => {
+  console.log('🔍 DEBUG getConceptsReadyForReview:', {
+    totalConcepts: learningDataArray.length,
+    today: today.toISOString(),
+    learningData: learningDataArray.map(data => ({
+      conceptId: data.conceptId,
+      nextReviewDate: data.nextReviewDate.toISOString(),
+      reviewDateNormalized: new Date(data.nextReviewDate).setHours(0, 0, 0, 0),
+      todayNormalized: today.getTime(),
+      isReady: new Date(data.nextReviewDate).setHours(0, 0, 0, 0) <= today.getTime()
+    }))
+  });
+  
+  const readyConcepts = learningDataArray.filter(data => {
     const reviewDate = new Date(data.nextReviewDate);
     reviewDate.setHours(0, 0, 0, 0);
     return reviewDate <= today;
   });
+  
+  console.log('✅ Conceptos listos para repaso:', readyConcepts.length);
+  
+  return readyConcepts;
 };
 
 /**

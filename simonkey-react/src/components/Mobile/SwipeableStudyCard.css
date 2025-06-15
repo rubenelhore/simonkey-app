@@ -76,6 +76,74 @@
     font-size: 0.9rem;
   }
   
+  /* Candado en la parte frontal */
+  .lock-display {
+    background: #EF4444;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    animation: slideInDown 0.5s ease-out;
+  }
+  
+  .lock-icon-front {
+    font-size: 1.2rem;
+  }
+  
+  .lock-timer-front {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  
+  .timer-number-front {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #FFD700;
+  }
+  
+  .timer-text-front {
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+  
+  .lock-message-front {
+    display: none;
+  }
+  
+  /* Indicador de evaluación lista en la parte frontal */
+  .evaluation-ready-front {
+    background: #10B981;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    animation: slideInUp 0.5s ease-out;
+  }
+  
+  @keyframes slideInDown {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
   /* Overlay del candado */
   .lock-overlay {
     position: absolute;
@@ -161,49 +229,6 @@
       transform: translateY(0);
       opacity: 1;
     }
-  }
-  
-  /* Botones de evaluación */
-  .evaluation-buttons {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding: 0 1rem;
-  }
-  
-  .eval-button {
-    flex: 1;
-    padding: 1rem;
-    border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  
-  .eval-button.review-later {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-    color: white;
-  }
-  
-  .eval-button.mastered {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    color: white;
-  }
-  
-  .eval-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  }
-  
-  .eval-button:active {
-    transform: translateY(0);
   }
   
   /* Estilos para el frente de la tarjeta */
@@ -292,7 +317,7 @@
   }
   
   .arrow-indicator i {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: inherit;
   }
@@ -440,4 +465,47 @@
   
   .swipeable-card.dragging {
     transition: none;
+  }
+  
+  /* Botones de evaluación */
+  .evaluation-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 0 1rem;
+  }
+  
+  .eval-button {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .eval-button.review-later {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    color: white;
+  }
+  
+  .eval-button.mastered {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    color: white;
+  }
+  
+  .eval-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .eval-button:active {
+    transform: translateY(0);
   }

@@ -189,6 +189,63 @@ export const useStudyService = () => {
   );
   
   /**
+   * Reset free study limit (for testing purposes)
+   */
+  const resetFreeStudyLimit = useCallback(
+    async (userId: string): Promise<void> => {
+      try {
+        const limitsRef = doc(db, 'users', userId, 'limits', 'study');
+        await setDoc(limitsRef, {
+          userId,
+          lastFreeStudyDate: null,
+          freeStudyCountToday: 0,
+          weekStartDate: getWeekStartDate(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        console.log('Free study limit reset successfully');
+      } catch (err) {
+        console.error('Error resetting free study limit:', err);
+      }
+    },
+    []
+  );
+  
+  /**
+   * Reset quiz limit (for testing purposes)
+   */
+  const resetQuizLimit = useCallback(
+    async (userId: string): Promise<void> => {
+      try {
+        console.log('🔄 Iniciando reset de límite de quiz para usuario:', userId);
+        
+        const limitsRef = doc(db, 'users', userId, 'limits', 'study');
+        
+        // Primero, obtener los límites actuales
+        const currentLimits = await getDoc(limitsRef);
+        console.log('📊 Límites actuales antes del reset:', currentLimits.exists() ? currentLimits.data() : 'No existen');
+        
+        await setDoc(limitsRef, {
+          userId,
+          lastQuizDate: null,
+          quizCountThisWeek: 0,
+          weekStartDate: getWeekStartDate(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        console.log('✅ Quiz limit reset successfully');
+        console.log('📋 Datos reseteados:', {
+          lastQuizDate: null,
+          quizCountThisWeek: 0,
+          weekStartDate: getWeekStartDate()
+        });
+      } catch (err) {
+        console.error('❌ Error resetting quiz limit:', err);
+      }
+    },
+    []
+  );
+  
+  /**
    * Obtener fecha de inicio de la semana actual
    */
   const getWeekStartDate = (): Date => {
@@ -332,17 +389,29 @@ export const useStudyService = () => {
         const smartStudiesCount = stats.totalConcepts;
         const generalScore = smartStudiesCount * maxQuizScore;
         
+        // Verificar disponibilidad de quiz
+        const isQuizAvailable = isFreeStudyAvailable(
+          limits.lastFreeStudyDate instanceof Timestamp 
+            ? limits.lastFreeStudyDate.toDate() 
+            : limits.lastFreeStudyDate
+        );
+        
         return {
           generalScore,
           nextSmartStudyDate,
           nextQuizDate,
           smartStudiesCount,
           maxQuizScore,
+          totalConcepts: smartStudiesCount,
+          completedSmartSessions: 0,
+          completedFreeSessions: 0,
           isFreeStudyAvailable: isFreeStudyAvailable(
             limits.lastFreeStudyDate instanceof Timestamp 
               ? limits.lastFreeStudyDate.toDate() 
               : limits.lastFreeStudyDate
           ),
+          isSmartStudyAvailable: smartStudiesCount > 0,
+          isQuizAvailable: smartStudiesCount > 0 && isQuizAvailable,
           lastFreeStudyDate: limits.lastFreeStudyDate instanceof Timestamp 
             ? limits.lastFreeStudyDate.toDate() 
             : limits.lastFreeStudyDate
@@ -510,7 +579,7 @@ export const useStudyService = () => {
         
         // Obtener los conceptos correspondientes
         const conceptIds = readyForReview.map(data => data.conceptId);
-        const concepts = await getConceptsByIds(conceptIds);
+        const concepts = await getConceptsByIds(conceptIds, userId, notebookId);
         
         return concepts;
       } catch (err) {
@@ -525,24 +594,52 @@ export const useStudyService = () => {
    * Obtener conceptos por IDs
    */
   const getConceptsByIds = useCallback(
-    async (conceptIds: string[]): Promise<Concept[]> => {
+    async (conceptIds: string[], userId: string, notebookId: string): Promise<Concept[]> => {
       try {
-        const concepts: Concept[] = [];
+        console.log('🔍 Buscando conceptos con IDs:', conceptIds);
+        console.log('📚 Buscando en cuaderno:', notebookId);
         
-        for (const conceptId of conceptIds) {
-          const conceptRef = doc(db, 'conceptos', conceptId);
-          const conceptDoc = await getDoc(conceptRef);
-          
-          if (conceptDoc.exists()) {
-            const data = conceptDoc.data();
-            concepts.push({
-              id: conceptDoc.id,
-              ...data
+        // Buscar todos los documentos de conceptos del cuaderno
+        const conceptsQuery = query(
+          collection(db, 'conceptos'),
+          where('cuadernoId', '==', notebookId)
+        );
+        
+        const conceptDocs = await getDocs(conceptsQuery);
+        const allConcepts: Concept[] = [];
+        
+        // Extraer todos los conceptos de todos los documentos
+        for (const doc of conceptDocs.docs) {
+          const conceptosData = doc.data().conceptos || [];
+          conceptosData.forEach((concepto: any, index: number) => {
+            // Usar el ID que se generó al crear el concepto (UUID)
+            const conceptId = concepto.id || `${doc.id}-${index}`;
+            allConcepts.push({
+              id: conceptId,
+              término: concepto.término,
+              definición: concepto.definición,
+              fuente: concepto.fuente,
+              usuarioId: concepto.usuarioId,
+              docId: doc.id,
+              index,
+              notasPersonales: concepto.notasPersonales,
+              reviewId: concepto.reviewId,
+              dominado: concepto.dominado
             } as Concept);
-          }
+          });
         }
         
-        return concepts;
+        console.log('📋 Todos los conceptos encontrados:', allConcepts.map(c => ({ id: c.id, término: c.término })));
+        
+        // Filtrar solo los conceptos que están en la lista de IDs buscados
+        const filteredConcepts = allConcepts.filter(concept => 
+          conceptIds.includes(concept.id)
+        );
+        
+        console.log('✅ Conceptos encontrados:', filteredConcepts.length, 'de', conceptIds.length);
+        console.log('🎯 Conceptos filtrados:', filteredConcepts.map(c => ({ id: c.id, término: c.término })));
+        
+        return filteredConcepts;
       } catch (err) {
         console.error('Error getting concepts by IDs:', err);
         return [];
@@ -662,6 +759,9 @@ export const useStudyService = () => {
     getStudyLimits,
     checkFreeStudyLimit,
     getAllConceptsFromNotebook,
-    logStudyActivity
+    logStudyActivity,
+    updateFreeStudyUsage,
+    resetFreeStudyLimit,
+    resetQuizLimit
   };
 };

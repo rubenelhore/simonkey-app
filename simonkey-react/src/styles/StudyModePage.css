@@ -516,13 +516,13 @@
 .study-session-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .study-progress-bar {
   background: linear-gradient(135deg, var(--card-bg), #f8f9fa);
   border-radius: var(--border-radius);
-  padding: 20px;
+  padding: 12px;
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
 }
@@ -530,7 +530,7 @@
 .progress-text {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   color: var(--text-medium);
   font-size: 14px;
   font-weight: 600;
@@ -602,8 +602,8 @@
   position: relative;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 0 20px 0;
-  min-height: 400px;
+  padding: 10px 0 10px 0;
+  min-height: 300px;
 }
 
 /* Botones de respuesta en la parte inferior */
@@ -645,7 +645,7 @@
 
 /* Indicadores de dirección para los botones */
 .study-session-layout::before {
-  content: 'Desliza la tarjeta o usa los botones de abajo';
+  content: '';
   position: absolute;
   top: -40px;
   left: 50%;
@@ -1412,9 +1412,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
-  margin-top: 8px;
-  gap: 6px;
+  margin-bottom: 10px;
+  margin-top: 4px;
+  gap: 4px;
 }
 .card-counter {
   display: flex;

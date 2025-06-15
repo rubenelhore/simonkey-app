@@ -42,13 +42,18 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   
   // Manejar candado de 5 segundos para estudio inteligente
   useEffect(() => {
-    if (reviewMode && flipped && !isLocked && !canEvaluate) {
+    // Solo activar el candado si estamos en modo inteligente
+    if (reviewMode) {
+      console.log('🔒 Activando candado de 5 segundos...');
       setIsLocked(true);
+      setCanEvaluate(false);
       setLockTimer(5);
       
       const timer = setInterval(() => {
         setLockTimer(prev => {
+          console.log('⏰ Timer tick:', prev);
           if (prev <= 1) {
+            console.log('🔓 Desbloqueando candado...');
             setIsLocked(false);
             setCanEvaluate(true);
             if (onLockComplete) {
@@ -60,9 +65,19 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
         });
       }, 1000);
       
-      return () => clearInterval(timer);
+      console.log('⏰ Timer iniciado con ID:', timer);
+      
+      return () => {
+        console.log('🧹 Limpiando timer con ID:', timer);
+        clearInterval(timer);
+      };
     }
-  }, [flipped, reviewMode, isLocked, canEvaluate, onLockComplete]);
+  }, [reviewMode, concept.id]); // Depender de reviewMode y concept.id
+  
+  // Log del estado del candado
+  useEffect(() => {
+    console.log('🎯 Estado del candado:', { reviewMode, isLocked, canEvaluate, lockTimer });
+  }, [reviewMode, isLocked, canEvaluate, lockTimer]);
   
   const { swipeHandlers, swipeDirection, swiping, resetSwipe } = useSwipe({
     threshold: 100,
@@ -158,27 +173,6 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
     return style;
   };
   
-  const renderLockOverlay = () => {
-    if (!reviewMode || !isLocked) return null;
-    
-    return (
-      <div className="lock-overlay">
-        <div className="lock-content">
-          <div className="lock-icon">
-            <i className="fas fa-lock"></i>
-          </div>
-          <div className="lock-timer">
-            <span className="timer-number">{lockTimer}</span>
-            <span className="timer-text">segundos</span>
-          </div>
-          <div className="lock-message">
-            Estudiando concepto...
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
   const renderEvaluationButtons = () => {
     if (!reviewMode || !canEvaluate) return null;
     
@@ -212,6 +206,29 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
         <div className="card-inner">
           <div className="card-front">
             <div className="term">{concept.término}</div>
+            
+            {reviewMode && isLocked && (
+              <div className="lock-display">
+                <div className="lock-icon-front">
+                  <i className="fas fa-lock"></i>
+                </div>
+                <div className="lock-timer-front">
+                  <span className="timer-number-front">{lockTimer}</span>
+                  <span className="timer-text-front">segundos</span>
+                </div>
+                <div className="lock-message-front">
+                  Estudiando concepto...
+                </div>
+              </div>
+            )}
+            
+            {reviewMode && !isLocked && canEvaluate && (
+              <div className="evaluation-ready-front">
+                <i className="fas fa-unlock"></i>
+                <span>¡Listo para evaluar!</span>
+              </div>
+            )}
+            
             <div className="hint">
               <span>Toca para ver definición</span>
               <div className="hint-icon">
@@ -244,17 +261,8 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
             <div className="tap-hint">
               <span>Toca para volver</span>
             </div>
-            
-            {reviewMode && canEvaluate && (
-              <div className="evaluation-ready">
-                <i className="fas fa-unlock"></i>
-                <span>¡Listo para evaluar!</span>
-              </div>
-            )}
           </div>
         </div>
-        
-        {renderLockOverlay()}
       </div>
       
       {renderEvaluationButtons()}

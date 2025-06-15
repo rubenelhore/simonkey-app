@@ -96,16 +96,33 @@
 
 .card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   margin-bottom: 12px;
 }
 
 .card-header h4 {
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: #333;
+  text-align: center;
+}
+
+.session-count,
+.max-score {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.max-score {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .card-icon {
@@ -123,7 +140,7 @@
 
 /* Score Card */
 .score-card {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  background: transparent;
   border-color: #22c55e;
 }
 
@@ -132,8 +149,9 @@
 }
 
 .score-value {
-  font-size: 1.8rem;
-  font-weight: 800;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
   margin-bottom: 6px;
   color: #22c55e;
 }

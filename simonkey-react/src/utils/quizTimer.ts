@@ -159,7 +159,7 @@ export const calculateFinalQuizScore = (
 } => {
   const baseScore = correctAnswers;
   const timeBonus = calculateTimeBonus(baseScore, timeRemaining, totalTime);
-  const finalScore = timeBonus;
+  const finalScore = Math.max(baseScore, timeBonus);
   
   return {
     baseScore,

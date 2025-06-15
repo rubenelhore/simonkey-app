@@ -69,7 +69,12 @@ else {
 
 ### Concepto: "Photosíntesis"
 
-**Día 1 - Primera vez:**
+**Día 1 - Concepto recién creado:**
+- Concepto disponible inmediatamente en estudio inteligente
+- `interval = 1`, `repetitions = 0`, `easeFactor = 2.5`
+- **Próximo repaso**: HOY (disponible para estudiar)
+
+**Día 1 - Primera vez estudiado:**
 - Usuario marca "Dominado"
 - `interval = 1`, `repetitions = 1`, `easeFactor = 2.6`
 - **Próximo repaso**: Día 2
@@ -115,10 +120,11 @@ else {
 - Si marcas "Revisar después", se agrega a la cola de repaso
 - Al final de la sesión, repasas los conceptos pendientes
 
-#### 2. **Modo Repaso** 🔄
-- Solo muestra conceptos que están "vencidos" (due for review)
-- Conceptos que el algoritmo determina que necesitas repasar hoy
-- No incluye conceptos nuevos
+#### 2. **Modo Repaso Inteligente** 🔄
+- Muestra conceptos que están "vencidos" (due for review) HOY
+- **Incluye conceptos nuevos** que están disponibles inmediatamente
+- Conceptos que el algoritmo determina que necesitas repasar
+- Optimizado para máxima eficiencia de aprendizaje
 
 #### 3. **Modo Evaluación** 🎯
 - Mezcla de conceptos aprendidos recientemente

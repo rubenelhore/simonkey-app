@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
 import { Concept } from '../types/interfaces';
+import { useStudyService } from '../hooks/useStudyService';
 
 import { 
   doc, 
@@ -13,7 +14,8 @@ import {
   updateDoc, 
   setDoc,
   arrayUnion, 
-  serverTimestamp 
+  serverTimestamp,
+  deleteDoc
 } from 'firebase/firestore';
 import { GoogleGenerativeAI} from '@google/generative-ai';
 import '../styles/NotebookDetail.css';
@@ -83,6 +85,9 @@ const NotebookDetail = () => {
   const [shareLink, setShareLink] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   
+  // Usar el hook de estudio
+  const studyService = useStudyService();
+
   // Initialize Gemini AI
   useEffect(() => {
     const initializeGemini = () => {
@@ -210,19 +215,51 @@ const NotebookDetail = () => {
     };
   };
 
-  const generarConceptos = async () => {
-    if (!model || !id || !auth.currentUser) {
-      alert("No se pudo inicializar la IA o la sesión de usuario");
-      return;
+  // Función para crear datos de aprendizaje iniciales para nuevos conceptos
+  const createInitialLearningDataForConcepts = async (conceptIds: string[], userId: string, notebookId: string) => {
+    try {
+      console.log('🚀 Creando datos de aprendizaje para conceptos:', conceptIds);
+      
+      const { createInitialLearningData } = await import('../utils/sm3Algorithm');
+      
+      for (const conceptId of conceptIds) {
+        const initialData = createInitialLearningData(conceptId);
+        
+        console.log('📊 Datos iniciales para concepto', conceptId, ':', {
+          nextReviewDate: initialData.nextReviewDate.toISOString(),
+          easeFactor: initialData.easeFactor,
+          interval: initialData.interval,
+          repetitions: initialData.repetitions
+        });
+        
+        // Guardar en la colección de datos de aprendizaje
+        const learningDataRef = doc(db, 'users', userId, 'learningData', conceptId);
+        await setDoc(learningDataRef, {
+          ...initialData,
+          notebookId,
+          userId,
+          createdAt: serverTimestamp()
+        });
+        
+        console.log('✅ Datos guardados para concepto:', conceptId);
+      }
+      
+      console.log(`✅ Datos de aprendizaje creados para ${conceptIds.length} conceptos`);
+    } catch (error) {
+      console.error('❌ Error creando datos de aprendizaje:', error);
+      // No lanzar error para no interrumpir el flujo principal
     }
+  };
 
-    if (archivos.length === 0) {
-      alert("Por favor selecciona al menos un archivo PDF");
+  // Función para generar conceptos desde archivos
+  const generarConceptos = async () => {
+    if (!id || !auth.currentUser || archivos.length === 0) {
+      alert("Por favor selecciona al menos un archivo");
       return;
     }
 
     setCargando(true);
-    setLoadingText("Preparando archivos para análisis...");
+    setLoadingText("Procesando archivos...");
 
     try {
       // Convertir archivos a nuestro formato personalizado de procesamiento
@@ -242,6 +279,21 @@ const NotebookDetail = () => {
             "fuente": "nombre del documento"
           }
         ]
+        
+        REGLAS IMPORTANTES:
+        1. El término NO puede aparecer en la definición (ej: si el término es "Hígado", la definición NO puede empezar con "El hígado es...")
+        2. La definición NO puede contener información que revele directamente el término
+        3. Usa sinónimos, descripciones funcionales o características para definir el concepto
+        4. La definición debe ser clara y específica sin mencionar el término exacto
+        
+        Ejemplos CORRECTOS:
+        - Término: "Hígado" → Definición: "Órgano vital que procesa toxinas y produce bilis"
+        - Término: "Mitocondria" → Definición: "Orgánulo celular responsable de la producción de energía"
+        
+        Ejemplos INCORRECTOS:
+        - Término: "Hígado" → Definición: "El hígado es un órgano que..."
+        - Término: "Mitocondria" → Definición: "La mitocondria es un orgánulo..."
+        
         Extrae al menos 10 conceptos importantes si el documento es lo suficientemente extenso.
         Asegúrate de que el resultado sea únicamente el array JSON, sin texto adicional.
       `;
@@ -303,6 +355,12 @@ const NotebookDetail = () => {
 
       setLoadingText("Guardando conceptos...");
 
+      // Generar IDs únicos para cada concepto
+      const conceptosConIds = conceptosExtraidos.map(concepto => ({
+        ...concepto,
+        id: crypto.randomUUID() // Generar ID único para cada concepto
+      }));
+
       let updatedConceptosDoc: ConceptDoc | null = null;
       if (conceptosDocs.length > 0) {
         // Si existe al menos un documento para este cuaderno, actualizamos el primero
@@ -312,12 +370,12 @@ const NotebookDetail = () => {
           
           // IMPORTANTE: Usa el array completo en lugar de arrayUnion para evitar documentos duplicados
           await updateDoc(conceptosRef, {
-            conceptos: [...existingDoc.conceptos, ...conceptosExtraidos]
+            conceptos: [...existingDoc.conceptos, ...conceptosConIds]
           });
           
           updatedConceptosDoc = {
             ...existingDoc,
-            conceptos: [...existingDoc.conceptos, ...conceptosExtraidos]
+            conceptos: [...existingDoc.conceptos, ...conceptosConIds]
           };
           setConceptosDocs(prev =>
             prev.map(doc => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
@@ -335,7 +393,7 @@ const NotebookDetail = () => {
           id: newDocId,
           cuadernoId: id,
           usuarioId: auth.currentUser?.uid || '',
-          conceptos: conceptosExtraidos,
+          conceptos: conceptosConIds,
           creadoEn: serverTimestamp()
         });
         
@@ -346,7 +404,7 @@ const NotebookDetail = () => {
             id: newDocId,  // Usa el nuevo ID generado
             cuadernoId: id,
             usuarioId: auth.currentUser?.uid || '',
-            conceptos: conceptosExtraidos,
+            conceptos: conceptosConIds,
             creadoEn: new Date()
           }
         ]);
@@ -360,7 +418,14 @@ const NotebookDetail = () => {
       // Cerrar el modal después de generación exitosa
       setIsModalOpen(false);
       
-      alert(`¡Se generaron ${conceptosExtraidos.length} conceptos exitosamente!`);
+      alert(`¡Se generaron ${conceptosConIds.length} conceptos exitosamente!`);
+
+      // Crear datos de aprendizaje iniciales para los nuevos conceptos
+      await createInitialLearningDataForConcepts(
+        conceptosConIds.map(concepto => concepto.id), 
+        auth.currentUser?.uid || '', 
+        id
+      );
     } catch (error) {
       console.error('Error al generar conceptos:', error);
       alert('Error al procesar los materiales. Archivos aceptados: pdf, csv, txt');
@@ -370,6 +435,36 @@ const NotebookDetail = () => {
   };
 
   // Función para eliminar el cuaderno y todos sus conceptos relacionados
+  const handleDeleteNotebook = async () => {
+    if (!id || !auth.currentUser) {
+      console.error("No se pudo verificar la sesión de usuario o el ID del cuaderno");
+      return;
+    }
+
+    try {
+      // Eliminar conceptos del cuaderno
+      const q = query(
+        collection(db, 'conceptos'),
+        where('cuadernoId', '==', id)
+      );
+      const querySnapshot = await getDocs(q);
+      const conceptosToDelete = querySnapshot.docs.map(doc => doc.id);
+      
+      if (conceptosToDelete.length > 0) {
+        await deleteDoc(doc(db, 'conceptos', conceptosToDelete[0]));
+        setConceptosDocs(prev => prev.filter(doc => !conceptosToDelete.includes(doc.id)));
+      }
+
+      // Eliminar el cuaderno
+      await deleteDoc(doc(db, 'notebooks', id));
+
+      // Redirigir al usuario a la lista de cuadernos
+      navigate('/notebooks');
+    } catch (error) {
+      console.error("Error al eliminar el cuaderno:", error);
+      alert('Error al eliminar el cuaderno. Por favor intenta nuevamente.');
+    }
+  };
 
   // Función para añadir concepto manualmente
   const agregarConceptoManual = async () => {
@@ -391,7 +486,7 @@ const NotebookDetail = () => {
         término: nuevoConcepto.término,
         definición: nuevoConcepto.definición,
         fuente: nuevoConcepto.fuente || 'Manual',
-        id: ''
+        id: crypto.randomUUID() // Generar ID único para el concepto
       };
 
       let updatedConceptosDoc: ConceptDoc | null = null;
@@ -436,6 +531,13 @@ const NotebookDetail = () => {
           }
         ]);
       }
+
+      // Crear datos de aprendizaje iniciales para el nuevo concepto
+      await createInitialLearningDataForConcepts(
+        [conceptoManual.id], 
+        auth.currentUser?.uid || '', 
+        id
+      );
 
       // Limpiar el formulario
       setNuevoConcepto({
