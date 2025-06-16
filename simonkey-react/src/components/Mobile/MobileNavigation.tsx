@@ -55,11 +55,6 @@ const MobileNavigation = () => {
         <i className="fas fa-chart-line"></i>
         <span>Progreso</span>
       </NavLink>
-      
-      <NavLink to="/profile" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
-        <i className="fas fa-user"></i>
-        <span>Perfil</span>
-      </NavLink>
     </nav>
   );
 };

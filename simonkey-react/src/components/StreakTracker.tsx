@@ -39,30 +39,70 @@ const StreakTracker: React.FC = () => {
     { key: 'sunday', label: 'D' }
   ];
 
+  // Mapeo de días de la semana
+  const dayMapping: { [key: string]: string } = {
+    'lunes': 'monday',
+    'martes': 'tuesday',
+    'miércoles': 'wednesday',
+    'jueves': 'thursday',
+    'viernes': 'friday',
+    'sábado': 'saturday',
+    'domingo': 'sunday'
+  };
+
   // Función auxiliar para obtener el número de semana ISO (Lunes como primer día)
   const getWeekNumber = (date: Date): number => {
     const tempDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    // Establecer el jueves más cercano; setUTCDate ajusta mes/año si es necesario
     tempDate.setUTCDate(tempDate.getUTCDate() + 4 - (tempDate.getUTCDay() || 7));
-    // Inicio del año
     const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
-    // Calcular número de semana
     const weekNo = Math.ceil((( (tempDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
     return weekNo;
   };
 
-  // --- Helper to get UTC midnight for a date ---
-  const getUTCMidnight = (date: Date): Date => {
-    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  // Función simplificada para obtener la fecha a medianoche (hora local)
+  const getMidnight = (date: Date): Date => {
+    const midnight = new Date(date);
+    midnight.setHours(0, 0, 0, 0);
+    return midnight;
   };
 
-  // --- Updated isNextDay using UTC midnight ---
-  const isNextDay = (date1: Date, date2: Date): boolean => {
-    const day1UTC = getUTCMidnight(date1);
-    const day2UTC = getUTCMidnight(date2);
-    const diffTime = day2UTC.getTime() - day1UTC.getTime();
-    // Check if difference is exactly one day (86400000 milliseconds)
-    return diffTime === 86400000;
+  // Función simplificada para verificar si dos fechas son días consecutivos
+  const isConsecutiveDay = (date1: Date, date2: Date): boolean => {
+    const day1 = getMidnight(date1);
+    const day2 = getMidnight(date2);
+    const diffTime = day2.getTime() - day1.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays === 1;
+  };
+
+  // Función para verificar si dos fechas son el mismo día
+  const isSameDay = (date1: Date, date2: Date): boolean => {
+    const day1 = getMidnight(date1);
+    const day2 = getMidnight(date2);
+    return day1.getTime() === day2.getTime();
+  };
+
+  // Función para calcular la racha real basada en días activos
+  const calculateRealStreak = (days: { [key: string]: boolean }, today: Date): number => {
+    const todayMidnight = getMidnight(today);
+    let streak = 0;
+    
+    // Verificar hacia atrás desde hoy
+    for (let i = 0; i < 30; i++) { // Revisar hasta 30 días atrás
+      const checkDate = new Date(todayMidnight);
+      checkDate.setDate(checkDate.getDate() - i);
+      
+      const dayName = checkDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
+      const dayKey = dayMapping[dayName];
+      
+      if (days[dayKey]) {
+        streak++;
+      } else {
+        break; // Si encontramos un día inactivo, paramos
+      }
+    }
+    
+    return streak;
   };
 
   const fetchAndUpdateStreak = async () => {
@@ -76,141 +116,111 @@ const StreakTracker: React.FC = () => {
       const streakDoc = await getDoc(streakRef);
       
       const today = new Date();
-      const todayUTC = getUTCMidnight(today); // Use UTC midnight for comparisons
-      
-      const dayMapping: { [key: string]: string } = {
-        'lunes': 'monday',
-        'martes': 'tuesday',
-        'miércoles': 'wednesday',
-        'jueves': 'thursday',
-        'viernes': 'friday',
-        'sábado': 'saturday',
-        'domingo': 'sunday'
-      };
+      const todayMidnight = getMidnight(today);
       
       const dayInSpanish = today.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
       const dayOfWeek = dayMapping[dayInSpanish] || 'monday';
       
       let currentData: StreakData;
-      let shouldResetWeek = false;
       
       if (streakDoc.exists()) {
         const data = streakDoc.data();
         const lastVisitTimestamp = data?.lastVisit as Timestamp | undefined;
         const lastVisit = lastVisitTimestamp ? lastVisitTimestamp.toDate() : null;
-        // Leer consecutiveDays, si no existe usar currentStreak (compatibilidad) o 0
         const consecutiveDays = data?.consecutiveDays ?? data?.currentStreak ?? 0;
+        
         // Leer days o inicializar si no existe
         let days = data?.days || {
-             monday: false, tuesday: false, wednesday: false, thursday: false,
-             friday: false, saturday: false, sunday: false
-           };
-        console.log("[StreakTracker] Initial 'days' loaded from Firestore:", JSON.stringify(days)); // Log initial state
-        console.log("[StreakTracker] Last Visit:", lastVisit?.toISOString(), "Today:", today.toISOString());
+          monday: false, tuesday: false, wednesday: false, thursday: false,
+          friday: false, saturday: false, sunday: false
+        };
 
-        // --- Lógica de Reseteo Semanal ---
+        // --- Lógica de Reseteo Semanal Visual ---
         if (lastVisit) {
-          const lastVisitUTC = getUTCMidnight(lastVisit); // Use UTC midnight for comparison checks
-          const currentWeek = getWeekNumber(today); // getWeekNumber uses UTC internally
-          const lastVisitWeek = getWeekNumber(lastVisit); // Pass original Date object
-          const currentYear = todayUTC.getUTCFullYear(); // Compare UTC years
-          const lastVisitYear = lastVisitUTC.getUTCFullYear(); // Compare UTC years
+          const currentWeek = getWeekNumber(today);
+          const lastVisitWeek = getWeekNumber(lastVisit);
+          const currentYear = today.getFullYear();
+          const lastVisitYear = lastVisit.getFullYear();
 
-          // Resetear si es una semana o año diferente
+          // Resetear visualización semanal si es una semana o año diferente
           if (currentWeek !== lastVisitWeek || currentYear !== lastVisitYear) {
-            console.log(`[StreakTracker] Resetting week visual. Current: W${currentWeek}/${currentYear}, Last: W${lastVisitWeek}/${lastVisitYear}`);
-            shouldResetWeek = true;
-            days = { // Reset days object
+            days = {
               monday: false, tuesday: false, wednesday: false, thursday: false,
               friday: false, saturday: false, sunday: false
             };
-            console.log("[StreakTracker] --> 'days' object RESET.");
-          } else {
-             console.log(`[StreakTracker] Keeping same week visual. Current: W${currentWeek}/${currentYear}, Last: W${lastVisitWeek}/${lastVisitYear}`);
-             console.log("[StreakTracker] --> 'days' object kept from Firestore.");
           }
-        } else {
-           // Si no hay lastVisit (muy raro si streakDoc existe), considera resetear
-           shouldResetWeek = true;
-             days = { // Reset days object
-              monday: false, tuesday: false, wednesday: false, thursday: false,
-              friday: false, saturday: false, sunday: false
-            };
-           console.log("[StreakTracker] No lastVisit found in existing doc, resetting 'days' object.");
         }
 
         // --- Lógica de Racha Consecutiva ---
         let updatedConsecutiveDays = consecutiveDays;
+        
         if (lastVisit) {
-          const lastVisitUTC = getUTCMidnight(lastVisit);
-          // Compare UTC dates directly for same day check
-          if (todayUTC.getTime() === lastVisitUTC.getTime()) {
-            // Mismo día, no hacer nada con la racha consecutiva
-            console.log("Mismo día (UTC), manteniendo racha consecutiva:", updatedConsecutiveDays);
-          } else if (isNextDay(lastVisit, today)) { // isNextDay now uses UTC internally
-            // Día siguiente, incrementar racha
+          if (isSameDay(lastVisit, today)) {
+            // Mismo día, mantener la racha actual
+          } else if (isConsecutiveDay(lastVisit, today)) {
+            // Día consecutivo, incrementar racha
             updatedConsecutiveDays += 1;
-            console.log("Día consecutivo (UTC), incrementando racha a:", updatedConsecutiveDays);
           } else {
-            // Días no consecutivos, reiniciar racha a 1 (por el día actual)
+            // Días no consecutivos, reiniciar racha a 1
             updatedConsecutiveDays = 1;
-            console.log("Día no consecutivo (UTC), reiniciando racha a 1");
           }
         } else {
-           // Si no había lastVisit pero el documento existía, iniciar racha en 1
-           updatedConsecutiveDays = 1;
-           console.log("Documento existía sin lastVisit, iniciando racha consecutiva a 1");
+          // Primera visita, iniciar racha en 1
+          updatedConsecutiveDays = 1;
         }
 
+        // Verificación adicional: si no hay días activos en la semana actual excepto hoy,
+        // y la racha es mayor a 1, probablemente hay un error
+        const activeDaysThisWeek = Object.values(days).filter(Boolean).length;
+        if (activeDaysThisWeek === 1 && updatedConsecutiveDays > 1) {
+          updatedConsecutiveDays = 1;
+        }
 
-        // --- Preparar Datos Finales ---
         // Marcar el día actual como activo en la visualización semanal
-        console.log("[StreakTracker] 'days' object BEFORE marking today:", JSON.stringify(days));
         days[dayOfWeek] = true;
-        console.log(`[StreakTracker] Marked '${dayOfWeek}' as true. Final 'days' object for update:`, JSON.stringify(days));
+
+        // Calcular la racha real basada en el historial
+        const realStreak = calculateRealStreak(days, today);
+        
+        // Usar la racha real si es diferente de la calculada
+        if (realStreak !== updatedConsecutiveDays) {
+          updatedConsecutiveDays = realStreak;
+        }
 
         currentData = {
           days: days,
-          lastVisit: today, // Se actualiza siempre al ejecutar esto
+          lastVisit: today,
           consecutiveDays: updatedConsecutiveDays
         };
 
       } else {
         // Primera vez que el usuario visita / no existe documento
-        console.log("[StreakTracker] First access or document not found, initializing.");
         currentData = {
-          days: { // Inicializar días
+          days: {
             monday: false, tuesday: false, wednesday: false, thursday: false,
             friday: false, saturday: false, sunday: false
           },
           lastVisit: today,
-          consecutiveDays: 1 // Primer día
+          consecutiveDays: 1
         };
-        // Marcar el día actual
-        console.log(`[StreakTracker] Initializing 'days'. Marking day: ${dayOfWeek}`);
         currentData.days[dayOfWeek] = true;
-        console.log("[StreakTracker] Initial 'days' object created:", JSON.stringify(currentData.days));
       }
 
-      // --- Guardar en Firestore ---
-      // No guardar currentStreak, solo consecutiveDays y days
+      // Guardar en Firestore
       const dataToSave = {
         days: currentData.days,
-        lastVisit: serverTimestamp(), // Usar serverTimestamp para la escritura
+        lastVisit: serverTimestamp(),
         consecutiveDays: currentData.consecutiveDays
       };
-      console.log("[StreakTracker] Saving to Firestore:", JSON.stringify(dataToSave).replace('"__type__":"serverTimestamp"', 'serverTimestamp()')); // Approximate log
+      
       await setDoc(streakRef, dataToSave);
-      console.log("[StreakTracker] Firestore save complete.");
 
-      // Actualizar estado local (usar 'today' para lastVisit que es un objeto Date)
-      const stateToSet = {
-          days: currentData.days,
-          lastVisit: today, // Usamos el objeto Date local original para el estado
-          consecutiveDays: currentData.consecutiveDays
-      };
-      console.log("[StreakTracker] Updating local state with:", JSON.stringify(stateToSet));
-      setStreakData(stateToSet);
+      // Actualizar estado local
+      setStreakData({
+        days: currentData.days,
+        lastVisit: today,
+        consecutiveDays: currentData.consecutiveDays
+      });
 
     } catch (error) {
       console.error("Error al actualizar la racha:", error);

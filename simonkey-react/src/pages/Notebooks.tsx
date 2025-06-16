@@ -102,8 +102,10 @@ const Notebooks: React.FC = () => {
     // Prevenir scroll cuando el menú está abierto
     if (!menuOpen) {
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('menu-open');
     } else {
       document.body.style.overflow = 'auto';
+      document.body.classList.remove('menu-open');
     }
   };
 
@@ -134,6 +136,31 @@ const Notebooks: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isPersonalizationOpen]);
+
+  // Efecto para limpiar el estado del body cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'auto';
+      document.body.classList.remove('menu-open');
+    };
+  }, []);
+
+  // Efecto para cerrar el menú con la tecla Escape
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && menuOpen) {
+        toggleMenu();
+      }
+    };
+
+    if (menuOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [menuOpen]);
 
   // Manejar cambios en los campos de personalización
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -227,6 +254,11 @@ const Notebooks: React.FC = () => {
 
   return (
     <div className={`notebooks-container ${menuOpen ? 'menu-open' : ''}`}>
+      {/* Overlay para cerrar el menú */}
+      {menuOpen && (
+        <div className="menu-overlay" onClick={toggleMenu}></div>
+      )}
+      
       <header className="notebooks-header">
         <div className="header-content">
           <div className="logo-title-group">
@@ -257,21 +289,34 @@ const Notebooks: React.FC = () => {
             <span className="notebooks-hamburger-line"></span>
           </button>
         </div>
+      </header>
+      
+      {/* Menú lateral deslizante */}
+      <div className={`side-menu ${menuOpen ? 'side-menu-open' : ''}`}>
+        <div className="side-menu-header">
+          <h3>Menú</h3>
+          <button className="side-menu-close" onClick={toggleMenu}>
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
         
-        <div className={`mobile-menu ${menuOpen ? 'show-menu' : ''}`}>
+        <div className="side-menu-content">
           <div className="user-section">
-            <button className="personalization-button" onClick={handleOpenPersonalization}>
-              <i className="fas fa-user-cog"></i> Mi perfil
+            <button className="side-menu-button personalization-button" onClick={handleOpenPersonalization}>
+              <i className="fas fa-user-cog"></i> 
+              <span>Mi perfil</span>
             </button>
-            <button className="voice-settings-button" onClick={() => navigate('/settings/voice')}>
-              <i className="fas fa-volume-up"></i> Configuración de voz
+            <button className="side-menu-button voice-settings-button" onClick={() => navigate('/settings/voice')}>
+              <i className="fas fa-volume-up"></i> 
+              <span>Configuración de voz</span>
             </button>
-            <button className="logout-button" onClick={handleLogout} style={{ fontFamily: 'Poppins, sans-serif' }}>
-              <i className="fas fa-sign-out-alt"></i> Cerrar sesión
+            <button className="side-menu-button logout-button" onClick={handleLogout}>
+              <i className="fas fa-sign-out-alt"></i> 
+              <span>Cerrar sesión</span>
             </button>
           </div>
         </div>
-      </header>
+      </div>
       
       <main className="notebooks-main">
         <div className="left-column">
