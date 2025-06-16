@@ -1,6 +1,7 @@
 // src/services/notebookService.ts
 import { db } from './firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { canCreateNotebook, incrementNotebookCount } from './userService';
 
 interface Notebook {
   id?: string;
@@ -11,6 +12,12 @@ interface Notebook {
 
 // Create a new notebook
 export const createNotebook = async (userId: string, title: string) => {
+  // Verificar si el usuario puede crear un nuevo cuaderno
+  const canCreate = await canCreateNotebook(userId);
+  if (!canCreate.canCreate) {
+    throw new Error(canCreate.reason || 'No se puede crear el cuaderno');
+  }
+
   const notebookData = {
     title,
     userId,
@@ -18,6 +25,10 @@ export const createNotebook = async (userId: string, title: string) => {
   };
   
   const docRef = await addDoc(collection(db, 'notebooks'), notebookData);
+  
+  // Incrementar el contador de cuadernos del usuario
+  await incrementNotebookCount(userId);
+  
   return { id: docRef.id, ...notebookData };
 };
 

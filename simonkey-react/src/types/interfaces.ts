@@ -233,3 +233,64 @@ export interface QuizTimerState {
   startTime: Date;
   endTime?: Date;
 }
+
+/**
+ * Tipos de suscripción de usuario
+ */
+export enum UserSubscriptionType {
+  SUPER_ADMIN = 'super_admin',
+  FREE = 'free',
+  PRO = 'pro',
+  SCHOOL = 'school'
+}
+
+/**
+ * Roles para usuarios escolares
+ */
+export enum SchoolRole {
+  ADMIN = 'admin',
+  TEACHER = 'teacher',
+  STUDENT = 'student'
+}
+
+/**
+ * Información del usuario en Firestore
+ */
+export interface UserProfile {
+  id: string;
+  email: string;
+  username: string;
+  nombre: string;
+  displayName: string;
+  birthdate: string;
+  createdAt: Timestamp;
+  subscription: UserSubscriptionType;
+  notebookCount: number;
+  // Campos específicos para usuarios escolares
+  schoolRole?: SchoolRole;
+  schoolId?: string;
+  schoolName?: string;
+  // Límites específicos por tipo de suscripción
+  maxNotebooks?: number;
+  maxConceptsPerNotebook?: number;
+  notebooksCreatedThisWeek?: number;
+  conceptsCreatedThisWeek?: number;
+  weekStartDate?: any; // Cambiar a any para compatibilidad con serverTimestamp
+}
+
+/**
+ * Límites de uso por tipo de suscripción
+ */
+export interface SubscriptionLimits {
+  maxNotebooks: number;
+  maxConceptsPerNotebook: number;
+  maxNotebooksPerWeek?: number;
+  maxConceptsPerWeek?: number;
+  canDeleteAndRecreate: boolean;
+  permissions: {
+    canViewAllData: boolean;
+    canEditAllData: boolean;
+    canUseStudySection: boolean;
+    canManageUsers: boolean;
+  };
+}

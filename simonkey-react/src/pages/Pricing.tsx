@@ -63,15 +63,15 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">100,000 tokens de IA</span>
+                    <span className="feature-text">Hasta 100 conceptos por cuaderno</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Extracción de  contenido con IA</span>
+                    <span className="feature-text">Extracción de conceptos con IA</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Mnemotecnias básicas</span>
+                    <span className="feature-text">Tarjetas de estudio inteligente</span>
                   </li>
                 </ul>
               </div>
@@ -99,7 +99,11 @@ const Pricing: React.FC = () => {
                 <ul className="feature-list">
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text prominent">Cuadernos ilimitados</span>
+                    <span className="feature-text prominent">10 Cuadernos por semana</span>
+                  </li>
+                  <li className="feature-item">
+                    <span className="feature-icon">✔</span>
+                    <span className="feature-text">100 conceptos por día por cuaderno</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
@@ -107,15 +111,11 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">1 millón de tokens de IA al mes</span>
+                    <span className="feature-text">Soporte 24/7</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Mnemotecnias avanzadas con IA</span>
-                  </li>
-                  <li className="feature-item">
-                    <span className="feature-icon">✔</span>
-                    <span className="feature-text">Soporte prioritario</span>
+                    <span className="feature-text">Priorización de nuevas features</span>
                   </li>
                 </ul>
               </div>
@@ -146,15 +146,19 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Todo del plan Pro</span>
+                    <span className="feature-text">Todo del plan Pro para los alumnos</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Contenido exclusivo de la comunidad</span>
+                    <span className="feature-text">Creación de usuarios: Admin y Profesores</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Soporte 24/7</span>
+                    <span className="feature-text">Creación de salones</span>
+                  </li>
+                  <li className="feature-item">
+                    <span className="feature-icon">✔</span>
+                    <span className="feature-text">Competencia de Score de los alumnos por salón</span>
                   </li>
                 </ul>
               </div>
@@ -185,26 +189,32 @@ const Pricing: React.FC = () => {
               <tr>
                 <td>Cuadernos digitales</td>
                 <td>4</td>
-                <td>Ilimitados</td>
-                <td>Ilimitados</td>
+                <td>10 por semana</td>
+                <td>10 por semana</td>
               </tr>
               <tr>
-                <td>Tokens de IA</td>
-                <td>100,000</td>
-                <td>1,000,000 /mes</td>
-                <td>1,000,000 /mes</td>
+                <td>Conceptos por cuaderno</td>
+                <td>Hasta 100</td>
+                <td>100 por día</td>
+                <td>100 por día</td>
               </tr>
               <tr>
-                <td>Mnemotecnias</td>
-                <td>Limitadas</td>
-                <td>Avanzadas con IA</td>
-                <td>Avanzadas con IA</td>
+                <td>Extracción de conceptos con IA</td>
+                <td>✔</td>
+                <td>✔</td>
+                <td>✔</td>
+              </tr>
+              <tr>
+                <td>Tarjetas de estudio inteligente</td>
+                <td>✔</td>
+                <td>✔</td>
+                <td>✔</td>
               </tr>
               <tr>
                 <td>Herramientas de Estudio</td>
-                <td>Limitadas</td>
-                <td>Avanzadas con IA</td>
-                <td>Avanzadas con IA</td>
+                <td>Básicas</td>
+                <td>Avanzadas</td>
+                <td>Avanzadas</td>
               </tr>
               <tr>
                 <td>Análisis de progreso</td>
@@ -213,13 +223,19 @@ const Pricing: React.FC = () => {
                 <td>Detallado</td>
               </tr>
               <tr>
-                <td>Acceso multiplataforma</td>
+                <td>Creación de usuarios (Admin/Profesores)</td>
                 <td>-</td>
-                <td>✔</td>
+                <td>-</td>
                 <td>✔</td>
               </tr>
               <tr>
-                <td>Contenido comunitario</td>
+                <td>Creación de salones</td>
+                <td>-</td>
+                <td>-</td>
+                <td>✔</td>
+              </tr>
+              <tr>
+                <td>Competencia de Score por salón</td>
                 <td>-</td>
                 <td>-</td>
                 <td>✔</td>
@@ -231,9 +247,15 @@ const Pricing: React.FC = () => {
                 <td>✔</td>
               </tr>
               <tr>
+                <td>Priorización de nuevas features</td>
+                <td>-</td>
+                <td>✔</td>
+                <td>✔</td>
+              </tr>
+              <tr>
                 <td>Soporte</td>
-                <td>Prioritario</td>
-                <td>Prioritario</td>
+                <td>Básico</td>
+                <td>24/7</td>
                 <td>24/7</td>
               </tr>
             </tbody>
@@ -247,54 +269,37 @@ const Pricing: React.FC = () => {
           <h2 className="faq-title">Preguntas Frecuentes</h2>
           <div className="faq-list">
 
-          <div className="faq-item">
-              <div
-                className="faq-question"
-                onClick={() => toggleFAQ(4)}
-              >
-                <span className="faq-question-text">
-                  ¿Qué son los tokens de IA?
-                </span>
-              </div>
-              <div
-                className="faq-answer"
-                style={{ display: activeQuestion === 4 ? 'block' : 'none' }}
-              >
-                Los tokens de IA son la moneda virtual que utilizamos para medir el uso de las herramientas de inteligencia artificial en Simonkey. Cada acción que realices con la IA, como extraer contenido o crear mnemotecnias, consume tokens. Los planes de pago incluyen una cantidad mensual de tokens.
-              </div>
-            </div>
-
             <div className="faq-item">
               <div
                 className="faq-question"
                 onClick={() => toggleFAQ(0)}
               >
                 <span className="faq-question-text">
-                  ¿Puedo cambiar de plan en cualquier momento?
+                  ¿Cómo funciona la extracción de conceptos con IA?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 0 ? 'block' : 'none' }}
               >
-                Sí, puedes actualizar o cambiar tu plan en cualquier momento. Si actualizas a un plan superior, se te cobrará la diferencia prorrateada por el tiempo restante de tu suscripción actual. Si cambias a un plan inferior, el nuevo plan entrará en vigor al final de tu ciclo de facturación actual.
+                Nuestra IA analiza automáticamente el contenido que subas y extrae los conceptos más importantes, organizándolos de manera inteligente en tu cuaderno. Esto te ahorra tiempo y te ayuda a identificar los puntos clave de cualquier material de estudio.
               </div>
             </div>
-            
+
             <div className="faq-item">
               <div
                 className="faq-question"
                 onClick={() => toggleFAQ(1)}
               >
                 <span className="faq-question-text">
-                  ¿Cómo funciona el período de prueba?
+                  ¿Qué son las tarjetas de estudio inteligente?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 1 ? 'block' : 'none' }}
               >
-                Todos los planes de pago incluyen un período de prueba gratuito de 14 días. No se te cobrará hasta que finalice el período de prueba, y puedes cancelar en cualquier momento antes de que termine sin ningún cargo.
+                Las tarjetas de estudio inteligente se generan automáticamente a partir de tus conceptos, utilizando algoritmos de repetición espaciada para optimizar tu aprendizaje. Se adaptan a tu ritmo de estudio y te muestran el contenido en el momento más efectivo para la retención.
               </div>
             </div>
             
@@ -304,31 +309,31 @@ const Pricing: React.FC = () => {
                 onClick={() => toggleFAQ(2)}
               >
                 <span className="faq-question-text">
-                  ¿Qué métodos de pago aceptan?
+                  ¿Puedo cambiar de plan en cualquier momento?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 2 ? 'block' : 'none' }}
               >
-                Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express), PayPal y, en algunos países, opciones de pago locales como transferencia bancaria.
+                Sí, puedes actualizar o cambiar tu plan en cualquier momento. Si actualizas a un plan superior, se te cobrará la diferencia prorrateada por el tiempo restante de tu suscripción actual. Si cambias a un plan inferior, el nuevo plan entrará en vigor al final de tu ciclo de facturación actual.
               </div>
             </div>
-
+            
             <div className="faq-item">
               <div
                 className="faq-question"
                 onClick={() => toggleFAQ(3)}
               >
                 <span className="faq-question-text">
-                  ¿Puedo cancelar mi suscripción en cualquier momento?
+                  ¿Cómo funciona el plan Escolar para instituciones?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 3 ? 'block' : 'none' }}
               >
-                Sí, puedes cancelar tu suscripción en cualquier momento desde la configuración de tu cuenta. Si cancelas, mantendrás el acceso a las características de tu plan hasta el final del período de facturación actual.
+                El plan Escolar está diseñado específicamente para instituciones educativas. Permite crear usuarios administradores y profesores, gestionar salones de clase, y fomentar la competencia sana entre estudiantes a través del sistema de scores. Incluye analíticas avanzadas para el seguimiento del progreso institucional.
               </div>
             </div>
 
@@ -338,14 +343,65 @@ const Pricing: React.FC = () => {
                 onClick={() => toggleFAQ(4)}
               >
                 <span className="faq-question-text">
-                  ¿Qué pasa con mis datos si cancelo mi suscripción?
+                  ¿Qué significa "100 conceptos por día" en el plan Pro?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 4 ? 'block' : 'none' }}
               >
-                Si cancelas tu suscripción de pago, tu cuenta se convertirá automáticamente al plan Básico gratuito. Podrás seguir accediendo a tus datos, aunque algunas funciones premium ya no estarán disponibles. Si deseas eliminar completamente tu cuenta y todos tus datos, puedes hacerlo desde la configuración de tu cuenta.
+                En el plan Pro, cada cuaderno puede contener hasta 100 conceptos nuevos por día. Esto significa que puedes agregar hasta 100 conceptos a cada uno de tus 10 cuadernos semanales, permitiéndote un ritmo de estudio muy intensivo sin restricciones.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div
+                className="faq-question"
+                onClick={() => toggleFAQ(5)}
+              >
+                <span className="faq-question-text">
+                  ¿Qué métodos de pago aceptan?
+                </span>
+              </div>
+              <div
+                className="faq-answer"
+                style={{ display: activeQuestion === 5 ? 'block' : 'none' }}
+              >
+                Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express), PayPal y, en algunos países, opciones de pago locales como transferencia bancaria.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div
+                className="faq-question"
+                onClick={() => toggleFAQ(6)}
+              >
+                <span className="faq-question-text">
+                  ¿Puedo cancelar mi suscripción en cualquier momento?
+                </span>
+              </div>
+              <div
+                className="faq-answer"
+                style={{ display: activeQuestion === 6 ? 'block' : 'none' }}
+              >
+                Sí, puedes cancelar tu suscripción en cualquier momento desde la configuración de tu cuenta. Si cancelas, mantendrás el acceso a las características de tu plan hasta el final del período de facturación actual.
+              </div>
+            </div>
+
+            <div className="faq-item">
+              <div
+                className="faq-question"
+                onClick={() => toggleFAQ(7)}
+              >
+                <span className="faq-question-text">
+                  ¿Qué pasa con mis datos si cancelo mi suscripción?
+                </span>
+              </div>
+              <div
+                className="faq-answer"
+                style={{ display: activeQuestion === 7 ? 'block' : 'none' }}
+              >
+                Si cancelas tu suscripción de pago, tu cuenta se convertirá automáticamente al plan Gratis. Podrás seguir accediendo a tus datos, aunque algunas funciones premium ya no estarán disponibles. Si deseas eliminar completamente tu cuenta y todos tus datos, puedes hacerlo desde la configuración de tu cuenta.
               </div>
             </div>
           </div>

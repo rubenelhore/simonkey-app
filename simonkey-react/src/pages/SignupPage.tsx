@@ -12,6 +12,7 @@ import { signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, firestore } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
+import { createUserProfile } from '../services/userService';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -97,30 +98,6 @@ const SignupPage: React.FC = () => {
     return true;
   };
   
-  const createUserProfile = async (userId: string) => {
-    try {
-      // Añadir usuario a Firestore con datos adicionales
-      await setDoc(doc(firestore, 'users', userId), {
-        email,
-        username,
-        birthdate,
-        createdAt: serverTimestamp(),
-        subscription: 'free',
-        notebookCount: 0
-      });
-      
-      // Actualizar el perfil del usuario en Auth
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: username
-        });
-      }
-    } catch (err) {
-      console.error('Error al crear perfil de usuario:', err);
-      throw err;
-    }
-  };
-  
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -135,8 +112,21 @@ const SignupPage: React.FC = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Crear perfil de usuario en Firestore
-      await createUserProfile(user.uid);
+      // Crear perfil de usuario en Firestore usando el nuevo servicio
+      await createUserProfile(user.uid, {
+        email,
+        username,
+        nombre: username,
+        displayName: username,
+        birthdate
+      });
+      
+      // Actualizar el perfil del usuario en Auth
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: username
+        });
+      }
       
       console.log('Registro exitoso');
       // Redirigir al usuario a la página de Notebooks
@@ -181,7 +171,14 @@ const SignupPage: React.FC = () => {
         const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
         
         if (isNewUser) {
-          await createUserProfile(user.uid);
+          // Para usuarios de Google, usar el nuevo servicio
+          await createUserProfile(user.uid, {
+            email: user.email || '',
+            username: user.displayName || user.email?.split('@')[0] || '',
+            nombre: user.displayName || '',
+            displayName: user.displayName || '',
+            birthdate: new Date().toISOString().split('T')[0] // Fecha actual como fallback
+          });
         }
         
         // Guardar información básica del usuario

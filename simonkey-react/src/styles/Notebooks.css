@@ -268,10 +268,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 0 1.5rem;
   border-bottom: 1px solid #e5e7eb;
   background-color: var(--primary-color);
   color: white;
+  height: var(--header-height);
 }
 
 .side-menu-header h3 {
@@ -381,7 +382,8 @@
   }
   
   .side-menu-header {
-    padding: 1rem;
+    padding: 0 1rem;
+    height: var(--header-height);
   }
   
   .side-menu-content {

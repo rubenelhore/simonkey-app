@@ -44,15 +44,34 @@ const Notebooks: React.FC = () => {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
+            
+            // Buscar el nombre en múltiples campos para mayor compatibilidad
+            const userName = data.nombre || data.displayName || data.username || user.displayName || '';
+            
             setUserData({
-              nombre: data.nombre || '',
+              nombre: userName,
               apellidos: data.apellidos || '',
               tipoAprendizaje: data.tipoAprendizaje || 'Visual',
               intereses: data.intereses && data.intereses.length > 0 ? data.intereses : ['']
             });
+          } else {
+            // Si no existe el documento, usar el displayName de Firebase Auth
+            setUserData({
+              nombre: user.displayName || '',
+              apellidos: '',
+              tipoAprendizaje: 'Visual',
+              intereses: ['']
+            });
           }
         } catch (error) {
           console.error("Error loading user data:", error);
+          // En caso de error, usar el displayName de Firebase Auth
+          setUserData({
+            nombre: user.displayName || '',
+            apellidos: '',
+            tipoAprendizaje: 'Visual',
+            intereses: ['']
+          });
         }
       }
     };

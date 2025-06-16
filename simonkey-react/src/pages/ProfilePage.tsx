@@ -5,6 +5,8 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { signOut, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { db, auth } from '../services/firebase';
 import { useUser } from '../hooks/useUser';
+import { useUserType } from '../hooks/useUserType';
+import UserTypeBadge from '../components/UserTypeBadge';
 import '../styles/ProfilePage.css';
 
 // Define interfaces for the component's props and state
@@ -33,6 +35,7 @@ interface LearningStyle {
 
 const ProfilePage: React.FC = () => {
   const { user, setUser } = useUser();
+  const { userProfile, subscriptionLimits } = useUserType();
   const [userData, setUserData] = useState<UserData>({
     name: '',
     email: '',
@@ -308,6 +311,14 @@ const ProfilePage: React.FC = () => {
             <div className="profile-name">
               <h2>{userData.name || 'Usuario'} {userData.apellidos || ''}</h2>
               <p>{userData.email}</p>
+              {userProfile && (
+                <div className="user-type-badge" style={{ marginTop: '0.5rem' }}>
+                  <UserTypeBadge 
+                    subscription={userProfile.subscription}
+                    schoolRole={userProfile.schoolRole}
+                  />
+                </div>
+              )}
             </div>
           )}
         </section>
