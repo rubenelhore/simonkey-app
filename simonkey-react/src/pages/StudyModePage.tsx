@@ -291,6 +291,14 @@ const StudyModePage = () => {
       setSessionActive(true);
       setLoading(false);
       
+      // Inicializar contadores para repaso inmediato
+      setUniqueConceptsCount(concepts.length);
+      setUniqueConceptIds(new Set(concepts.map(c => c.id)));
+      setSessionReviewQueue([]);
+      setReviewedConceptIds(new Set());
+      setMasteredConceptIds(new Set());
+      setReviewingConceptIds(new Set());
+      
       // Iniciar timer de sesión
       setSessionTimer(Date.now());
       
@@ -342,18 +350,53 @@ const StudyModePage = () => {
         setReviewingConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
       }
       
+      // Obtener el concepto actual
+      const currentConcept = currentConcepts.find(c => c.id === conceptId);
+      
       // Remover concepto de la cola actual
       setCurrentConcepts(prev => prev.filter(c => c.id !== conceptId));
       
+      // LÓGICA DE REPASO INMEDIATO
+      if (quality === ResponseQuality.REVIEW_LATER && currentConcept) {
+        // Si no aprendió correctamente, agregar a la cola de repaso inmediato
+        setSessionReviewQueue(prev => [...prev, currentConcept]);
+        console.log('🔄 Concepto agregado a cola de repaso inmediato:', currentConcept.término);
+        showFeedback('info', `"${currentConcept.término}" se agregó a tu cola de repaso. Te lo preguntaremos de nuevo.`);
+      }
+      
       // Verificar si la sesión está completa
       if (currentConcepts.length <= 1) {
-        await completeStudySession();
+        // Si hay conceptos en la cola de repaso inmediato, continuar con ellos
+        if (sessionReviewQueue.length > 0) {
+          console.log('🔄 Continuando con conceptos de repaso inmediato...');
+          continueWithImmediateReview();
+        } else {
+          await completeStudySession();
+        }
       }
       
     } catch (error) {
       console.error("Error al procesar respuesta:", error);
       showFeedback('warning', 'Error al guardar tu respuesta');
     }
+  };
+  
+  // Continuar con conceptos de repaso inmediato
+  const continueWithImmediateReview = () => {
+    if (sessionReviewQueue.length === 0) {
+      completeStudySession();
+      return;
+    }
+    
+    // Tomar el siguiente concepto de la cola de repaso
+    const nextConcept = sessionReviewQueue[0];
+    const remainingQueue = sessionReviewQueue.slice(1);
+    
+    setSessionReviewQueue(remainingQueue);
+    setCurrentConcepts([nextConcept]);
+    
+    console.log('🔄 Mostrando concepto de repaso inmediato:', nextConcept.término);
+    showFeedback('info', `Repasando: "${nextConcept.término}"`);
   };
   
   // Completar la sesión de estudio
@@ -402,6 +445,12 @@ const StudyModePage = () => {
       setSessionComplete(true);
       setSessionActive(false);
       
+      // Mostrar mensaje especial si hubo repasos inmediatos
+      const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
+      if (totalRepetitions > 0) {
+        showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
+      }
+      
     } catch (error) {
       console.error("Error al completar sesión:", error);
       showFeedback('warning', 'Error al guardar estadísticas de la sesión');
@@ -448,6 +497,9 @@ const StudyModePage = () => {
     setReviewedConceptIds(new Set());
     setMasteredConceptIds(new Set());
     setReviewingConceptIds(new Set());
+    setSessionReviewQueue([]);
+    setUniqueConceptIds(new Set());
+    setUniqueConceptsCount(0);
     setSessionId(null);
     setSessionTimer(null);
     setMetrics({
@@ -741,6 +793,14 @@ const StudyModePage = () => {
                       <span className="card-divider">/</span>
                       <span className="card-total">{totalConcepts}</span>
                     </div>
+                    
+                    {/* Mostrar información de repaso inmediato */}
+                    {sessionReviewQueue.length > 0 && (
+                      <div className="immediate-review-indicator">
+                        <i className="fas fa-sync-alt"></i>
+                        <span>{sessionReviewQueue.length} en cola de repaso</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="study-session-layout">
@@ -799,6 +859,17 @@ const StudyModePage = () => {
                 <div className="stat-value">{formatStudyTime(metrics.timeSpent)}</div>
                 <div className="stat-label">Tiempo de estudio</div>
               </div>
+              
+              {/* Mostrar información de repasos inmediatos */}
+              {reviewedConceptIds.size > uniqueConceptsCount && (
+                <div className="stat-item">
+                  <div className="stat-icon">
+                    <i className="fas fa-redo"></i>
+                  </div>
+                  <div className="stat-value">{reviewedConceptIds.size - uniqueConceptsCount}</div>
+                  <div className="stat-label">Repasos inmediatos</div>
+                </div>
+              )}
             </div>
             
             {nextSession && (

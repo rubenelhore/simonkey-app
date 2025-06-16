@@ -385,7 +385,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     }
 
     // Usar los datos reales de límites para determinar disponibilidad
-    const isFreeStudyAvailable = totalConcepts > 0 && (studyLimits?.isFreeStudyAvailable !== false);
+    const isFreeStudyAvailable = totalConcepts > 0;
     
     // Verificar si hay conceptos listos para repaso hoy
     let isSmartStudyAvailable = false;
@@ -424,7 +424,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     
     // Verificar disponibilidad real de estudio libre usando el servicio
     let actualFreeStudyAvailable = isFreeStudyAvailable;
-    if (totalConcepts > 0 && studyLimits) {
+    if (totalConcepts > 0) {
       try {
         console.log('🔍 Verificando límites de estudio libre...');
         console.log('🔍 Límites actuales:', studyLimits);
@@ -439,7 +439,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         actualFreeStudyAvailable = isFreeStudyAvailable;
       }
     } else {
-      console.log('🔍 No hay conceptos o límites, usando fallback para estudio libre:', isFreeStudyAvailable);
+      console.log('🔍 No hay conceptos, usando fallback para estudio libre:', isFreeStudyAvailable);
     }
     
     // Si el estudio libre NO está disponible hoy, la próxima fecha es mañana
