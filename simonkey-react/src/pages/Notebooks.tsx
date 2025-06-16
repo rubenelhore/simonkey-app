@@ -4,7 +4,6 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
 import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
-import NotebookForm from '../components/NotebookForm';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -320,11 +319,6 @@ const Notebooks: React.FC = () => {
       
       <main className="notebooks-main">
         <div className="left-column">
-          <div className="create-section">
-            <h2>Crear nuevo cuaderno</h2>
-            <NotebookForm onCreate={handleCreate} />
-          </div>
-          
           {/* Nuevo componente de racha */}
           <StreakTracker />
         </div>
@@ -348,6 +342,7 @@ const Notebooks: React.FC = () => {
               onDelete={handleDelete} 
               onEdit={handleEdit}
               onColorChange={handleColorChange}
+              onCreate={handleCreate}
             />
           )}
         </div>
