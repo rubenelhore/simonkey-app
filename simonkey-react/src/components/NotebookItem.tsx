@@ -10,9 +10,11 @@ interface NotebookItemProps {
   onDelete: (id: string) => void;
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
+  showActions: boolean; // Nuevo prop para controlar si las acciones están visibles
+  onToggleActions: (notebookId: string) => void; // Nueva función para alternar las acciones
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -29,6 +31,10 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
 
   const handleView = () => {
     navigate(`/notebooks/${id}`);
+  };
+
+  const handleCardClick = () => {
+    onToggleActions(id);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -67,10 +73,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
   };
 
   return (
-    <div className="notebook-card">
+    <div 
+      className="notebook-card"
+      style={{ borderColor: notebookColor }}
+    >
       <div 
         className="notebook-card-content" 
-        onClick={handleView}
+        onClick={handleCardClick}
         style={{ cursor: 'pointer' }}
       >
         {isEditing ? (
@@ -86,23 +95,25 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
           <h3 style={{ color: notebookColor }}>{editableTitle}</h3>
         )}
       </div>
-      <div 
-        className="notebook-card-actions"
-        style={{ backgroundColor: notebookColor }} // Aplica el color directamente aquí
-      >
-        <button onClick={handleView} className="action-view" title="Ver cuaderno">
-          <i className="fas fa-eye"></i>
-        </button>
-        <button onClick={handleColorClick} className="action-color" title="Cambiar color">
-          <i className="fas fa-palette"></i>
-        </button>
-        <button onClick={handleEditClick} className="action-edit" title="Editar nombre">
-          <i className="fas fa-pencil-alt"></i>
-        </button>
-        <button onClick={handleDelete} className="action-delete" title="Eliminar cuaderno">
-          <i className="fas fa-trash"></i>
-        </button>
-      </div>
+      {showActions && (
+        <div 
+          className="notebook-card-actions"
+          style={{ backgroundColor: notebookColor }} // Aplica el color directamente aquí
+        >
+          <button onClick={handleView} className="action-view" title="Ver cuaderno">
+            <i className="fas fa-eye"></i>
+          </button>
+          <button onClick={handleColorClick} className="action-color" title="Cambiar color">
+            <i className="fas fa-palette"></i>
+          </button>
+          <button onClick={handleEditClick} className="action-edit" title="Editar nombre">
+            <i className="fas fa-pencil-alt"></i>
+          </button>
+          <button onClick={handleDelete} className="action-delete" title="Eliminar cuaderno">
+            <i className="fas fa-trash"></i>
+          </button>
+        </div>
+      )}
       {showColorPicker && (
         <div className="color-picker-container">
           <div className="color-picker">

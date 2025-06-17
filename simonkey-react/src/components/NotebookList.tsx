@@ -26,6 +26,7 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null); // Nuevo estado para controlar qué acciones están abiertas
   const [user] = useAuthState(auth);
 
   const handleCreateNotebook = async (e: React.FormEvent) => {
@@ -54,6 +55,10 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
     }
   };
 
+  const handleToggleActions = (notebookId: string) => {
+    setOpenActionsId(openActionsId === notebookId ? null : notebookId);
+  };
+
   return (
     <>
       <div className="notebook-grid">
@@ -67,6 +72,8 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
             onDelete={onDelete}
             onEdit={onEdit}
             onColorChange={onColorChange}
+            showActions={openActionsId === notebook.id}
+            onToggleActions={handleToggleActions}
           />
         ))}
         

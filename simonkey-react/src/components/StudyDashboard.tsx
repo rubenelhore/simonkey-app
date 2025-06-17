@@ -251,41 +251,13 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     try {
       console.log('Consultando límites de quiz reales...');
       
-      // Primero, verificar si el cuaderno es recientemente creado (menos de 24 horas)
-      const notebookRef = doc(db, 'notebooks', notebookId);
-      const notebookDoc = await getDoc(notebookRef);
-      
-      let isRecentlyCreatedNotebook = false;
-      if (notebookDoc.exists()) {
-        const notebookData = notebookDoc.data();
-        const notebookCreatedAt = notebookData.createdAt?.toDate();
-        
-        if (notebookCreatedAt) {
-          const now = new Date();
-          const hoursSinceCreation = (now.getTime() - notebookCreatedAt.getTime()) / (1000 * 60 * 60);
-          
-          console.log('🔍 Análisis del cuaderno en dashboard:', {
-            notebookId,
-            createdAt: notebookCreatedAt.toISOString(),
-            hoursSinceCreation: hoursSinceCreation,
-            isRecentlyCreated: hoursSinceCreation < 24
-          });
-          
-          // Marcar como recientemente creado, pero NO permitir quiz inmediatamente
-          if (hoursSinceCreation < 24) {
-            isRecentlyCreatedNotebook = true;
-            console.log('✅ Cuaderno recientemente creado detectado');
-          }
-        }
-      }
-
-      // SIEMPRE verificar límites de quiz, independientemente de si el cuaderno es reciente
+      // Verificar límites de quiz para este cuaderno
       console.log('🔍 Verificando límites de quiz...');
-      const limitsRef = doc(db, 'users', userId, 'limits', 'study');
-      const limitsDoc = await getDoc(limitsRef);
+      const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+      const notebookLimitsDoc = await getDoc(notebookLimitsRef);
       
-      if (limitsDoc.exists()) {
-        const limits = limitsDoc.data();
+      if (notebookLimitsDoc.exists()) {
+        const limits = notebookLimitsDoc.data();
         studyLimits = limits;
         const lastQuizDate = limits.lastQuizDate?.toDate();
         console.log('✅ Límites encontrados:', limits);
@@ -297,6 +269,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         });
         
         if (lastQuizDate) {
+          // Si ya se ha usado el quiz, aplicar límites normales
           const now = new Date();
           const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
           console.log('📅 Cálculo de días desde último quiz:', {
@@ -316,24 +289,14 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             console.log('✅ Quiz disponible (pasó más de 7 días)');
           }
         } else {
-          // No hay lastQuizDate, verificar si es un cuaderno recientemente creado
-          if (isRecentlyCreatedNotebook) {
-            isQuizAvailable = true;
-            console.log('✅ Primer quiz para cuaderno recientemente creado, disponible');
-          } else {
-            isQuizAvailable = true;
-            console.log('✅ Primer quiz, disponible (no hay lastQuizDate)');
-          }
+          // No hay lastQuizDate, permitir quiz (primer uso)
+          isQuizAvailable = true;
+          console.log('✅ Quiz disponible (primer uso)');
         }
       } else {
-        // No hay límites previos, verificar si es un cuaderno recientemente creado
-        if (isRecentlyCreatedNotebook) {
-          isQuizAvailable = true;
-          console.log('✅ Primer quiz para cuaderno recientemente creado, disponible (sin límites previos)');
-        } else {
-          isQuizAvailable = true;
-          console.log('⚠️ No se encontraron límites de quiz, asumiendo disponible');
-        }
+        // No hay límites previos, permitir quiz (primer uso)
+        isQuizAvailable = true;
+        console.log('⚠️ No se encontraron límites de quiz, asumiendo disponible');
       }
     } catch (error) {
       console.error('❌ Error consultando límites:', error);
@@ -430,9 +393,28 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         console.log('🔍 Límites actuales:', studyLimits);
         console.log('🔍 lastFreeStudyDate:', lastFreeStudyDate ? lastFreeStudyDate.toISOString() : 'undefined');
         
-        actualFreeStudyAvailable = await studyService.checkFreeStudyLimit(userId);
+        // Si ya se ha usado el estudio libre hoy, no está disponible
+        if (lastFreeStudyDate) {
+          const today = new Date();
+          const lastStudy = new Date(lastFreeStudyDate);
+          
+          today.setHours(0, 0, 0, 0);
+          lastStudy.setHours(0, 0, 0, 0);
+          
+          if (today.getTime() === lastStudy.getTime()) {
+            actualFreeStudyAvailable = false;
+            console.log('❌ Estudio libre ya usado hoy');
+          } else {
+            actualFreeStudyAvailable = true;
+            console.log('✅ Estudio libre disponible (no usado hoy)');
+          }
+        } else {
+          // Si no se ha usado el estudio libre, permitir (primer uso del día)
+          actualFreeStudyAvailable = true;
+          console.log('✅ Estudio libre disponible (primer uso del día)');
+        }
         
-        console.log('🔍 Resultado de checkFreeStudyLimit:', actualFreeStudyAvailable);
+        console.log('🔍 Resultado final de estudio libre:', actualFreeStudyAvailable);
       } catch (error) {
         console.log('Error checking free study limit, using fallback:', error);
         // En caso de error, usar la lógica anterior

@@ -1,6 +1,6 @@
 // src/services/notebookService.ts
 import { db } from './firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, serverTimestamp, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { canCreateNotebook, incrementNotebookCount } from './userService';
 
 interface Notebook {
@@ -29,7 +29,37 @@ export const createNotebook = async (userId: string, title: string) => {
   // Incrementar el contador de cuadernos del usuario
   await incrementNotebookCount(userId);
   
+  // Inicializar límites de estudio para el nuevo cuaderno
+  await initializeStudyLimitsForNotebook(userId, docRef.id);
+  
   return { id: docRef.id, ...notebookData };
+};
+
+/**
+ * Inicializar límites de estudio para un nuevo cuaderno
+ * Esto permite estudio libre y quiz inmediato en cuadernos recientemente creados
+ */
+const initializeStudyLimitsForNotebook = async (userId: string, notebookId: string) => {
+  try {
+    console.log('🚀 Inicializando límites de estudio para cuaderno:', notebookId);
+    
+    // Crear documento de límites específico del cuaderno para quiz
+    const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+    await setDoc(notebookLimitsRef, {
+      userId,
+      notebookId,
+      lastQuizDate: null, // Permitir quiz inmediato
+      quizCountThisWeek: 0,
+      weekStartDate: new Date(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log('✅ Límites de quiz inicializados para cuaderno:', notebookId);
+  } catch (error) {
+    console.error('❌ Error inicializando límites de estudio:', error);
+    // No lanzar error para no interrumpir la creación del cuaderno
+  }
 };
 
 // Fetch all notebooks for a user

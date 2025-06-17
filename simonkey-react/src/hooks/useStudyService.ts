@@ -101,7 +101,7 @@ export const useStudyService = () => {
       try {
         // Verificar límites según el modo
         if (mode === StudyMode.FREE) {
-          const canStudy = await checkFreeStudyLimit(userId);
+          const canStudy = await checkFreeStudyLimit(userId, notebookId);
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio libre hoy');
           }
@@ -146,9 +146,9 @@ export const useStudyService = () => {
    * Verificar límite de estudio libre (1 por día)
    */
   const checkFreeStudyLimit = useCallback(
-    async (userId: string): Promise<boolean> => {
+    async (userId: string, notebookId?: string): Promise<boolean> => {
       try {
-        console.log('🔍 checkFreeStudyLimit llamado para usuario:', userId);
+        console.log('🔍 checkFreeStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
         
         const limitsRef = doc(db, 'users', userId, 'limits', 'study');
         const limitsDoc = await getDoc(limitsRef);

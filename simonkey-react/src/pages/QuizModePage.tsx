@@ -139,35 +139,7 @@ const QuizModePage: React.FC = () => {
     if (!auth.currentUser) return false;
 
     try {
-      // Primero, verificar si el cuaderno es recientemente creado (menos de 24 horas)
-      const notebookRef = doc(db, 'notebooks', notebookId);
-      const notebookDoc = await getDoc(notebookRef);
-      
-      let isRecentlyCreatedNotebook = false;
-      if (notebookDoc.exists()) {
-        const notebookData = notebookDoc.data();
-        const notebookCreatedAt = notebookData.createdAt?.toDate();
-        
-        if (notebookCreatedAt) {
-          const now = new Date();
-          const hoursSinceCreation = (now.getTime() - notebookCreatedAt.getTime()) / (1000 * 60 * 60);
-          
-          console.log('🔍 Análisis del cuaderno:', {
-            notebookId,
-            createdAt: notebookCreatedAt.toISOString(),
-            hoursSinceCreation: hoursSinceCreation,
-            isRecentlyCreated: hoursSinceCreation < 24
-          });
-          
-          // Marcar como recientemente creado, pero NO permitir quiz inmediatamente
-          if (hoursSinceCreation < 24) {
-            isRecentlyCreatedNotebook = true;
-            console.log('✅ Cuaderno recientemente creado detectado');
-          }
-        }
-      }
-
-      // SIEMPRE verificar límites de quiz, independientemente de si el cuaderno es reciente
+      // Verificar límites de quiz para este cuaderno
       console.log('🔍 Verificando límites de quiz para cuaderno:', notebookId);
       const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', notebookId, 'limits');
       const notebookLimitsDoc = await getDoc(notebookLimitsRef);
@@ -183,6 +155,7 @@ const QuizModePage: React.FC = () => {
         console.log('🔍 Datos completos del documento de límites:', JSON.stringify(limits, null, 2));
         
         if (lastQuizDate) {
+          // Si ya se ha usado el quiz, aplicar límites normales
           const now = new Date();
           const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
           console.log('🔍 Cálculo detallado de días desde último quiz:', {
@@ -205,34 +178,15 @@ const QuizModePage: React.FC = () => {
             setQuizAvailable(true);
             return true;
           }
-        } else {
-          // No hay lastQuizDate, verificar si es un cuaderno recientemente creado
-          if (isRecentlyCreatedNotebook) {
-            setQuizLimitMessage('');
-            console.log('✅ Primer quiz para cuaderno recientemente creado, disponible');
-            setQuizAvailable(true);
-            return true;
-          } else {
-            setQuizLimitMessage('');
-            console.log('✅ Primer quiz, disponible (no hay lastQuizDate)');
-            setQuizAvailable(true);
-            return true;
-          }
-        }
-      } else {
-        // No hay límites previos, verificar si es un cuaderno recientemente creado
-        if (isRecentlyCreatedNotebook) {
-          setQuizLimitMessage('');
-          console.log('✅ Primer quiz para cuaderno recientemente creado, disponible (sin límites previos)');
-          setQuizAvailable(true);
-          return true;
-        } else {
-          setQuizLimitMessage('');
-          console.log('✅ No hay límites, quiz disponible');
-          setQuizAvailable(true);
-          return true;
         }
       }
+      
+      // Si no hay límites previos o no se ha usado el quiz, permitir quiz (primer uso)
+      setQuizLimitMessage('');
+      console.log('✅ Quiz disponible (primer uso)');
+      setQuizAvailable(true);
+      return true;
+      
     } catch (error) {
       console.error('❌ Error checking quiz availability:', error);
       setQuizLimitMessage('');

@@ -160,7 +160,11 @@
 /* Score Card */
 .score-card {
   background: transparent;
-  border-color: #22c55e;
+  border-color: transparent;
+}
+
+.score-card:hover {
+  border-color: transparent;
 }
 
 .score-card .card-icon {
