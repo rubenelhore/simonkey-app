@@ -57,6 +57,12 @@ export const useUserType = () => {
   const isProUser = userProfile?.subscription === UserSubscriptionType.PRO;
   const isSchoolUser = userProfile?.subscription === UserSubscriptionType.SCHOOL;
 
+  // Debug logs
+  console.log('useUserType - user:', user?.email);
+  console.log('useUserType - userProfile:', userProfile);
+  console.log('useUserType - isSuperAdmin:', isSuperAdmin);
+  console.log('useUserType - subscription:', userProfile?.subscription);
+
   const isSchoolAdmin = isSchoolUser && userProfile?.schoolRole === SchoolRole.ADMIN;
   const isSchoolTeacher = isSchoolUser && userProfile?.schoolRole === SchoolRole.TEACHER;
   const isSchoolStudent = isSchoolUser && userProfile?.schoolRole === SchoolRole.STUDENT;

@@ -17,6 +17,7 @@ import ConceptDetail from './pages/ConceptDetail';
 import ExplainConceptPage from './pages/ExplainConceptPage';
 import SharedNotebook from './pages/SharedNotebook';
 import VoiceSettingsPage from './pages/VoiceSettingsPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
 import OnboardingComponent from './components/Onboarding/OnboardingComponent';
 import MobileNavigation from './components/Mobile/MobileNavigation';
@@ -232,6 +233,25 @@ const AppContent: React.FC = () => {
         <Route
           path="/quiz"
           element={user.isAuthenticated ? <QuizModePage /> : <Navigate to="/login" replace />}
+        />
+        
+        {/* Ruta para el panel de control del súper admin */}
+        <Route
+          path="/super-admin"
+          element={
+            (() => {
+              console.log('App - Super Admin route accessed');
+              console.log('App - user.isAuthenticated:', user.isAuthenticated);
+              console.log('App - user object:', user);
+              if (user.isAuthenticated) {
+                console.log('App - Rendering SuperAdminPage');
+                return <SuperAdminPage />;
+              } else {
+                console.log('App - Redirecting to login');
+                return <Navigate to="/login" replace />;
+              }
+            })()
+          }
         />
       </Routes>
       {user.isAuthenticated && <MobileNavigation />}

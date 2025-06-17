@@ -159,8 +159,12 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (userDoc.exists()) {
-      return userDoc.data() as UserProfile;
+      const userData = userDoc.data() as UserProfile;
+      console.log('getUserProfile - userData:', userData);
+      console.log('getUserProfile - subscription:', userData.subscription);
+      return userData;
     }
+    console.log('getUserProfile - user not found');
     return null;
   } catch (error) {
     console.error('Error al obtener perfil de usuario:', error);

@@ -982,8 +982,7 @@ select.form-control {
 }
 
 .voice-settings-button i {
-  margin-right: 10px;
-  color: #6147FF;
+  color: #8B5CF6;
 }
 
 /* Estilos para la tarjeta de crear nuevo cuaderno */
@@ -1166,4 +1165,91 @@ select.form-control {
     width: 95%;
     margin: 20px;
   }
+}
+
+.super-admin-button {
+  background: none;
+  border: 1px solid #DC2626;
+  color: #DC2626;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.super-admin-button:hover {
+  background-color: #DC2626;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+.super-admin-button:hover i {
+  color: white;
+}
+
+.debug-button {
+  background: none;
+  border: 1px solid #F59E0B;
+  color: #F59E0B;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.debug-button:hover {
+  background-color: #F59E0B;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+.debug-button:hover i {
+  color: white;
+}
+
+.test-nav-button {
+  background: none;
+  border: 1px solid #10B981;
+  color: #10B981;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.test-nav-button:hover {
+  background-color: #10B981;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.test-nav-button:hover i {
+  color: white;
 }

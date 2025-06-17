@@ -6,10 +6,11 @@ import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
+import { useUserType } from '../hooks/useUserType';
 
 const Notebooks: React.FC = () => {
   const [user] = useAuthState(auth);
@@ -17,6 +18,42 @@ const Notebooks: React.FC = () => {
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { isSuperAdmin } = useUserType();
+
+  // Debug log para verificar el estado de isSuperAdmin
+  console.log('Notebooks - isSuperAdmin:', isSuperAdmin);
+
+  // Función temporal para verificar y actualizar usuario como súper admin
+  const checkAndUpdateSuperAdmin = async () => {
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email === 'ruben.elhore@gmail.com') {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('Current user data:', userData);
+          if (userData.subscription !== 'super_admin') {
+            console.log('Updating user to super admin...');
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+              subscription: 'super_admin',
+              updatedAt: serverTimestamp()
+            });
+            console.log('User updated to super admin');
+            // Recargar la página para aplicar cambios
+            window.location.reload();
+          }
+        }
+      } catch (error) {
+        console.error('Error updating user:', error);
+      }
+    }
+  };
+
+  // Función de prueba para navegar directamente
+  const testNavigation = () => {
+    console.log('Testing direct navigation to /super-admin');
+    window.location.href = '/super-admin';
+  };
 
   // Estados para el componente de personalización
   const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
@@ -24,7 +61,7 @@ const Notebooks: React.FC = () => {
     nombre: '',
     apellidos: '',
     tipoAprendizaje: 'Visual', // Valor por defecto
-    intereses: ['']
+    intereses: ['tecnología']
   });
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -328,6 +365,29 @@ const Notebooks: React.FC = () => {
               <i className="fas fa-volume-up"></i> 
               <span>Configuración de voz</span>
             </button>
+            {isSuperAdmin && (
+              <button className="side-menu-button super-admin-button" onClick={() => {
+                console.log('Super Admin button clicked!');
+                navigate('/super-admin');
+              }}>
+                <i className="fas fa-crown"></i> 
+                <span>Súper Admin</span>
+              </button>
+            )}
+            {/* Botón temporal para debug */}
+            {auth.currentUser?.email === 'ruben.elhore@gmail.com' && (
+              <button className="side-menu-button debug-button" onClick={checkAndUpdateSuperAdmin}>
+                <i className="fas fa-bug"></i> 
+                <span>Debug Super Admin</span>
+              </button>
+            )}
+            {/* Botón de prueba para navegación directa */}
+            {auth.currentUser?.email === 'ruben.elhore@gmail.com' && (
+              <button className="side-menu-button test-nav-button" onClick={testNavigation}>
+                <i className="fas fa-external-link-alt"></i> 
+                <span>Test Navigation</span>
+              </button>
+            )}
             <button className="side-menu-button logout-button" onClick={handleLogout}>
               <i className="fas fa-sign-out-alt"></i> 
               <span>Cerrar sesión</span>

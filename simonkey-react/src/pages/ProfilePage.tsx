@@ -1,8 +1,8 @@
 // src/pages/ProfilePage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { signOut, updateProfile as updateFirebaseProfile } from 'firebase/auth';
+import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { signOut, updateProfile as updateFirebaseProfile, deleteUser } from 'firebase/auth';
 import { db, auth } from '../services/firebase';
 import { useUser } from '../hooks/useUser';
 import { useUserType } from '../hooks/useUserType';
@@ -56,6 +56,11 @@ const ProfilePage: React.FC = () => {
     notebooks: 0,
     studyTime: 0
   });
+  
+  // Estados para eliminación de cuenta
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string>('');
+  const [deletingAccount, setDeletingAccount] = useState<boolean>(false);
   
   const navigate = useNavigate();
 
@@ -221,6 +226,54 @@ const ProfilePage: React.FC = () => {
       navigate('/login');
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
+    }
+  };
+
+  // Eliminar cuenta del usuario
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser) return;
+    
+    if (deleteConfirmation !== 'eliminar') {
+      alert('Por favor escribe "eliminar" para confirmar la eliminación de tu cuenta.');
+      return;
+    }
+    
+    try {
+      setDeletingAccount(true);
+      
+      const userId = auth.currentUser.uid;
+      
+      // 1. Eliminar todos los notebooks del usuario
+      const notebooksQuery = query(collection(db, 'notebooks'), where('userId', '==', userId));
+      const notebooksSnapshot = await getDocs(notebooksQuery);
+      
+      for (const notebookDoc of notebooksSnapshot.docs) {
+        // Eliminar conceptos del notebook
+        const conceptsQuery = query(collection(db, 'concepts'), where('notebookId', '==', notebookDoc.id));
+        const conceptsSnapshot = await getDocs(conceptsQuery);
+        
+        for (const conceptDoc of conceptsSnapshot.docs) {
+          await deleteDoc(conceptDoc.ref);
+        }
+        
+        // Eliminar el notebook
+        await deleteDoc(notebookDoc.ref);
+      }
+      
+      // 2. Eliminar datos del usuario de Firestore
+      const userDocRef = doc(db, 'users', userId);
+      await deleteDoc(userDocRef);
+      
+      // 3. Eliminar cuenta de Firebase Auth
+      await deleteUser(auth.currentUser);
+      
+      // 4. Redirigir al login
+      navigate('/login');
+      
+    } catch (error) {
+      console.error("Error al eliminar cuenta:", error);
+      alert('Error al eliminar la cuenta. Por favor, intenta de nuevo.');
+      setDeletingAccount(false);
     }
   };
 
@@ -513,9 +566,96 @@ const ProfilePage: React.FC = () => {
               <i className="fas fa-sign-out-alt"></i>
               Cerrar sesión
             </button>
+            
+            <button 
+              className="delete-account-button"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              <i className="fas fa-trash-alt"></i>
+              Eliminar cuenta
+            </button>
           </section>
         )}
       </main>
+      
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className="delete-modal-overlay">
+          <div className="delete-modal">
+            <div className="delete-modal-header">
+              <h3>⚠️ Eliminar cuenta</h3>
+              <button 
+                className="close-modal-button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmation('');
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="delete-modal-content">
+              <div className="warning-message">
+                <i className="fas fa-exclamation-triangle"></i>
+                <p><strong>Esta acción es irreversible.</strong></p>
+                <p>Se eliminarán permanentemente:</p>
+                <ul>
+                  <li>Tu cuenta de usuario</li>
+                  <li>Todos tus notebooks</li>
+                  <li>Todos tus conceptos</li>
+                  <li>Tu progreso de estudio</li>
+                </ul>
+              </div>
+              
+              <div className="confirmation-input">
+                <label htmlFor="deleteConfirmation">
+                  Escribe <strong>"eliminar"</strong> para confirmar:
+                </label>
+                <input
+                  type="text"
+                  id="deleteConfirmation"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="eliminar"
+                  className="form-control"
+                />
+              </div>
+            </div>
+            
+            <div className="delete-modal-actions">
+              <button 
+                className="cancel-delete-button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmation('');
+                }}
+                disabled={deletingAccount}
+              >
+                Cancelar
+              </button>
+              
+              <button 
+                className="confirm-delete-button"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmation !== 'eliminar' || deletingAccount}
+              >
+                {deletingAccount ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-trash-alt"></i>
+                    Eliminar cuenta
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

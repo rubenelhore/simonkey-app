@@ -619,3 +619,210 @@
       margin-bottom: 0.5rem;
     }
   }
+  
+  .learning-style-display .style-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+  
+  /* Botón de eliminar cuenta */
+  .delete-account-button {
+    width: 100%;
+    padding: 1rem;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  
+  .delete-account-button:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
+  }
+  
+  .delete-account-button i {
+    font-size: 1rem;
+  }
+  
+  /* Modal de eliminación */
+  .delete-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+  
+  .delete-modal {
+    background-color: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  .delete-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.5rem 0 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 1rem;
+  }
+  
+  .delete-modal-header h3 {
+    margin: 0;
+    color: #dc3545;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  .close-modal-button {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+  }
+  
+  .close-modal-button:hover {
+    background-color: #f3f4f6;
+  }
+  
+  .delete-modal-content {
+    padding: 1.5rem;
+  }
+  
+  .warning-message {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .warning-message i {
+    color: #dc3545;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .warning-message p {
+    margin: 0.5rem 0;
+    color: #374151;
+  }
+  
+  .warning-message ul {
+    margin: 0.5rem 0 0 1.5rem;
+    color: #374151;
+  }
+  
+  .warning-message li {
+    margin: 0.25rem 0;
+  }
+  
+  .confirmation-input {
+    margin-bottom: 1rem;
+  }
+  
+  .confirmation-input label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #374151;
+  }
+  
+  .confirmation-input input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+  
+  .confirmation-input input:focus {
+    outline: none;
+    border-color: #dc3545;
+  }
+  
+  .delete-modal-actions {
+    display: flex;
+    gap: 1rem;
+    padding: 0 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .cancel-delete-button, .confirm-delete-button {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  .cancel-delete-button {
+    background-color: #6b7280;
+    color: white;
+  }
+  
+  .cancel-delete-button:hover:not(:disabled) {
+    background-color: #4b5563;
+  }
+  
+  .confirm-delete-button {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .confirm-delete-button:hover:not(:disabled) {
+    background-color: #c82333;
+  }
+  
+  .confirm-delete-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+  
+  .confirm-delete-button i {
+    font-size: 1rem;
+  }
+  
+  /* Responsive para el modal */
+  @media (max-width: 768px) {
+    .delete-modal {
+      margin: 1rem;
+      max-height: calc(100vh - 2rem);
+    }
+    
+    .delete-modal-actions {
+      flex-direction: column;
+    }
+  }
