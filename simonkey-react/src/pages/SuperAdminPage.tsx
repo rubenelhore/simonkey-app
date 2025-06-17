@@ -12,6 +12,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
+import { deleteAllUserData } from '../services/userService';
+import UserDataManagement from '../components/UserDataManagement';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -210,12 +212,18 @@ const SuperAdminPage: React.FC = () => {
   };
 
   const deleteUser = async (userId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción eliminará TODOS sus datos incluyendo notebooks, conceptos, sesiones de estudio y estadísticas. Esta acción es irreversible.')) {
       try {
-        await deleteDoc(doc(db, 'users', userId));
+        console.log('🗑️ SuperAdmin eliminando usuario:', userId);
+        
+        // Usar la función utilitaria para eliminar todos los datos del usuario
+        await deleteAllUserData(userId);
+        
+        console.log('✅ Usuario eliminado exitosamente por SuperAdmin');
         await loadData();
       } catch (error) {
         console.error('Error deleting user:', error);
+        alert('Error al eliminar el usuario. Por favor, intenta de nuevo.');
       }
     }
   };
@@ -474,6 +482,13 @@ const SuperAdminPage: React.FC = () => {
             onClick={() => setActiveTab('sql')}
           >
             <i className="fas fa-database"></i> SQL Console
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'userDataManagement' ? 'active' : ''}`}
+            onClick={() => setActiveTab('userDataManagement')}
+          >
+            <i className="fas fa-database"></i>
+            Gestión de Datos
           </button>
         </nav>
 
@@ -760,6 +775,21 @@ const SuperAdminPage: React.FC = () => {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Tab de Gestión de Datos de Usuario */}
+          {activeTab === 'userDataManagement' && (
+            <div className="user-data-management-tab">
+              <div className="tab-header">
+                <h2>Gestión de Datos de Usuario</h2>
+                <p className="tab-description">
+                  Herramientas para auditar y eliminar datos de usuario de manera segura.
+                  Solo disponible para super administradores.
+                </p>
+              </div>
+              
+              <UserDataManagement />
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@ import { db, auth } from '../services/firebase';
 import { useUser } from '../hooks/useUser';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
+import { deleteAllUserData } from '../services/userService';
 import '../styles/ProfilePage.css';
 
 // Define interfaces for the component's props and state
@@ -243,31 +244,21 @@ const ProfilePage: React.FC = () => {
       
       const userId = auth.currentUser.uid;
       
-      // 1. Eliminar todos los notebooks del usuario
-      const notebooksQuery = query(collection(db, 'notebooks'), where('userId', '==', userId));
-      const notebooksSnapshot = await getDocs(notebooksQuery);
+      console.log('🗑️ Iniciando eliminación de cuenta para usuario:', userId);
       
-      for (const notebookDoc of notebooksSnapshot.docs) {
-        // Eliminar conceptos del notebook
-        const conceptsQuery = query(collection(db, 'concepts'), where('notebookId', '==', notebookDoc.id));
-        const conceptsSnapshot = await getDocs(conceptsQuery);
-        
-        for (const conceptDoc of conceptsSnapshot.docs) {
-          await deleteDoc(conceptDoc.ref);
-        }
-        
-        // Eliminar el notebook
-        await deleteDoc(notebookDoc.ref);
-      }
+      // 1. Eliminar todos los datos del usuario usando la función utilitaria
+      await deleteAllUserData(userId);
       
-      // 2. Eliminar datos del usuario de Firestore
-      const userDocRef = doc(db, 'users', userId);
-      await deleteDoc(userDocRef);
-      
-      // 3. Eliminar cuenta de Firebase Auth
+      // 2. Eliminar cuenta de Firebase Auth
+      console.log('👤 Eliminando cuenta de Firebase Auth...');
       await deleteUser(auth.currentUser);
       
+      // 3. Limpiar datos locales
+      localStorage.removeItem('user');
+      sessionStorage.clear();
+      
       // 4. Redirigir al login
+      console.log('✅ Cuenta eliminada exitosamente');
       navigate('/login');
       
     } catch (error) {

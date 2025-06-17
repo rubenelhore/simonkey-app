@@ -1,6 +1,7 @@
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole, UserProfile, SubscriptionLimits } from '../types/interfaces';
+import { collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 
 /**
  * Configuración de límites por tipo de suscripción
@@ -456,5 +457,159 @@ export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfi
   } catch (error) {
     console.error('❌ Error verificando/corrigiendo perfil:', error);
     return null;
+  }
+};
+
+/**
+ * Elimina completamente todos los datos de un usuario
+ * Esta función elimina notebooks, conceptos, sesiones de estudio, datos de aprendizaje,
+ * estadísticas, límites y todas las subcolecciones relacionadas
+ */
+export const deleteAllUserData = async (userId: string): Promise<void> => {
+  try {
+    console.log('🗑️ Iniciando eliminación completa de datos para usuario:', userId);
+    
+    // 1. Eliminar notebooks y sus conceptos relacionados
+    console.log('📚 Eliminando notebooks...');
+    const notebooksQuery = query(collection(db, 'notebooks'), where('userId', '==', userId));
+    const notebooksSnapshot = await getDocs(notebooksQuery);
+    
+    for (const notebookDoc of notebooksSnapshot.docs) {
+      const notebookId = notebookDoc.id;
+      console.log(`📖 Eliminando notebook: ${notebookId}`);
+      
+      // Eliminar conceptos asociados a este notebook
+      const conceptsQuery = query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId));
+      const conceptsSnapshot = await getDocs(conceptsQuery);
+      
+      for (const conceptDoc of conceptsSnapshot.docs) {
+        console.log(`📝 Eliminando documento de conceptos: ${conceptDoc.id}`);
+        await deleteDoc(conceptDoc.ref);
+      }
+      
+      // Eliminar el notebook
+      await deleteDoc(notebookDoc.ref);
+    }
+    
+    // 2. Eliminar sesiones de estudio
+    console.log('📊 Eliminando sesiones de estudio...');
+    const studySessionsQuery = query(collection(db, 'studySessions'), where('userId', '==', userId));
+    const studySessionsSnapshot = await getDocs(studySessionsQuery);
+    
+    for (const sessionDoc of studySessionsSnapshot.docs) {
+      console.log(`⏱️ Eliminando sesión de estudio: ${sessionDoc.id}`);
+      await deleteDoc(sessionDoc.ref);
+    }
+    
+    // 3. Eliminar actividades de usuario
+    console.log('📈 Eliminando actividades de usuario...');
+    const userActivitiesQuery = query(collection(db, 'userActivities'), where('userId', '==', userId));
+    const userActivitiesSnapshot = await getDocs(userActivitiesQuery);
+    
+    for (const activityDoc of userActivitiesSnapshot.docs) {
+      console.log(`📊 Eliminando actividad: ${activityDoc.id}`);
+      await deleteDoc(activityDoc.ref);
+    }
+    
+    // 4. Eliminar conceptos de repaso
+    console.log('🔄 Eliminando conceptos de repaso...');
+    const reviewConceptsQuery = query(collection(db, 'reviewConcepts'), where('userId', '==', userId));
+    const reviewConceptsSnapshot = await getDocs(reviewConceptsQuery);
+    
+    for (const reviewDoc of reviewConceptsSnapshot.docs) {
+      console.log(`🔄 Eliminando concepto de repaso: ${reviewDoc.id}`);
+      await deleteDoc(reviewDoc.ref);
+    }
+    
+    // 5. Eliminar estadísticas de conceptos
+    console.log('📊 Eliminando estadísticas de conceptos...');
+    const conceptStatsQuery = query(collection(db, 'conceptStats'), where('userId', '==', userId));
+    const conceptStatsSnapshot = await getDocs(conceptStatsQuery);
+    
+    for (const statDoc of conceptStatsSnapshot.docs) {
+      console.log(`📊 Eliminando estadística: ${statDoc.id}`);
+      await deleteDoc(statDoc.ref);
+    }
+    
+    // 6. Eliminar subcolecciones del usuario
+    console.log('🗂️ Eliminando subcolecciones del usuario...');
+    
+    // Eliminar datos de aprendizaje (learningData)
+    const learningDataRef = collection(db, 'users', userId, 'learningData');
+    const learningDataSnapshot = await getDocs(learningDataRef);
+    for (const learningDoc of learningDataSnapshot.docs) {
+      console.log(`🧠 Eliminando datos de aprendizaje: ${learningDoc.id}`);
+      await deleteDoc(learningDoc.ref);
+    }
+    
+    // Eliminar estadísticas de quiz (quizStats)
+    const quizStatsRef = collection(db, 'users', userId, 'quizStats');
+    const quizStatsSnapshot = await getDocs(quizStatsRef);
+    for (const quizStatDoc of quizStatsSnapshot.docs) {
+      console.log(`📝 Eliminando estadística de quiz: ${quizStatDoc.id}`);
+      await deleteDoc(quizStatDoc.ref);
+    }
+    
+    // Eliminar resultados de quiz (quizResults)
+    const quizResultsRef = collection(db, 'users', userId, 'quizResults');
+    const quizResultsSnapshot = await getDocs(quizResultsRef);
+    for (const quizResultDoc of quizResultsSnapshot.docs) {
+      console.log(`📊 Eliminando resultado de quiz: ${quizResultDoc.id}`);
+      await deleteDoc(quizResultDoc.ref);
+    }
+    
+    // Eliminar límites de estudio (limits)
+    const limitsRef = collection(db, 'users', userId, 'limits');
+    const limitsSnapshot = await getDocs(limitsRef);
+    for (const limitDoc of limitsSnapshot.docs) {
+      console.log(`⏰ Eliminando límite: ${limitDoc.id}`);
+      await deleteDoc(limitDoc.ref);
+    }
+    
+    // Eliminar límites de notebooks (notebookLimits)
+    const notebookLimitsRef = collection(db, 'users', userId, 'notebookLimits');
+    const notebookLimitsSnapshot = await getDocs(notebookLimitsRef);
+    for (const notebookLimitDoc of notebookLimitsSnapshot.docs) {
+      console.log(`📚 Eliminando límite de notebook: ${notebookLimitDoc.id}`);
+      await deleteDoc(notebookLimitDoc.ref);
+    }
+    
+    // Eliminar estadísticas del usuario (stats)
+    const statsRef = collection(db, 'users', userId, 'stats');
+    const statsSnapshot = await getDocs(statsRef);
+    for (const statDoc of statsSnapshot.docs) {
+      console.log(`📈 Eliminando estadística: ${statDoc.id}`);
+      await deleteDoc(statDoc.ref);
+    }
+    
+    // Eliminar configuraciones (settings)
+    const settingsRef = collection(db, 'users', userId, 'settings');
+    const settingsSnapshot = await getDocs(settingsRef);
+    for (const settingDoc of settingsSnapshot.docs) {
+      console.log(`⚙️ Eliminando configuración: ${settingDoc.id}`);
+      await deleteDoc(settingDoc.ref);
+    }
+    
+    // 7. Eliminar el documento principal del usuario
+    console.log('👤 Eliminando documento principal del usuario...');
+    const userDocRef = doc(db, 'users', userId);
+    await deleteDoc(userDocRef);
+    
+    // 8. Eliminar de la colección de usuarios en español (si existe)
+    try {
+      const usuarioDocRef = doc(db, 'usuarios', userId);
+      const usuarioDoc = await getDoc(usuarioDocRef);
+      if (usuarioDoc.exists()) {
+        console.log('👤 Eliminando documento de usuario en español...');
+        await deleteDoc(usuarioDocRef);
+      }
+    } catch (error) {
+      console.log('⚠️ No se encontró documento de usuario en español o ya fue eliminado');
+    }
+    
+    console.log('✅ Eliminación completa de datos finalizada para usuario:', userId);
+  } catch (error) {
+    console.error('❌ Error durante la eliminación de datos del usuario:', error);
+    throw new Error(`Error al eliminar datos del usuario: ${error}`);
   }
 }; 
