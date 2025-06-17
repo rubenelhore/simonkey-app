@@ -30,19 +30,19 @@ service cloud.firestore {
 
       // NUEVA - Reglas para conceptos dentro de notebooks
       match /concepts/{conceptId} {
-        allow read, write: if isSignedIn();
+        allow read, write, delete: if isSignedIn();
       }
     }
 
     // Reglas para conceptos
     match /conceptos/{conceptoId} {
       allow read: if isSignedIn() && exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId));
-      allow write: if isSignedIn(); // Consider tightening this rule if needed
+      allow write, delete: if isSignedIn(); // Consider tightening this rule if needed
     }
 
     // Reglas para conceptos de repaso - MODIFICADO
     match /reviewConcepts/{reviewId} {
-      allow read, write: if isSignedIn(); // Permitir todas las operaciones para usuarios autenticados
+      allow read, write, delete: if isSignedIn(); // Permitir todas las operaciones para usuarios autenticados
     }
 
     // NUEVA - Reglas para sesiones de estudio
@@ -52,7 +52,7 @@ service cloud.firestore {
 
     // NUEVA - Reglas para estadísticas de conceptos
     match /conceptStats/{statId} {
-      allow read, write: if isSignedIn(); // Consider more specific rules
+      allow read, write, delete: if isSignedIn(); // Consider more specific rules
     }
 
     // Reglas para users (colección en inglés) - MODIFICADO PARA SÚPER ADMINS
