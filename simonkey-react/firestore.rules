@@ -1,69 +1,131 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Función para verificar si el usuario es super admin
+    // Reglas generales: Autenticación requerida para la mayoría de las operaciones
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // NUEVA - Función para verificar si el usuario es súper admin
     function isSuperAdmin() {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'super_admin';
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscription == 'super_admin';
     }
-    
-    // Función para verificar si el usuario es propietario del documento
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Reglas para la colección de usuarios
-    match /users/{userId} {
-      // Permitir lectura si es el propietario o super admin
-      allow read: if isOwner(userId) || isSuperAdmin();
-      
-      // Permitir escritura si es el propietario o super admin
-      allow write: if isOwner(userId) || isSuperAdmin();
-      
-      // Permitir eliminación si es el propietario o super admin
-      allow delete: if isOwner(userId) || isSuperAdmin();
-    }
-    
-    // Reglas para la colección de notebooks
+
+    // Reglas para notebooks
     match /notebooks/{notebookId} {
-      // Permitir lectura si es el propietario o super admin
-      allow read: if isOwner(resource.data.userId) || isSuperAdmin();
-      
-      // Permitir escritura si es el propietario o super admin
-      allow write: if isOwner(resource.data.userId) || isSuperAdmin();
-      
-      // Permitir eliminación si es el propietario o super admin
-      allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
+      allow read: if isSignedIn();
+      // Corrected create rule: check against request.resource.data
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
+      // Delete rule likely correct as it checks the existing document
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow update: if isSignedIn() && request.auth.uid == resource.data.userId &&
+        (
+          (request.resource.data.conceptos is list &&
+           resource.data.conceptos is list &&
+           request.resource.data.conceptos.size() >= resource.data.conceptos.size()) ||
+          (!request.resource.data.keys().hasAny(['conceptos']))
+        );
+
+      // NUEVA - Reglas para conceptos dentro de notebooks
+      match /concepts/{conceptId} {
+        allow read, write: if isSignedIn();
+      }
     }
-    
-    // Reglas para la colección de conceptos
-    match /concepts/{conceptId} {
-      // Permitir lectura si es el propietario del notebook o super admin
-      allow read: if isOwner(resource.data.userId) || isSuperAdmin();
-      
-      // Permitir escritura si es el propietario del notebook o super admin
-      allow write: if isOwner(resource.data.userId) || isSuperAdmin();
-      
-      // Permitir eliminación si es el propietario del notebook o super admin
-      allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
+
+    // Reglas para conceptos
+    match /conceptos/{conceptoId} {
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId));
+      allow write: if isSignedIn(); // Consider tightening this rule if needed
     }
-    
-    // Reglas para la colección de instituciones (solo super admin)
-    match /institutions/{institutionId} {
+
+    // Reglas para conceptos de repaso - MODIFICADO
+    match /reviewConcepts/{reviewId} {
+      allow read, write: if isSignedIn(); // Permitir todas las operaciones para usuarios autenticados
+    }
+
+    // NUEVA - Reglas para sesiones de estudio
+    match /studySessions/{sessionId} {
+      allow read, write, create, update, delete: if isSignedIn(); // Consider more specific rules
+    }
+
+    // NUEVA - Reglas para estadísticas de conceptos
+    match /conceptStats/{statId} {
+      allow read, write: if isSignedIn(); // Consider more specific rules
+    }
+
+    // Reglas para users (colección en inglés) - MODIFICADO PARA SÚPER ADMINS
+    match /users/{userId} {
+      // Súper admins pueden leer/escribir/eliminar todos los usuarios
       allow read, write, delete: if isSuperAdmin();
+      // Usuarios normales solo pueden leer/escribir/eliminar su propio perfil
+      allow read, write, delete: if isSignedIn() && request.auth.uid == userId;
+
+      // Reglas para las estadísticas del usuario
+      match /stats/{document=**} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
+      // Reglas para la subcolección settings
+      match /settings/{document=**} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
+      // NUEVA - Reglas para datos de aprendizaje
+      match /learningData/{document=**} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
+      // NUEVA - Reglas para estadísticas de quiz por cuaderno
+      match /quizStats/{notebookId} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
+      // NUEVA - Reglas para límites de estudio
+      match /limits/{document} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
+      // NUEVA - Reglas para notebooks del usuario
+      match /notebooks/{notebookId} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+
+        // NUEVA - Reglas para conceptos dentro de notebooks del usuario
+        match /concepts/{conceptId} {
+          allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+        }
+      }
+
+      // NUEVA - Reglas para resultados de quiz
+      match /quizResults/{quizId} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
     }
-    
-    // Reglas para la colección de usuarios (colección alternativa)
+
+    // Reglas para usuarios (colección en español)
     match /usuarios/{userId} {
-      // Permitir lectura si es el propietario o super admin
-      allow read: if isOwner(userId) || isSuperAdmin();
-      
-      // Permitir escritura si es el propietario o super admin
-      allow write: if isOwner(userId) || isSuperAdmin();
-      
-      // Permitir eliminación si es el propietario o super admin
-      allow delete: if isOwner(userId) || isSuperAdmin();
+      allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+
+      // Reglas para configuraciones en español
+      match /configuraciones/{document=**} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+    }
+
+    // NUEVA - Regla para actividades de usuario
+    match /userActivities/{activityId} {
+      allow read, write, delete: if isSuperAdmin() || isSignedIn(); // Consider more specific rules
+    }
+
+    // NUEVA - Reglas específicas para instituciones (solo súper admins)
+    match /institutions/{institutionId} {
+      allow read, write, create, update, delete: if isSuperAdmin();
+    }
+
+    // NUEVA - Regla global para súper admins (al final para evitar conflictos)
+    match /{document=**} {
+      allow read, write, create, update, delete: if isSuperAdmin();
     }
   }
 } 
