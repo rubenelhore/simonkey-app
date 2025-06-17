@@ -87,12 +87,22 @@ service cloud.firestore {
         allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
       }
 
+      // NUEVA - Reglas para límites de cuadernos
+      match /notebookLimits/{notebookId} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+      }
+
       // NUEVA - Reglas para notebooks del usuario
       match /notebooks/{notebookId} {
         allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
 
         // NUEVA - Reglas para conceptos dentro de notebooks del usuario
         match /concepts/{conceptId} {
+          allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+        }
+
+        // NUEVA - Reglas para límites dentro de notebooks del usuario
+        match /limits/{document} {
           allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
         }
       }

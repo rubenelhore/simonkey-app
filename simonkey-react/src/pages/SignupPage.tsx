@@ -12,10 +12,12 @@ import { signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, firestore } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
-import { createUserProfile } from '../services/userService';
+import { createUserProfile, getUserProfile } from '../services/userService';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
+  const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const [email, setEmail] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -148,68 +150,7 @@ const SignupPage: React.FC = () => {
   };
   
   const handleGoogleSignup = async () => {
-    setIsLoading(true);
-    
-    try {
-      // Iniciar sesión con proveedor
-      const provider = new GoogleAuthProvider();
-      provider.addScope('profile');
-      provider.addScope('email');
-      
-      // Set custom parameters
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-      
-      // Usar signInWithPopup en lugar de signInWithRedirect
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      // Crear perfil de usuario en Firestore si es un usuario nuevo
-      try {
-        // Verificamos si es un usuario nuevo
-        const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
-        
-        if (isNewUser) {
-          // Para usuarios de Google, usar el nuevo servicio
-          await createUserProfile(user.uid, {
-            email: user.email || '',
-            username: user.displayName || user.email?.split('@')[0] || '',
-            nombre: user.displayName || '',
-            displayName: user.displayName || '',
-            birthdate: new Date().toISOString().split('T')[0] // Fecha actual como fallback
-          });
-        }
-        
-        // Guardar información básica del usuario
-        const userData = {
-          id: user.uid,
-          email: user.email || '',
-          name: user.displayName || '',
-          isAuthenticated: true
-        };
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        // Navegar a notebooks después de autenticación exitosa
-        navigate('/notebooks', { replace: true });
-      } catch (error) {
-        console.error("Error creando perfil de usuario:", error);
-        setError("Error al crear el perfil de usuario");
-      }
-      
-    } catch (err: any) {
-      console.error('Error en registro con Google:', err);
-      
-      let errorMessage = 'Error al registrarse con Google';
-      
-      if (err.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'La solicitud de registro fue cancelada';
-      }
-      
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+    await handleGoogleAuth(true); // true para signup
   };
   
   return (
@@ -225,6 +166,7 @@ const SignupPage: React.FC = () => {
         </div>
         
         {error && <div className="error-message">{error}</div>}
+        {googleError && <div className="error-message">{googleError}</div>}
         
         <form onSubmit={handleSignup} className="signup-form">
           <div className="form-group">
@@ -303,7 +245,7 @@ const SignupPage: React.FC = () => {
             <button 
               className="google-button" 
               onClick={handleGoogleSignup}
-              disabled={isLoading}
+              disabled={isLoading || googleLoading}
             >
               <svg viewBox="0 0 24 24" width="18" height="18">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

@@ -1,5 +1,5 @@
 // src/pages/Notebooks.tsx
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
 import { useNotebooks } from '../hooks/useNotebooks';
@@ -11,6 +11,7 @@ import '../styles/Notebooks.css';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
+import UserTypeBadge from '../components/UserTypeBadge';
 
 const Notebooks: React.FC = () => {
   const [user] = useAuthState(auth);
@@ -404,26 +405,20 @@ const Notebooks: React.FC = () => {
         
         <div className="notebooks-list-section">
           <h2>Mis cuadernos</h2>
-          {notebooks && notebooks.length === 0 ? (
-            <div className="empty-state">
-              <p>No tienes cuadernos aún. ¡Crea uno para comenzar!</p>
-            </div>
-          ) : (
-            <NotebookList 
-              notebooks={(notebooks || []).map(notebook => ({
-                ...notebook,
-                createdAt: notebook.createdAt instanceof Date ? 
-                  notebook.createdAt : 
-                  (notebook.createdAt && typeof notebook.createdAt.toDate === 'function' ? 
-                    notebook.createdAt.toDate() : 
-                    new Date())
-              }))} 
-              onDelete={handleDelete} 
-              onEdit={handleEdit}
-              onColorChange={handleColorChange}
-              onCreate={handleCreate}
-            />
-          )}
+          <NotebookList 
+            notebooks={(notebooks || []).map(notebook => ({
+              ...notebook,
+              createdAt: notebook.createdAt instanceof Date ? 
+                notebook.createdAt : 
+                (notebook.createdAt && typeof notebook.createdAt.toDate === 'function' ? 
+                  notebook.createdAt.toDate() : 
+                  new Date())
+            }))} 
+            onDelete={handleDelete} 
+            onEdit={handleEdit}
+            onColorChange={handleColorChange}
+            onCreate={handleCreate}
+          />
         </div>
       </main>
       

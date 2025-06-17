@@ -14,6 +14,7 @@ interface Notebook {
 export const createNotebook = async (userId: string, title: string) => {
   // Verificar si el usuario puede crear un nuevo cuaderno
   const canCreate = await canCreateNotebook(userId);
+  
   if (!canCreate.canCreate) {
     throw new Error(canCreate.reason || 'No se puede crear el cuaderno');
   }
@@ -41,11 +42,10 @@ export const createNotebook = async (userId: string, title: string) => {
  */
 const initializeStudyLimitsForNotebook = async (userId: string, notebookId: string) => {
   try {
-    console.log('🚀 Inicializando límites de estudio para cuaderno:', notebookId);
-    
     // Crear documento de límites específico del cuaderno para quiz
-    const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
-    await setDoc(notebookLimitsRef, {
+    const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
+    
+    const limitsData = {
       userId,
       notebookId,
       lastQuizDate: null, // Permitir quiz inmediato
@@ -53,11 +53,10 @@ const initializeStudyLimitsForNotebook = async (userId: string, notebookId: stri
       weekStartDate: new Date(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
     
-    console.log('✅ Límites de quiz inicializados para cuaderno:', notebookId);
+    await setDoc(notebookLimitsRef, limitsData);
   } catch (error) {
-    console.error('❌ Error inicializando límites de estudio:', error);
     // No lanzar error para no interrumpir la creación del cuaderno
   }
 };

@@ -82,12 +82,16 @@ const SCHOOL_ROLE_PERMISSIONS: Record<SchoolRole, Partial<SubscriptionLimits['pe
  * Determina el tipo de suscripción basado en el email del usuario
  */
 export const determineUserSubscription = (email: string): UserSubscriptionType => {
+  console.log('🔍 Determinando tipo de suscripción para email:', email);
+  
   // Super admin
   if (email === 'ruben.elhore@gmail.com') {
+    console.log('👑 Usuario identificado como super admin');
     return UserSubscriptionType.SUPER_ADMIN;
   }
   
   // Por defecto, todos los usuarios nuevos son FREE
+  console.log('👤 Usuario asignado como FREE por defecto');
   return UserSubscriptionType.FREE;
 };
 
@@ -95,7 +99,10 @@ export const determineUserSubscription = (email: string): UserSubscriptionType =
  * Obtiene los límites de suscripción para un tipo de usuario
  */
 export const getSubscriptionLimits = (subscriptionType: UserSubscriptionType): SubscriptionLimits => {
-  return SUBSCRIPTION_LIMITS[subscriptionType];
+  console.log('📊 Obteniendo límites para tipo de suscripción:', subscriptionType);
+  const limits = SUBSCRIPTION_LIMITS[subscriptionType];
+  console.log('📋 Límites obtenidos:', limits);
+  return limits;
 };
 
 /**
@@ -119,8 +126,13 @@ export const createUserProfile = async (
   }
 ): Promise<void> => {
   try {
+    console.log('🚀 Creando perfil de usuario:', { userId, userData });
+    
     const subscriptionType = determineUserSubscription(userData.email);
+    console.log('📋 Tipo de suscripción determinado:', subscriptionType);
+    
     const limits = getSubscriptionLimits(subscriptionType);
+    console.log('📊 Límites obtenidos:', limits);
     
     const userProfile: Partial<UserProfile> = {
       id: userId,
@@ -144,10 +156,12 @@ export const createUserProfile = async (
       userProfile.schoolRole = SchoolRole.STUDENT;
     }
 
+    console.log('📝 Perfil a guardar:', userProfile);
+    
     await setDoc(doc(db, 'users', userId), userProfile);
-    console.log(`Perfil de usuario creado con tipo: ${subscriptionType}`);
+    console.log(`✅ Perfil de usuario creado exitosamente con tipo: ${subscriptionType}`);
   } catch (error) {
-    console.error('Error al crear perfil de usuario:', error);
+    console.error('❌ Error al crear perfil de usuario:', error);
     throw error;
   }
 };
@@ -157,17 +171,26 @@ export const createUserProfile = async (
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
+    console.log('🔍 Buscando perfil de usuario con ID:', userId);
     const userDoc = await getDoc(doc(db, 'users', userId));
+    
     if (userDoc.exists()) {
       const userData = userDoc.data() as UserProfile;
-      console.log('getUserProfile - userData:', userData);
-      console.log('getUserProfile - subscription:', userData.subscription);
+      console.log('✅ Perfil de usuario encontrado:', userData);
+      console.log('📋 Detalles del perfil:', {
+        id: userData.id,
+        email: userData.email,
+        subscription: userData.subscription,
+        notebookCount: userData.notebookCount,
+        maxNotebooks: userData.maxNotebooks
+      });
       return userData;
     }
-    console.log('getUserProfile - user not found');
+    
+    console.log('❌ Documento de usuario no encontrado en Firestore');
     return null;
   } catch (error) {
-    console.error('Error al obtener perfil de usuario:', error);
+    console.error('❌ Error al obtener perfil de usuario:', error);
     return null;
   }
 };
@@ -207,7 +230,8 @@ export const updateUserSubscription = async (
  */
 export const canCreateNotebook = async (userId: string): Promise<{ canCreate: boolean; reason?: string }> => {
   try {
-    const userProfile = await getUserProfile(userId);
+    const userProfile = await verifyAndFixUserProfile(userId);
+    
     if (!userProfile) {
       return { canCreate: false, reason: 'Usuario no encontrado' };
     }
@@ -319,21 +343,34 @@ export const canAddConcepts = async (
  */
 export const incrementNotebookCount = async (userId: string): Promise<void> => {
   try {
+    console.log('📈 Incrementando contador de cuadernos para usuario:', userId);
+    
     const userProfile = await getUserProfile(userId);
-    if (!userProfile) return;
+    if (!userProfile) {
+      console.log('❌ No se pudo obtener el perfil del usuario para incrementar contador');
+      return;
+    }
+
+    const currentCount = userProfile.notebookCount || 0;
+    console.log('📊 Contador actual de cuadernos:', currentCount);
 
     const updateData: any = {
-      notebookCount: (userProfile.notebookCount || 0) + 1,
+      notebookCount: currentCount + 1,
     };
 
     // Incrementar contador semanal para usuarios PRO
     if (userProfile.subscription === UserSubscriptionType.PRO) {
-      updateData.notebooksCreatedThisWeek = (userProfile.notebooksCreatedThisWeek || 0) + 1;
+      const currentWeeklyCount = userProfile.notebooksCreatedThisWeek || 0;
+      updateData.notebooksCreatedThisWeek = currentWeeklyCount + 1;
+      console.log('📅 Incrementando contador semanal PRO:', currentWeeklyCount + 1);
     }
 
+    console.log('📝 Datos a actualizar:', updateData);
+    
     await updateDoc(doc(db, 'users', userId), updateData);
+    console.log('✅ Contador de cuadernos incrementado exitosamente');
   } catch (error) {
-    console.error('Error al incrementar contador de cuadernos:', error);
+    console.error('❌ Error al incrementar contador de cuadernos:', error);
   }
 };
 
@@ -357,5 +394,67 @@ export const incrementConceptCount = async (userId: string): Promise<void> => {
     }
   } catch (error) {
     console.error('Error al incrementar contador de conceptos:', error);
+  }
+};
+
+/**
+ * Verifica y corrige un perfil de usuario si está incompleto
+ */
+export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  try {
+    console.log('🔍 Verificando y corrigiendo perfil de usuario:', userId);
+    
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+      console.log('❌ Usuario no encontrado');
+      return null;
+    }
+
+    // Verificar si el perfil está completo
+    const needsFix = !userProfile.subscription || 
+                    userProfile.notebookCount === undefined || 
+                    userProfile.notebookCount === null ||
+                    !userProfile.maxNotebooks;
+
+    if (needsFix) {
+      console.log('⚠️ Perfil incompleto detectado, corrigiendo...');
+      
+      const subscriptionType = determineUserSubscription(userProfile.email);
+      const limits = getSubscriptionLimits(subscriptionType);
+      
+      const updateData = {
+        subscription: subscriptionType,
+        notebookCount: userProfile.notebookCount || 0,
+        maxNotebooks: limits.maxNotebooks,
+        maxConceptsPerNotebook: limits.maxConceptsPerNotebook,
+        notebooksCreatedThisWeek: userProfile.notebooksCreatedThisWeek || 0,
+        conceptsCreatedThisWeek: userProfile.conceptsCreatedThisWeek || 0,
+        weekStartDate: userProfile.weekStartDate || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      console.log('📝 Datos de corrección:', updateData);
+      
+      await updateDoc(doc(db, 'users', userId), updateData);
+      
+      // Retornar el perfil corregido
+      const correctedProfile = {
+        ...userProfile,
+        ...updateData,
+        subscription: subscriptionType,
+        notebookCount: userProfile.notebookCount || 0,
+        maxNotebooks: limits.maxNotebooks,
+        maxConceptsPerNotebook: limits.maxConceptsPerNotebook,
+      };
+      
+      console.log('✅ Perfil corregido exitosamente');
+      return correctedProfile;
+    }
+
+    console.log('✅ Perfil ya está completo');
+    return userProfile;
+  } catch (error) {
+    console.error('❌ Error verificando/corrigiendo perfil:', error);
+    return null;
   }
 }; 

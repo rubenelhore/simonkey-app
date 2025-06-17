@@ -20,11 +20,13 @@ export const useNotebooks = () => {
 
   useEffect(() => {
     if (!user) {
+      console.log('👤 No hay usuario autenticado, limpiando cuadernos');
       setNotebooks([]);
       setLoading(false);
       return;
     }
 
+    console.log('🔄 Cargando cuadernos para usuario:', user.uid);
     setLoading(true);
     
     const notebooksQuery = query(
@@ -42,11 +44,12 @@ export const useNotebooks = () => {
           color: doc.data().color || '#6147FF' // Valor por defecto si no existe color
         })) as Notebook[];
         
+        console.log('📚 Cuadernos cargados:', notebooksList.length, 'cuadernos');
         setNotebooks(notebooksList);
         setLoading(false);
       },
       (err) => {
-        console.error("Error fetching notebooks:", err);
+        console.error("❌ Error fetching notebooks:", err);
         setError(err);
         setLoading(false);
       }

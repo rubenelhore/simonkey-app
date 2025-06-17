@@ -41,6 +41,25 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
       onCreate?.(); // Refresh the notebook list
     } catch (error) {
       console.error("Error creating notebook:", error);
+      
+      // Mostrar el error al usuario de forma más amigable
+      let errorMessage = 'Error al crear el cuaderno';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Usuario no encontrado')) {
+          errorMessage = 'Error: Tu perfil de usuario no se encuentra. Por favor, cierra sesión y vuelve a iniciar sesión.';
+        } else if (error.message.includes('Límite de cuadernos alcanzado')) {
+          errorMessage = 'Has alcanzado el límite de cuadernos permitidos en tu plan actual.';
+        } else if (error.message.includes('Límite semanal')) {
+          errorMessage = 'Has alcanzado el límite semanal de cuadernos. Inténtalo de nuevo la próxima semana.';
+        } else if (error.message.includes('Error interno')) {
+          errorMessage = 'Error interno del sistema. Por favor, intenta de nuevo en unos momentos.';
+        } else {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -9,7 +9,9 @@ import {
   signInWithPopup // Añadir aquí, no como importación separada
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import { createUserProfile, getUserProfile } from '../services/userService';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 const LoginPage: React.FC = () => {     
   const [email, setEmail] = useState<string>('');
@@ -17,6 +19,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+  const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   
   // Check if user is already logged in
   useEffect(() => {
@@ -74,51 +77,7 @@ const LoginPage: React.FC = () => {
   };
   
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.addScope('profile');
-      provider.addScope('email');
-      
-      // Set custom parameters
-      provider.setCustomParameters({
-        prompt: 'select_account',
-        ...(email ? { login_hint: email } : {})
-      });
-      
-      // Usar signInWithPopup para autenticación directa sin redirección
-      const result = await signInWithPopup(auth, provider);
-      
-      console.log("Autenticación con Google exitosa:", result.user.uid);
-      
-      // Guardar información básica del usuario
-      if (result.user) {
-        const userData = {
-          id: result.user.uid,
-          email: result.user.email || '',
-          name: result.user.displayName || '',
-          isAuthenticated: true
-        };
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        // Navegar a notebooks después de autenticación exitosa
-        // Usar replace: true para evitar problemas con navegación anterior
-        navigate('/notebooks', { replace: true });
-      }
-    } catch (err: any) {
-      console.error('Error en inicio de sesión con Google:', err);
-      
-      let errorMessage = 'Error al iniciar sesión con Google';
-      
-      if (err.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'La solicitud de inicio de sesión fue cancelada';
-      }
-      
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+    await handleGoogleAuth(false); // false para login
   };
   
   return (
@@ -134,6 +93,7 @@ const LoginPage: React.FC = () => {
         </div>
         
         {error && <div className="error-message">{error}</div>}
+        {googleError && <div className="error-message">{googleError}</div>}
         
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
@@ -176,7 +136,7 @@ const LoginPage: React.FC = () => {
             <button 
               className="google-button" 
               onClick={handleGoogleLogin}
-              disabled={isLoading}
+              disabled={isLoading || googleLoading}
             >
               <svg viewBox="0 0 24 24" width="18" height="18">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
