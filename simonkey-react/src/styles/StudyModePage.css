@@ -39,6 +39,14 @@
   --primary-color: var(--quiz-primary);
 }
 
+.study-mode-container.smart {
+  background: #fff !important;
+}
+
+.study-mode-container.smart.session-complete-bg, .session-complete-bg {
+  background: #fff !important;
+}
+
 /* Header */
 .study-mode-header {
   background: rgba(255, 255, 255, 0.95);
@@ -127,18 +135,18 @@
 }
 
 .study-header h2 {
-  margin: 0 0 10px 0;
-  font-size: 32px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #6147FF;
+  font-weight: 800;
+  font-size: 2.1rem;
+  margin-bottom: 0.3rem;
 }
 
-.study-subtitle {
-  margin: 0;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 400;
+.study-header .study-subtitle {
+  color: #6147FF;
+  opacity: 0.85;
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
 }
 
 /* Estado vacío */
@@ -1524,5 +1532,117 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* --- Pantalla de finalización de estudio --- */
+.study-mode-container.smart.session-complete-bg, .session-complete-bg {
+  background: #fff !important;
+}
+
+.session-complete-card {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(79, 140, 255, 0.15);
+  padding: 2.5rem 2rem 2rem 2rem;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+  animation: fadeSlideUp 0.7s cubic-bezier(.23,1.01,.32,1) both;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.session-complete-trophy {
+  font-size: 3.5rem;
+  color: #FFD700;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 8px #ffe06688);
+}
+
+.session-complete-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #222;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+
+.session-complete-subtitle {
+  font-size: 1.1rem;
+  color: #4F8CFF;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.session-complete-stats {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.session-complete-stat-card {
+  background: linear-gradient(135deg, #e0e7ff 0%, #f1f5ff 100%);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.07);
+  padding: 1.2rem 1.1rem 1rem 1.1rem;
+  min-width: 110px;
+  flex: 1 1 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.session-complete-stat-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.session-complete-stat-value {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 0.1rem;
+}
+
+.session-complete-stat-label {
+  font-size: 0.95rem;
+  color: #555;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Colores para cada estadística */
+.session-complete-stat-card.concepts .session-complete-stat-icon { color: #4F8CFF; }
+.session-complete-stat-card.mastered .session-complete-stat-icon { color: #22c55e; }
+.session-complete-stat-card.time .session-complete-stat-icon { color: #fbbf24; }
+.session-complete-stat-card.concepts .session-complete-stat-value { color: #4F8CFF; }
+.session-complete-stat-card.mastered .session-complete-stat-value { color: #22c55e; }
+.session-complete-stat-card.time .session-complete-stat-value { color: #fbbf24; }
+
+@media (max-width: 600px) {
+  .session-complete-card {
+    padding: 1.5rem 0.5rem 1.5rem 0.5rem;
+    max-width: 98vw;
+  }
+  .session-complete-stats {
+    flex-direction: column;
+    gap: 0.7rem;
+    align-items: stretch;
+  }
+  .session-complete-stat-card {
+    min-width: 0;
+    width: 100%;
   }
 }

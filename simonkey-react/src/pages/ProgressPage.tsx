@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/ProgressPage.css';
 import { Concept } from '../types/interfaces';
 
@@ -256,189 +257,189 @@ const ProgressPage = () => {
 
   if (loading) {
     return (
-      <div className="progress-page-container">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading progress data...</p>
+      <HeaderWithHamburger 
+        title=""
+        subtitle=""
+      >
+        <div className="progress-page-container">
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Loading progress data...</p>
+          </div>
         </div>
-      </div>
+      </HeaderWithHamburger>
     );
   }
 
   if (error) {
     return (
-      <div className="progress-page-container">
-        <div className="error-container">
-          <i className="fas fa-exclamation-circle"></i>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Try Again</button>
+      <HeaderWithHamburger 
+        title=""
+        subtitle=""
+      >
+        <div className="progress-page-container">
+          <div className="error-container">
+            <i className="fas fa-exclamation-circle"></i>
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()}>Try Again</button>
+          </div>
         </div>
-      </div>
+      </HeaderWithHamburger>
     );
   }
 
   return (
-    <div className="progress-page-container">
-      <header className="progress-page-header">
-        <div className="header-content">
-          <button 
-            className="back-button"
-            onClick={() => navigate('/notebooks')}
-          >
-            <i className="fas fa-arrow-left"></i>
-          </button>
-          
-          <h1>My Progress</h1>
-          
-          <div className="header-spacer"></div>
-        </div>
-      </header>
-      
-      <main className="progress-page-main">
-        <section className="progress-summary">
-          <div className="summary-card">
-            <div className="summary-icon concepts">
-              <i className="fas fa-book"></i>
-            </div>
-            <div className="summary-content">
-              <div className="summary-value">{stats.totalConcepts}</div>
-              <div className="summary-label">Concepts</div>
-            </div>
-          </div>
-          
-          <div className="summary-card">
-            <div className="summary-icon mastery">
-              <i className="fas fa-graduation-cap"></i>
-            </div>
-            <div className="summary-content">
-              <div className="summary-value">{calculateProgress()}%</div>
-              <div className="summary-label">Overall Progress</div>
-            </div>
-          </div>
-          
-          <div className="summary-card">
-            <div className="summary-icon time">
-              <i className="fas fa-clock"></i>
-            </div>
-            <div className="summary-content">
-              <div className="summary-value">{formatStudyTime(stats.studyTime)}</div>
-              <div className="summary-label">Study Time</div>
-            </div>
-          </div>
-        </section>
-        
-        <section className="progress-charts">
-          <div className="chart-container activity-chart">
-            <div className="chart-header">
-              <h2>Study Activity</h2>
-              <div className="period-selector">
-                <button
-                  className={selectedPeriod === 'week' ? 'active' : ''}
-                  onClick={() => handlePeriodChange('week')}
-                >
-                  Week
-                </button>
-                <button
-                  className={selectedPeriod === 'month' ? 'active' : ''}
-                  onClick={() => handlePeriodChange('month')}
-                >
-                  Month
-                </button>
+    <HeaderWithHamburger 
+      title=""
+      subtitle=""
+    >
+      <div className="progress-page-container">
+        <main className="progress-page-main">
+          <section className="progress-summary">
+            <div className="summary-card">
+              <div className="summary-icon concepts">
+                <i className="fas fa-book"></i>
+              </div>
+              <div className="summary-content">
+                <div className="summary-value">{stats.totalConcepts}</div>
+                <div className="summary-label">Conceptos</div>
               </div>
             </div>
             
-            <div className="chart-content">
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart
-                  data={activityData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="conceptos"
-                    stroke="#6147FF"
-                    strokeWidth={2}
-                    activeDot={{ r: 8 }}
-                    name="Studied Concepts"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="tiempo"
-                    stroke="#FF6B6B"
-                    strokeWidth={2}
-                    name="Time (min)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          
-          <div className="chart-container pie-chart">
-            <div className="chart-header">
-              <h2>Distribution by Notebook</h2>
+            <div className="summary-card">
+              <div className="summary-icon mastery">
+                <i className="fas fa-graduation-cap"></i>
+              </div>
+              <div className="summary-content">
+                <div className="summary-value">{calculateProgress()}%</div>
+                <div className="summary-label">Progreso General</div>
+              </div>
             </div>
             
-            <div className="chart-content">
-              {conceptsByNotebook.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={conceptsByNotebook}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    >
-                      {conceptsByNotebook.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PieTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="empty-chart">
-                  <p>Not enough data to display</p>
-                </div>
-              )}
+            <div className="summary-card">
+              <div className="summary-icon time">
+                <i className="fas fa-clock"></i>
+              </div>
+              <div className="summary-content">
+                <div className="summary-value">{formatStudyTime(stats.studyTime)}</div>
+                <div className="summary-label">Tiempo de Estudio</div>
+              </div>
             </div>
-          </div>
-        </section>
-        
-        <section className="progress-insights">
-          <div className="insight-card">
-            <div className="insight-icon">
-              <i className="fas fa-lightbulb"></i>
-            </div>
-            <div className="insight-content">
-              <h3>Your Best Study Days</h3>
-              <p>Your most productive days are <strong>Tuesday and Thursday</strong>. Schedule important sessions on these days to maximize your performance.</p>
-            </div>
-          </div>
+          </section>
           
-          <div className="insight-card">
-            <div className="insight-icon">
-              <i className="fas fa-star"></i>
+          <section className="progress-charts">
+            <div className="chart-container activity-chart">
+              <div className="chart-header">
+                <h2>Actividad de Estudio</h2>
+                <div className="period-selector">
+                  <button
+                    className={selectedPeriod === 'week' ? 'active' : ''}
+                    onClick={() => handlePeriodChange('week')}
+                  >
+                    Semana
+                  </button>
+                  <button
+                    className={selectedPeriod === 'month' ? 'active' : ''}
+                    onClick={() => handlePeriodChange('month')}
+                  >
+                    Mes
+                  </button>
+                </div>
+              </div>
+              
+              <div className="chart-content">
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart
+                    data={activityData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="conceptos"
+                      stroke="#6147FF"
+                      strokeWidth={2}
+                      activeDot={{ r: 8 }}
+                      name="Conceptos Estudiantes"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="tiempo"
+                      stroke="#FF6B6B"
+                      strokeWidth={2}
+                      name="Tiempo (min)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="insight-content">
-              <h3>Next Achievement</h3>
-              <p>You're just 5 concepts away from reaching your <strong>"Dedicated Scholar"</strong> achievement!</p>
+            
+            <div className="chart-container pie-chart">
+              <div className="chart-header">
+                <h2>Distribución por Cuaderno</h2>
+              </div>
+              
+              <div className="chart-content">
+                {conceptsByNotebook.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={conceptsByNotebook}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                      >
+                        {conceptsByNotebook.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<PieTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="empty-chart">
+                    <p>No hay suficientes datos para mostrar</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      </main>
-    </div>
+          </section>
+          
+          <section className="progress-insights">
+            <div className="insight-card">
+              <div className="insight-icon">
+                <i className="fas fa-lightbulb"></i>
+              </div>
+              <div className="insight-content">
+                <h3>Tus Mejores Días de Estudio</h3>
+                <p>Tus días más productivos son <strong>martes y jueves</strong>. Programa sesiones importantes en estos días para maximizar tu rendimiento.</p>
+              </div>
+            </div>
+            
+            <div className="insight-card">
+              <div className="insight-icon">
+                <i className="fas fa-star"></i>
+              </div>
+              <div className="insight-content">
+                <h3>Próximo Logro</h3>
+                <p>¡Solo te faltan 5 conceptos para alcanzar tu logro <strong>"Estudiante Dedicado"</strong>!</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </HeaderWithHamburger>
   );
 };
 

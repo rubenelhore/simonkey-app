@@ -6,9 +6,11 @@ import { db, auth } from '../services/firebase';
 import SwipeableStudyCard from '../components/Mobile/SwipeableStudyCard';
 import FeedbackMessage from '../components/FeedbackMessage';
 import StudyDashboard from '../components/StudyDashboard';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useStudyService } from '../hooks/useStudyService';
 import { Concept, ResponseQuality, StudyMode, Notebook, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudyModePage.css';
+import Confetti from 'react-confetti';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -323,7 +325,16 @@ const StudyModePage = () => {
   
   // Manejar respuesta del usuario a un concepto
   const handleConceptResponse = async (conceptId: string, quality: ResponseQuality) => {
+    console.log('🚨🚨🚨 handleConceptResponse LLAMADO 🚨🚨🚨', { conceptId, quality });
+    
     if (!auth.currentUser || !sessionId) return;
+    
+    console.log('🔍 handleConceptResponse iniciado:', { conceptId, quality });
+    console.log('📊 Estado actual:', {
+      currentConcepts: currentConcepts.length,
+      sessionReviewQueue: sessionReviewQueue.length,
+      allConcepts: allConcepts.length
+    });
     
     try {
       // Actualizar respuesta usando SM-3
@@ -352,27 +363,78 @@ const StudyModePage = () => {
       
       // Obtener el concepto actual
       const currentConcept = currentConcepts.find(c => c.id === conceptId);
+      console.log('🎯 Concepto actual encontrado:', currentConcept?.término);
+      console.log('🔍 Detalles del concepto:', {
+        conceptId,
+        currentConceptsLength: currentConcepts.length,
+        currentConceptsIds: currentConcepts.map(c => c.id),
+        foundConcept: currentConcept ? {
+          id: currentConcept.id,
+          término: currentConcept.término
+        } : null
+      });
       
       // Remover concepto de la cola actual
       setCurrentConcepts(prev => prev.filter(c => c.id !== conceptId));
       
-      // LÓGICA DE REPASO INMEDIATO
+      // LÓGICA DE REPASO INMEDIATO - CALCULAR LA NUEVA COLA LOCALMENTE
+      let newReviewQueue = [...sessionReviewQueue];
+      console.log('📋 Cola de repaso antes de procesar:', newReviewQueue.length);
+      
+      console.log('🔍 Comparando quality:', {
+        quality,
+        ResponseQuality_REVIEW_LATER: ResponseQuality.REVIEW_LATER,
+        ResponseQuality_MASTERED: ResponseQuality.MASTERED,
+        isReviewLater: quality === ResponseQuality.REVIEW_LATER,
+        isMastered: quality === ResponseQuality.MASTERED
+      });
+      
       if (quality === ResponseQuality.REVIEW_LATER && currentConcept) {
         // Si no aprendió correctamente, agregar a la cola de repaso inmediato
-        setSessionReviewQueue(prev => [...prev, currentConcept]);
+        // IMPORTANTE: Esto aplica tanto para conceptos nuevos como para conceptos en repaso
+        newReviewQueue = [...sessionReviewQueue, currentConcept];
         console.log('🔄 Concepto agregado a cola de repaso inmediato:', currentConcept.término);
+        console.log('📋 Nueva cola de repaso:', newReviewQueue.length);
         showFeedback('info', `"${currentConcept.término}" se agregó a tu cola de repaso. Te lo preguntaremos de nuevo.`);
+      } else if (quality === ResponseQuality.MASTERED && currentConcept) {
+        // Si dominó el concepto, verificar si estaba en la cola de repaso y eliminarlo
+        const wasInReviewQueue = sessionReviewQueue.some(c => c.id === conceptId);
+        if (wasInReviewQueue) {
+          newReviewQueue = sessionReviewQueue.filter(c => c.id !== conceptId);
+          console.log('✅ Concepto eliminado de cola de repaso (dominado):', currentConcept.término);
+          console.log('📋 Nueva cola de repaso:', newReviewQueue.length);
+          showFeedback('success', `¡Excelente! Dominaste "${currentConcept.término}" y lo eliminamos de tu cola de repaso.`);
+        } else {
+          console.log('📝 Concepto no estaba en cola de repaso, no hay que eliminar nada');
+        }
+      } else {
+        console.log('❌ No se agregó a cola de repaso:', {
+          quality,
+          currentConceptExists: !!currentConcept,
+          condition: quality === ResponseQuality.REVIEW_LATER && !!currentConcept
+        });
       }
       
-      // Verificar si la sesión está completa
-      if (currentConcepts.length <= 1) {
+      // Actualizar la cola de repaso con los cambios
+      setSessionReviewQueue(newReviewQueue);
+      
+      // Verificar si la sesión está completa usando la nueva cola calculada
+      const remainingConcepts = currentConcepts.filter(c => c.id !== conceptId);
+      console.log('📊 Conceptos restantes:', remainingConcepts.length);
+      console.log('📋 Cola de repaso después de procesar:', newReviewQueue.length);
+      
+      if (remainingConcepts.length <= 1) {
+        console.log('🔍 Verificando si continuar con repaso inmediato...');
         // Si hay conceptos en la cola de repaso inmediato, continuar con ellos
-        if (sessionReviewQueue.length > 0) {
+        if (newReviewQueue.length > 0) {
           console.log('🔄 Continuando con conceptos de repaso inmediato...');
-          continueWithImmediateReview();
+          continueWithImmediateReview(newReviewQueue);
         } else {
+          console.log('✅ No hay conceptos en cola de repaso, completando sesión...');
           await completeStudySession();
         }
+      } else {
+        console.log('⏭️ Aún quedan conceptos en la ronda actual, continuando...');
       }
       
     } catch (error) {
@@ -382,15 +444,26 @@ const StudyModePage = () => {
   };
   
   // Continuar con conceptos de repaso inmediato
-  const continueWithImmediateReview = () => {
-    if (sessionReviewQueue.length === 0) {
+  const continueWithImmediateReview = async (queue: Concept[]) => {
+    // Si no se pasa reviewQueue, usar el estado actual
+    const queueToUse = queue;
+    
+    console.log('🔄 continueWithImmediateReview iniciado');
+    console.log('📋 Cola de repaso actual:', queueToUse.length);
+    console.log('📋 Conceptos en cola:', queueToUse.map(c => c.término));
+    
+    if (queueToUse.length === 0) {
+      console.log('❌ No hay conceptos en cola de repaso, completando sesión...');
       completeStudySession();
       return;
     }
     
     // Tomar el siguiente concepto de la cola de repaso
-    const nextConcept = sessionReviewQueue[0];
-    const remainingQueue = sessionReviewQueue.slice(1);
+    const nextConcept = queueToUse[0];
+    const remainingQueue = queueToUse.slice(1);
+    
+    console.log('🎯 Siguiente concepto a mostrar:', nextConcept.término);
+    console.log('📋 Conceptos restantes en cola:', remainingQueue.length);
     
     setSessionReviewQueue(remainingQueue);
     setCurrentConcepts([nextConcept]);
@@ -598,299 +671,251 @@ const StudyModePage = () => {
     setSessionReviewQueue([]); // Limpiar la cola para evitar repeticiones
   };
   
+  // Obtener tamaño de ventana para el confeti
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  useEffect(() => {
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Renderizar el componente principal
   return (
-    <div className={`study-mode-container ${studyMode.toLowerCase()}`}>
-      <header className="study-mode-header">
-        <div className="header-content">
-          <button
-            className="back-button"
-            onClick={() => {
-              if (sessionActive) {
-                if (window.confirm("¿Seguro que quieres salir? Tu progreso se perderá.")) {
-                  navigate('/notebooks');
-                }
-              } else {
-                navigate('/notebooks');
-              }
-            }}
-          >
-            {sessionActive ? <i className="fas fa-times"></i> : <i className="fas fa-arrow-left"></i>}
-          </button>
+    <HeaderWithHamburger 
+      title=""
+      subtitle=""
+      showBackButton={sessionActive || sessionComplete}
+      onBackClick={() => {
+        if (sessionActive) {
+          // Preguntar al usuario si quiere salir de la sesión
+          if (window.confirm('¿Estás seguro de que quieres salir de la sesión de estudio? Tu progreso se guardará.')) {
+            startNewSession();
+          }
+        } else if (sessionComplete) {
+          // Si la sesión ya está completada, simplemente regresar a la selección de cuaderno
+          startNewSession();
+        }
+      }}
+    >
+      <div className={`study-mode-container ${studyMode.toLowerCase()}`}>
+        <main className="study-mode-main">
+          {/* Mensaje de feedback */}
+          {feedback.visible && (
+            <FeedbackMessage
+              type={feedback.type}
+              message={feedback.message}
+            />
+          )}
           
-          <h1>
-            {selectedNotebook ? selectedNotebook.title : 'Centro de Estudio'}
-            {sessionActive && (
-              <span className="mode-badge">
-                {studyMode === StudyMode.SMART ? 'Repaso Inteligente' : 
-                 studyMode === StudyMode.FREE ? 'Estudio Libre' : 'Quiz'}
-              </span>
-            )}
-          </h1>
-          
-          <div className="header-spacer"></div>
-        </div>
-      </header>
-      
-      <main className="study-mode-main">
-        {/* Mensaje de feedback */}
-        {feedback.visible && (
-          <FeedbackMessage
-            type={feedback.type}
-            message={feedback.message}
-          />
-        )}
-        
-        {/* Renderizado condicional */}
-        {!sessionActive && !sessionComplete && (
-          <div className="study-notebook-selection">
-            <div className="study-header">
-              <h2>Centro de Estudio</h2>
-              <p className="study-subtitle">Elige un cuaderno y comienza tu sesión de aprendizaje</p>
-            </div>
-            
-            {notebooks.length === 0 ? (
-              <div className="empty-notebooks">
-                <div className="empty-icon">
-                  <i className="fas fa-book-open"></i>
-                </div>
-                <h3>No tienes cuadernos creados</h3>
-                <p>Crea tu primer cuaderno para comenzar a estudiar</p>
-                <button
-                  className="create-notebook-button"
-                  onClick={() => navigate('/notebooks')}
-                >
-                  <i className="fas fa-plus"></i> Crear mi primer cuaderno
-                </button>
+          {/* Renderizado condicional */}
+          {!sessionActive && !sessionComplete && (
+            <div className="study-notebook-selection">
+              <div className="study-header">
+                <h2>Centro de Estudio</h2>
+                <p className="study-subtitle">Elige un cuaderno y comienza tu sesión de aprendizaje</p>
               </div>
-            ) : (
-              <>
-                {/* Lista de cuadernos */}
-                <div className="notebooks-section">
-                  <div className="notebooks-list">
-                    {notebooks.map(notebook => (
-                      <div
-                        key={notebook.id}
-                        className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-                        onClick={() => handleSelectNotebook(notebook)}
-                        style={{ borderColor: notebook.color }}
-                      >
-                        <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
-                          {selectedNotebook?.id === notebook.id && (
-                            <div className="selected-indicator">
-                              <i className="fas fa-check"></i>
-                            </div>
-                          )}
-                        </div>
-                        <div className="notebook-info">
-                          <div className="notebook-title">{notebook.title}</div>
-                        </div>
-                      </div>
-                    ))}
+              
+              {notebooks.length === 0 ? (
+                <div className="empty-notebooks">
+                  <div className="empty-icon">
+                    <i className="fas fa-book-open"></i>
                   </div>
+                  <h3>No tienes cuadernos creados</h3>
+                  <p>Crea tu primer cuaderno para comenzar a estudiar</p>
+                  <button
+                    className="create-notebook-button"
+                    onClick={() => navigate('/notebooks')}
+                  >
+                    <i className="fas fa-plus"></i> Crear mi primer cuaderno
+                  </button>
                 </div>
-                
-                {selectedNotebook && (
-                  <>
-                    {/* Dashboard de estudio */}
-                    <StudyDashboard
-                      notebook={selectedNotebook}
-                      userId={auth.currentUser?.uid || ''}
-                      onRefresh={refreshDashboardData}
-                      onStartSession={startStudySession}
-                    />
-                    
-                    {/* Temporary reset button for development */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div style={{ 
-                        marginTop: '20px', 
-                        padding: '10px', 
-                        backgroundColor: '#f0f0f0', 
-                        borderRadius: '8px',
-                        textAlign: 'center'
-                      }}>
-                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                          <button
-                            onClick={async () => {
-                              if (auth.currentUser) {
-                                await studyService.resetFreeStudyLimit(auth.currentUser.uid);
-                                showFeedback('success', 'Límite de estudio libre reseteado para pruebas');
-                              }
-                            }}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: '#ff6b6b',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            🔄 Reset Free Study Limit (Dev Only)
-                          </button>
-                          
-                          <button
-                            onClick={async () => {
-                              if (auth.currentUser) {
-                                await studyService.resetQuizLimit(auth.currentUser.uid);
-                                showFeedback('success', 'Límite de quiz reseteado para pruebas');
-                              }
-                            }}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: '#4ecdc4',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            🎯 Reset Quiz Limit (Dev Only)
-                          </button>
-                        </div>
-                        <p style={{ fontSize: '11px', color: '#666', marginTop: '5px' }}>
-                          Solo para desarrollo - resetea los límites de estudio
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        )}
-        
-        {sessionActive && (
-          <div className="study-session-container">
-            {(() => {
-              const currentIndex = allConcepts.length - currentConcepts.length + 1;
-              const totalConcepts = allConcepts.length;
-              const currentConcept = currentConcepts[0];
-
-              if (!currentConcept) {
-                return (
-                  <div className="no-concepts-message">
-                    <i className="fas fa-check-circle"></i>
-                    <h3>¡Sesión completada!</h3>
-                    <p>Has revisado todos los conceptos disponibles.</p>
-                    <button
-                      className="session-action-button"
-                      onClick={completeStudySession}
-                    >
-                      Finalizar sesión
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
+              ) : (
                 <>
-                  <div className="study-session-header-minimal">
-                    <div className="card-counter">
-                      <span className="card-number">{currentIndex}</span>
-                      <span className="card-divider">/</span>
-                      <span className="card-total">{totalConcepts}</span>
+                  {/* Lista de cuadernos */}
+                  <div className="notebooks-section">
+                    <div className="notebooks-list">
+                      {notebooks.map(notebook => (
+                        <div
+                          key={notebook.id}
+                          className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
+                          onClick={() => handleSelectNotebook(notebook)}
+                          style={{ borderColor: notebook.color }}
+                        >
+                          <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
+                            {selectedNotebook?.id === notebook.id && (
+                              <div className="selected-indicator">
+                                <i className="fas fa-check"></i>
+                              </div>
+                            )}
+                          </div>
+                          <div className="notebook-info">
+                            <div className="notebook-title">{notebook.title}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    
-                    {/* Mostrar información de repaso inmediato */}
-                    {sessionReviewQueue.length > 0 && (
-                      <div className="immediate-review-indicator">
-                        <i className="fas fa-sync-alt"></i>
-                        <span>{sessionReviewQueue.length} en cola de repaso</span>
-                      </div>
-                    )}
                   </div>
                   
-                  <div className="study-session-layout">
-                    <div className="study-card-container">
-                      <SwipeableStudyCard
-                        concept={currentConcept}
-                        onResponse={(quality) => handleConceptResponse(currentConcept.id, quality)}
-                        reviewMode={studyMode === StudyMode.SMART}
-                        quizMode={studyMode === StudyMode.QUIZ}
-                        onLockComplete={handleLockComplete}
+                  {selectedNotebook && (
+                    <>
+                      {/* Dashboard de estudio */}
+                      <StudyDashboard
+                        notebook={selectedNotebook}
+                        userId={auth.currentUser?.uid || ''}
+                        onRefresh={refreshDashboardData}
+                        onStartSession={startStudySession}
                       />
-                    </div>
-                  </div>
+                      
+                      {/* Temporary reset button for development */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div style={{ 
+                          marginTop: '20px', 
+                          padding: '10px', 
+                          backgroundColor: '#f0f0f0', 
+                          borderRadius: '8px',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={async () => {
+                                if (auth.currentUser) {
+                                  await studyService.resetFreeStudyLimit(auth.currentUser.uid);
+                                  showFeedback('success', 'Límite de estudio libre reseteado para pruebas');
+                                }
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#ff6b6b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px'
+                              }}
+                            >
+                              🔄 Reset Free Study Limit (Dev Only)
+                            </button>
+                            
+                            <button
+                              onClick={async () => {
+                                if (auth.currentUser) {
+                                  await studyService.resetQuizLimit(auth.currentUser.uid);
+                                  showFeedback('success', 'Límite de quiz reseteado para pruebas');
+                                }
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#4ecdc4',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px'
+                              }}
+                            >
+                              🎯 Reset Quiz Limit (Dev Only)
+                            </button>
+                          </div>
+                          <p style={{ fontSize: '11px', color: '#666', marginTop: '5px' }}>
+                            Solo para desarrollo - resetea los límites de estudio
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </>
-              );
-            })()}
-          </div>
-        )}
-        
-        {sessionComplete && (
-          <div className="session-summary">
-            <div className="summary-header">
-              <i className="fas fa-trophy"></i>
-              <h2>¡Sesión completada!</h2>
-            </div>
-            
-            <div className="summary-stats">
-              <div className="stat-item">
-                <div className="stat-icon">
-                  <i className="fas fa-book"></i>
-                </div>
-                <div className="stat-value">{reviewedConceptIds.size}</div>
-                <div className="stat-label">Conceptos estudiados</div>
-              </div>
-              
-              <div className="stat-item">
-                <div className="stat-icon">
-                  <i className="fas fa-check-circle"></i>
-                </div>
-                <div className="stat-value">{masteredConceptIds.size}</div>
-                <div className="stat-label">Dominados</div>
-              </div>
-              
-              <div className="stat-item">
-                <div className="stat-icon">
-                  <i className="fas fa-sync-alt"></i>
-                </div>
-                <div className="stat-value">{reviewingConceptIds.size}</div>
-                <div className="stat-label">Para repasar</div>
-              </div>
-              
-              <div className="stat-item">
-                <div className="stat-icon">
-                  <i className="fas fa-clock"></i>
-                </div>
-                <div className="stat-value">{formatStudyTime(metrics.timeSpent)}</div>
-                <div className="stat-label">Tiempo de estudio</div>
-              </div>
-              
-              {/* Mostrar información de repasos inmediatos */}
-              {reviewedConceptIds.size > uniqueConceptsCount && (
-                <div className="stat-item">
-                  <div className="stat-icon">
-                    <i className="fas fa-redo"></i>
-                  </div>
-                  <div className="stat-value">{reviewedConceptIds.size - uniqueConceptsCount}</div>
-                  <div className="stat-label">Repasos inmediatos</div>
-                </div>
               )}
             </div>
-            
-            {nextSession && (
-              <div className="next-session-recommendation">
-                <h3>Próxima sesión recomendada</h3>
-                <p>
-                  <i className="fas fa-calendar"></i> {new Intl.DateTimeFormat('es', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long' 
-                  }).format(nextSession)}
-                </p>
-                <p className="recommendation-text">
-                  Estudiar regularmente mejora significativamente la retención a largo plazo.
-                </p>
+          )}
+          
+          {sessionActive && (
+            <div className="study-session-container">
+              {(() => {
+                const currentIndex = allConcepts.length - currentConcepts.length + 1;
+                const totalConcepts = allConcepts.length;
+                const currentConcept = currentConcepts[0];
+
+                if (!currentConcept) {
+                  return (
+                    <div className="no-concepts-message">
+                      <i className="fas fa-check-circle"></i>
+                      <h3>¡Sesión completada!</h3>
+                      <p>Has revisado todos los conceptos disponibles.</p>
+                      <button
+                        className="session-action-button"
+                        onClick={completeStudySession}
+                      >
+                        Finalizar sesión
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="study-session-header-minimal">
+                      <div className="card-counter">
+                        <span className="card-number">{currentIndex}</span>
+                        <span className="card-divider">/</span>
+                        <span className="card-total">{totalConcepts}</span>
+                      </div>
+                      
+                      {/* Mostrar información de repaso inmediato */}
+                      {sessionReviewQueue.length > 0 && (
+                        <div className="immediate-review-indicator">
+                          <i className="fas fa-clock"></i>
+                          <span>Repaso inmediato: {sessionReviewQueue.length} conceptos</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <SwipeableStudyCard
+                      concept={currentConcept}
+                      reviewMode={studyMode === StudyMode.SMART}
+                      quizMode={studyMode === StudyMode.QUIZ}
+                      onResponse={(quality) => handleConceptResponse(currentConcept.id, quality)}
+                      onLockComplete={handleLockComplete}
+                    />
+                  </>
+                );
+              })()}
+            </div>
+          )}
+          
+          {sessionComplete && (
+            <div className="study-mode-container smart session-complete-bg">
+              <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
+              <div className="session-complete-card">
+                <div className="session-complete-trophy">
+                  <i className="fas fa-trophy"></i>
+                </div>
+                <div className="session-complete-title">¡Sesión completada!</div>
+                <div className="session-complete-subtitle">
+                  ¡Buen trabajo! Sigue así para dominar todos tus conceptos.
+                </div>
+                <div className="session-complete-stats">
+                  <div className="session-complete-stat-card concepts">
+                    <div className="session-complete-stat-icon"><i className="fas fa-book"></i></div>
+                    <div className="session-complete-stat-value">{metrics.conceptsReviewed}</div>
+                    <div className="session-complete-stat-label">Conceptos revisados</div>
+                  </div>
+                  <div className="session-complete-stat-card mastered">
+                    <div className="session-complete-stat-icon"><i className="fas fa-star"></i></div>
+                    <div className="session-complete-stat-value">{metrics.mastered}</div>
+                    <div className="session-complete-stat-label">Dominados</div>
+                  </div>
+                  <div className="session-complete-stat-card time">
+                    <div className="session-complete-stat-icon"><i className="fas fa-clock"></i></div>
+                    <div className="session-complete-stat-value">{formatStudyTime(metrics.timeSpent)}</div>
+                    <div className="session-complete-stat-label">Tiempo de estudio</div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </HeaderWithHamburger>
   );
 };
 
