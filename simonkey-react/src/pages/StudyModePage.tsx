@@ -681,23 +681,22 @@ const StudyModePage = () => {
 
   // Renderizar el componente principal
   return (
-    <HeaderWithHamburger 
-      title=""
-      subtitle=""
-      showBackButton={sessionActive || sessionComplete}
-      onBackClick={() => {
-        if (sessionActive) {
-          // Preguntar al usuario si quiere salir de la sesión
-          if (window.confirm('¿Estás seguro de que quieres salir de la sesión de estudio? Tu progreso se guardará.')) {
+    <>
+      <HeaderWithHamburger
+        title=""
+        subtitle=""
+        showBackButton={sessionActive || sessionComplete}
+        onBackClick={() => {
+          if (sessionActive) {
+            if (window.confirm('¿Estás seguro de que quieres salir de la sesión de estudio? Tu progreso se guardará.')) {
+              startNewSession();
+            }
+          } else if (sessionComplete) {
             startNewSession();
           }
-        } else if (sessionComplete) {
-          // Si la sesión ya está completada, simplemente regresar a la selección de cuaderno
-          startNewSession();
-        }
-      }}
-    >
-      <div className={`study-mode-container ${studyMode.toLowerCase()}`}>
+        }}
+      />
+      <div className={`study-mode-container ${studyMode.toLowerCase()}`}> 
         <main className="study-mode-main">
           {/* Mensaje de feedback */}
           {feedback.visible && (
@@ -915,7 +914,7 @@ const StudyModePage = () => {
           )}
         </main>
       </div>
-    </HeaderWithHamburger>
+    </>
   );
 };
 

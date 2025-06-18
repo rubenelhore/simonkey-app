@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
@@ -79,14 +79,25 @@ const QuizModePage: React.FC = () => {
     progress
   } = useQuizTimer({
     config: timerConfig,
-    onTimeUp: handleTimeUp,
+    onTimeUp: () => {
+      console.log('[DEBUG] onTimeUp callback fired!');
+      handleTimeUp();
+    },
     onWarning: () => console.log('¡Advertencia! Menos de 1 minuto'),
     onCritical: () => console.log('¡Crítico! Menos de 30 segundos')
   });
 
+  const quizEndedByTimeRef = useRef(false);
+
   // Manejar tiempo agotado
   function handleTimeUp() {
-    if (sessionActive && !sessionComplete) {
+    console.log('[DEBUG] handleTimeUp called. sessionActive:', sessionActive, 'sessionComplete:', sessionComplete);
+    if (!sessionComplete && !quizEndedByTimeRef.current) {
+      quizEndedByTimeRef.current = true;
+      console.log('[DEBUG] Completing quiz session due to time up (forced, only once)!');
+      setSessionActive(false);
+      setSessionComplete(true);
+      stop();
       completeQuizSession(score, 0);
     }
   }

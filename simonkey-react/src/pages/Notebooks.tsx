@@ -12,6 +12,7 @@ import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 
 const Notebooks: React.FC = () => {
   const [user] = useAuthState(auth);
@@ -19,7 +20,7 @@ const Notebooks: React.FC = () => {
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isSuperAdmin } = useUserType();
+  const { isSuperAdmin, isFreeUser } = useUserType();
 
   // Debug log para verificar el estado de isSuperAdmin
   console.log('Notebooks - isSuperAdmin:', isSuperAdmin);
@@ -67,6 +68,7 @@ const Notebooks: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const personalizationRef = useRef<HTMLDivElement>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -290,6 +292,15 @@ const Notebooks: React.FC = () => {
     }
   };
 
+  const handleOpenUpgradeModal = () => {
+    setIsUpgradeModalOpen(true);
+    setMenuOpen(false);
+  };
+
+  const handleCloseUpgradeModal = () => {
+    setIsUpgradeModalOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -309,100 +320,17 @@ const Notebooks: React.FC = () => {
   }
 
   return (
-    <div className={`notebooks-container ${menuOpen ? 'menu-open' : ''}`}>
-      {/* Overlay para cerrar el menú */}
-      {menuOpen && (
-        <div className="menu-overlay" onClick={toggleMenu}></div>
-      )}
-      
-      <header className="notebooks-header">
-        <div className="header-content">
-          <div className="logo-title-group">
-            <img
-              src="/img/favicon.svg"
-              alt="Logo Simonkey"
-              className="logo-img"
-              width="24"
-              height="24"
-              style={{ filter: 'brightness(0) invert(1)' }}
-            />  
-            <h1>
-              <span style={{ color: 'white' }}>Simon</span>
-              <span style={{ color: 'white' }}>key</span>
-            </h1>
-          </div>
-          
-          {/* Espacio Personal Header */}
-          <div className="personal-space-header">
-            <h2 className="user-greeting">
-              Espacio Personal de <span style={{ color: 'white' }}>{userData.nombre || "Simón"}</span>
-            </h2>
-          </div>
-          
-          <button className="notebooks-hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
-            <span className="notebooks-hamburger-line"></span>
-            <span className="notebooks-hamburger-line"></span>
-            <span className="notebooks-hamburger-line"></span>
-          </button>
-        </div>
-      </header>
-      
-      {/* Menú lateral deslizante */}
-      <div className={`side-menu ${menuOpen ? 'side-menu-open' : ''}`}>
-        <div className="side-menu-header">
-          <h3>Menú</h3>
-          <button className="side-menu-close" onClick={toggleMenu}>
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <div className="side-menu-content">
-          <div className="user-section">
-            <button className="side-menu-button personalization-button" onClick={handleOpenPersonalization}>
-              <i className="fas fa-user-cog"></i> 
-              <span>Mi perfil</span>
-            </button>
-            <button className="side-menu-button voice-settings-button" onClick={() => navigate('/settings/voice')}>
-              <i className="fas fa-volume-up"></i> 
-              <span>Configuración de voz</span>
-            </button>
-            {isSuperAdmin && (
-              <button className="side-menu-button super-admin-button" onClick={() => {
-                console.log('Super Admin button clicked!');
-                navigate('/super-admin');
-              }}>
-                <i className="fas fa-crown"></i> 
-                <span>Súper Admin</span>
-              </button>
-            )}
-            {/* Botón temporal para debug */}
-            {auth.currentUser?.email === 'ruben.elhore@gmail.com' && (
-              <button className="side-menu-button debug-button" onClick={checkAndUpdateSuperAdmin}>
-                <i className="fas fa-bug"></i> 
-                <span>Debug Super Admin</span>
-              </button>
-            )}
-            {/* Botón de prueba para navegación directa */}
-            {auth.currentUser?.email === 'ruben.elhore@gmail.com' && (
-              <button className="side-menu-button test-nav-button" onClick={testNavigation}>
-                <i className="fas fa-external-link-alt"></i> 
-                <span>Test Navigation</span>
-              </button>
-            )}
-            <button className="side-menu-button logout-button" onClick={handleLogout}>
-              <i className="fas fa-sign-out-alt"></i> 
-              <span>Cerrar sesión</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      
+    <>
+      <HeaderWithHamburger
+        title=""
+        subtitle={`Espacio Personal de ${userData.nombre || 'Simón'}`}
+      />
+      {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main">
         <div className="left-column">
           {/* Nuevo componente de racha */}
           <StreakTracker />
         </div>
-        
         <div className="notebooks-list-section">
           <h2>Mis cuadernos</h2>
           <NotebookList 
@@ -421,7 +349,6 @@ const Notebooks: React.FC = () => {
           />
         </div>
       </main>
-      
       {/* Modal de personalización */}
       {isPersonalizationOpen && (
         <div className="modal-overlay">
@@ -519,11 +446,23 @@ const Notebooks: React.FC = () => {
           </div>
         </div>
       )}
-      
+      {isUpgradeModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
+            <div className="modal-header">
+              <h2>Upgrade a Pro</h2>
+              <button className="close-button" onClick={handleCloseUpgradeModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '1.1rem', margin: '2rem 0' }}>Contacta al equipo de Simonkey</p>
+            </div>
+          </div>
+        </div>
+      )}
       <footer className="notebooks-footer">
         <p>&copy; {new Date().getFullYear()} Simonkey - Todos los derechos reservados</p>
       </footer>
-    </div>
+    </>
   );
 };
 

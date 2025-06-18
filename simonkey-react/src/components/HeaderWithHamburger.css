@@ -6,11 +6,22 @@
 .header-with-hamburger {
   background: #6147FF;
   color: white;
-  padding: 1rem 2rem;
+  padding: 0 2rem;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1200;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  height: 70px;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.header-with-hamburger.header-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .header-content {
@@ -59,6 +70,14 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+.page-title:empty + .page-subtitle,
+.page-title:empty ~ .page-subtitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
 .back-button {
   background: none;
   border: none;
@@ -90,7 +109,8 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  z-index: 20;
+  z-index: auto;
+  position: static;
 }
 
 .notebooks-hamburger-line {

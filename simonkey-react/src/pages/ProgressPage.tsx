@@ -257,26 +257,22 @@ const ProgressPage = () => {
 
   if (loading) {
     return (
-      <HeaderWithHamburger 
-        title=""
-        subtitle=""
-      >
+      <>
+        <HeaderWithHamburger title="" subtitle="" />
         <div className="progress-page-container">
           <div className="loading-container">
             <div className="spinner"></div>
             <p>Loading progress data...</p>
           </div>
         </div>
-      </HeaderWithHamburger>
+      </>
     );
   }
 
   if (error) {
     return (
-      <HeaderWithHamburger 
-        title=""
-        subtitle=""
-      >
+      <>
+        <HeaderWithHamburger title="" subtitle="" />
         <div className="progress-page-container">
           <div className="error-container">
             <i className="fas fa-exclamation-circle"></i>
@@ -284,15 +280,13 @@ const ProgressPage = () => {
             <button onClick={() => window.location.reload()}>Try Again</button>
           </div>
         </div>
-      </HeaderWithHamburger>
+      </>
     );
   }
 
   return (
-    <HeaderWithHamburger 
-      title=""
-      subtitle=""
-    >
+    <>
+      <HeaderWithHamburger title="" subtitle="" />
       <div className="progress-page-container">
         <main className="progress-page-main">
           <section className="progress-summary">
@@ -439,7 +433,7 @@ const ProgressPage = () => {
           </section>
         </main>
       </div>
-    </HeaderWithHamburger>
+    </>
   );
 };
 

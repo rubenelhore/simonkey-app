@@ -11,18 +11,16 @@ interface HeaderWithHamburgerProps {
   subtitle?: string;
   showBackButton?: boolean;
   onBackClick?: () => void;
-  children?: React.ReactNode;
 }
 
 const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   title,
   subtitle,
   showBackButton = false,
-  onBackClick,
-  children
+  onBackClick
 }) => {
   const navigate = useNavigate();
-  const { isSuperAdmin } = useUserType();
+  const { isSuperAdmin, isFreeUser } = useUserType();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userData, setUserData] = useState({
     nombre: '',
@@ -34,6 +32,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const personalizationRef = useRef<HTMLDivElement>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollTop, setLastScrollTop] = useState(0);
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -58,6 +59,23 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
     loadUserData();
   }, []);
+
+  // Ocultar header al hacer scroll hacia abajo, mostrar al subir
+  useEffect(() => {
+    const handleScroll = () => {
+      const st = window.pageYOffset || document.documentElement.scrollTop;
+      if (st > lastScrollTop && st > 100) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      setLastScrollTop(st <= 0 ? 0 : st);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollTop]);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -143,6 +161,15 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     }
   };
 
+  const handleOpenUpgradeModal = () => {
+    setIsUpgradeModalOpen(true);
+    setMenuOpen(false);
+  };
+
+  const handleCloseUpgradeModal = () => {
+    setIsUpgradeModalOpen(false);
+  };
+
   // Cerrar modal al hacer clic fuera
   useEffect(() => {
     if (!isPersonalizationOpen) return;
@@ -175,7 +202,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         <div className="menu-overlay" onClick={toggleMenu}></div>
       )}
       
-      <header className="header-with-hamburger">
+      <header className={`header-with-hamburger${isVisible ? '' : ' header-hidden'}`}>
         <div className="header-content">
           {/* Botón de retroceso si es necesario - ahora al inicio */}
           {showBackButton && (
@@ -232,6 +259,12 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               <i className="fas fa-volume-up"></i> 
               <span>Configuración de voz</span>
             </button>
+            {isFreeUser && (
+              <button className="side-menu-button upgrade-pro-button" onClick={handleOpenUpgradeModal}>
+                <i className="fas fa-star"></i>
+                <span>Upgrade a Pro</span>
+              </button>
+            )}
             {isSuperAdmin && (
               <button className="side-menu-button super-admin-button" onClick={() => navigate('/super-admin')}>
                 <i className="fas fa-crown"></i> 
@@ -344,7 +377,19 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       )}
       
-      {children}
+      {isUpgradeModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
+            <div className="modal-header">
+              <h2>Upgrade a Pro</h2>
+              <button className="close-button" onClick={handleCloseUpgradeModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '1.1rem', margin: '2rem 0' }}>Contacta al equipo de Simonkey</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
