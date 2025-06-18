@@ -142,33 +142,33 @@ const QuizModePage: React.FC = () => {
     }
   }, [location.state, notebooks]);
 
-  // Verificar disponibilidad del quiz (máximo 1 por semana) - CORREGIDO: LÍMITE GLOBAL
+  // Verificar disponibilidad del quiz (máximo 1 por semana POR CUADERNO)
   const checkQuizAvailabilitySync = async (notebookId: string): Promise<boolean> => {
-    console.log('🔍 checkQuizAvailabilitySync llamado para:', notebookId);
+    console.log('🔍 checkQuizAvailabilitySync llamado para cuaderno:', notebookId);
     console.log('🔍 Estado actual - quizAvailable:', quizAvailable, 'quizLimitMessage:', quizLimitMessage);
     
     if (!auth.currentUser) return false;
 
     try {
-      // CORRECCIÓN: Verificar límites GLOBALES del usuario, no por cuaderno
-      console.log('🔍 Verificando límites GLOBALES de quiz para usuario:', auth.currentUser.uid);
-      const userLimitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
-      const userLimitsDoc = await getDoc(userLimitsRef);
+      // Verificar límites de quiz para este cuaderno específico
+      console.log('🔍 Verificando límites de quiz para cuaderno:', notebookId);
+      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', notebookId, 'limits');
+      const notebookLimitsDoc = await getDoc(notebookLimitsRef);
       
-      console.log('🔍 Documento de límites globales existe:', userLimitsDoc.exists());
+      console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
       
-      if (userLimitsDoc.exists()) {
-        const limits = userLimitsDoc.data();
+      if (notebookLimitsDoc.exists()) {
+        const limits = notebookLimitsDoc.data();
         const lastQuizDate = limits.lastQuizDate?.toDate();
         
-        console.log('🔍 Límites globales encontrados:', limits);
-        console.log('🔍 Última fecha de quiz GLOBAL:', lastQuizDate);
+        console.log('🔍 Límites del cuaderno encontrados:', limits);
+        console.log('🔍 Última fecha de quiz del cuaderno:', lastQuizDate);
         
         if (lastQuizDate) {
-          // CORRECCIÓN: Aplicar límite de 7 días GLOBALMENTE
+          // Aplicar límite de 7 días para este cuaderno específico
           const now = new Date();
           const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
-          console.log('🔍 Cálculo de días desde último quiz GLOBAL:', {
+          console.log('🔍 Cálculo de días desde último quiz del cuaderno:', {
             now: now.toISOString(),
             lastQuizDate: lastQuizDate.toISOString(),
             daysSinceLastQuiz: daysSinceLastQuiz,
@@ -177,22 +177,22 @@ const QuizModePage: React.FC = () => {
           
           if (daysSinceLastQuiz < 7) {
             const daysRemaining = 7 - daysSinceLastQuiz;
-            setQuizLimitMessage(`Puedes hacer otro quiz en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
-            console.log('❌ Quiz no disponible GLOBALMENTE, días restantes:', daysRemaining);
+            setQuizLimitMessage(`Puedes hacer otro quiz de este cuaderno en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
+            console.log('❌ Quiz no disponible para este cuaderno, días restantes:', daysRemaining);
             setQuizAvailable(false);
             return false;
           } else {
             setQuizLimitMessage('');
-            console.log('✅ Quiz disponible GLOBALMENTE (pasó más de 7 días)');
+            console.log('✅ Quiz disponible para este cuaderno (pasó más de 7 días)');
             setQuizAvailable(true);
             return true;
           }
         }
       }
       
-      // Si no hay límites previos o no se ha usado el quiz, permitir quiz (primer uso)
+      // Si no hay límites previos o no se ha usado el quiz en este cuaderno, permitir quiz (primer uso)
       setQuizLimitMessage('');
-      console.log('✅ Quiz disponible GLOBALMENTE (primer uso)');
+      console.log('✅ Quiz disponible para este cuaderno (primer uso)');
       setQuizAvailable(true);
       return true;
       
@@ -673,75 +673,75 @@ const QuizModePage: React.FC = () => {
     }
   };
 
-  // Actualizar límites de quiz - CORREGIDO: LÍMITE GLOBAL
+  // Actualizar límites de quiz - POR CUADERNO
   const updateQuizLimits = async (notebookId: string) => {
     if (!auth.currentUser || !notebookId) return;
 
     try {
-      console.log('🔄 Aplicando límite GLOBAL de quiz para usuario:', auth.currentUser.uid);
-      console.log('🔍 Quiz completado en cuaderno:', notebookId);
+      console.log('🔄 Aplicando límite de quiz para cuaderno:', notebookId);
+      console.log('🔍 Usuario actual:', auth.currentUser.uid);
       
-      // CORRECCIÓN: Aplicar límite GLOBAL del usuario, no por cuaderno
-      const userLimitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      // Aplicar límite específico del cuaderno
+      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', notebookId, 'limits');
       const currentDate = new Date();
       
-      console.log('🔍 Fecha actual para límite GLOBAL:', currentDate.toISOString());
+      console.log('🔍 Fecha actual para límite del cuaderno:', currentDate.toISOString());
       
       const newLimits = {
         userId: auth.currentUser.uid,
+        notebookId: notebookId,
         lastQuizDate: currentDate,
         quizCountThisWeek: 1,
         weekStartDate: getWeekStartDate(),
         updatedAt: Timestamp.now()
       };
       
-      console.log('🔍 Nuevos límites GLOBALES a guardar:', {
+      console.log('🔍 Nuevos límites del cuaderno a guardar:', {
         ...newLimits,
         lastQuizDate: currentDate.toISOString(),
         weekStartDate: getWeekStartDate().toISOString()
       });
       
-      await setDoc(userLimitsRef, newLimits, { merge: true });
+      await setDoc(notebookLimitsRef, newLimits, { merge: true });
       
-      console.log('✅ Límite GLOBAL de quiz aplicado exitosamente:', {
-        userId: auth.currentUser.uid,
+      console.log('✅ Límite de quiz aplicado exitosamente para cuaderno:', {
+        notebookId: notebookId,
         lastQuizDate: currentDate.toISOString(),
         quizCountThisWeek: 1,
-        documentPath: `users/${auth.currentUser.uid}/limits/study`
+        documentPath: `users/${auth.currentUser.uid}/notebooks/${notebookId}/limits`
       });
       
     } catch (error) {
-      console.error('❌ Error aplicando límite GLOBAL de quiz:', error);
+      console.error('❌ Error aplicando límite de quiz para cuaderno:', error);
     }
   };
 
-  // Función temporal para resetear límites de quiz (SOLO PARA DESARROLLO) - CORREGIDO
+  // Función temporal para resetear límites de quiz (SOLO PARA DESARROLLO) - POR CUADERNO
   const resetQuizLimits = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !selectedNotebook) return;
 
     try {
-      console.log('🔄 Reseteando límites GLOBALES de quiz...');
-      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'limits', 'study');
+      console.log('🔄 Reseteando límites de quiz para cuaderno:', selectedNotebook.id);
+      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', selectedNotebook.id, 'limits');
       
-      // CORRECCIÓN: Resetear límites GLOBALES
+      // Resetear límites del cuaderno específico
       await setDoc(limitsRef, {
         userId: auth.currentUser.uid,
+        notebookId: selectedNotebook.id,
         lastQuizDate: null,
         quizCountThisWeek: 0,
         weekStartDate: new Date(),
         updatedAt: Timestamp.now()
       }, { merge: true });
       
-      console.log('✅ Límites GLOBALES de quiz reseteados');
+      console.log('✅ Límites de quiz del cuaderno reseteados');
       setQuizAvailable(true);
       setQuizLimitMessage('');
       
       // Recargar disponibilidad
-      if (selectedNotebook?.id) {
-        await checkQuizAvailabilitySync(selectedNotebook.id);
-      }
+      await checkQuizAvailabilitySync(selectedNotebook.id);
     } catch (error) {
-      console.error('❌ Error reseteando límites GLOBALES:', error);
+      console.error('❌ Error reseteando límites del cuaderno:', error);
     }
   };
 

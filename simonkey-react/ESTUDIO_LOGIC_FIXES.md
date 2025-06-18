@@ -2,7 +2,11 @@
 
 ## Resumen de Correcciones Implementadas
 
-Se han realizado correcciones críticas en la lógica de estudio de Simonkey para cumplir con las especificaciones del sistema. Las correcciones abarcan los tres componentes principales: **Estudio Libre**, **Estudio Inteligente** y **Quiz**.
+Se han realizado correcciones críticas en la lógica de estudio de Simonkey para cumplir con las especificaciones del sistema. Las correcciones abarcan los tres componentes principales:
+
+- **ESTUDIO LIBRE:** Una vez al día por cuaderno, repasa todos los conceptos
+- **ESTUDIO INTELIGENTE:** Solo conceptos que tocan repasar según SM-3, con candado de 5 segundos  
+- **QUIZ:** Una vez cada 7 días **por cuaderno**, 600 segundos, cierre automático
 
 ---
 
@@ -38,30 +42,37 @@ if (sessionMode === StudyMode.SMART) {
 
 ---
 
-### 2. **QUIZ - LÍMITES GLOBALES** ✅
+### 2. **QUIZ - LÍMITES POR CUADERNO** ✅
 
 #### Problema Original:
-- ❌ Los límites de quiz eran **por cuaderno** (podía hacer un quiz por cuaderno cada 7 días)
-- ❌ No respetaba el límite global de "una vez cada 7 días"
+- ❌ Los límites de quiz estaban mal configurados o inconsistentes
+- ❌ No respetaba correctamente el límite de "una vez cada 7 días por cuaderno"
 
 #### Corrección Implementada:
 ```typescript
-// ANTES (incorrecto - por cuaderno):
+// Verificación correcta - por cuaderno:
 const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
 
-// DESPUÉS (corregido - global):
-const userLimitsRef = doc(db, 'users', userId, 'limits', 'study');
+// Aplicación de límites - por cuaderno específico:
+await setDoc(notebookLimitsRef, {
+  userId: auth.currentUser.uid,
+  notebookId: notebookId,
+  lastQuizDate: currentDate,
+  quizCountThisWeek: 1,
+  weekStartDate: getWeekStartDate(),
+  updatedAt: Timestamp.now()
+}, { merge: true });
 ```
 
 **Cambios Específicos:**
-- **Verificación de disponibilidad:** Ahora verifica límites globales del usuario
-- **Aplicación de límites:** Se aplica un límite global de 7 días independiente del cuaderno
-- **Reset de límites:** Los límites de desarrollo se resetean globalmente
+- **Verificación de disponibilidad:** Verifica límites específicos por cuaderno
+- **Aplicación de límites:** Se aplica un límite de 7 días por cuaderno individual
+- **Mensajes:** Clarifica que es "quiz de este cuaderno"
 
 **Resultado:**
-- ✅ Un solo quiz cada 7 días independientemente del cuaderno
+- ✅ Un quiz cada 7 días **por cuaderno** (puedes hacer quiz de diferentes cuadernos)
 - ✅ Límites aplicados correctamente al completar el quiz
-- ✅ Sistema de verificación global funcionando
+- ✅ Sistema de verificación por cuaderno funcionando
 
 ---
 
@@ -187,7 +198,7 @@ const continueWithImmediateReview = async (queue: Concept[]) => {
 
 ### Para el Usuario:
 - ✅ **Estudio Inteligente:** Solo ve conceptos que realmente necesita repasar
-- ✅ **Quiz:** Sistema justo con límite global de una vez por semana
+- ✅ **Quiz:** Sistema justo con límite de una vez cada 7 días por cuaderno
 - ✅ **Repaso:** Ningún concepto marcado como "repasar después" se pierde
 - ✅ **Experiencia:** Flujo de estudio más coherente y predecible
 
@@ -207,7 +218,8 @@ const continueWithImmediateReview = async (queue: Concept[]) => {
    - Probar que conceptos "dominados" no vuelven a aparecer inmediatamente
 
 2. **Quiz:**
-   - Confirmar límite global de 7 días
+   - Confirmar límite de 7 días por cuaderno (no global)
+   - Verificar que se puede hacer quiz de diferentes cuadernos
    - Verificar que el timer funciona y cierra automáticamente
    - Probar el cálculo de puntuación
 

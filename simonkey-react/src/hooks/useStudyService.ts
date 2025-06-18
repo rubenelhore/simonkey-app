@@ -226,36 +226,43 @@ export const useStudyService = () => {
   );
   
   /**
-   * Reset quiz limit (for testing purposes) - CORREGIDO: LÍMITE GLOBAL
+   * Reset quiz limit (for testing purposes) - POR CUADERNO
    */
   const resetQuizLimit = useCallback(
-    async (userId: string): Promise<void> => {
+    async (userId: string, notebookId?: string): Promise<void> => {
       try {
-        console.log('🔄 Iniciando reset de límite GLOBAL de quiz para usuario:', userId);
+        if (!notebookId) {
+          console.log('⚠️ No se proporcionó notebookId para reset de límites de quiz');
+          return;
+        }
         
-        // CORRECCIÓN: Resetear límites GLOBALES del usuario
-        const limitsRef = doc(db, 'users', userId, 'limits', 'study');
+        console.log('🔄 Iniciando reset de límite de quiz para cuaderno:', notebookId);
+        
+        // Resetear límites específicos del cuaderno
+        const limitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
         
         // Primero, obtener los límites actuales
         const currentLimits = await getDoc(limitsRef);
-        console.log('📊 Límites GLOBALES actuales antes del reset:', currentLimits.exists() ? currentLimits.data() : 'No existen');
+        console.log('📊 Límites del cuaderno actuales antes del reset:', currentLimits.exists() ? currentLimits.data() : 'No existen');
         
         await setDoc(limitsRef, {
           userId,
+          notebookId,
           lastQuizDate: null,
           quizCountThisWeek: 0,
           weekStartDate: getWeekStartDate(),
           updatedAt: serverTimestamp()
         }, { merge: true });
         
-        console.log('✅ Quiz limit GLOBAL reset successfully');
+        console.log('✅ Quiz limit del cuaderno reset successfully');
         console.log('📋 Datos reseteados:', {
+          notebookId,
           lastQuizDate: null,
           quizCountThisWeek: 0,
           weekStartDate: getWeekStartDate()
         });
       } catch (err) {
-        console.error('❌ Error resetting quiz limit GLOBAL:', err);
+        console.error('❌ Error resetting quiz limit del cuaderno:', err);
       }
     },
     []
