@@ -87,7 +87,7 @@ const LoginPage: React.FC = () => {
           <img src={simonLogo} alt="Simio Simón" className="simon-logo"/>
               <h1><a href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <span style={{ color: 'black' }}>Simon</span>
-              <span style={{ color: '#6147FF' }}>key</span>
+              <span style={{ color: 'white' }}>key</span>
               </a></h1>
           <p className="tagline">Tu estudio, tu ritmo</p>
         </div>

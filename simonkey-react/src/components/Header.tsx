@@ -56,7 +56,7 @@ const Header: React.FC = () => {
             />
             <span className="logo-text">
               <span style={{ color: 'black' }}>Simon</span>
-              <span style={{ color: '#6147FF' }}>key</span>
+              <span style={{ color: 'white' }}>key</span>
             </span>
             </Link>
           <button className="hamburger-btn" aria-label="Menú" onClick={toggleMenu}>

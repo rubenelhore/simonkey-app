@@ -32,7 +32,7 @@ const Footer: React.FC = () => {
                   />
                   <span className="logo-text">
                     <span style={{ color: 'white' }}>Simon</span>
-                    <span style={{ color: '#6147FF' }}>key</span>
+                    <span style={{ color: 'white' }}>key</span>
                   </span>
                 </a>
               </div>

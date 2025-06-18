@@ -199,20 +199,18 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             </button>
           )}
           
-          <div
-            className="logo-title-group"
-            style={{ opacity: 1, color: '#fff' }}
-          >
+          <div className="logo2-title-group">
             <img
               src="/img/favicon.svg"
               alt="Logo Simonkey"
               className="logo-img"
               width="24"
               height="24"
+              style={{ filter: 'brightness(0) invert(1)' }}
             />  
-            <h1>
-              <span style={{ color: '#fff' }}>Simon</span>
-              <span style={{ color: '#fff' }}>key</span>
+            <h1 style={{ color: 'white !important', margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+              <span style={{ color: 'white !important' }}>Simon</span>
+              <span style={{ color: 'white !important' }}>key</span>
             </h1>
           </div>
           
