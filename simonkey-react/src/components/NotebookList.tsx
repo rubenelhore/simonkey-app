@@ -103,7 +103,7 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
         >
           <div className="create-notebook-content">
             <div className="create-notebook-icon">+</div>
-            <span className="create-notebook-text">Nuevo cuaderno</span>
+            <span className="create-notebook-text">Crear nuevo cuaderno</span>
           </div>
         </div>
       </div>

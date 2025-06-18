@@ -260,23 +260,27 @@ const StudyModePage = () => {
       let concepts: Concept[];
       
       if (sessionMode === StudyMode.SMART) {
-        // Obtener conceptos listos para repaso inteligente
+        // CORRECCIÓN: Obtener SOLO conceptos listos para repaso inteligente según SM-3
         concepts = await studyService.getReviewableConcepts(
           auth.currentUser.uid, 
           selectedNotebook.id
         );
         
+        console.log('🎯 ESTUDIO INTELIGENTE - Conceptos listos para repaso:', concepts.length);
+        
         if (concepts.length === 0) {
-          showFeedback('info', 'No tienes conceptos listos para repaso hoy. ¡Excelente trabajo!');
+          showFeedback('info', 'No tienes conceptos listos para repaso hoy según el algoritmo de repaso espaciado. ¡Excelente trabajo!');
           setLoading(false);
           return;
         }
       } else {
-        // Modo libre: obtener todos los conceptos
+        // ESTUDIO LIBRE: obtener TODOS los conceptos del cuaderno
         concepts = await studyService.getAllConceptsFromNotebook(
           auth.currentUser.uid, 
           selectedNotebook.id
         );
+        
+        console.log('📚 ESTUDIO LIBRE - Todos los conceptos del cuaderno:', concepts.length);
         
         if (concepts.length === 0) {
           showFeedback('warning', 'No hay conceptos en este cuaderno');
@@ -304,7 +308,8 @@ const StudyModePage = () => {
       // Iniciar timer de sesión
       setSessionTimer(Date.now());
       
-      showFeedback('success', `Sesión iniciada con ${concepts.length} conceptos`);
+      const modeText = sessionMode === StudyMode.SMART ? 'inteligente' : 'libre';
+      showFeedback('success', `Sesión de estudio ${modeText} iniciada con ${concepts.length} conceptos`);
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error);
       
@@ -364,34 +369,20 @@ const StudyModePage = () => {
       // Obtener el concepto actual
       const currentConcept = currentConcepts.find(c => c.id === conceptId);
       console.log('🎯 Concepto actual encontrado:', currentConcept?.término);
-      console.log('🔍 Detalles del concepto:', {
-        conceptId,
-        currentConceptsLength: currentConcepts.length,
-        currentConceptsIds: currentConcepts.map(c => c.id),
-        foundConcept: currentConcept ? {
-          id: currentConcept.id,
-          término: currentConcept.término
-        } : null
-      });
+      
+      // CORRECCIÓN CRÍTICA: Calcular conceptos restantes ANTES de remover el actual
+      const remainingConceptsAfterRemoval = currentConcepts.filter(c => c.id !== conceptId);
+      console.log('📊 Conceptos restantes después de remover actual:', remainingConceptsAfterRemoval.length);
       
       // Remover concepto de la cola actual
-      setCurrentConcepts(prev => prev.filter(c => c.id !== conceptId));
+      setCurrentConcepts(remainingConceptsAfterRemoval);
       
-      // LÓGICA DE REPASO INMEDIATO - CALCULAR LA NUEVA COLA LOCALMENTE
+      // LÓGICA DE REPASO INMEDIATO CORREGIDA
       let newReviewQueue = [...sessionReviewQueue];
       console.log('📋 Cola de repaso antes de procesar:', newReviewQueue.length);
       
-      console.log('🔍 Comparando quality:', {
-        quality,
-        ResponseQuality_REVIEW_LATER: ResponseQuality.REVIEW_LATER,
-        ResponseQuality_MASTERED: ResponseQuality.MASTERED,
-        isReviewLater: quality === ResponseQuality.REVIEW_LATER,
-        isMastered: quality === ResponseQuality.MASTERED
-      });
-      
       if (quality === ResponseQuality.REVIEW_LATER && currentConcept) {
-        // Si no aprendió correctamente, agregar a la cola de repaso inmediato
-        // IMPORTANTE: Esto aplica tanto para conceptos nuevos como para conceptos en repaso
+        // CORRECCIÓN: Si no aprendió correctamente, agregar a la cola de repaso inmediato
         newReviewQueue = [...sessionReviewQueue, currentConcept];
         console.log('🔄 Concepto agregado a cola de repaso inmediato:', currentConcept.término);
         console.log('📋 Nueva cola de repaso:', newReviewQueue.length);
@@ -402,32 +393,27 @@ const StudyModePage = () => {
         if (wasInReviewQueue) {
           newReviewQueue = sessionReviewQueue.filter(c => c.id !== conceptId);
           console.log('✅ Concepto eliminado de cola de repaso (dominado):', currentConcept.término);
-          console.log('📋 Nueva cola de repaso:', newReviewQueue.length);
           showFeedback('success', `¡Excelente! Dominaste "${currentConcept.término}" y lo eliminamos de tu cola de repaso.`);
-        } else {
-          console.log('📝 Concepto no estaba en cola de repaso, no hay que eliminar nada');
         }
-      } else {
-        console.log('❌ No se agregó a cola de repaso:', {
-          quality,
-          currentConceptExists: !!currentConcept,
-          condition: quality === ResponseQuality.REVIEW_LATER && !!currentConcept
-        });
       }
       
-      // Actualizar la cola de repaso con los cambios
+      // Actualizar la cola de repaso
       setSessionReviewQueue(newReviewQueue);
       
-      // Verificar si la sesión está completa usando la nueva cola calculada
-      const remainingConcepts = currentConcepts.filter(c => c.id !== conceptId);
-      console.log('📊 Conceptos restantes:', remainingConcepts.length);
-      console.log('📋 Cola de repaso después de procesar:', newReviewQueue.length);
+      // CORRECCIÓN CRÍTICA: Verificar si es el último concepto INCLUYENDO el que acabamos de procesar
+      console.log('🔍 Verificación de finalización:', {
+        remainingConceptsAfterRemoval: remainingConceptsAfterRemoval.length,
+        newReviewQueueLength: newReviewQueue.length,
+        isLastConcept: remainingConceptsAfterRemoval.length === 0
+      });
       
-      if (remainingConcepts.length <= 1) {
-        console.log('🔍 Verificando si continuar con repaso inmediato...');
-        // Si hay conceptos en la cola de repaso inmediato, continuar con ellos
+      if (remainingConceptsAfterRemoval.length === 0) {
+        // Ya no quedan conceptos en la ronda principal
+        console.log('🔍 No quedan conceptos en la ronda principal');
+        
         if (newReviewQueue.length > 0) {
           console.log('🔄 Continuando con conceptos de repaso inmediato...');
+          // CORRECCIÓN: Usar la nueva cola calculada
           continueWithImmediateReview(newReviewQueue);
         } else {
           console.log('✅ No hay conceptos en cola de repaso, completando sesión...');
@@ -443,28 +429,26 @@ const StudyModePage = () => {
     }
   };
   
-  // Continuar con conceptos de repaso inmediato
+  // Continuar con conceptos de repaso inmediato - CORREGIDO
   const continueWithImmediateReview = async (queue: Concept[]) => {
-    // Si no se pasa reviewQueue, usar el estado actual
-    const queueToUse = queue;
-    
     console.log('🔄 continueWithImmediateReview iniciado');
-    console.log('📋 Cola de repaso actual:', queueToUse.length);
-    console.log('📋 Conceptos en cola:', queueToUse.map(c => c.término));
+    console.log('📋 Cola de repaso recibida:', queue.length);
+    console.log('📋 Conceptos en cola:', queue.map(c => c.término));
     
-    if (queueToUse.length === 0) {
+    if (queue.length === 0) {
       console.log('❌ No hay conceptos en cola de repaso, completando sesión...');
-      completeStudySession();
+      await completeStudySession();
       return;
     }
     
-    // Tomar el siguiente concepto de la cola de repaso
-    const nextConcept = queueToUse[0];
-    const remainingQueue = queueToUse.slice(1);
+    // CORRECCIÓN: Tomar el primer concepto y actualizar ambos estados al mismo tiempo
+    const nextConcept = queue[0];
+    const remainingQueue = queue.slice(1);
     
     console.log('🎯 Siguiente concepto a mostrar:', nextConcept.término);
-    console.log('📋 Conceptos restantes en cola:', remainingQueue.length);
+    console.log('📋 Conceptos restantes en cola después:', remainingQueue.length);
     
+    // Actualizar ambos estados de manera sincronizada
     setSessionReviewQueue(remainingQueue);
     setCurrentConcepts([nextConcept]);
     

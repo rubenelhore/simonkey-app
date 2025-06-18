@@ -14,6 +14,8 @@ import {
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData } from '../services/userService';
 import UserDataManagement from '../components/UserDataManagement';
+import SchoolLinking from '../components/SchoolLinking';
+import SchoolCreation from '../components/SchoolCreation';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -32,48 +34,14 @@ interface User {
   maxNotebooks?: number;
 }
 
-interface Institution {
-  id: string;
-  name: string;
-  email: string;
-  adminId: string;
-  createdAt: any;
-}
-
-interface Notebook {
-  id: string;
-  title: string;
-  userId: string;
-  color: string;
-  concepts: any[];
-  createdAt: any;
-}
-
-interface NewInstitution {
-  name: string;
-  email: string;
-  adminId: string;
-}
-
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, user, userProfile, loading: userTypeLoading } = useUserType();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<User[]>([]);
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [sqlQuery, setSqlQuery] = useState('');
   const [sqlResults, setSqlResults] = useState<any[]>([]);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
-  const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
-  const [newInstitution, setNewInstitution] = useState<NewInstitution>({
-    name: '',
-    email: '',
-    adminId: ''
-  });
-  const [showNewInstitutionModal, setShowNewInstitutionModal] = useState(false);
 
   console.log('SuperAdminPage - Component loaded - FULL VERSION');
   console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
@@ -161,24 +129,6 @@ const SuperAdminPage: React.FC = () => {
         console.log('SuperAdminPage - No "usuarios" collection found, using only "users"');
         setUsers(usersData);
       }
-
-      // Cargar instituciones
-      const institutionsSnapshot = await getDocs(collection(db, 'institutions'));
-      const institutionsData = institutionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Institution[];
-      setInstitutions(institutionsData);
-      console.log('SuperAdminPage - Institutions loaded:', institutionsData.length);
-
-      // Cargar cuadernos
-      const notebooksSnapshot = await getDocs(collection(db, 'notebooks'));
-      const notebooksData = notebooksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Notebook[];
-      setNotebooks(notebooksData);
-      console.log('SuperAdminPage - Notebooks loaded:', notebooksData.length);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -224,70 +174,6 @@ const SuperAdminPage: React.FC = () => {
       } catch (error) {
         console.error('Error deleting user:', error);
         alert('Error al eliminar el usuario. Por favor, intenta de nuevo.');
-      }
-    }
-  };
-
-  // Gestión de instituciones
-  const createInstitution = async (institutionData: NewInstitution) => {
-    try {
-      await addDoc(collection(db, 'institutions'), {
-        ...institutionData,
-        createdAt: serverTimestamp()
-      });
-      setNewInstitution({ name: '', email: '', adminId: '' });
-      setShowNewInstitutionModal(false);
-      await loadData();
-    } catch (error) {
-      console.error('Error creating institution:', error);
-    }
-  };
-
-  const updateInstitution = async (institutionId: string, data: Partial<Institution>) => {
-    try {
-      await updateDoc(doc(db, 'institutions', institutionId), {
-        ...data,
-        updatedAt: serverTimestamp()
-      });
-      setEditingInstitution(null);
-      await loadData();
-    } catch (error) {
-      console.error('Error updating institution:', error);
-    }
-  };
-
-  const deleteInstitution = async (institutionId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar esta institución?')) {
-      try {
-        await deleteDoc(doc(db, 'institutions', institutionId));
-        await loadData();
-      } catch (error) {
-        console.error('Error deleting institution:', error);
-      }
-    }
-  };
-
-  // Gestión de cuadernos
-  const updateNotebook = async (notebookId: string, data: Partial<Notebook>) => {
-    try {
-      await updateDoc(doc(db, 'notebooks', notebookId), {
-        ...data,
-        updatedAt: serverTimestamp()
-      });
-      setEditingNotebook(null);
-      await loadData();
-    } catch (error) {
-      console.error('Error updating notebook:', error);
-    }
-  };
-
-  const deleteNotebook = async (notebookId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este cuaderno?')) {
-      try {
-        await deleteDoc(doc(db, 'notebooks', notebookId));
-        await loadData();
-      } catch (error) {
-        console.error('Error deleting notebook:', error);
       }
     }
   };
@@ -466,16 +352,16 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-users"></i> Usuarios
           </button>
           <button 
-            className={`tab-button ${activeTab === 'institutions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('institutions')}
+            className={`tab-button ${activeTab === 'schoolLinking' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schoolLinking')}
           >
-            <i className="fas fa-university"></i> Instituciones
+            <i className="fas fa-link"></i> Vinculación Escolar
           </button>
           <button 
-            className={`tab-button ${activeTab === 'notebooks' ? 'active' : ''}`}
-            onClick={() => setActiveTab('notebooks')}
+            className={`tab-button ${activeTab === 'schoolCreation' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schoolCreation')}
           >
-            <i className="fas fa-book"></i> Cuadernos
+            <i className="fas fa-plus-circle"></i> Creación Escolar
           </button>
           <button 
             className={`tab-button ${activeTab === 'sql' ? 'active' : ''}`}
@@ -658,88 +544,14 @@ const SuperAdminPage: React.FC = () => {
             </div>
           )}
 
-          {/* Tab de Instituciones */}
-          {activeTab === 'institutions' && (
-            <div className="institutions-tab">
-              <div className="tab-header">
-                <h2>Gestión de Instituciones ({institutions.length})</h2>
-                <button className="add-button" onClick={() => setShowNewInstitutionModal(true)}>
-                  <i className="fas fa-plus"></i> Nueva Institución
-                </button>
-              </div>
-              
-              <div className="institutions-grid">
-                {institutions.map(institution => (
-                  <div key={institution.id} className="institution-card">
-                    <div className="institution-info">
-                      <h3>{institution.name}</h3>
-                      <p className="institution-email">{institution.email}</p>
-                      <p className="institution-admin">Admin ID: {institution.adminId}</p>
-                    </div>
-                    
-                    <div className="institution-actions">
-                      <button 
-                        className="edit-button"
-                        onClick={() => setEditingInstitution(institution)}
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button 
-                        className="delete-button"
-                        onClick={() => deleteInstitution(institution.id)}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Tab de Vinculación Escolar */}
+          {activeTab === 'schoolLinking' && (
+            <SchoolLinking onRefresh={loadData} />
           )}
 
-          {/* Tab de Cuadernos */}
-          {activeTab === 'notebooks' && (
-            <div className="notebooks-tab">
-              <div className="tab-header">
-                <h2>Gestión de Cuadernos ({notebooks.length})</h2>
-                <button className="refresh-button" onClick={loadData} title="Actualizar datos">
-                  <i className="fas fa-sync-alt"></i>
-                </button>
-              </div>
-              
-              <div className="notebooks-grid">
-                {notebooks.map(notebook => (
-                  <div key={notebook.id} className="notebook-card">
-                    <div className="notebook-info">
-                      <h3>{notebook.title}</h3>
-                      <p className="notebook-user">Usuario: {notebook.userId}</p>
-                      <p className="notebook-concepts">
-                        Conceptos: {notebook.concepts?.length || 0}
-                      </p>
-                      <div 
-                        className="notebook-color"
-                        style={{ backgroundColor: notebook.color }}
-                      ></div>
-                    </div>
-                    
-                    <div className="notebook-actions">
-                      <button 
-                        className="edit-button"
-                        onClick={() => setEditingNotebook(notebook)}
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button 
-                        className="delete-button"
-                        onClick={() => deleteNotebook(notebook.id)}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Tab de Creación Escolar */}
+          {activeTab === 'schoolCreation' && (
+            <SchoolCreation onRefresh={loadData} />
           )}
 
           {/* Tab de SQL Console */}
@@ -794,129 +606,6 @@ const SuperAdminPage: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Modal para nueva institución */}
-      {showNewInstitutionModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Nueva Institución</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              createInstitution(newInstitution);
-            }}>
-              <input
-                type="text"
-                placeholder="Nombre de la institución"
-                value={newInstitution.name}
-                onChange={(e) => setNewInstitution({...newInstitution, name: e.target.value})}
-                required
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={newInstitution.email}
-                onChange={(e) => setNewInstitution({...newInstitution, email: e.target.value})}
-                required
-              />
-              <input
-                type="text"
-                placeholder="ID del administrador"
-                value={newInstitution.adminId}
-                onChange={(e) => setNewInstitution({...newInstitution, adminId: e.target.value})}
-                required
-              />
-              <div className="modal-actions">
-                <button type="button" onClick={() => setShowNewInstitutionModal(false)}>
-                  Cancelar
-                </button>
-                <button type="submit">Crear</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de edición de institución */}
-      {editingInstitution && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Editar Institución</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              updateInstitution(editingInstitution.id, {
-                name: formData.get('name') as string,
-                email: formData.get('email') as string,
-                adminId: formData.get('adminId') as string,
-              });
-            }}>
-              <input
-                name="name"
-                type="text"
-                placeholder="Nombre de la institución"
-                defaultValue={editingInstitution.name}
-                required
-              />
-              <input
-                name="email"
-                type="email"
-                placeholder="Email"
-                defaultValue={editingInstitution.email}
-                required
-              />
-              <input
-                name="adminId"
-                type="text"
-                placeholder="ID del administrador"
-                defaultValue={editingInstitution.adminId}
-                required
-              />
-              <div className="modal-actions">
-                <button type="button" onClick={() => setEditingInstitution(null)}>
-                  Cancelar
-                </button>
-                <button type="submit">Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de edición de cuaderno */}
-      {editingNotebook && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Editar Cuaderno</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              updateNotebook(editingNotebook.id, {
-                title: formData.get('title') as string,
-                color: formData.get('color') as string,
-              });
-            }}>
-              <input
-                name="title"
-                type="text"
-                placeholder="Título del cuaderno"
-                defaultValue={editingNotebook.title}
-                required
-              />
-              <input
-                name="color"
-                type="color"
-                defaultValue={editingNotebook.color}
-              />
-              <div className="modal-actions">
-                <button type="button" onClick={() => setEditingNotebook(null)}>
-                  Cancelar
-                </button>
-                <button type="submit">Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

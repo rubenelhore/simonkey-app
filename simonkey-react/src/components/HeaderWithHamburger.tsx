@@ -62,23 +62,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     loadUserData();
   }, []);
 
-  // Ocultar header al hacer scroll hacia abajo, mostrar al subir
-  useEffect(() => {
-    const handleScroll = () => {
-      const st = window.pageYOffset || document.documentElement.scrollTop;
-      if (st > lastScrollTop && st > 100) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      setLastScrollTop(st <= 0 ? 0 : st);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [lastScrollTop]);
-
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
@@ -204,7 +187,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         <div className="menu-overlay" onClick={toggleMenu}></div>
       )}
       
-      <header className={`header-with-hamburger${isVisible ? '' : ' header-hidden'}`}>
+      <header
+        className="header-with-hamburger"
+        style={{ opacity: 1, color: '#fff', zIndex: 9999, position: 'relative' }}
+      >
         <div className="header-content">
           {/* Botón de retroceso si es necesario - ahora al inicio */}
           {showBackButton && (
@@ -213,18 +199,20 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             </button>
           )}
           
-          <div className="logo-title-group">
+          <div
+            className="logo-title-group"
+            style={{ opacity: 1, color: '#fff' }}
+          >
             <img
               src="/img/favicon.svg"
               alt="Logo Simonkey"
               className="logo-img"
               width="24"
               height="24"
-              style={{ filter: 'brightness(0) invert(1)' }}
             />  
             <h1>
-              <span style={{ color: 'white' }}>Simon</span>
-              <span style={{ color: 'white' }}>key</span>
+              <span style={{ color: '#fff' }}>Simon</span>
+              <span style={{ color: '#fff' }}>key</span>
             </h1>
           </div>
           

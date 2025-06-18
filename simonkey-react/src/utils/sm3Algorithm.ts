@@ -227,7 +227,7 @@ export const getNextSmartStudyDate = (
 };
 
 /**
- * Calcular la próxima fecha de quiz (máximo 1 por semana)
+ * Calcular la próxima fecha de quiz (máximo 1 por semana - GLOBAL)
  */
 export const getNextQuizDate = (lastQuizDate?: Date): Date => {
   const now = new Date();
@@ -237,7 +237,7 @@ export const getNextQuizDate = (lastQuizDate?: Date): Date => {
     return now;
   }
   
-  // Calcular la próxima semana desde el último quiz
+  // CORRECCIÓN: Calcular la próxima semana desde el último quiz (7 días exactos)
   const nextQuizDate = new Date(lastQuizDate);
   nextQuizDate.setDate(nextQuizDate.getDate() + 7);
   
@@ -247,6 +247,37 @@ export const getNextQuizDate = (lastQuizDate?: Date): Date => {
   }
   
   return nextQuizDate;
+};
+
+/**
+ * Verificar si el quiz está disponible (máximo 1 cada 7 días - GLOBAL)
+ */
+export const isQuizAvailable = (lastQuizDate?: Date): boolean => {
+  console.log('🔍 isQuizAvailable llamado con:', lastQuizDate);
+  
+  if (!lastQuizDate) {
+    console.log('✅ No hay lastQuizDate, quiz disponible');
+    return true;
+  }
+  
+  const today = new Date();
+  const lastQuiz = new Date(lastQuizDate);
+  
+  // Calcular diferencia en días
+  const diffTime = today.getTime() - lastQuiz.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  const isAvailable = diffDays >= 7;
+  
+  console.log('🔍 Cálculo de disponibilidad de quiz:', {
+    today: today.toISOString(),
+    lastQuiz: lastQuiz.toISOString(),
+    diffDays: diffDays,
+    isAvailable: isAvailable,
+    requirement: 'Debe pasar al menos 7 días'
+  });
+  
+  return isAvailable;
 };
 
 /**
