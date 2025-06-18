@@ -11,13 +11,15 @@ interface HeaderWithHamburgerProps {
   subtitle?: string;
   showBackButton?: boolean;
   onBackClick?: () => void;
+  children?: React.ReactNode;
 }
 
 const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   title,
   subtitle,
   showBackButton = false,
-  onBackClick
+  onBackClick,
+  children
 }) => {
   const navigate = useNavigate();
   const { isSuperAdmin, isFreeUser } = useUserType();
@@ -390,6 +392,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           </div>
         </div>
       )}
+      {/* Renderiza children debajo del header y menú */}
+      {children}
     </div>
   );
 };
