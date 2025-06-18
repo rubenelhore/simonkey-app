@@ -656,6 +656,7 @@ button[type="submit"]:hover {
   font-size: 1.5rem;
   margin: 0;
   display: flex;
+  color: white !important;
 }
 
 /* Estilos para StreakTracker */
