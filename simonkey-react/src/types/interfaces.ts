@@ -294,3 +294,128 @@ export interface SubscriptionLimits {
     canManageUsers: boolean;
   };
 }
+
+/**
+ * Interfaces para el sistema escolar
+ */
+
+/**
+ * Institución escolar
+ */
+export interface SchoolInstitution {
+  id: string;
+  nombre: string;
+  createdAt: Timestamp;
+}
+
+/**
+ * Administrador escolar
+ */
+export interface SchoolAdmin {
+  id: string;
+  nombre: string;
+  email: string;
+  password: string; // Siempre "1234" temporal
+  subscription: UserSubscriptionType.SCHOOL;
+  idInstitucion: string;
+  createdAt: Timestamp;
+}
+
+/**
+ * Profesor escolar
+ */
+export interface SchoolTeacher {
+  id: string;
+  nombre: string; // Igual a displayName y username
+  email: string;
+  password: string; // Siempre "1234" temporal
+  subscription: UserSubscriptionType.SCHOOL;
+  idAdmin: string;
+  createdAt: Timestamp;
+}
+
+/**
+ * Salón escolar
+ */
+export interface SchoolClassroom {
+  id: string;
+  nombre: string;
+  idProfesor: string;
+  createdAt: Timestamp;
+}
+
+/**
+ * Cuaderno escolar (extending existing Notebook interface)
+ */
+export interface SchoolNotebook extends Notebook {
+  idSalon: string;
+}
+
+/**
+ * Alumno escolar
+ */
+export interface SchoolStudent {
+  id: string;
+  nombre: string; // Igual a displayName y username
+  email: string;
+  password: string; // Siempre "1234" temporal
+  subscription: UserSubscriptionType.SCHOOL;
+  idCuadernos: string[]; // Array de IDs de cuadernos (uno o más)
+  createdAt: Timestamp;
+}
+
+/**
+ * Tutor escolar
+ */
+export interface SchoolTutor {
+  id: string;
+  nombre: string;
+  idAlumnos: string[]; // Array de IDs de alumnos (uno o más)
+  createdAt: Timestamp;
+}
+
+/**
+ * Categorías escolares para dropdowns
+ */
+export enum SchoolCategory {
+  INSTITUCIONES = 'instituciones',
+  ADMINS = 'admins',
+  PROFESORES = 'profesores',
+  SALONES = 'salones',
+  CUADERNOS = 'cuadernos',
+  ALUMNOS = 'alumnos',
+  TUTORES = 'tutores'
+}
+
+/**
+ * Relaciones entre categorías escolares
+ */
+export interface SchoolRelationship {
+  parentCategory: SchoolCategory;
+  childCategory: SchoolCategory;
+  parentId: string;
+  childId: string;
+}
+
+/**
+ * Datos para vinculación escolar
+ */
+export interface SchoolLinkingData {
+  categoria: SchoolCategory | '';
+  especifico: string;
+  vincular: string;
+  resumen: {
+    categoria: string;
+    especificoNombre: string;
+    vincularNombre: string;
+  };
+}
+
+/**
+ * Datos para creación escolar
+ */
+export interface SchoolCreationData {
+  categoria: SchoolCategory | '';
+  informacionBasica: { [key: string]: string };
+  selectedEntity: string;
+}
