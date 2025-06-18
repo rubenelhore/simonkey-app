@@ -26,6 +26,10 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
+// Importaciones del sistema de cookies y privacidad
+import CookieManager from './components/CookieConsent/CookieManager';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsPage from './pages/TermsPage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './services/firebase';
 
@@ -176,6 +180,10 @@ const AppContent: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         
+        {/* Rutas legales - disponibles para todos */}
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        
         {/* Rutas protegidas */}
         <Route
           path="/notebooks"
@@ -255,6 +263,8 @@ const AppContent: React.FC = () => {
         />
       </Routes>
       {user.isAuthenticated && <MobileNavigation />}
+      {/* Sistema de gestión de cookies - siempre visible */}
+      <CookieManager />
     </UserContext.Provider>
   );
 };
