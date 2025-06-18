@@ -226,18 +226,19 @@ export const useStudyService = () => {
   );
   
   /**
-   * Reset quiz limit (for testing purposes)
+   * Reset quiz limit (for testing purposes) - CORREGIDO: LÍMITE GLOBAL
    */
   const resetQuizLimit = useCallback(
     async (userId: string): Promise<void> => {
       try {
-        console.log('🔄 Iniciando reset de límite de quiz para usuario:', userId);
+        console.log('🔄 Iniciando reset de límite GLOBAL de quiz para usuario:', userId);
         
+        // CORRECCIÓN: Resetear límites GLOBALES del usuario
         const limitsRef = doc(db, 'users', userId, 'limits', 'study');
         
         // Primero, obtener los límites actuales
         const currentLimits = await getDoc(limitsRef);
-        console.log('📊 Límites actuales antes del reset:', currentLimits.exists() ? currentLimits.data() : 'No existen');
+        console.log('📊 Límites GLOBALES actuales antes del reset:', currentLimits.exists() ? currentLimits.data() : 'No existen');
         
         await setDoc(limitsRef, {
           userId,
@@ -247,14 +248,14 @@ export const useStudyService = () => {
           updatedAt: serverTimestamp()
         }, { merge: true });
         
-        console.log('✅ Quiz limit reset successfully');
+        console.log('✅ Quiz limit GLOBAL reset successfully');
         console.log('📋 Datos reseteados:', {
           lastQuizDate: null,
           quizCountThisWeek: 0,
           weekStartDate: getWeekStartDate()
         });
       } catch (err) {
-        console.error('❌ Error resetting quiz limit:', err);
+        console.error('❌ Error resetting quiz limit GLOBAL:', err);
       }
     },
     []
