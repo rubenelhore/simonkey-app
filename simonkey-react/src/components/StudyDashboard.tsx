@@ -782,6 +782,10 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
                 : formatDate(dashboardData.nextSmartStudyDate)
               }
             </div>
+            <div className="mini-quiz-info">
+              <i className="fas fa-question-circle"></i>
+              <span>Incluye Mini Quiz (≥8/10)</span>
+            </div>
           </div>
         </div>
 

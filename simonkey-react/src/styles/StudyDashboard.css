@@ -240,6 +240,25 @@
   color: #6b7280;
 }
 
+/* Información del Mini Quiz */
+.mini-quiz-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: #FF6B35;
+  font-weight: 500;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 107, 53, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+.mini-quiz-info i {
+  font-size: 0.8rem;
+}
+
 /* Información adicional */
 .dashboard-info {
   background: #f8f9fa;

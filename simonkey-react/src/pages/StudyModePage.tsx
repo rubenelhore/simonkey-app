@@ -7,6 +7,7 @@ import SwipeableStudyCard from '../components/Mobile/SwipeableStudyCard';
 import FeedbackMessage from '../components/FeedbackMessage';
 import StudyDashboard from '../components/StudyDashboard';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import MiniQuiz from '../components/MiniQuiz';
 import { useStudyService } from '../hooks/useStudyService';
 import { Concept, ResponseQuality, StudyMode, Notebook, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudyModePage.css';
@@ -52,6 +53,12 @@ const StudyModePage = () => {
     message: '',
     type: 'info'
   });
+  
+  // Estado para el Mini Quiz
+  const [showMiniQuiz, setShowMiniQuiz] = useState<boolean>(false);
+  const [miniQuizPassed, setMiniQuizPassed] = useState<boolean>(false);
+  const [miniQuizScore, setMiniQuizScore] = useState<number>(0);
+  const [studySessionValidated, setStudySessionValidated] = useState<boolean>(false);
   
   // Usar nuestro hook de servicio personalizado
   const studyService = useStudyService();
@@ -524,19 +531,86 @@ const StudyModePage = () => {
         await studyService.updateFreeStudyUsage(auth.currentUser.uid, selectedNotebook.id);
       }
       
-      // IMPORTANTE: Actualizar límites de estudio inteligente al COMPLETAR la sesión
+      // IMPORTANTE: Para estudio inteligente, NO actualizar límites aquí
+      // Los límites se actualizarán después del Mini Quiz
       if (studyMode === StudyMode.SMART && selectedNotebook) {
-        console.log('🔄 Actualizando límites de estudio inteligente al completar sesión...');
-        await studyService.updateSmartStudyUsage(auth.currentUser.uid, selectedNotebook.id);
+        console.log('🔄 Estudio inteligente completado. Esperando resultado del Mini Quiz...');
+        // Mostrar Mini Quiz para validar el estudio inteligente
+        setShowMiniQuiz(true);
+        setSessionActive(false);
+        return; // No completar la sesión aún
       }
       
-      // Registrar actividad
-      await studyService.logStudyActivity(
-        auth.currentUser.uid,
-        'session_completed',
-        `Sesión completada: ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
-      );
+      // Para estudio libre, completar normalmente
+      if (studyMode === StudyMode.FREE) {
+        // Registrar actividad
+        await studyService.logStudyActivity(
+          auth.currentUser.uid,
+          'session_completed',
+          `Sesión de estudio libre completada: ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+        );
+        
+        setSessionComplete(true);
+        setSessionActive(false);
+        
+        // Mostrar mensaje especial si hubo repasos inmediatos
+        const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
+        if (totalRepetitions > 0) {
+          showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
+        }
+      }
       
+    } catch (error) {
+      console.error("Error al completar sesión:", error);
+      showFeedback('warning', 'Error al guardar estadísticas de la sesión');
+      
+      // Aún así mostramos el resumen
+      setSessionComplete(true);
+      setSessionActive(false);
+    }
+  };
+  
+  // Manejar resultado del Mini Quiz
+  const handleMiniQuizComplete = async (passed: boolean, score: number) => {
+    console.log('[MINI QUIZ] Resultado recibido:', { passed, score });
+    
+    setMiniQuizPassed(passed);
+    setMiniQuizScore(score);
+    setShowMiniQuiz(false);
+    
+    if (!auth.currentUser || !selectedNotebook) return;
+    
+    try {
+      if (passed) {
+        // Si pasó el Mini Quiz, validar el estudio inteligente
+        console.log('✅ Mini Quiz aprobado. Validando estudio inteligente...');
+        await studyService.updateSmartStudyUsage(auth.currentUser.uid, selectedNotebook.id);
+        setStudySessionValidated(true);
+        
+        // Registrar actividad exitosa
+        await studyService.logStudyActivity(
+          auth.currentUser.uid,
+          'smart_study_validated',
+          `Estudio inteligente validado con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+        );
+        
+        showFeedback('success', `¡Excelente! Has aprobado el Mini Quiz con ${score}/10. Tu estudio inteligente ha sido validado.`);
+      } else {
+        // Si no pasó el Mini Quiz, NO validar el estudio inteligente
+        console.log('❌ Mini Quiz fallido. Estudio inteligente NO validado.');
+        setStudySessionValidated(false);
+        
+        // Registrar actividad fallida
+        await studyService.logStudyActivity(
+          auth.currentUser.uid,
+          'smart_study_failed_validation',
+          `Estudio inteligente falló validación con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+        );
+        
+        showFeedback('warning', `Tu calificación fue de ${score}/10. Necesitas al menos 8/10 para validar el estudio inteligente.`);
+      }
+      
+      // Completar la sesión (con o sin validación)
       setSessionComplete(true);
       setSessionActive(false);
       
@@ -547,10 +621,10 @@ const StudyModePage = () => {
       }
       
     } catch (error) {
-      console.error("Error al completar sesión:", error);
-      showFeedback('warning', 'Error al guardar estadísticas de la sesión');
+      console.error("Error al procesar resultado del Mini Quiz:", error);
+      showFeedback('warning', 'Error al procesar el resultado del Mini Quiz');
       
-      // Aún así mostramos el resumen
+      // Aún así completar la sesión
       setSessionComplete(true);
       setSessionActive(false);
     }
@@ -704,21 +778,43 @@ const StudyModePage = () => {
   // Renderizar el componente principal
   return (
     <>
-      <HeaderWithHamburger
-        title=""
-        subtitle=""
-        showBackButton={sessionActive || sessionComplete}
-        onBackClick={() => {
-          if (sessionActive) {
-            if (window.confirm('¿Estás seguro de que quieres salir de la sesión de estudio? Tu progreso se guardará.')) {
+      {/* Mini Quiz - se muestra como overlay completo */}
+      {showMiniQuiz && selectedNotebook && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          backgroundColor: '#f8f9fa'
+        }}>
+          <MiniQuiz
+            notebookId={selectedNotebook.id}
+            notebookTitle={selectedNotebook.title}
+            onComplete={handleMiniQuizComplete}
+            onClose={() => setShowMiniQuiz(false)}
+          />
+        </div>
+      )}
+      
+      {/* Contenido principal */}
+      <div className="study-mode-container">
+        <HeaderWithHamburger
+          title=""
+          subtitle=""
+          showBackButton={sessionActive || sessionComplete}
+          onBackClick={() => {
+            if (sessionActive) {
+              if (window.confirm('¿Estás seguro de que quieres salir de la sesión de estudio? Tu progreso se guardará.')) {
+                startNewSession();
+              }
+            } else if (sessionComplete) {
               startNewSession();
             }
-          } else if (sessionComplete) {
-            startNewSession();
-          }
-        }}
-      />
-      <div className={`study-mode-container ${studyMode.toLowerCase()}`}> 
+          }}
+        />
+        
         <main className="study-mode-main">
           {/* Mensaje de feedback */}
           {feedback.visible && (
@@ -728,12 +824,14 @@ const StudyModePage = () => {
             />
           )}
           
-          {/* Renderizado condicional */}
+          {/* Mostrar selección de cuadernos cuando no hay sesión activa */}
           {!sessionActive && !sessionComplete && (
             <div className="study-notebook-selection">
               <div className="study-header">
-                <h2>Centro de Estudio</h2>
-                <p className="study-subtitle">Elige un cuaderno y comienza tu sesión de aprendizaje</p>
+                <h2>Selecciona un cuaderno para estudiar</h2>
+                <div className="study-subtitle">
+                  Elige el cuaderno que quieres revisar hoy
+                </div>
               </div>
               
               {loading ? (
@@ -742,7 +840,6 @@ const StudyModePage = () => {
                     <i className="fas fa-spinner fa-spin"></i>
                   </div>
                   <h3>Cargando cuadernos...</h3>
-                  <p>Por favor espera un momento</p>
                 </div>
               ) : notebooks.length === 0 ? (
                 <div className="empty-notebooks">
@@ -763,9 +860,9 @@ const StudyModePage = () => {
                   {/* Lista de cuadernos */}
                   <div className="notebooks-section">
                     <div className="notebooks-list">
-                      {notebooks.map(notebook => (
+                      {(notebooks as Notebook[]).map((notebook, index) => (
                         <div
-                          key={notebook.id}
+                          key={notebook.id || index}
                           className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
                           onClick={() => handleSelectNotebook(notebook)}
                           style={{ borderColor: notebook.color }}
@@ -918,9 +1015,21 @@ const StudyModePage = () => {
                 <div className="session-complete-trophy">
                   <i className="fas fa-trophy"></i>
                 </div>
-                <div className="session-complete-title">¡Sesión completada!</div>
+                <div className="session-complete-title">
+                  {studyMode === StudyMode.SMART && miniQuizPassed 
+                    ? '¡Estudio Inteligente Validado!' 
+                    : studyMode === StudyMode.SMART && !miniQuizPassed
+                    ? 'Estudio Inteligente Completado'
+                    : '¡Sesión completada!'
+                  }
+                </div>
                 <div className="session-complete-subtitle">
-                  ¡Buen trabajo! Sigue así para dominar todos tus conceptos.
+                  {studyMode === StudyMode.SMART && miniQuizPassed 
+                    ? `¡Excelente! Has aprobado el Mini Quiz con ${miniQuizScore}/10. Tu estudio inteligente ha sido validado.`
+                    : studyMode === StudyMode.SMART && !miniQuizPassed
+                    ? `Tu calificación fue de ${miniQuizScore}/10. Necesitas al menos 8/10 para validar el estudio inteligente.`
+                    : '¡Buen trabajo! Sigue así para dominar todos tus conceptos.'
+                  }
                 </div>
                 <div className="session-complete-stats">
                   <div className="session-complete-stat-card concepts">
@@ -938,6 +1047,18 @@ const StudyModePage = () => {
                     <div className="session-complete-stat-value">{formatStudyTime(metrics.timeSpent)}</div>
                     <div className="session-complete-stat-label">Tiempo de estudio</div>
                   </div>
+                  {/* Mostrar resultado del Mini Quiz si es estudio inteligente */}
+                  {studyMode === StudyMode.SMART && (
+                    <div className="session-complete-stat-card mini-quiz">
+                      <div className="session-complete-stat-icon">
+                        <i className={`fas ${miniQuizPassed ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
+                      </div>
+                      <div className="session-complete-stat-value">{miniQuizScore}/10</div>
+                      <div className="session-complete-stat-label">
+                        {miniQuizPassed ? 'Mini Quiz Aprobado' : 'Mini Quiz Fallido'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

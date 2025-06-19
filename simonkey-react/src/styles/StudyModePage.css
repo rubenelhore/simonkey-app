@@ -1634,6 +1634,14 @@
 .session-complete-stat-card.mastered .session-complete-stat-value { color: #22c55e; }
 .session-complete-stat-card.time .session-complete-stat-value { color: #fbbf24; }
 
+/* Colores para la tarjeta del Mini Quiz */
+.session-complete-stat-card.mini-quiz .session-complete-stat-icon { color: #FF6B35; }
+.session-complete-stat-card.mini-quiz .session-complete-stat-value { color: #FF6B35; }
+
+/* Estilos específicos para Mini Quiz aprobado/fallido */
+.session-complete-stat-card.mini-quiz .session-complete-stat-icon.fa-check-circle { color: #22c55e; }
+.session-complete-stat-card.mini-quiz .session-complete-stat-icon.fa-times-circle { color: #FF3B30; }
+
 @media (max-width: 600px) {
   .session-complete-card {
     padding: 1.5rem 0.5rem 1.5rem 0.5rem;

@@ -135,6 +135,26 @@ export interface QuizSession {
 }
 
 /**
+ * Sesión de mini quiz (5 preguntas, 20 segundos, calificación base 10)
+ */
+export interface MiniQuizSession {
+  id: string;
+  userId: string;
+  notebookId: string;
+  notebookTitle: string;
+  questions: QuizQuestion[];
+  responses: QuizResponse[];
+  startTime: Date;
+  endTime: Date;
+  score: number;                // Número de respuestas correctas
+  maxScore: number;             // Número total de preguntas (5)
+  accuracy: number;             // Porcentaje de acierto
+  finalScore: number;           // Calificación base 10
+  passed: boolean;              // Si aprobó (≥8/10)
+  timeRemaining?: number;       // Tiempo restante al finalizar
+}
+
+/**
  * Estadísticas de quiz
  */
 export interface QuizStats {
