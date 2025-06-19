@@ -75,12 +75,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
   return (
     <div 
       className="notebook-card"
-      style={{ borderColor: notebookColor }}
     >
       <div 
         className="notebook-card-content" 
         onClick={handleCardClick}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: 'pointer', borderColor: notebookColor }}
       >
         {isEditing ? (
           <input 
@@ -98,7 +97,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
       {showActions && (
         <div 
           className="notebook-card-actions"
-          style={{ backgroundColor: notebookColor }} // Aplica el color directamente aquí
+          style={{ backgroundColor: notebookColor }}
         >
           <button onClick={handleView} className="action-view" title="Ver cuaderno">
             <i className="fas fa-eye"></i>

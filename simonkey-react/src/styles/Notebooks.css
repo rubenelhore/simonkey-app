@@ -522,14 +522,11 @@ button[type="submit"]:hover {
 
 .notebook-card {
   background-color: var(--card-background);
-  border-radius: 8px;
   overflow: hidden;
   transition: var(--transition);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
-  border: 2px solid;
-  position: relative; /* Importante para posicionar el selector de colores */
+  position: relative;
 }
 
 .notebook-card:hover {
@@ -540,6 +537,8 @@ button[type="submit"]:hover {
 .notebook-card-content {
   padding: 1rem;
   flex: 1;
+  border: 2px solid;
+  margin: 0;
 }
 
 .notebook-card h3 {
