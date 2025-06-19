@@ -31,9 +31,10 @@ import ProfilePage from './pages/ProfilePage';
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from './services/firebase';
-import { getUserProfile } from './services/userService';
+// Importar el hook useAuth
+import { useAuth } from './hooks/useAuth';
+// Importar el guard de verificación de email
+import EmailVerificationGuard from './components/EmailVerificationGuard';
 
 // Definir el tipo para el usuario
 interface User {
@@ -121,13 +122,8 @@ const AppWrapper: React.FC = () => {
 
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
-  // Estado para gestionar la información del usuario
-  const [user, setUser] = useState<User>({
-    isAuthenticated: false
-  });
-  
-  // Usamos el hook de Firebase para la autenticación
-  const [firebaseUser, firebaseLoading] = useAuthState(auth);
+  // Usar el hook useAuth en lugar del estado local
+  const { user, isAuthenticated, isEmailVerified, loading, initializing } = useAuth();
   
   const navigate = useNavigate();
 
@@ -137,81 +133,74 @@ const AppContent: React.FC = () => {
     return localStorage.getItem('hasCompletedOnboarding') === 'true';
   });
 
-  // Efecto para verificar si hay un usuario en Firebase al cargar la aplicación
+  // Efecto para redirigir usuarios no autenticados
   useEffect(() => {
-    if (!firebaseLoading) {
-      if (firebaseUser) {
-        // Verificar que el usuario existe en Firestore antes de permitir acceso
-        const verifyUserInFirestore = async () => {
-          try {
-            console.log("Verificando usuario en Firestore:", firebaseUser.uid);
-            const userProfile = await getUserProfile(firebaseUser.uid);
-            
-            if (userProfile) {
-              // Usuario existe en Firestore, permitir acceso
-              console.log("Usuario verificado en Firestore:", userProfile);
-              const userData = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || undefined,
-                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || undefined,
-                photoURL: firebaseUser.photoURL || undefined,
-                isAuthenticated: true
-              };
-              setUser(userData);
-              localStorage.setItem('user', JSON.stringify(userData));
-              
-              // Comprobamos si estamos en la página de login y redirigimos
-              if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
-                console.log("Redirigiendo a notebooks desde App.tsx");
-                navigate('/notebooks', { replace: true });
-              }
-            } else {
-              // Usuario no existe en Firestore (fue eliminado), cerrar sesión
-              console.log("Usuario eliminado detectado, cerrando sesión:", firebaseUser.uid);
-              await auth.signOut();
-              setUser({ isAuthenticated: false });
-              localStorage.removeItem('user');
-              localStorage.removeItem('hasCompletedOnboarding');
-              
-              // Redirigir a login con mensaje de error
-              if (window.location.pathname !== '/login') {
-                navigate('/login', { replace: true });
-              }
-            }
-          } catch (error) {
-            console.error("Error verificando usuario en Firestore:", error);
-            // En caso de error, cerrar sesión por seguridad
-            await auth.signOut();
-            setUser({ isAuthenticated: false });
-            localStorage.removeItem('user');
-            localStorage.removeItem('hasCompletedOnboarding');
-            
-            if (window.location.pathname !== '/login') {
-              navigate('/login', { replace: true });
-            }
-          }
-        };
-        
-        verifyUserInFirestore();
-      } else {
-        // Usuario no autenticado
-        setUser({ isAuthenticated: false });
-        localStorage.removeItem('user');
+    if (!loading && !initializing) {
+      // Si no está autenticado y no está en una página pública, redirigir a login
+      if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms'].includes(window.location.pathname)) {
+        navigate('/login', { replace: true });
+      }
+      
+      // Si está autenticado y verificado y está en login/signup, redirigir a notebooks
+      if (isAuthenticated && isEmailVerified && ['/login', '/signup'].includes(window.location.pathname)) {
+        navigate('/notebooks', { replace: true });
       }
     }
-  }, [firebaseUser, firebaseLoading, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, initializing, navigate]);
 
-  if (firebaseLoading) {
-    return <div>Cargando...</div>;
+  // Mostrar loading mientras se inicializa
+  if (loading || initializing) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f8f9fa'
+      }}>
+        <div style={{
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid #e3e3e3',
+            borderTop: '3px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px'
+          }}></div>
+          <p style={{ 
+            color: '#636e72',
+            margin: 0,
+            fontSize: '14px'
+          }}>
+            Cargando...
+          </p>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user: user ? {
+      id: user.uid,
+      email: user.email || undefined,
+      name: user.displayName || user.email?.split('@')[0] || undefined,
+      photoURL: user.photoURL || undefined,
+      isAuthenticated: true
+    } : { isAuthenticated: false }, setUser: () => {} }}>
       <Routes>
         {/* Ruta principal: redirige a /notebooks si está autenticado */}
         <Route 
           path="/" 
-          element={user.isAuthenticated ? <Navigate to="/notebooks" replace /> : <HomePage />} 
+          element={isAuthenticated && isEmailVerified ? <Navigate to="/notebooks" replace /> : <HomePage />} 
         />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<LoginPage />} />
@@ -222,63 +211,65 @@ const AppContent: React.FC = () => {
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         
-        {/* Rutas protegidas */}
+        {/* Rutas protegidas - requieren autenticación Y verificación de email */}
         <Route
           path="/notebooks"
           element={
-            user.isAuthenticated ? (
-              <>
-                {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                  setHasCompletedOnboarding(true);
-                  localStorage.setItem('hasCompletedOnboarding', 'true');
-                }} />}
-                <Notebooks />
-              </>
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <>
+                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                    setHasCompletedOnboarding(true);
+                    localStorage.setItem('hasCompletedOnboarding', 'true');
+                  }} />}
+                  <Notebooks />
+                </>
+              </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
         />
         <Route
           path="/notebooks/:id"
-          element={user.isAuthenticated ? <NotebookDetail /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><NotebookDetail /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route
           path="/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={user.isAuthenticated ? <ConceptDetail /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><ConceptDetail /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route
           path="/tools/explain/:type/:notebookId"
-          element={user.isAuthenticated ? <ExplainConceptPage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><ExplainConceptPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route path="/shared/:shareId" element={<SharedNotebook />} />
         
         {/* Nueva ruta para configuración de voz */}
         <Route
           path="/settings/voice"
-          element={user.isAuthenticated ? <VoiceSettingsPage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><VoiceSettingsPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para estudio */}
         <Route
           path="/study"
-          element={user.isAuthenticated ? <StudyModePage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><StudyModePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para progreso */}
         <Route
           path="/progress"
-          element={user.isAuthenticated ? <ProgressPage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><ProgressPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para perfil */}
         <Route
           path="/profile"
-          element={user.isAuthenticated ? <ProfilePage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><ProfilePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para quiz */}
         <Route
           path="/quiz"
-          element={user.isAuthenticated ? <QuizModePage /> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><QuizModePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Ruta para el panel de control del súper admin */}
@@ -287,11 +278,11 @@ const AppContent: React.FC = () => {
           element={
             (() => {
               console.log('App - Super Admin route accessed');
-              console.log('App - user.isAuthenticated:', user.isAuthenticated);
-              console.log('App - user object:', user);
-              if (user.isAuthenticated) {
+              console.log('App - isAuthenticated:', isAuthenticated);
+              console.log('App - isEmailVerified:', isEmailVerified);
+              if (isAuthenticated) {
                 console.log('App - Rendering SuperAdminPage');
-                return <SuperAdminPage />;
+                return <EmailVerificationGuard><SuperAdminPage /></EmailVerificationGuard>;
               } else {
                 console.log('App - Redirecting to login');
                 return <Navigate to="/login" replace />;
@@ -300,7 +291,7 @@ const AppContent: React.FC = () => {
           }
         />
       </Routes>
-      {user.isAuthenticated && <MobileNavigation />}
+      {isAuthenticated && isEmailVerified && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
     </UserContext.Provider>
