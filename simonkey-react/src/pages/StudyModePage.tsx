@@ -492,6 +492,18 @@ const StudyModePage = () => {
         }
       );
       
+      // IMPORTANTE: Actualizar límites de estudio libre al COMPLETAR la sesión
+      if (studyMode === StudyMode.FREE) {
+        console.log('🔄 Actualizando límites de estudio libre al completar sesión...');
+        await studyService.updateFreeStudyUsage(auth.currentUser.uid);
+      }
+      
+      // IMPORTANTE: Actualizar límites de estudio inteligente al COMPLETAR la sesión
+      if (studyMode === StudyMode.SMART && selectedNotebook) {
+        console.log('🔄 Actualizando límites de estudio inteligente al completar sesión...');
+        await studyService.updateSmartStudyUsage(auth.currentUser.uid, selectedNotebook.id);
+      }
+      
       // Registrar actividad
       await studyService.logStudyActivity(
         auth.currentUser.uid,

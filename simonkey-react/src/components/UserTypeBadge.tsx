@@ -35,7 +35,8 @@ export const UserTypeBadge: React.FC<UserTypeBadgeProps> = ({
       case UserSubscriptionType.SCHOOL:
         const roleText = schoolRole === SchoolRole.ADMIN ? 'Administrador' :
                         schoolRole === SchoolRole.TEACHER ? 'Profesor' :
-                        schoolRole === SchoolRole.STUDENT ? 'Alumno' : 'Escolar';
+                        schoolRole === SchoolRole.STUDENT ? 'Alumno' :
+                        schoolRole === SchoolRole.TUTOR ? 'Tutor' : 'Escolar';
         return {
           text: `Escolar - ${roleText}`,
           color: 'bg-blue-500 text-white',

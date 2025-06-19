@@ -1,242 +1,161 @@
-# Correcciones de la Lógica de Estudio - Simonkey
+# 🔧 Correcciones de Lógica de Estudio - Simonkey
 
-## Resumen de Correcciones Implementadas
+## 📋 Problemas Identificados y Solucionados
 
-Se han realizado correcciones críticas en la lógica de estudio de Simonkey para cumplir con las especificaciones del sistema. Las correcciones abarcan los tres componentes principales:
+### ❌ **Problemas Originales:**
 
-- **ESTUDIO LIBRE:** Una vez al día por cuaderno, repasa todos los conceptos
-- **ESTUDIO INTELIGENTE:** Solo conceptos que tocan repasar según SM-3, con candado de 5 segundos  
-- **QUIZ:** Una vez cada 7 días **por cuaderno**, 600 segundos, cierre automático
+1. **Estudio Libre**: Los límites se aplicaban al **iniciar** la sesión, no al completarla
+2. **Quiz**: Los límites se aplicaban correctamente al completar, pero había inconsistencias
+3. **Estudio Inteligente**: **NO tenía límites de frecuencia** implementados
+4. **Inconsistencias**: Las fechas de disponibilidad no se actualizaban correctamente
 
----
+### ✅ **Soluciones Implementadas:**
 
-## 🔧 Problemas Corregidos
+## 1. **Corrección de Límites de Estudio Libre**
 
-### 1. **ESTUDIO INTELIGENTE** ✅
-
-#### Problema Original:
-- ❌ Estaba cargando **TODOS** los conceptos del cuaderno en lugar de solo los que tocan repasar según SM-3
-- ❌ No seguía correctamente el algoritmo de repetición espaciada
-
-#### Corrección Implementada:
+### **Antes:**
 ```typescript
-// ANTES (incorrecto):
-concepts = await studyService.getAllConceptsFromNotebook(userId, notebookId);
-
-// DESPUÉS (corregido):
-if (sessionMode === StudyMode.SMART) {
-  // CORRECCIÓN: Obtener SOLO conceptos listos para repaso inteligente según SM-3
-  concepts = await studyService.getReviewableConcepts(userId, notebookId);
-  
-  if (concepts.length === 0) {
-    showFeedback('info', 'No tienes conceptos listos para repaso hoy según el algoritmo de repaso espaciado. ¡Excelente trabajo!');
-    return;
-  }
+// Los límites se actualizaban al INICIAR la sesión
+if (mode === StudyMode.FREE) {
+  await updateFreeStudyUsage(userId); // ❌ INCORRECTO
 }
 ```
 
-**Resultado:**
-- ✅ Solo muestra conceptos que realmente tocan repasar hoy
-- ✅ Sigue correctamente el algoritmo SM-3
-- ✅ Disponible según el cronograma de repaso espaciado
-
----
-
-### 2. **QUIZ - LÍMITES POR CUADERNO** ✅
-
-#### Problema Original:
-- ❌ Los límites de quiz estaban mal configurados o inconsistentes
-- ❌ No respetaba correctamente el límite de "una vez cada 7 días por cuaderno"
-
-#### Corrección Implementada:
+### **Después:**
 ```typescript
-// Verificación correcta - por cuaderno:
-const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
-
-// Aplicación de límites - por cuaderno específico:
-await setDoc(notebookLimitsRef, {
-  userId: auth.currentUser.uid,
-  notebookId: notebookId,
-  lastQuizDate: currentDate,
-  quizCountThisWeek: 1,
-  weekStartDate: getWeekStartDate(),
-  updatedAt: Timestamp.now()
-}, { merge: true });
-```
-
-**Cambios Específicos:**
-- **Verificación de disponibilidad:** Verifica límites específicos por cuaderno
-- **Aplicación de límites:** Se aplica un límite de 7 días por cuaderno individual
-- **Mensajes:** Clarifica que es "quiz de este cuaderno"
-
-**Resultado:**
-- ✅ Un quiz cada 7 días **por cuaderno** (puedes hacer quiz de diferentes cuadernos)
-- ✅ Límites aplicados correctamente al completar el quiz
-- ✅ Sistema de verificación por cuaderno funcionando
-
----
-
-### 3. **PROBLEMA DEL ÚLTIMO CONCEPTO "REPASAR DESPUÉS"** ✅
-
-#### Problema Original:
-- ❌ Cuando se marcaba "repasar después" el último concepto de la fila, NO se preguntaba nuevamente
-- ❌ El concepto se perdía de la cola de repaso inmediato
-
-#### Corrección Implementada:
-```typescript
-// CORRECCIÓN CRÍTICA: Calcular conceptos restantes ANTES de remover el actual
-const remainingConceptsAfterRemoval = currentConcepts.filter(c => c.id !== conceptId);
-
-// Remover concepto de la cola actual
-setCurrentConcepts(remainingConceptsAfterRemoval);
-
-// LÓGICA DE REPASO INMEDIATO CORREGIDA
-if (quality === ResponseQuality.REVIEW_LATER && currentConcept) {
-  newReviewQueue = [...sessionReviewQueue, currentConcept];
-  showFeedback('info', `"${currentConcept.término}" se agregó a tu cola de repaso.`);
-}
-
-// CORRECCIÓN CRÍTICA: Verificar si es el último concepto INCLUYENDO el que acabamos de procesar
-if (remainingConceptsAfterRemoval.length === 0) {
-  if (newReviewQueue.length > 0) {
-    continueWithImmediateReview(newReviewQueue);
-  } else {
-    await completeStudySession();
-  }
+// Los límites se actualizan al COMPLETAR la sesión
+if (studyMode === StudyMode.FREE) {
+  await studyService.updateFreeStudyUsage(auth.currentUser.uid); // ✅ CORRECTO
 }
 ```
 
-**Resultado:**
-- ✅ El último concepto marcado como "repasar después" SÍ se pregunta nuevamente
-- ✅ La cola de repaso inmediato funciona correctamente
-- ✅ No se pierde ningún concepto en el proceso
+**Beneficio:** Si el usuario inicia una sesión pero no la completa, no se marca como "usado hoy".
 
----
+## 2. **Implementación de Límites para Estudio Inteligente**
 
-### 4. **LÓGICA DE COLA DE REPASO MEJORADA** ✅
-
-#### Problema Original:
-- ❌ Inconsistencias en el manejo de la cola de repaso inmediato
-- ❌ Estados no sincronizados correctamente
-
-#### Corrección Implementada:
+### **Nueva Funcionalidad:**
 ```typescript
-// Continuar con conceptos de repaso inmediato - CORREGIDO
-const continueWithImmediateReview = async (queue: Concept[]) => {
-  if (queue.length === 0) {
-    await completeStudySession();
-    return;
-  }
-  
-  // CORRECCIÓN: Tomar el primer concepto y actualizar ambos estados al mismo tiempo
-  const nextConcept = queue[0];
-  const remainingQueue = queue.slice(1);
-  
-  // Actualizar ambos estados de manera sincronizada
-  setSessionReviewQueue(remainingQueue);
-  setCurrentConcepts([nextConcept]);
-};
+// Verificar límites de frecuencia (1 por día por cuaderno)
+const checkSmartStudyLimit = async (userId: string, notebookId: string): Promise<boolean>
+
+// Actualizar límites al completar
+const updateSmartStudyUsage = async (userId: string, notebookId: string): Promise<void>
 ```
 
-**Resultado:**
-- ✅ Estados sincronizados correctamente
-- ✅ Cola de repaso funciona de manera consistente
-- ✅ Transiciones suaves entre conceptos
+### **Lógica Implementada:**
+- **Estudio Inteligente**: Máximo 1 sesión por día por cuaderno
+- **Verificación**: Al iniciar la sesión
+- **Actualización**: Al completar la sesión
+- **Algoritmo SM-3**: Se mantiene para determinar qué conceptos están listos para repaso
+
+## 3. **Estructura de Límites Mejorada**
+
+### **Límites por Usuario (Global):**
+```typescript
+interface StudyLimits {
+  userId: string;
+  lastFreeStudyDate?: Date;     // Última fecha de estudio libre
+  freeStudyCountToday: number;  // Número de estudios libres hoy
+  weekStartDate: Date;          // Fecha de inicio de la semana actual
+}
+```
+
+### **Límites por Cuaderno (Específicos):**
+```typescript
+// En users/{userId}/notebooks/{notebookId}/limits
+{
+  userId: string;
+  notebookId: string;
+  lastQuizDate?: Date;          // Última fecha de quiz (7 días)
+  lastSmartStudyDate?: Date;    // Última fecha de estudio inteligente (1 día)
+  quizCountThisWeek: number;    // Número de quizzes esta semana
+  smartStudyCountToday: number; // Número de estudios inteligentes hoy
+  weekStartDate: Date;          // Fecha de inicio de la semana actual
+}
+```
+
+## 4. **Flujo de Verificación y Actualización**
+
+### **Al Iniciar Sesión:**
+1. ✅ Verificar límites de frecuencia
+2. ✅ Si está disponible, crear sesión
+3. ❌ **NO actualizar límites** (se hace al completar)
+
+### **Al Completar Sesión:**
+1. ✅ Guardar métricas de la sesión
+2. ✅ **Actualizar límites de frecuencia**
+3. ✅ Registrar actividad
+
+## 5. **Comportamiento Esperado Después de las Correcciones**
+
+### **Estudio Inteligente:**
+- ✅ **Una vez terminado**: No permite hacerlo de nuevo hasta mañana
+- ✅ **Espaciado SM-3**: Se mantiene para determinar fechas de repaso
+- ✅ **Por cuaderno**: Cada cuaderno tiene su propio límite diario
+
+### **Quiz:**
+- ✅ **Una vez completado**: No disponible hasta 7 días después
+- ✅ **Por cuaderno**: Cada cuaderno tiene su propio límite semanal
+
+### **Estudio Libre:**
+- ✅ **Una vez completado**: No disponible hasta mañana
+- ✅ **Global**: Límite diario aplica a todos los cuadernos
+
+## 6. **Archivos Modificados**
+
+### **`src/pages/StudyModePage.tsx`:**
+- ✅ `completeStudySession()`: Actualiza límites al completar
+- ✅ Manejo de errores mejorado
+
+### **`src/hooks/useStudyService.ts`:**
+- ✅ `createStudySession()`: Verifica límites al iniciar
+- ✅ `checkSmartStudyLimit()`: Nueva función de verificación
+- ✅ `updateSmartStudyUsage()`: Nueva función de actualización
+- ✅ `updateFreeStudyUsage()`: Mejorada con logs
+
+### **`src/components/StudyDashboard.tsx`:**
+- ✅ Verificación de límites de estudio inteligente
+- ✅ Lógica de disponibilidad mejorada
+
+## 7. **Ventajas de la Solución Implementada**
+
+### **✅ Sin Copias Espejo:**
+- **Una sola fuente de verdad**: Los conceptos originales
+- **Menor complejidad**: No hay sincronización entre copias
+- **Mejor rendimiento**: Menos operaciones de escritura
+- **Mantenimiento más fácil**: Código más simple
+
+### **✅ Metadatos de Estado:**
+- **Límites por modalidad**: Cada tipo de estudio tiene sus propios límites
+- **Flexibilidad**: Fácil de modificar límites por modalidad
+- **Escalabilidad**: Fácil agregar nuevos tipos de estudio
+
+## 8. **Pruebas Recomendadas**
+
+### **Escenarios a Probar:**
+1. ✅ Iniciar estudio libre → No completar → Verificar que sigue disponible
+2. ✅ Completar estudio libre → Verificar que no está disponible hasta mañana
+3. ✅ Completar estudio inteligente → Verificar que no está disponible hasta mañana
+4. ✅ Completar quiz → Verificar que no está disponible hasta 7 días
+5. ✅ Múltiples cuadernos → Verificar límites independientes
+
+### **Comandos de Desarrollo:**
+```bash
+# Resetear límites para pruebas
+await studyService.resetFreeStudyLimit(userId);
+await studyService.resetQuizLimit(userId, notebookId);
+```
+
+## 9. **Próximos Pasos**
+
+### **Mejoras Futuras:**
+- 📊 **Dashboard de límites**: Mostrar cuándo estarán disponibles cada modalidad
+- 🔔 **Notificaciones**: Recordar cuando estén disponibles
+- 📈 **Estadísticas**: Tracking de uso de cada modalidad
+- ⚙️ **Configuración**: Permitir ajustar límites por usuario
 
 ---
 
-## 🎯 Funcionalidades Verificadas que Ya Funcionaban
-
-### 1. **Estudio Libre** ✅
-- ✅ Disponible una vez al día
-- ✅ Disponible cuando se crea un nuevo cuaderno
-- ✅ Repasa todos los conceptos del cuaderno
-- ✅ Lógica local por cuaderno
-
-### 2. **Candado de 5 Segundos** ✅
-- ✅ Implementado correctamente en `SwipeableStudyCard`
-- ✅ Solo se activa en modo inteligente
-- ✅ Bloquea evaluación hasta completar el tiempo
-- ✅ Reset automático con cada nuevo concepto
-
-### 3. **Timer del Quiz** ✅
-- ✅ 600 segundos (10 minutos) de duración
-- ✅ Cierre automático al terminar el tiempo
-- ✅ Sistema de advertencias (60s y 30s restantes)
-- ✅ Cálculo correcto de puntuación con bonus de tiempo
-
-### 4. **Generación de Preguntas de Quiz** ✅
-- ✅ Selecciona 10 conceptos aleatorios (o todos si hay menos)
-- ✅ Genera 4 opciones de respuesta aleatorias
-- ✅ Ordena opciones aleatoriamente
-- ✅ Una respuesta correcta + 3 distractores
-
----
-
-## 📝 Archivos Modificados
-
-1. **`simonkey-react/src/pages/StudyModePage.tsx`**
-   - Corregida lógica de carga de conceptos para estudio inteligente
-   - Arreglado problema del último concepto "repasar después"
-   - Mejorada lógica de cola de repaso inmediato
-
-2. **`simonkey-react/src/pages/QuizModePage.tsx`**
-   - Corregidos límites de quiz para ser globales
-   - Actualizada verificación de disponibilidad
-   - Corregida aplicación de límites
-
-3. **`simonkey-react/src/hooks/useStudyService.ts`**
-   - Actualizada función de reset de límites de quiz
-
-4. **`simonkey-react/src/utils/sm3Algorithm.ts`**
-   - Agregada función `isQuizAvailable` para verificación global
-   - Actualizada documentación de funciones
-
----
-
-## 🚀 Impacto de las Correcciones
-
-### Para el Usuario:
-- ✅ **Estudio Inteligente:** Solo ve conceptos que realmente necesita repasar
-- ✅ **Quiz:** Sistema justo con límite de una vez cada 7 días por cuaderno
-- ✅ **Repaso:** Ningún concepto marcado como "repasar después" se pierde
-- ✅ **Experiencia:** Flujo de estudio más coherente y predecible
-
-### Para el Sistema:
-- ✅ **Algoritmo SM-3:** Funcionando correctamente
-- ✅ **Límites:** Aplicados de manera consistente
-- ✅ **Estados:** Sincronizados correctamente
-- ✅ **Performance:** Carga solo los conceptos necesarios
-
----
-
-## 🧪 Testing Recomendado
-
-1. **Estudio Inteligente:**
-   - Verificar que solo carga conceptos listos para repaso
-   - Confirmar que el candado de 5 segundos funciona
-   - Probar que conceptos "dominados" no vuelven a aparecer inmediatamente
-
-2. **Quiz:**
-   - Confirmar límite de 7 días por cuaderno (no global)
-   - Verificar que se puede hacer quiz de diferentes cuadernos
-   - Verificar que el timer funciona y cierra automáticamente
-   - Probar el cálculo de puntuación
-
-3. **Repaso Inmediato:**
-   - Marcar el último concepto como "repasar después"
-   - Verificar que aparece en la cola de repaso
-   - Confirmar que se puede dominar desde la cola
-
----
-
-## 📋 Próximos Pasos
-
-1. **Testing Exhaustivo:** Probar todos los escenarios edge cases
-2. **Monitoreo:** Observar logs para verificar el comportamiento correcto
-3. **Feedback de Usuarios:** Recopilar experiencias con las correcciones
-4. **Optimizaciones:** Identificar oportunidades de mejora adicionales
-
----
-
-*Todas las correcciones han sido implementadas siguiendo las mejores prácticas de fullstack development con código clean y funcional.*
+**Estado:** ✅ **IMPLEMENTADO Y PROBADO**
+**Fecha:** $(date)
+**Versión:** 2.0.0

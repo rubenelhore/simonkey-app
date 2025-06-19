@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
+import { getUserProfile } from '../services/userService';
 
 export const useUser = () => {
   const context = useContext(UserContext);
@@ -24,6 +25,15 @@ export const loginWithEmail = async (email: string, password: string, setUser: a
     const auth = getAuth();
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+    
+    // Verificar que el usuario existe en Firestore
+    const userProfile = await getUserProfile(user.uid);
+    if (!userProfile) {
+      // Usuario no existe en Firestore (fue eliminado), cerrar sesión
+      console.log("Usuario eliminado detectado durante login, cerrando sesión:", user.uid);
+      await signOut(auth);
+      return { success: false, error: "Tu cuenta ha sido eliminada. Por favor, regístrate nuevamente." };
+    }
     
     const userData = {
       id: user.uid,
@@ -49,6 +59,15 @@ export const loginWithGoogle = async (setUser: any) => {
     // Usar popup en lugar de redirección
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
+    
+    // Verificar que el usuario existe en Firestore
+    const userProfile = await getUserProfile(user.uid);
+    if (!userProfile) {
+      // Usuario no existe en Firestore (fue eliminado), cerrar sesión
+      console.log("Usuario eliminado detectado durante login con Google, cerrando sesión:", user.uid);
+      await signOut(auth);
+      return { success: false, error: "Tu cuenta ha sido eliminada. Por favor, regístrate nuevamente." };
+    }
     
     // Guardar información del usuario después de autenticación exitosa
     const userData = {

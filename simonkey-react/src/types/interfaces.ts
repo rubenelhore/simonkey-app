@@ -250,7 +250,8 @@ export enum UserSubscriptionType {
 export enum SchoolRole {
   ADMIN = 'admin',
   TEACHER = 'teacher',
-  STUDENT = 'student'
+  STUDENT = 'student',
+  TUTOR = 'tutor'
 }
 
 /**
@@ -370,6 +371,10 @@ export interface SchoolStudent {
 export interface SchoolTutor {
   id: string;
   nombre: string;
+  email: string;
+  password: string; // Siempre "1234" temporal
+  subscription: UserSubscriptionType.SCHOOL;
+  schoolRole: SchoolRole.TUTOR;
   idAlumnos: string[]; // Array de IDs de alumnos (uno o más)
   createdAt: Timestamp;
 }

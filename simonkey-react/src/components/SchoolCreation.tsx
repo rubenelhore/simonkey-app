@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   SchoolCategory, 
   SchoolCreationData,
-  UserSubscriptionType
+  UserSubscriptionType,
+  SchoolRole
 } from '../types/interfaces';
 import { db } from '../services/firebase';
 import { 
@@ -45,7 +46,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
       case SchoolCategory.ALUMNOS:
         return ['nombre', 'email'];
       case SchoolCategory.TUTORES:
-        return ['nombre'];
+        return ['nombre', 'email'];
       default:
         return [];
     }
@@ -211,6 +212,10 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           entityData = {
             ...entityData,
             nombre: creationData.informacionBasica.nombre,
+            email: creationData.informacionBasica.email,
+            password: '1234',
+            subscription: UserSubscriptionType.SCHOOL,
+            schoolRole: SchoolRole.TUTOR,
             idAlumnos: [] // Se vinculará después
           };
           break;

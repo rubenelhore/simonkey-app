@@ -12,7 +12,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
-import { deleteAllUserData } from '../services/userService';
+import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
 import UserDataManagement from '../components/UserDataManagement';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
@@ -166,8 +166,8 @@ const SuperAdminPage: React.FC = () => {
       try {
         console.log('🗑️ SuperAdmin eliminando usuario:', userId);
         
-        // Usar la función utilitaria para eliminar todos los datos del usuario
-        await deleteAllUserData(userId);
+        // Usar la nueva función que elimina completamente el usuario
+        await deleteUserCompletely(userId);
         
         console.log('✅ Usuario eliminado exitosamente por SuperAdmin');
         await loadData();
@@ -524,6 +524,7 @@ const SuperAdminPage: React.FC = () => {
                             <option value={SchoolRole.ADMIN}>👨‍💼 Administrador</option>
                             <option value={SchoolRole.TEACHER}>👨‍🏫 Profesor</option>
                             <option value={SchoolRole.STUDENT}>👨‍🎓 Alumno</option>
+                            <option value={SchoolRole.TUTOR}>👨‍👩‍👧‍👦 Tutor</option>
                           </select>
                         </div>
                       )}

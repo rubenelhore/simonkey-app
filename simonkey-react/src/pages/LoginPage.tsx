@@ -6,7 +6,8 @@ import {
   signInWithEmailAndPassword, 
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup // Añadir aquí, no como importación separada
+  signInWithPopup,
+  signOut
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
@@ -34,6 +35,13 @@ const LoginPage: React.FC = () => {
     
     return () => unsubscribe();
   }, [navigate]);
+
+  // Mostrar error de Google Auth si existe
+  useEffect(() => {
+    if (googleError) {
+      setError(googleError);
+    }
+  }, [googleError]);
   
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -45,32 +53,44 @@ const LoginPage: React.FC = () => {
     setError(null);
   };
   
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      setError('Por favor, ingresa tu correo y contraseña');
-      return;
-    }
-    
     setIsLoading(true);
-    
+    setError(null);
+
     try {
-      // Usar Firebase para el inicio de sesión
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log('Inicio de sesión exitoso');
-      // Usar replace: true para evitar problemas con navegación anterior
-      navigate('/notebooks', { replace: true });
-    } catch (err: any) {
-      // Manejar errores específicos de Firebase
-      let errorMessage = 'Error al iniciar sesión';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        errorMessage = 'Correo o contraseña incorrectos';
-      } else if (err.code === 'auth/too-many-requests') {
-        errorMessage = 'Demasiados intentos fallidos. Inténtalo más tarde';
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login exitoso:", result.user.uid);
+      
+      // Verificar que el usuario existe en Firestore
+      const userProfile = await getUserProfile(result.user.uid);
+      if (!userProfile) {
+        // Usuario eliminado, cerrar sesión y mostrar mensaje
+        await signOut(auth);
+        setError("Tu cuenta ha sido eliminada. Por favor, regístrate nuevamente.");
+        setIsLoading(false);
+        return;
       }
+      
+      // Usuario válido, redirigir
+      navigate('/notebooks', { replace: true });
+    } catch (error: any) {
+      console.error("Error en login:", error);
+      let errorMessage = "Error al iniciar sesión";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No existe una cuenta con este email";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Contraseña incorrecta";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email inválido";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Demasiados intentos fallidos. Intenta más tarde";
+      } else if (error.message && error.message.includes("cuenta ha sido eliminada")) {
+        errorMessage = error.message;
+      }
+      
       setError(errorMessage);
-      console.error('Error de autenticación:', err);
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +115,7 @@ const LoginPage: React.FC = () => {
         {error && <div className="error-message">{error}</div>}
         {googleError && <div className="error-message">{googleError}</div>}
         
-        <form onSubmit={handleLogin} className="login-form">
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label htmlFor="email">Correo electrónico</label>
             <input 

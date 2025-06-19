@@ -11,6 +11,7 @@ import Pricing from './pages/Pricing';
 import SimonkeyCarousel from './components/SimonkeyCarousel';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import EmailVerificationPage from './pages/EmailVerificationPage';
 import Notebooks from './pages/Notebooks';
 import NotebookDetail from './pages/NotebookDetail';
 import ConceptDetail from './pages/ConceptDetail';
@@ -32,6 +33,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './services/firebase';
+import { getUserProfile } from './services/userService';
 
 // Definir el tipo para el usuario
 interface User {
@@ -139,23 +141,58 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!firebaseLoading) {
       if (firebaseUser) {
-        // Usuario autenticado
-        console.log("Usuario autenticado detectado:", firebaseUser.uid);
-        const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || undefined,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || undefined,
-          photoURL: firebaseUser.photoURL || undefined,
-          isAuthenticated: true
+        // Verificar que el usuario existe en Firestore antes de permitir acceso
+        const verifyUserInFirestore = async () => {
+          try {
+            console.log("Verificando usuario en Firestore:", firebaseUser.uid);
+            const userProfile = await getUserProfile(firebaseUser.uid);
+            
+            if (userProfile) {
+              // Usuario existe en Firestore, permitir acceso
+              console.log("Usuario verificado en Firestore:", userProfile);
+              const userData = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email || undefined,
+                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || undefined,
+                photoURL: firebaseUser.photoURL || undefined,
+                isAuthenticated: true
+              };
+              setUser(userData);
+              localStorage.setItem('user', JSON.stringify(userData));
+              
+              // Comprobamos si estamos en la página de login y redirigimos
+              if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
+                console.log("Redirigiendo a notebooks desde App.tsx");
+                navigate('/notebooks', { replace: true });
+              }
+            } else {
+              // Usuario no existe en Firestore (fue eliminado), cerrar sesión
+              console.log("Usuario eliminado detectado, cerrando sesión:", firebaseUser.uid);
+              await auth.signOut();
+              setUser({ isAuthenticated: false });
+              localStorage.removeItem('user');
+              localStorage.removeItem('hasCompletedOnboarding');
+              
+              // Redirigir a login con mensaje de error
+              if (window.location.pathname !== '/login') {
+                navigate('/login', { replace: true });
+              }
+            }
+          } catch (error) {
+            console.error("Error verificando usuario en Firestore:", error);
+            // En caso de error, cerrar sesión por seguridad
+            await auth.signOut();
+            setUser({ isAuthenticated: false });
+            localStorage.removeItem('user');
+            localStorage.removeItem('hasCompletedOnboarding');
+            
+            if (window.location.pathname !== '/login') {
+              navigate('/login', { replace: true });
+            }
+          }
         };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
         
-        // Comprobamos si estamos en la página de login y redirigimos
-        if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
-          console.log("Redirigiendo a notebooks desde App.tsx");
-          navigate('/notebooks', { replace: true });
-        }
+        verifyUserInFirestore();
       } else {
         // Usuario no autenticado
         setUser({ isAuthenticated: false });
@@ -179,6 +216,7 @@ const AppContent: React.FC = () => {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
         
         {/* Rutas legales - disponibles para todos */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

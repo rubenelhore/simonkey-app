@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../services/firebase';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { useAuth } from '../hooks/useAuth';
 import { useUserType } from '../hooks/useUserType';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
 import './HeaderWithHamburger.css';
 
 interface HeaderWithHamburgerProps {
@@ -22,45 +23,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   children
 }) => {
   const navigate = useNavigate();
-  const { isSuperAdmin, isFreeUser } = useUserType();
+  const { user } = useAuth();
+  const { isFreeUser, isSuperAdmin } = useUserType();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userData, setUserData] = useState({
-    nombre: '',
-    apellidos: '',
-    tipoAprendizaje: 'Visual',
-    intereses: ['tecnología']
-  });
-  const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const personalizationRef = useRef<HTMLDivElement>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollTop, setLastScrollTop] = useState(0);
-
-  // Cargar datos del usuario
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!auth.currentUser) return;
-
-      try {
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUserData({
-            nombre: data.nombre || '',
-            apellidos: data.apellidos || '',
-            tipoAprendizaje: data.tipoAprendizaje || 'Visual',
-            intereses: data.intereses || ['tecnología']
-          });
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-
-    loadUserData();
-  }, []);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -68,81 +34,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleLogout = async () => {
     try {
-      await auth.signOut();
-      navigate('/login');
+      await signOut(auth);
+      navigate('/');
     } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const handleOpenPersonalization = () => {
-    setIsPersonalizationOpen(true);
-    setMenuOpen(false);
-  };
-
-  const handleClosePersonalization = () => {
-    setIsPersonalizationOpen(false);
-    setSuccessMessage('');
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setUserData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleInterestChange = (index: number, value: string) => {
-    const newIntereses = [...userData.intereses];
-    newIntereses[index] = value;
-    setUserData(prev => ({
-      ...prev,
-      intereses: newIntereses
-    }));
-  };
-
-  const addInterest = () => {
-    if (userData.intereses.length < 12) {
-      setUserData(prev => ({
-        ...prev,
-        intereses: [...prev.intereses, '']
-      }));
-    }
-  };
-
-  const removeInterest = (index: number) => {
-    if (userData.intereses.length > 1) {
-      const newIntereses = userData.intereses.filter((_, i) => i !== index);
-      setUserData(prev => ({
-        ...prev,
-        intereses: newIntereses
-      }));
-    }
-  };
-
-  const handleSavePersonalization = async () => {
-    if (!auth.currentUser) return;
-
-    setIsLoading(true);
-    try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        nombre: userData.nombre,
-        apellidos: userData.apellidos,
-        tipoAprendizaje: userData.tipoAprendizaje,
-        intereses: userData.intereses.filter(interes => interes.trim() !== ''),
-        updatedAt: new Date()
-      });
-
-      setSuccessMessage('Datos guardados correctamente');
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-    } catch (error) {
-      console.error('Error saving personalization:', error);
-      setSuccessMessage('Error al guardar los datos');
-    } finally {
-      setIsLoading(false);
+      console.error('Error al cerrar sesión:', error);
     }
   };
 
@@ -154,31 +49,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const handleCloseUpgradeModal = () => {
     setIsUpgradeModalOpen(false);
   };
-
-  // Cerrar modal al hacer clic fuera
-  useEffect(() => {
-    if (!isPersonalizationOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (personalizationRef.current && !personalizationRef.current.contains(event.target as Node)) {
-        handleClosePersonalization();
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        handleClosePersonalization();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isPersonalizationOpen]);
 
   return (
     <div className={`header-with-hamburger-container ${menuOpen ? 'menu-open' : ''}`}>
@@ -239,7 +109,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         
         <div className="side-menu-content">
           <div className="user-section">
-            <button className="side-menu-button personalization-button" onClick={handleOpenPersonalization}>
+            <button className="side-menu-button personalization-button" onClick={() => navigate('/profile')}>
               <i className="fas fa-user-cog"></i> 
               <span>Mi perfil</span>
             </button>
@@ -266,104 +136,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* Modal de personalización */}
-      {isPersonalizationOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content personalization-modal" ref={personalizationRef}>
-            <div className="modal-header">
-              <h2>Personalización</h2>
-              <button className="close-button" onClick={handleClosePersonalization}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label htmlFor="nombre">Nombre</label>
-                <input
-                  type="text"
-                  id="nombre"
-                  name="nombre"
-                  value={userData.nombre}
-                  onChange={handleInputChange}
-                  placeholder="Tu nombre"
-                  className="form-control"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="apellidos">Apellido(s)</label>
-                <input
-                  type="text"
-                  id="apellidos"
-                  name="apellidos"
-                  value={userData.apellidos}
-                  onChange={handleInputChange}
-                  placeholder="Tus apellidos"
-                  className="form-control"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="tipoAprendizaje">Tipo de aprendizaje predilecto</label>
-                <select
-                  id="tipoAprendizaje"
-                  name="tipoAprendizaje"
-                  value={userData.tipoAprendizaje}
-                  onChange={handleInputChange}
-                  className="form-control"
-                >
-                  <option value="Visual">Visual</option>
-                  <option value="Auditivo">Auditivo</option>
-                  <option value="Kinestésico">Kinestésico</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Intereses (máximo 12)</label>
-                {userData.intereses.map((interes, index) => (
-                  <div key={index} className="interest-input-group">
-                    <input
-                      type="text"
-                      value={interes}
-                      onChange={(e) => handleInterestChange(index, e.target.value)}
-                      placeholder="Ej: cocina, deportes, tecnología"
-                      className="form-control interest-input"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeInterest(index)}
-                      className="remove-interest-btn"
-                      disabled={userData.intereses.length === 1}
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </div>
-                ))}
-                {userData.intereses.length < 12 && (
-                  <button
-                    type="button"
-                    onClick={addInterest}
-                    className="add-interest-btn"
-                  >
-                    <i className="fas fa-plus"></i> Añadir interés
-                  </button>
-                )}
-              </div>
-              {successMessage && (
-                <div className="success-message">
-                  {successMessage}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="save-button"
-                onClick={handleSavePersonalization}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       
       {isUpgradeModalOpen && (
         <div className="modal-overlay">

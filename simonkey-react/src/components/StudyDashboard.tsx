@@ -354,11 +354,19 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     let isSmartStudyAvailable = false;
     if (totalConcepts > 0) {
       try {
-        const reviewableCount = await studyService.getReviewableConceptsCount(userId, notebookId);
-        isSmartStudyAvailable = reviewableCount > 0;
-        console.log('🔍 Conceptos listos para repaso:', reviewableCount);
+        // Verificar límites de frecuencia para estudio inteligente
+        const canStudySmart = await studyService.checkSmartStudyLimit(userId, notebookId);
+        if (!canStudySmart) {
+          console.log('❌ Estudio inteligente ya usado hoy para este cuaderno');
+          isSmartStudyAvailable = false;
+        } else {
+          // Verificar si hay conceptos listos para repaso
+          const reviewableCount = await studyService.getReviewableConceptsCount(userId, notebookId);
+          isSmartStudyAvailable = reviewableCount > 0;
+          console.log('🔍 Conceptos listos para repaso:', reviewableCount);
+        }
       } catch (error) {
-        console.log('Error checking reviewable concepts, using fallback:', error);
+        console.log('Error checking smart study availability, using fallback:', error);
         // En caso de error, asumir que NO está disponible (más seguro)
         isSmartStudyAvailable = false;
       }

@@ -14,6 +14,7 @@ import { auth, firestore } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
+import { sendVerificationEmail } from '../services/emailVerificationService';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -130,9 +131,22 @@ const SignupPage: React.FC = () => {
         });
       }
       
+      // Enviar email de verificación
+      try {
+        const verificationResult = await sendVerificationEmail(user);
+        if (verificationResult.success) {
+          console.log('✅ Email de verificación enviado exitosamente');
+        } else {
+          console.warn('⚠️ Error enviando verificación:', verificationResult.message);
+        }
+      } catch (verificationError) {
+        console.error('❌ Error en verificación de email:', verificationError);
+        // No bloquear el registro por error de verificación
+      }
+      
       console.log('Registro exitoso');
-      // Redirigir al usuario a la página de Notebooks
-      navigate('/notebooks');
+      // Redirigir al usuario a la página de verificación de email
+      navigate('/verify-email');
     } catch (err: any) {
       let errorMessage = 'Error al registrarse';
       if (err.code === 'auth/email-already-in-use') {

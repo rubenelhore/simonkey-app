@@ -105,6 +105,11 @@ export const useStudyService = () => {
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio libre hoy');
           }
+        } else if (mode === StudyMode.SMART) {
+          const canStudy = await checkSmartStudyLimit(userId, notebookId);
+          if (!canStudy) {
+            throw new Error('Ya has usado tu sesión de estudio inteligente hoy para este cuaderno');
+          }
         }
         
         const sessionData = {
@@ -124,10 +129,8 @@ export const useStudyService = () => {
           lastSessionDate: serverTimestamp()
         });
         
-        // Si es estudio libre, marcar como usado
-        if (mode === StudyMode.FREE) {
-          await updateFreeStudyUsage(userId);
-        }
+        // NOTA: Los límites se actualizan al COMPLETAR la sesión, no al iniciarla
+        // Esto evita que se marque como "usado" si el usuario no completa la sesión
         
         return {
           id: sessionRef.id,
@@ -183,11 +186,68 @@ export const useStudyService = () => {
   );
   
   /**
+   * Verificar límite de estudio inteligente (1 por día por cuaderno)
+   */
+  const checkSmartStudyLimit = useCallback(
+    async (userId: string, notebookId: string): Promise<boolean> => {
+      try {
+        console.log('🔍 checkSmartStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
+        
+        const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+        const notebookLimitsDoc = await getDoc(notebookLimitsRef);
+        
+        console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
+        
+        if (!notebookLimitsDoc.exists()) {
+          console.log('✅ No hay límites previos para este cuaderno, estudio inteligente disponible');
+          return true; // Primera vez, puede estudiar
+        }
+        
+        const limits = notebookLimitsDoc.data();
+        console.log('🔍 Límites del cuaderno encontrados:', limits);
+        
+        const lastSmartStudyDate = limits.lastSmartStudyDate instanceof Timestamp 
+          ? limits.lastSmartStudyDate.toDate() 
+          : limits.lastSmartStudyDate;
+        
+        console.log('🔍 lastSmartStudyDate procesado:', lastSmartStudyDate);
+        
+        if (!lastSmartStudyDate) {
+          console.log('✅ No hay fecha de último estudio inteligente, disponible');
+          return true;
+        }
+        
+        // Verificar si ya se usó hoy
+        const today = new Date();
+        const lastStudy = new Date(lastSmartStudyDate);
+        
+        today.setHours(0, 0, 0, 0);
+        lastStudy.setHours(0, 0, 0, 0);
+        
+        const isAvailable = today.getTime() !== lastStudy.getTime();
+        
+        console.log('🔍 Cálculo de disponibilidad de estudio inteligente:', {
+          today: today.toISOString(),
+          lastStudy: lastStudy.toISOString(),
+          isAvailable: isAvailable
+        });
+        
+        return isAvailable;
+      } catch (err) {
+        console.error('Error checking smart study limit:', err);
+        return true; // En caso de error, permitir estudio
+      }
+    },
+    []
+  );
+  
+  /**
    * Actualizar uso de estudio libre
    */
   const updateFreeStudyUsage = useCallback(
     async (userId: string): Promise<void> => {
       try {
+        console.log('🔄 Actualizando límites de estudio libre para usuario:', userId);
         const limitsRef = doc(db, 'users', userId, 'limits', 'study');
         await setDoc(limitsRef, {
           userId,
@@ -196,8 +256,32 @@ export const useStudyService = () => {
           weekStartDate: getWeekStartDate(),
           updatedAt: serverTimestamp()
         }, { merge: true });
+        console.log('✅ Límites de estudio libre actualizados');
       } catch (err) {
         console.error('Error updating free study usage:', err);
+      }
+    },
+    []
+  );
+  
+  /**
+   * Actualizar uso de estudio inteligente (límite de frecuencia)
+   */
+  const updateSmartStudyUsage = useCallback(
+    async (userId: string, notebookId: string): Promise<void> => {
+      try {
+        console.log('🔄 Actualizando límites de estudio inteligente para cuaderno:', notebookId);
+        const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+        await setDoc(notebookLimitsRef, {
+          userId,
+          notebookId,
+          lastSmartStudyDate: new Date(),
+          smartStudyCountToday: 1,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        console.log('✅ Límites de estudio inteligente actualizados');
+      } catch (err) {
+        console.error('Error updating smart study usage:', err);
       }
     },
     []
@@ -853,9 +937,11 @@ export const useStudyService = () => {
     getStudyDashboardData,
     getStudyLimits,
     checkFreeStudyLimit,
+    checkSmartStudyLimit,
     getAllConceptsFromNotebook,
     logStudyActivity,
     updateFreeStudyUsage,
+    updateSmartStudyUsage,
     resetFreeStudyLimit,
     resetQuizLimit
   };

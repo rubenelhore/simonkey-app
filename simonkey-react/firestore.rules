@@ -111,6 +111,11 @@ service cloud.firestore {
       match /quizResults/{quizId} {
         allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
       }
+
+      // NUEVA - Reglas para registros de eliminación de usuarios
+      match /userDeletions/{userId} {
+        allow read, write, delete: if isSuperAdmin();
+      }
     }
 
     // Reglas para usuarios (colección en español)

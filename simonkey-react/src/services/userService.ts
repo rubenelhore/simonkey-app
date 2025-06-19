@@ -2,6 +2,7 @@ import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole, UserProfile, SubscriptionLimits } from '../types/interfaces';
 import { collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
+import { deleteUser } from 'firebase/auth';
 
 /**
  * Configuración de límites por tipo de suscripción
@@ -72,6 +73,12 @@ const SCHOOL_ROLE_PERMISSIONS: Record<SchoolRole, Partial<SubscriptionLimits['pe
     canManageUsers: false,
   },
   [SchoolRole.STUDENT]: {
+    canViewAllData: false,
+    canEditAllData: false,
+    canUseStudySection: true,
+    canManageUsers: false,
+  },
+  [SchoolRole.TUTOR]: {
     canViewAllData: false,
     canEditAllData: false,
     canUseStudySection: true,
@@ -464,6 +471,7 @@ export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfi
  * Elimina completamente todos los datos de un usuario
  * Esta función elimina notebooks, conceptos, sesiones de estudio, datos de aprendizaje,
  * estadísticas, límites y todas las subcolecciones relacionadas
+ * También elimina la cuenta de Firebase Auth si es posible
  */
 export const deleteAllUserData = async (userId: string): Promise<void> => {
   try {
@@ -607,9 +615,58 @@ export const deleteAllUserData = async (userId: string): Promise<void> => {
       console.log('⚠️ No se encontró documento de usuario en español o ya fue eliminado');
     }
     
+    // 9. Intentar eliminar la cuenta de Firebase Auth
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.uid === userId) {
+        console.log('🔐 Eliminando cuenta de Firebase Auth...');
+        await deleteUser(currentUser);
+        console.log('✅ Cuenta de Firebase Auth eliminada exitosamente');
+      } else {
+        console.log('⚠️ No se puede eliminar la cuenta de Firebase Auth (usuario no es el actual)');
+      }
+    } catch (authError: any) {
+      console.log('⚠️ No se pudo eliminar la cuenta de Firebase Auth:', authError.message);
+      console.log('ℹ️ La cuenta de Firebase Auth puede requerir re-autenticación reciente para ser eliminada');
+    }
+    
     console.log('✅ Eliminación completa de datos finalizada para usuario:', userId);
   } catch (error) {
     console.error('❌ Error durante la eliminación de datos del usuario:', error);
     throw new Error(`Error al eliminar datos del usuario: ${error}`);
+  }
+};
+
+/**
+ * Función para super admins que elimina completamente un usuario
+ * Incluye eliminación de datos de Firestore y marca la cuenta de Firebase Auth para eliminación
+ * NOTA: La eliminación de Firebase Auth debe hacerse desde el servidor por seguridad
+ */
+export const deleteUserCompletely = async (userId: string): Promise<void> => {
+  try {
+    console.log('👑 SuperAdmin eliminando usuario completamente:', userId);
+    
+    // 1. Eliminar todos los datos de Firestore
+    await deleteAllUserData(userId);
+    
+    // 2. Crear un registro de eliminación para que el servidor procese la eliminación de Firebase Auth
+    try {
+      const deletionRecord = {
+        userId: userId,
+        deletedAt: serverTimestamp(),
+        deletedBy: auth.currentUser?.uid || 'super-admin',
+        status: 'pending_auth_deletion'
+      };
+      
+      await setDoc(doc(db, 'userDeletions', userId), deletionRecord);
+      console.log('📝 Registro de eliminación creado para procesamiento del servidor');
+    } catch (error) {
+      console.log('⚠️ No se pudo crear el registro de eliminación:', error);
+    }
+    
+    console.log('✅ Usuario eliminado completamente por SuperAdmin');
+  } catch (error) {
+    console.error('❌ Error eliminando usuario completamente:', error);
+    throw error;
   }
 }; 
