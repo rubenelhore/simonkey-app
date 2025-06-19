@@ -2,13 +2,11 @@ import { useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
-import { useNavigate } from 'react-router-dom';
 import { checkEmailVerificationStatus } from '../services/emailVerificationService';
 
 export const useGoogleAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const handleGoogleAuth = async (isSignup: boolean = false) => {
     setIsLoading(true);
@@ -33,17 +31,10 @@ export const useGoogleAuth = () => {
       // Verificar que el usuario existe en Firestore
       const existingProfile = await getUserProfile(user.uid);
       if (!existingProfile) {
-        // Usuario no existe en Firestore (fue eliminado), cerrar sesión
-        console.log("Usuario eliminado detectado durante login con Google, cerrando sesión:", user.uid);
-        await signOut(auth);
-        setError("Tu cuenta ha sido eliminada. Por favor, regístrate nuevamente.");
-        return;
-      }
-      
-      // SIEMPRE crear perfil si no existe, tanto en login como en registro
-      try {
-        if (!existingProfile) {
-          // Crear perfil con datos básicos y valores por defecto
+        // Usuario no existe en Firestore, crear perfil automáticamente
+        console.log("Usuario no encontrado en Firestore, creando perfil automáticamente:", user.uid);
+        
+        try {
           await createUserProfile(user.uid, {
             email: user.email || '',
             username: user.displayName || user.email?.split('@')[0] || '',
@@ -51,19 +42,23 @@ export const useGoogleAuth = () => {
             displayName: user.displayName || '',
             birthdate: new Date().toISOString().split('T')[0] // Valor por defecto: fecha actual
           });
-          console.log('Perfil creado automáticamente para usuario Google:', user.uid);
-        } else {
-          console.log('Usuario con perfil existente');
+          console.log('✅ Perfil creado exitosamente para usuario Google:', user.uid);
+        } catch (profileError: any) {
+          console.error("Error creando perfil de usuario:", profileError);
+          setError("Error creando perfil de usuario: " + (profileError?.message || profileError));
+          return;
         }
-      } catch (profileError: any) {
-        console.error("Error verificando/creando perfil de usuario:", profileError);
-        setError("Error verificando/creando perfil de usuario: " + (profileError?.message || profileError));
-        // No bloquear la autenticación por este error
+      } else {
+        console.log('Usuario con perfil existente');
       }
       
       // Verificar estado de email para usuarios de Google
+      console.log('🔍 useGoogleAuth - Verificando estado de email para usuario de Google');
+      console.log('🔍 useGoogleAuth - user.emailVerified (antes de checkEmailVerificationStatus):', user.emailVerified);
+      console.log('🔍 useGoogleAuth - user.providerData:', user.providerData);
+      
       const isEmailVerified = await checkEmailVerificationStatus(user);
-      console.log('Estado de verificación de email:', isEmailVerified ? 'verificado' : 'no verificado');
+      console.log('🔍 useGoogleAuth - Estado de verificación de email:', isEmailVerified ? 'verificado' : 'no verificado');
       
       // Guardar información básica del usuario
       const userData = {
@@ -74,17 +69,9 @@ export const useGoogleAuth = () => {
       };
       localStorage.setItem('user', JSON.stringify(userData));
       
-      // Navegar según el estado de verificación
-      if (isEmailVerified) {
-        // Email verificado, ir a notebooks
-        navigate('/notebooks', { replace: true });
-      } else {
-        // Email no verificado, ir a página de verificación
-        // Nota: Los usuarios de Google normalmente tienen emails verificados automáticamente
-        // pero por seguridad verificamos de todas formas
-        console.log('Usuario de Google requiere verificación de email');
-        navigate('/verify-email', { replace: true });
-      }
+      // NO navegar aquí - dejar que el sistema de rutas maneje la navegación
+      console.log('✅ useGoogleAuth - Autenticación con Google completada. El sistema de rutas manejará la navegación.');
+      console.log('✅ useGoogleAuth - Estado final: isEmailVerified =', isEmailVerified);
       
     } catch (err: any) {
       console.error(`Error en ${isSignup ? 'registro' : 'inicio de sesión'} con Google:`, err);

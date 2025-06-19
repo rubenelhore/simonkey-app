@@ -213,3 +213,19 @@
     text-align: center;
   }
 }
+
+/* Estilos específicos para centrar el texto en los botones */
+.auth-buttons .btn {
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px; /* Asegura un ancho mínimo para mejor centrado */
+}
+
+.auth-buttons .btn-outline {
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

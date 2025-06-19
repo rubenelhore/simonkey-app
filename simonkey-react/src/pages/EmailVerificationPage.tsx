@@ -158,7 +158,7 @@ const EmailVerificationPage: React.FC = () => {
           <img src={simonLogo} alt="Simio Simón" className="simon-logo" />
           <h1>
             <span style={{ color: 'black' }}>Simon</span>
-            <span style={{ color: 'white' }}>key</span>
+            <span style={{ color: 'black' }}>key</span>
           </h1>
           <h2>Verifica tu email</h2>
           <p className="subtitle">

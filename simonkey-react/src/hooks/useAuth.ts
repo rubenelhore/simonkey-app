@@ -32,8 +32,24 @@ export const useAuth = () => {
   // Función para actualizar el estado de verificación
   const updateVerificationState = async (user: User) => {
     try {
+      console.log('🔍 updateVerificationState - Iniciando verificación para:', user.email);
+      console.log('🔍 updateVerificationState - user.emailVerified (antes de reload):', user.emailVerified);
+      
       const isVerified = await checkEmailVerificationStatus(user);
-      const verificationState = await getVerificationState(user.uid);
+      console.log('🔍 updateVerificationState - isVerified después de checkEmailVerificationStatus:', isVerified);
+      
+      // Intentar obtener el estado desde Firestore, pero no fallar si hay errores de permisos
+      let verificationState;
+      try {
+        verificationState = await getVerificationState(user.uid);
+        console.log('🔍 updateVerificationState - verificationState desde Firestore:', verificationState);
+      } catch (firestoreError) {
+        console.warn('⚠️ Error obteniendo estado desde Firestore (continuando con estado local):', firestoreError);
+        verificationState = {
+          isEmailVerified: isVerified,
+          verificationCount: 0
+        };
+      }
       
       setAuthState(prev => ({
         ...prev,
@@ -41,6 +57,7 @@ export const useAuth = () => {
         isEmailVerified: isVerified
       }));
       
+      console.log('🔍 updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
       return isVerified;
     } catch (error) {
       console.error('Error actualizando estado de verificación:', error);
@@ -91,7 +108,7 @@ export const useAuth = () => {
       if (user) {
         console.log('👤 Usuario encontrado:', user.email);
         
-        // Actualizar estado básico
+        // Actualizar estado básico inmediatamente
         setAuthState(prev => ({
           ...prev,
           user,
@@ -99,13 +116,18 @@ export const useAuth = () => {
           loading: false
         }));
         
-        // Cargar perfil de usuario
-        await loadUserProfile(user);
-        
-        // Verificar estado de email
-        await updateVerificationState(user);
-        
-        console.log('✅ Información de usuario cargada completamente');
+        // Cargar perfil de usuario y verificar email en paralelo
+        try {
+          await Promise.all([
+            loadUserProfile(user),
+            updateVerificationState(user)
+          ]);
+          
+          console.log('✅ Información de usuario cargada completamente');
+        } catch (error) {
+          console.error('❌ Error cargando información de usuario:', error);
+          // No cambiar el estado de autenticación por errores de carga
+        }
       } else {
         console.log('❌ No hay usuario autenticado');
         setAuthState({

@@ -177,15 +177,19 @@ export const updateVerificationStats = async (userId: string): Promise<void> => 
 export const checkEmailVerificationStatus = async (user: User): Promise<boolean> => {
   try {
     console.log('🔍 Verificando estado de email para:', user.email);
+    console.log('🔍 user.emailVerified (antes de reload):', user.emailVerified);
+    console.log('🔍 user.providerData:', user.providerData);
     
     // Recargar información del usuario
     await reload(user);
     
     const isVerified = user.emailVerified;
+    console.log('🔍 user.emailVerified (después de reload):', isVerified);
     console.log('📧 Estado de verificación:', isVerified ? 'Verificado' : 'No verificado');
     
     // Actualizar estado en Firestore si está verificado
     if (isVerified) {
+      console.log('🔍 Actualizando estado en Firestore como verificado');
       await updateUserVerificationStatus(user.uid, true);
     }
     
@@ -214,8 +218,13 @@ export const updateUserVerificationStatus = async (userId: string, isVerified: b
     await updateDoc(doc(db, 'users', userId), updateData);
     console.log(`✅ Estado de verificación actualizado: ${isVerified ? 'verificado' : 'no verificado'}`);
     
-  } catch (error) {
-    console.error('Error actualizando estado de verificación:', error);
+  } catch (error: any) {
+    // Si es un error de permisos, solo logearlo pero no fallar
+    if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+      console.warn('⚠️ Error de permisos al actualizar estado de verificación (continuando):', error.message);
+    } else {
+      console.error('Error actualizando estado de verificación:', error);
+    }
   }
 };
 
@@ -265,12 +274,21 @@ export const getVerificationState = async (userId: string): Promise<EmailVerific
       lastVerificationSent: verificationData.lastVerificationSent?.toDate()
     };
     
-  } catch (error) {
-    console.error('Error obteniendo estado de verificación:', error);
-    return {
-      isEmailVerified: false,
-      verificationCount: 0
-    };
+  } catch (error: any) {
+    // Si es un error de permisos, retornar estado por defecto
+    if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+      console.warn('⚠️ Error de permisos al obtener estado de verificación (usando estado por defecto):', error.message);
+      return {
+        isEmailVerified: false,
+        verificationCount: 0
+      };
+    } else {
+      console.error('Error obteniendo estado de verificación:', error);
+      return {
+        isEmailVerified: false,
+        verificationCount: 0
+      };
+    }
   }
 };
 

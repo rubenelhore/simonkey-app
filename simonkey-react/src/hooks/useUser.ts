@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { getUserProfile } from '../services/userService';
+import { getUserProfile, createUserProfile } from '../services/userService';
 
 export const useUser = () => {
   const context = useContext(UserContext);
@@ -63,10 +63,22 @@ export const loginWithGoogle = async (setUser: any) => {
     // Verificar que el usuario existe en Firestore
     const userProfile = await getUserProfile(user.uid);
     if (!userProfile) {
-      // Usuario no existe en Firestore (fue eliminado), cerrar sesión
-      console.log("Usuario eliminado detectado durante login con Google, cerrando sesión:", user.uid);
-      await signOut(auth);
-      return { success: false, error: "Tu cuenta ha sido eliminada. Por favor, regístrate nuevamente." };
+      // Usuario no existe en Firestore, crear perfil automáticamente
+      console.log("Usuario no encontrado en Firestore, creando perfil automáticamente:", user.uid);
+      
+      try {
+        await createUserProfile(user.uid, {
+          email: user.email || '',
+          username: user.displayName || user.email?.split('@')[0] || '',
+          nombre: user.displayName || '',
+          displayName: user.displayName || '',
+          birthdate: new Date().toISOString().split('T')[0]
+        });
+        console.log('✅ Perfil creado exitosamente para usuario Google:', user.uid);
+      } catch (profileError: any) {
+        console.error("Error creando perfil de usuario:", profileError);
+        return { success: false, error: "Error creando perfil de usuario: " + (profileError?.message || profileError) };
+      }
     }
     
     // Guardar información del usuario después de autenticación exitosa

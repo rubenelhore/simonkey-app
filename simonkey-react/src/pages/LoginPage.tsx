@@ -13,6 +13,7 @@ import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
+import { useAuth } from '../hooks/useAuth';
 
 const LoginPage: React.FC = () => {     
   const [email, setEmail] = useState<string>('');
@@ -21,20 +22,27 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
   const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
+  const { isAuthenticated, isEmailVerified, loading: authLoading } = useAuth();
   
-  // Check if user is already logged in
+  // Check if user is already logged in and verified
   useEffect(() => {
-    console.log("Verificando autenticación en LoginPage");
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User is signed in, redirect to notebooks
-        console.log("Usuario ya autenticado, redirigiendo a notebooks");
-        navigate('/notebooks', { replace: true });
-      }
-    });
+    console.log("🔍 LoginPage - Verificando autenticación");
+    console.log("🔍 LoginPage - Estado de autenticación:", { isAuthenticated, isEmailVerified, authLoading });
     
-    return () => unsubscribe();
-  }, [navigate]);
+    if (!authLoading && isAuthenticated && isEmailVerified) {
+      // User is signed in and verified, redirect to notebooks
+      console.log("✅ LoginPage - Usuario ya autenticado y verificado, redirigiendo a notebooks");
+      navigate('/notebooks', { replace: true });
+    } else if (!authLoading && isAuthenticated && !isEmailVerified) {
+      // User is signed in but not verified, redirect to verification
+      console.log("⚠️ LoginPage - Usuario autenticado pero no verificado, redirigiendo a verificación");
+      navigate('/verify-email', { replace: true });
+    } else if (!authLoading && !isAuthenticated) {
+      console.log("❌ LoginPage - Usuario no autenticado, permaneciendo en login");
+    } else {
+      console.log("⏳ LoginPage - Cargando estado de autenticación...");
+    }
+  }, [isAuthenticated, isEmailVerified, authLoading, navigate]);
 
   // Mostrar error de Google Auth si existe
   useEffect(() => {
@@ -107,7 +115,7 @@ const LoginPage: React.FC = () => {
           <img src={simonLogo} alt="Simio Simón" className="simon-logo"/>
               <h1><a href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <span style={{ color: 'black' }}>Simon</span>
-              <span style={{ color: 'white' }}>key</span>
+              <span style={{ color: 'black' }}>key</span>
               </a></h1>
           <p className="tagline">Tu estudio, tu ritmo</p>
         </div>
