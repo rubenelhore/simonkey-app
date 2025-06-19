@@ -32,6 +32,8 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './services/firebase';
+import EmailVerificationPage from './pages/EmailVerificationPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Definir el tipo para el usuario
 interface User {
@@ -179,6 +181,11 @@ const AppContent: React.FC = () => {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify-email" element={
+          <ProtectedRoute requireEmailVerification={false}>
+            <EmailVerificationPage />
+          </ProtectedRoute>
+        } />
         
         {/* Rutas legales - disponibles para todos */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -188,59 +195,89 @@ const AppContent: React.FC = () => {
         <Route
           path="/notebooks"
           element={
-            user.isAuthenticated ? (
-              <>
-                {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                  setHasCompletedOnboarding(true);
-                  localStorage.setItem('hasCompletedOnboarding', 'true');
-                }} />}
-                <Notebooks />
-              </>
-            ) : <Navigate to="/login" replace />
+            <ProtectedRoute>
+              {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                setHasCompletedOnboarding(true);
+                localStorage.setItem('hasCompletedOnboarding', 'true');
+              }} />}
+              <Notebooks />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/notebooks/:id"
-          element={user.isAuthenticated ? <NotebookDetail /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <NotebookDetail />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={user.isAuthenticated ? <ConceptDetail /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <ConceptDetail />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/tools/explain/:type/:notebookId"
-          element={user.isAuthenticated ? <ExplainConceptPage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <ExplainConceptPage />
+            </ProtectedRoute>
+          }
         />
         <Route path="/shared/:shareId" element={<SharedNotebook />} />
         
         {/* Nueva ruta para configuración de voz */}
         <Route
           path="/settings/voice"
-          element={user.isAuthenticated ? <VoiceSettingsPage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <VoiceSettingsPage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Nueva ruta para estudio */}
         <Route
           path="/study"
-          element={user.isAuthenticated ? <StudyModePage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <StudyModePage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Nueva ruta para progreso */}
         <Route
           path="/progress"
-          element={user.isAuthenticated ? <ProgressPage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <ProgressPage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Nueva ruta para perfil */}
         <Route
           path="/profile"
-          element={user.isAuthenticated ? <ProfilePage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Nueva ruta para quiz */}
         <Route
           path="/quiz"
-          element={user.isAuthenticated ? <QuizModePage /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <QuizModePage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Ruta para el panel de control del súper admin */}

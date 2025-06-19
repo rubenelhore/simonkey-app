@@ -1,0 +1,368 @@
+/* src/pages/EmailVerificationPage.css */
+
+.email-verification-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.verification-container {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.verification-header {
+  margin-bottom: 40px;
+}
+
+.simon-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.verification-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.verification-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #636e72;
+  margin: 0;
+}
+
+.verification-content {
+  text-align: left;
+}
+
+.email-info {
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f1ff 100%);
+  border: 2px solid #e3f2fd;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.email-icon {
+  color: #667eea;
+  margin-bottom: 16px;
+}
+
+.email-info p {
+  font-size: 16px;
+  color: #636e72;
+  margin-bottom: 8px;
+}
+
+.user-email {
+  font-size: 18px;
+  color: #2d3436;
+  font-weight: 600;
+  padding: 8px 16px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.verification-steps {
+  margin-bottom: 32px;
+}
+
+.verification-steps h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 16px;
+}
+
+.verification-steps ol {
+  padding-left: 20px;
+  color: #636e72;
+  line-height: 1.6;
+}
+
+.verification-steps li {
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.verification-steps strong {
+  color: #2d3436;
+  font-weight: 600;
+}
+
+.verification-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-weight: 500;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.verification-message.success {
+  background: rgba(0, 184, 148, 0.1);
+  border: 1px solid rgba(0, 184, 148, 0.3);
+  color: #00b894;
+}
+
+.verification-message.error {
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.verification-message.info {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-icon {
+  flex-shrink: 0;
+}
+
+.verification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.help-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.help-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 12px;
+}
+
+.help-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.help-section li {
+  font-size: 14px;
+  color: #636e72;
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.4;
+}
+
+.help-section li::before {
+  content: '•';
+  color: #667eea;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.help-section strong {
+  color: #2d3436;
+}
+
+.alternative-actions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #636e72;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.btn-text:hover {
+  color: #2d3436;
+}
+
+.verification-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.verification-footer p {
+  font-size: 14px;
+  color: #636e72;
+  margin: 0;
+}
+
+.verification-footer a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.verification-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .email-verification-page {
+    padding: 16px;
+  }
+  
+  .verification-container {
+    padding: 32px 24px;
+  }
+  
+  .verification-header h1 {
+    font-size: 24px;
+  }
+  
+  .verification-header h2 {
+    font-size: 20px;
+  }
+  
+  .email-info {
+    padding: 20px;
+  }
+  
+  .user-email {
+    font-size: 16px;
+    padding: 6px 12px;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 14px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .verification-container {
+    padding: 24px 20px;
+  }
+  
+  .simon-logo {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .verification-header h1 {
+    font-size: 20px;
+  }
+  
+  .verification-header h2 {
+    font-size: 18px;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+  }
+  
+  .email-info {
+    padding: 16px;
+  }
+  
+  .user-email {
+    font-size: 14px;
+    word-break: break-all;
+  }
+  
+  .verification-steps ol {
+    padding-left: 16px;
+  }
+  
+  .verification-steps li {
+    font-size: 14px;
+  }
+}
