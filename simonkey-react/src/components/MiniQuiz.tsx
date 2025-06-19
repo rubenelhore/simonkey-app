@@ -46,11 +46,11 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const [finalScore, setFinalScore] = useState<number>(0);
   const [passed, setPassed] = useState<boolean>(false);
 
-  // Configuración del timer para mini quiz (20 segundos)
+  // Configuración del timer para mini quiz (30 segundos)
   const timerConfig = {
-    totalTime: 20,
-    warningThreshold: 10,
-    criticalThreshold: 5,
+    totalTime: 30,
+    warningThreshold: 15,
+    criticalThreshold: 8,
     autoSubmit: true
   };
 
@@ -75,8 +75,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       console.log('[MINI QUIZ] Tiempo agotado!');
       handleTimeUp();
     },
-    onWarning: () => console.log('¡Advertencia! Menos de 10 segundos'),
-    onCritical: () => console.log('¡Crítico! Menos de 5 segundos')
+    onWarning: () => console.log('¡Advertencia! Menos de 15 segundos'),
+    onCritical: () => console.log('¡Crítico! Menos de 8 segundos')
   });
 
   // Manejar tiempo agotado

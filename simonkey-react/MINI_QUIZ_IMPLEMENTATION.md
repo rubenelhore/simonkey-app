@@ -2,7 +2,7 @@
 
 ## 📋 Resumen
 
-El **Mini Quiz** es un nuevo módulo integrado al final del estudio inteligente que valida si el usuario realmente aprendió los conceptos estudiados. Es una prueba rápida de 5 preguntas con un timer de 20 segundos que determina si el estudio inteligente será contabilizado o no.
+El **Mini Quiz** es un nuevo módulo integrado al final del estudio inteligente que valida si el usuario realmente aprendió los conceptos estudiados. Es una prueba rápida de 5 preguntas con un timer de 30 segundos que determina si el estudio inteligente será contabilizado o no.
 
 ## 🎯 Características Principales
 
@@ -10,7 +10,7 @@ El **Mini Quiz** es un nuevo módulo integrado al final del estudio inteligente 
 
 1. **Integración Automática**: Se ejecuta automáticamente al final de cada sesión de estudio inteligente
 2. **5 Preguntas Aleatorias**: Selecciona 5 conceptos aleatorios de los disponibles ese día
-3. **Timer de 20 Segundos**: Tiempo limitado para responder todas las preguntas
+3. **Timer de 30 Segundos**: Tiempo limitado para responder todas las preguntas
 4. **Calificación Base 10**: Puntuación clara y fácil de entender
 5. **Umbral de Aprobación**: Mínimo 8/10 para validar el estudio inteligente
 6. **Lógica SM-3**: Respeta los límites de frecuencia del estudio inteligente
@@ -130,9 +130,9 @@ if (passed) {
 
 ```typescript
 const timerConfig = {
-  totalTime: 20,           // 20 segundos total
-  warningThreshold: 10,    // Advertencia a 10 segundos
-  criticalThreshold: 5,    // Crítico a 5 segundos
+  totalTime: 30,           // 30 segundos total
+  warningThreshold: 15,    // Advertencia a 15 segundos
+  criticalThreshold: 8,    // Crítico a 8 segundos
   autoSubmit: true         // Enviar automáticamente al agotarse
 };
 ```
@@ -213,7 +213,7 @@ console.log('❌ Mini Quiz fallido. Estudio inteligente NO validado.');
 
 ### Decisiones de Diseño
 - **5 preguntas**: Balance entre velocidad y precisión
-- **20 segundos**: Presión temporal sin ser abrumador
+- **30 segundos**: Presión temporal sin ser abrumador
 - **8/10 umbral**: Estándar académico razonable
 - **Colores naranjas**: Distinción visual del quiz normal
 
