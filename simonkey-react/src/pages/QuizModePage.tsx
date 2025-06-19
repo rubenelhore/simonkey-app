@@ -145,14 +145,17 @@ const QuizModePage: React.FC = () => {
   // Verificar disponibilidad del quiz (máximo 1 por semana POR CUADERNO)
   const checkQuizAvailabilitySync = async (notebookId: string): Promise<boolean> => {
     console.log('🔍 checkQuizAvailabilitySync llamado para cuaderno:', notebookId);
-    console.log('🔍 Estado actual - quizAvailable:', quizAvailable, 'quizLimitMessage:', quizLimitMessage);
     
-    if (!auth.currentUser) return false;
+    if (!auth.currentUser) {
+      console.log('❌ No hay usuario autenticado');
+      return false;
+    }
 
     try {
       // Verificar límites de quiz para este cuaderno específico
       console.log('🔍 Verificando límites de quiz para cuaderno:', notebookId);
-      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', notebookId, 'limits');
+      // CORRECCIÓN: Usar un solo documento con campos separados
+      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebookLimits', notebookId);
       const notebookLimitsDoc = await getDoc(notebookLimitsRef);
       
       console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
@@ -177,7 +180,8 @@ const QuizModePage: React.FC = () => {
           
           if (daysSinceLastQuiz < 7) {
             const daysRemaining = 7 - daysSinceLastQuiz;
-            setQuizLimitMessage(`Puedes hacer otro quiz de este cuaderno en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`);
+            const message = `Puedes hacer otro quiz de este cuaderno en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`;
+            setQuizLimitMessage(message);
             console.log('❌ Quiz no disponible para este cuaderno, días restantes:', daysRemaining);
             setQuizAvailable(false);
             return false;
@@ -198,10 +202,10 @@ const QuizModePage: React.FC = () => {
       
     } catch (error) {
       console.error('❌ Error checking quiz availability:', error);
-      setQuizLimitMessage('');
-      console.log('✅ Error en verificación, asumiendo disponible');
-      setQuizAvailable(true);
-      return true;
+      setQuizLimitMessage('Error verificando disponibilidad del quiz');
+      console.log('❌ Error en verificación, asumiendo no disponible');
+      setQuizAvailable(false);
+      return false;
     }
   };
 
@@ -357,25 +361,19 @@ const QuizModePage: React.FC = () => {
       console.log('Saltando verificación de disponibilidad, asumiendo disponible');
       setQuizAvailable(true);
       setQuizLimitMessage('');
-    } else if (!quizAvailable) {
-      console.error('Quiz no disponible');
-      return;
+    } else {
+      // Verificar disponibilidad del quiz de forma síncrona
+      console.log('Verificando disponibilidad de forma síncrona...');
+      const isAvailable = await checkQuizAvailabilitySync(notebook.id);
+      if (!isAvailable) {
+        console.error('Quiz no disponible después de verificación síncrona');
+        return;
+      }
     }
 
     try {
       console.log('Iniciando sesión de quiz...');
       setLoading(true);
-      
-      // Verificar disponibilidad del quiz solo si no se saltó la verificación
-      if (!skipAvailabilityCheck) {
-        console.log('Verificando disponibilidad...');
-        await checkQuizAvailability(notebook.id);
-        if (!quizAvailable) {
-          console.error('Quiz no disponible después de verificación');
-          setLoading(false);
-          return;
-        }
-      }
       
       console.log('Generando preguntas...');
       // Generar preguntas
@@ -479,7 +477,7 @@ const QuizModePage: React.FC = () => {
 
   // Completar sesión de quiz
   const completeQuizSession = async (finalScoreValue: number, timeRemainingValue: number) => {
-    console.log('🏁 INICIANDO completeQuizSession:', {
+    console.log('INICIANDO completeQuizSession:', {
       finalScoreValue,
       timeRemainingValue,
       quizSessionExists: !!quizSession
@@ -680,9 +678,10 @@ const QuizModePage: React.FC = () => {
     try {
       console.log('🔄 Aplicando límite de quiz para cuaderno:', notebookId);
       console.log('🔍 Usuario actual:', auth.currentUser.uid);
+      console.log('🔄 Ruta de guardado:', `users/${auth.currentUser.uid}/notebookLimits/${notebookId}`);
       
-      // Aplicar límite específico del cuaderno
-      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', notebookId, 'limits');
+      // CORRECCIÓN: Usar un solo documento con campos separados
+      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebookLimits', notebookId);
       const currentDate = new Date();
       
       console.log('🔍 Fecha actual para límite del cuaderno:', currentDate.toISOString());
@@ -704,12 +703,20 @@ const QuizModePage: React.FC = () => {
       
       await setDoc(notebookLimitsRef, newLimits, { merge: true });
       
-      console.log('✅ Límite de quiz aplicado exitosamente para cuaderno:', {
-        notebookId: notebookId,
-        lastQuizDate: currentDate.toISOString(),
-        quizCountThisWeek: 1,
-        documentPath: `users/${auth.currentUser.uid}/notebooks/${notebookId}/limits`
-      });
+      console.log('✅ ===== LÍMITE DE QUIZ APLICADO EXITOSAMENTE =====');
+      console.log('✅ Cuaderno:', notebookId);
+      console.log('✅ lastQuizDate:', currentDate.toISOString());
+      console.log('✅ quizCountThisWeek: 1');
+      console.log('✅ Ruta del documento:', `users/${auth.currentUser.uid}/notebookLimits/${notebookId}`);
+      
+      // VERIFICACIÓN: Leer de vuelta para confirmar que se guardó
+      const verificationDoc = await getDoc(notebookLimitsRef);
+      if (verificationDoc.exists()) {
+        const savedData = verificationDoc.data();
+        console.log('✅ VERIFICACIÓN: Datos guardados correctamente:', savedData);
+      } else {
+        console.error('❌ VERIFICACIÓN: Los datos NO se guardaron correctamente');
+      }
       
     } catch (error) {
       console.error('❌ Error aplicando límite de quiz para cuaderno:', error);
@@ -722,7 +729,8 @@ const QuizModePage: React.FC = () => {
 
     try {
       console.log('🔄 Reseteando límites de quiz para cuaderno:', selectedNotebook.id);
-      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'notebooks', selectedNotebook.id, 'limits');
+      // CORRECCIÓN: Usar un solo documento con campos separados
+      const limitsRef = doc(db, 'users', auth.currentUser.uid, 'notebookLimits', selectedNotebook.id);
       
       // Resetear límites del cuaderno específico
       await setDoc(limitsRef, {
@@ -1017,10 +1025,10 @@ const QuizModePage: React.FC = () => {
             onClick={() => {
               if (sessionActive) {
                 if (window.confirm("⚠️ ¿Estás seguro de que quieres salir?\n\nSi cierras el quiz ahora, no podrás hacer otro quiz hasta la próxima semana. Tu progreso actual se perderá.\n\n¿Quieres continuar con el quiz?")) {
-                  navigate('/notebooks');
+                  navigate('/study');
                 }
               } else {
-                navigate('/notebooks');
+                navigate('/study');
               }
             }}
           >

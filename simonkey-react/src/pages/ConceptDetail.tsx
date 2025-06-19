@@ -701,7 +701,8 @@ const ConceptDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Sección de notas personales */}
+          {/* Sección de notas personales - TEMPORALMENTE OCULTA */}
+          {/* 
           <div className="personal-notes-card">
             <div className="personal-notes-header">
               <h2>
@@ -764,6 +765,7 @@ const ConceptDetail: React.FC = () => {
               )}
             </div>
           </div>
+          */}
         </div>
       </main>
     </div>

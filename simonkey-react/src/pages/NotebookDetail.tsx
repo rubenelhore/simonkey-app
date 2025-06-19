@@ -80,11 +80,6 @@ const NotebookDetail = () => {
   // Referencia para el modal
   const modalRef = useRef<HTMLDivElement>(null);
   
-  // Añadir estos estados
-  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
-  const [shareLink, setShareLink] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  
   // Usar el hook de estudio
   const studyService = useStudyService();
 
@@ -575,172 +570,6 @@ const NotebookDetail = () => {
     setIsModalOpen(true);
   };
 
-  // Función para manejar el compartir
-  const handleShareNotebook = async () => {
-    if (!id || !cuaderno) return;
-    
-    try {
-      // Verificar si el cuaderno ya tiene un shareId
-      if (!cuaderno.shareId) {
-        // Crear un shareId único
-        const shareId = crypto.randomUUID();
-        
-        // Actualizar el documento del cuaderno con el shareId
-        const notebookRef = doc(db, 'notebooks', id);
-        await updateDoc(notebookRef, {
-          shareId: shareId,
-          isShared: true,
-          sharedAt: serverTimestamp()
-        });
-        
-        // Actualizar el estado local
-        setCuaderno({...cuaderno, shareId, isShared: true});
-        
-        // Generar el enlace compartible
-        const shareUrl = `${window.location.origin}/shared/${shareId}`;
-        setShareLink(shareUrl);
-      } else {
-        // Usar el shareId existente
-        const shareUrl = `${window.location.origin}/shared/${cuaderno.shareId}`;
-        setShareLink(shareUrl);
-      }
-      
-      // Abrir el modal de compartir
-      setIsShareModalOpen(true);
-    } catch (error) {
-      console.error("Error al compartir cuaderno:", error);
-      alert('Error al compartir el cuaderno. Por favor intenta nuevamente.');
-    }
-  };
-
-  // Función para copiar el enlace al clipboard
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareLink)
-      .then(() => {
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
-      })
-      .catch(err => {
-        console.error('Error al copiar: ', err);
-      });
-  };
-
-  // Componentes del modal
-  const renderModalContent = () => {
-    return (
-      <div className="modal-content" ref={modalRef}>
-        <div className="modal-header">
-          <h2>Añadir nuevos conceptos</h2>
-          <button className="close-modal-button" onClick={() => setIsModalOpen(false)}>
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <div className="modal-tabs">
-          <button 
-            className={`tab-button ${activeTab === 'upload' ? 'active' : ''}`}
-            onClick={() => setActiveTab('upload')}
-          >
-            <i className="fas fa-file-upload"></i> Subir materiales
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'manual' ? 'active' : ''}`}
-            onClick={() => setActiveTab('manual')}
-          >
-            <i className="fas fa-pencil-alt"></i> Añadir manualmente
-          </button>
-        </div>
-        
-        <div className="modal-body">
-          {activeTab === 'upload' ? (
-            <div className="upload-container">
-              {apiKeyError && (
-                <div className="error-message">
-                  <p>⚠️ No se pudo inicializar la IA. Verifica la clave API de Gemini en tu archivo .env.</p>
-                </div>
-              )}
-              
-              <input
-                type="file"
-                id="pdf-upload"
-                multiple
-                accept="*/*"
-                onChange={handleFileChange}
-                disabled={cargando}
-                className="file-input"
-              />
-              <div className="selected-files">
-                {archivos.length > 0 && (
-                  <>
-                    <p><strong>Archivos seleccionados:</strong></p>
-                    <ul>
-                      {archivos.map((file, index) => (
-                        <li key={index}>{file.name}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-              <button 
-                onClick={generarConceptos} 
-                disabled={archivos.length === 0 || cargando || apiKeyError}
-                className="generate-button"
-              >
-                {cargando ? loadingText : 'Generar Conceptos'}
-              </button>
-            </div>
-          ) : (
-            <div className="concept-form">
-              <div className="form-group">
-                <label htmlFor="termino">Término *</label>
-                <input 
-                  type="text" 
-                  id="termino"
-                  value={nuevoConcepto.término}
-                  onChange={(e) => setNuevoConcepto({...nuevoConcepto, término: e.target.value})}
-                  placeholder="Nombre del concepto"
-                  disabled={cargando}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="definicion">Definición *</label>
-                <textarea 
-                  id="definicion"
-                  value={nuevoConcepto.definición}
-                  onChange={(e) => setNuevoConcepto({...nuevoConcepto, definición: e.target.value})}
-                  placeholder="Explica brevemente el concepto"
-                  rows={4}
-                  disabled={cargando}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="fuente">Fuente</label>
-                <input 
-                  type="text" 
-                  id="fuente"
-                  value={nuevoConcepto.fuente}
-                  onChange={(e) => setNuevoConcepto({...nuevoConcepto, fuente: e.target.value})}
-                  placeholder="Fuente del concepto"
-                  disabled={cargando}
-                />
-              </div>
-              
-              <button 
-                onClick={agregarConceptoManual} 
-                disabled={cargando || !nuevoConcepto.término || !nuevoConcepto.definición}
-                className="add-concept-button"
-              >
-                {cargando && loadingText === "Guardando concepto..." ? loadingText : 'Añadir Concepto'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   // Muestra spinner de carga mientras se obtienen los datos
   if (!cuaderno) {
     return (
@@ -761,12 +590,6 @@ const NotebookDetail = () => {
           
           <div className="title-container">
             <h1>{cuaderno.title}</h1>
-          </div>
-          
-          <div className="header-actions">
-            <button onClick={handleShareNotebook} className="share-button" title="Compartir cuaderno">
-              <i className="fas fa-share-alt"></i>
-            </button>
           </div>
         </div>
       </header>
@@ -825,7 +648,116 @@ const NotebookDetail = () => {
             setIsModalOpen(false);
           }
         }}>
-          {renderModalContent()}
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Añadir nuevos conceptos</h2>
+              <button className="close-modal-button" onClick={() => setIsModalOpen(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-tabs">
+              <button 
+                className={`tab-button ${activeTab === 'upload' ? 'active' : ''}`}
+                onClick={() => setActiveTab('upload')}
+              >
+                <i className="fas fa-file-upload"></i> Subir materiales
+              </button>
+              <button 
+                className={`tab-button ${activeTab === 'manual' ? 'active' : ''}`}
+                onClick={() => setActiveTab('manual')}
+              >
+                <i className="fas fa-pencil-alt"></i> Añadir manualmente
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {activeTab === 'upload' ? (
+                <div className="upload-container">
+                  {apiKeyError && (
+                    <div className="error-message">
+                      <p>⚠️ No se pudo inicializar la IA. Verifica la clave API de Gemini en tu archivo .env.</p>
+                    </div>
+                  )}
+                  
+                  <input
+                    type="file"
+                    id="pdf-upload"
+                    multiple
+                    accept="*/*"
+                    onChange={handleFileChange}
+                    disabled={cargando}
+                    className="file-input"
+                  />
+                  <div className="selected-files">
+                    {archivos.length > 0 && (
+                      <>
+                        <p><strong>Archivos seleccionados:</strong></p>
+                        <ul>
+                          {archivos.map((file, index) => (
+                            <li key={index}>{file.name}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                  <button 
+                    onClick={generarConceptos} 
+                    disabled={archivos.length === 0 || cargando || apiKeyError}
+                    className="generate-button"
+                  >
+                    {cargando ? loadingText : 'Generar Conceptos'}
+                  </button>
+                </div>
+              ) : (
+                <div className="concept-form">
+                  <div className="form-group">
+                    <label htmlFor="termino">Término *</label>
+                    <input 
+                      type="text" 
+                      id="termino"
+                      value={nuevoConcepto.término}
+                      onChange={(e) => setNuevoConcepto({...nuevoConcepto, término: e.target.value})}
+                      placeholder="Nombre del concepto"
+                      disabled={cargando}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="definicion">Definición *</label>
+                    <textarea 
+                      id="definicion"
+                      value={nuevoConcepto.definición}
+                      onChange={(e) => setNuevoConcepto({...nuevoConcepto, definición: e.target.value})}
+                      placeholder="Explica brevemente el concepto"
+                      rows={4}
+                      disabled={cargando}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="fuente">Fuente</label>
+                    <input 
+                      type="text" 
+                      id="fuente"
+                      value={nuevoConcepto.fuente}
+                      onChange={(e) => setNuevoConcepto({...nuevoConcepto, fuente: e.target.value})}
+                      placeholder="Fuente del concepto"
+                      disabled={cargando}
+                    />
+                  </div>
+                  
+                  <button 
+                    onClick={agregarConceptoManual} 
+                    disabled={cargando || !nuevoConcepto.término || !nuevoConcepto.definición}
+                    className="add-concept-button"
+                  >
+                    {cargando && loadingText === "Guardando concepto..." ? loadingText : 'Añadir Concepto'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>,
         document.body
       )}
@@ -837,64 +769,6 @@ const NotebookDetail = () => {
       >
         <i className="fas fa-plus"></i>
       </button>
-
-      {/* Modal para compartir cuaderno */}
-      {isShareModalOpen && ReactDOM.createPortal(
-        <div className="modal-overlay" onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setIsShareModalOpen(false);
-          }
-        }}>
-          <div className="modal-content share-modal">
-            <div className="modal-header">
-              <h2>Compartir Cuaderno</h2>
-              <button className="close-modal-button" onClick={() => setIsShareModalOpen(false)}>
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <p>Comparte este enlace para que otros usuarios puedan acceder a tu cuaderno:</p>
-              
-              <div className="share-link-container">
-                <input 
-                  type="text" 
-                  value={shareLink} 
-                  className="share-link-input" 
-                  readOnly 
-                />
-                <button 
-                  onClick={copyToClipboard} 
-                  className="copy-button"
-                >
-                  {copySuccess ? <i className="fas fa-check"></i> : <i className="fas fa-copy"></i>}
-                </button>
-              </div>
-              
-              <div className="share-options">
-                <h3>Compartir en:</h3>
-                <div className="social-buttons">
-                  <a 
-                    href={`https://wa.me/?text=¡Mira este cuaderno de estudio en Simonkey! ${encodeURIComponent(shareLink)}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="social-button whatsapp"
-                  >
-                    <i className="fab fa-whatsapp"></i>
-                  </a>
-                  <a 
-                    href={`mailto:?subject=Cuaderno compartido desde Simonkey&body=¡Hola! He compartido contigo un cuaderno de estudio en Simonkey. Puedes acceder a él aquí: ${encodeURIComponent(shareLink)}`} 
-                    className="social-button email"
-                  >
-                    <i className="fas fa-envelope"></i>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 };

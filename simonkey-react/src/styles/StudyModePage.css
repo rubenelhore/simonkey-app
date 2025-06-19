@@ -1,6 +1,6 @@
 /* src/styles/StudyModePage.css */
 :root {
-  --study-primary: #6147FF;
+  --study-primary: #333333;
   --review-primary: #FF6B6B;
   --quiz-primary: #FFC107;
   --success-color: #34C759;
@@ -23,8 +23,12 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: linear-gradient(135deg, #6147FF 0%, #8B5CF6 100%);
+  background: #fff;
   color: var(--text-dark);
+}
+
+.study-mode-container.free {
+  background: #fff;
 }
 
 .study-mode-container.study {
@@ -100,7 +104,7 @@
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--study-primary), #8B5CF6);
+  background: #333333;
   color: white;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -135,14 +139,14 @@
 }
 
 .study-header h2 {
-  color: #6147FF;
+  color: #333333;
   font-weight: 800;
   font-size: 2.1rem;
   margin-bottom: 0.3rem;
 }
 
 .study-header .study-subtitle {
-  color: #6147FF;
+  color: #333333;
   opacity: 0.85;
   font-weight: 500;
   font-size: 1.1rem;
@@ -183,7 +187,7 @@
 }
 
 .create-notebook-button {
-  background: linear-gradient(135deg, var(--study-primary), #8B5CF6);
+  background: #333333;
   color: white;
   border: none;
   padding: 16px 32px;
@@ -254,17 +258,14 @@
   align-items: center;
   gap: 4px;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .notebook-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .notebook-item.selected {
   border-color: var(--study-primary);
-  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.2);
 }
 
 .notebook-color {
@@ -478,20 +479,21 @@
 }
 
 .start-session-button {
-  background: linear-gradient(135deg, var(--study-primary), #8B5CF6);
+  background: #333333;
   color: white;
   border: none;
-  padding: 18px 40px;
+  padding: 16px 32px;
   border-radius: 12px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 0 auto;
-  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.3);
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+  margin-top: 20px;
 }
 
 .start-session-button:hover:not(:disabled) {
@@ -1265,18 +1267,19 @@
 
 /* Botón de acción de sesión */
 .session-action-button {
-  background: linear-gradient(135deg, #6c757d, #5a6268);
+  background: #333333;
   color: white;
   border: none;
-  width: 100%;
-  padding: 18px;
+  padding: 16px 32px;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 25px;
-  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto;
   position: relative;
   overflow: hidden;
 }
@@ -1645,4 +1648,20 @@
     min-width: 0;
     width: 100%;
   }
+}
+
+/* Spinner de carga */
+.empty-notebooks .fa-spinner {
+  font-size: 48px;
+  color: var(--study-primary);
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+  animation: spin 1s linear infinite;
 }

@@ -146,35 +146,36 @@ export const useStudyService = () => {
   );
   
   /**
-   * Verificar límite de estudio libre (1 por día)
+   * Verificar límite de estudio libre (1 por día por cuaderno) - POR CUADERNO
    */
   const checkFreeStudyLimit = useCallback(
-    async (userId: string, notebookId?: string): Promise<boolean> => {
+    async (userId: string, notebookId: string): Promise<boolean> => {
       try {
         console.log('🔍 checkFreeStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
         
-        const limitsRef = doc(db, 'users', userId, 'limits', 'study');
+        // CORRECCIÓN: Usar un solo documento con campos separados
+        const limitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
         const limitsDoc = await getDoc(limitsRef);
         
-        console.log('🔍 Documento de límites existe:', limitsDoc.exists());
+        console.log('🔍 Documento de límites del cuaderno existe:', limitsDoc.exists());
         
         if (!limitsDoc.exists()) {
-          console.log('✅ No hay límites previos, estudio libre disponible');
+          console.log('✅ No hay límites previos para este cuaderno, disponible');
           return true; // Primera vez, puede estudiar
         }
         
-        const limits = limitsDoc.data() as StudyLimits;
-        console.log('🔍 Límites encontrados:', limits);
+        const limits = limitsDoc.data();
+        console.log('🔍 Límites del cuaderno encontrados:', limits);
         
         const lastFreeStudyDate = limits.lastFreeStudyDate instanceof Timestamp 
           ? limits.lastFreeStudyDate.toDate() 
           : limits.lastFreeStudyDate;
         
-        console.log('🔍 lastFreeStudyDate procesado:', lastFreeStudyDate);
+        console.log('🔍 lastFreeStudyDate procesado (por cuaderno):', lastFreeStudyDate);
         console.log('🔍 Tipo de lastFreeStudyDate:', typeof lastFreeStudyDate);
         
         const isAvailable = isFreeStudyAvailable(lastFreeStudyDate);
-        console.log('🔍 Resultado de isFreeStudyAvailable:', isAvailable);
+        console.log('🔍 Resultado de isFreeStudyAvailable (por cuaderno):', isAvailable);
         
         return isAvailable;
       } catch (err) {
@@ -186,20 +187,21 @@ export const useStudyService = () => {
   );
   
   /**
-   * Verificar límite de estudio inteligente (1 por día por cuaderno)
+   * Verificar límite de estudio inteligente (1 por día por cuaderno) - POR CUADERNO
    */
   const checkSmartStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
       try {
         console.log('🔍 checkSmartStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
         
-        const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+        // CORRECCIÓN: Usar un solo documento con campos separados
+        const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
         const notebookLimitsDoc = await getDoc(notebookLimitsRef);
         
         console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
         
         if (!notebookLimitsDoc.exists()) {
-          console.log('✅ No hay límites previos para este cuaderno, estudio inteligente disponible');
+          console.log('✅ No hay límites previos para este cuaderno, disponible');
           return true; // Primera vez, puede estudiar
         }
         
@@ -210,10 +212,10 @@ export const useStudyService = () => {
           ? limits.lastSmartStudyDate.toDate() 
           : limits.lastSmartStudyDate;
         
-        console.log('🔍 lastSmartStudyDate procesado:', lastSmartStudyDate);
+        console.log('🔍 lastSmartStudyDate procesado (por cuaderno):', lastSmartStudyDate);
         
         if (!lastSmartStudyDate) {
-          console.log('✅ No hay fecha de último estudio inteligente, disponible');
+          console.log('✅ No hay fecha de último estudio inteligente para este cuaderno, disponible');
           return true;
         }
         
@@ -226,7 +228,7 @@ export const useStudyService = () => {
         
         const isAvailable = today.getTime() !== lastStudy.getTime();
         
-        console.log('🔍 Cálculo de disponibilidad de estudio inteligente:', {
+        console.log('🔍 Cálculo de disponibilidad de estudio inteligente (por cuaderno):', {
           today: today.toISOString(),
           lastStudy: lastStudy.toISOString(),
           isAvailable: isAvailable
@@ -242,21 +244,23 @@ export const useStudyService = () => {
   );
   
   /**
-   * Actualizar uso de estudio libre
+   * Actualizar uso de estudio libre - POR CUADERNO
    */
   const updateFreeStudyUsage = useCallback(
-    async (userId: string): Promise<void> => {
+    async (userId: string, notebookId: string): Promise<void> => {
       try {
-        console.log('🔄 Actualizando límites de estudio libre para usuario:', userId);
-        const limitsRef = doc(db, 'users', userId, 'limits', 'study');
+        console.log('🔄 Actualizando límites de estudio libre por cuaderno para usuario:', userId, 'cuaderno:', notebookId);
+        // CORRECCIÓN: Usar un solo documento con campos separados
+        const limitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
         await setDoc(limitsRef, {
           userId,
+          notebookId,
           lastFreeStudyDate: new Date(),
           freeStudyCountToday: 1,
           weekStartDate: getWeekStartDate(),
           updatedAt: serverTimestamp()
         }, { merge: true });
-        console.log('✅ Límites de estudio libre actualizados');
+        console.log('✅ Límites de estudio libre por cuaderno actualizados');
       } catch (err) {
         console.error('Error updating free study usage:', err);
       }
@@ -265,13 +269,14 @@ export const useStudyService = () => {
   );
   
   /**
-   * Actualizar uso de estudio inteligente (límite de frecuencia)
+   * Actualizar uso de estudio inteligente (límite de frecuencia) - POR CUADERNO
    */
   const updateSmartStudyUsage = useCallback(
     async (userId: string, notebookId: string): Promise<void> => {
       try {
-        console.log('🔄 Actualizando límites de estudio inteligente para cuaderno:', notebookId);
-        const notebookLimitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+        console.log('🔄 Actualizando límites de estudio inteligente por cuaderno para cuaderno:', notebookId);
+        // CORRECCIÓN: Usar un solo documento con campos separados
+        const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
         await setDoc(notebookLimitsRef, {
           userId,
           notebookId,
@@ -279,7 +284,7 @@ export const useStudyService = () => {
           smartStudyCountToday: 1,
           updatedAt: serverTimestamp()
         }, { merge: true });
-        console.log('✅ Límites de estudio inteligente actualizados');
+        console.log('✅ Límites de estudio inteligente por cuaderno actualizados');
       } catch (err) {
         console.error('Error updating smart study usage:', err);
       }
@@ -323,7 +328,7 @@ export const useStudyService = () => {
         console.log('🔄 Iniciando reset de límite de quiz para cuaderno:', notebookId);
         
         // Resetear límites específicos del cuaderno
-        const limitsRef = doc(db, 'users', userId, 'notebooks', notebookId, 'limits');
+        const limitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
         
         // Primero, obtener los límites actuales
         const currentLimits = await getDoc(limitsRef);

@@ -188,15 +188,41 @@ const StudyModePage = () => {
     return () => clearInterval(interval);
   }, [sessionActive, sessionTimer]);
   
+  // Efecto para detectar cuando el usuario regresa de completar un quiz
+  useEffect(() => {
+    const handleFocus = () => {
+      // Cuando el usuario regresa a la página (por ejemplo, después de completar un quiz)
+      if (selectedNotebook && auth.currentUser) {
+        console.log('🔄 Usuario regresó a la página, recargando datos del dashboard...');
+        // Forzar recarga de datos del dashboard cambiando temporalmente el cuaderno seleccionado
+        const currentNotebook = selectedNotebook;
+        setSelectedNotebook(null);
+        setTimeout(() => {
+          setSelectedNotebook(currentNotebook);
+        }, 100);
+      }
+    };
+
+    // Escuchar cuando la ventana vuelve a tener foco
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [selectedNotebook, auth.currentUser]);
+  
   // Función para refrescar datos del dashboard
   const refreshDashboardData = useCallback(async () => {
     if (!selectedNotebook || !auth.currentUser) return;
     
     try {
-      // Los datos se cargarán automáticamente en el componente StudyDashboard
-      console.log('Dashboard data refreshed');
+      console.log('🔄 Refrescando datos del dashboard para cuaderno:', selectedNotebook.title);
+      
+      // Los datos del StudyDashboard se recargarán automáticamente por el useEffect
+      // que depende de selectedNotebook.id cuando se cambie el cuaderno
+      console.log('✅ Datos del dashboard refrescados');
     } catch (error) {
-      console.error('Error refreshing dashboard data:', error);
+      console.error('❌ Error refreshing dashboard data:', error);
     }
   }, [selectedNotebook, auth.currentUser]);
   
@@ -493,9 +519,9 @@ const StudyModePage = () => {
       );
       
       // IMPORTANTE: Actualizar límites de estudio libre al COMPLETAR la sesión
-      if (studyMode === StudyMode.FREE) {
+      if (studyMode === StudyMode.FREE && selectedNotebook) {
         console.log('🔄 Actualizando límites de estudio libre al completar sesión...');
-        await studyService.updateFreeStudyUsage(auth.currentUser.uid);
+        await studyService.updateFreeStudyUsage(auth.currentUser.uid, selectedNotebook.id);
       }
       
       // IMPORTANTE: Actualizar límites de estudio inteligente al COMPLETAR la sesión
@@ -710,7 +736,15 @@ const StudyModePage = () => {
                 <p className="study-subtitle">Elige un cuaderno y comienza tu sesión de aprendizaje</p>
               </div>
               
-              {notebooks.length === 0 ? (
+              {loading ? (
+                <div className="empty-notebooks">
+                  <div className="empty-icon">
+                    <i className="fas fa-spinner fa-spin"></i>
+                  </div>
+                  <h3>Cargando cuadernos...</h3>
+                  <p>Por favor espera un momento</p>
+                </div>
+              ) : notebooks.length === 0 ? (
                 <div className="empty-notebooks">
                   <div className="empty-icon">
                     <i className="fas fa-book-open"></i>
