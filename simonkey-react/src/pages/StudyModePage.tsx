@@ -60,6 +60,12 @@ const StudyModePage = () => {
   const [miniQuizScore, setMiniQuizScore] = useState<number>(0);
   const [studySessionValidated, setStudySessionValidated] = useState<boolean>(false);
   
+  // Estados para pantallas de introducción
+  const [showSmartStudyIntro, setShowSmartStudyIntro] = useState<boolean>(false);
+  const [showQuizIntro, setShowQuizIntro] = useState<boolean>(false);
+  const [showFreeStudyIntro, setShowFreeStudyIntro] = useState<boolean>(false);
+  const [pendingStudyMode, setPendingStudyMode] = useState<StudyMode | null>(null);
+  
   // Usar nuestro hook de servicio personalizado
   const studyService = useStudyService();
   
@@ -263,6 +269,34 @@ const StudyModePage = () => {
     
     const sessionMode = mode || studyMode;
     
+    // Mostrar pantalla de introducción según el modo
+    if (sessionMode === StudyMode.SMART) {
+      setShowSmartStudyIntro(true);
+      setPendingStudyMode(sessionMode);
+      return;
+    } else if (sessionMode === StudyMode.QUIZ) {
+      setShowQuizIntro(true);
+      setPendingStudyMode(sessionMode);
+      return;
+    } else if (sessionMode === StudyMode.FREE) {
+      setShowFreeStudyIntro(true);
+      setPendingStudyMode(sessionMode);
+      return;
+    }
+  };
+
+  // Función para iniciar la sesión después de la introducción
+  const beginStudySession = async () => {
+    if (!pendingStudyMode) return;
+    
+    // Ocultar todas las pantallas de introducción
+    setShowSmartStudyIntro(false);
+    setShowQuizIntro(false);
+    setShowFreeStudyIntro(false);
+    
+    const sessionMode = pendingStudyMode;
+    setPendingStudyMode(null);
+    
     // Actualizar el modo de estudio para que se muestre correctamente en el header
     setStudyMode(sessionMode);
     
@@ -270,8 +304,8 @@ const StudyModePage = () => {
     if (sessionMode === StudyMode.QUIZ) {
       navigate('/quiz', { 
         state: { 
-          notebookId: selectedNotebook.id,
-          notebookTitle: selectedNotebook.title 
+          notebookId: selectedNotebook!.id,
+          notebookTitle: selectedNotebook!.title 
         } 
       });
       return;
@@ -282,8 +316,8 @@ const StudyModePage = () => {
     try {
       // Crear nueva sesión en Firestore
       const session = await studyService.createStudySession(
-        auth.currentUser.uid, 
-        selectedNotebook.id,
+        auth.currentUser!.uid, 
+        selectedNotebook!.id,
         sessionMode
       );
       
@@ -295,8 +329,8 @@ const StudyModePage = () => {
       if (sessionMode === StudyMode.SMART) {
         // CORRECCIÓN: Obtener SOLO conceptos listos para repaso inteligente según SM-3
         concepts = await studyService.getReviewableConcepts(
-          auth.currentUser.uid, 
-          selectedNotebook.id
+          auth.currentUser!.uid, 
+          selectedNotebook!.id
         );
         
         console.log('🎯 ESTUDIO INTELIGENTE - Conceptos listos para repaso:', concepts.length);
@@ -309,8 +343,8 @@ const StudyModePage = () => {
       } else {
         // ESTUDIO LIBRE: obtener TODOS los conceptos del cuaderno
         concepts = await studyService.getAllConceptsFromNotebook(
-          auth.currentUser.uid, 
-          selectedNotebook.id
+          auth.currentUser!.uid, 
+          selectedNotebook!.id
         );
         
         console.log('📚 ESTUDIO LIBRE - Todos los conceptos del cuaderno:', concepts.length);
@@ -578,7 +612,7 @@ const StudyModePage = () => {
     setMiniQuizScore(score);
     setShowMiniQuiz(false);
     
-    if (!auth.currentUser || !selectedNotebook) return;
+    if (!auth.currentUser || !selectedNotebook || !sessionId) return;
     
     try {
       if (passed) {
@@ -586,6 +620,9 @@ const StudyModePage = () => {
         console.log('✅ Mini Quiz aprobado. Validando estudio inteligente...');
         await studyService.updateSmartStudyUsage(auth.currentUser.uid, selectedNotebook.id);
         setStudySessionValidated(true);
+        
+        // Marcar la sesión como validada en Firestore
+        await studyService.markStudySessionAsValidated(sessionId);
         
         // Registrar actividad exitosa
         await studyService.logStudyActivity(
@@ -599,6 +636,9 @@ const StudyModePage = () => {
         // Si no pasó el Mini Quiz, NO validar el estudio inteligente
         console.log('❌ Mini Quiz fallido. Estudio inteligente NO validado.');
         setStudySessionValidated(false);
+        
+        // Marcar la sesión como NO validada en Firestore
+        await studyService.markStudySessionAsValidated(sessionId, false);
         
         // Registrar actividad fallida
         await studyService.logStudyActivity(
@@ -683,9 +723,17 @@ const StudyModePage = () => {
   
   // Formatear el tiempo de estudio
   const formatStudyTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
   };
   
   // Memoizar el cálculo de conceptos de repaso pendientes
@@ -775,6 +823,191 @@ const StudyModePage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Renderizar introducción al Estudio Inteligente
+  const renderSmartStudyIntro = () => {
+    return (
+      <div className="study-intro-overlay">
+        <div className="study-intro-modal">
+          <div className="intro-header">
+            <i className="fas fa-brain"></i>
+            <h2>Estudio Inteligente</h2>
+          </div>
+          
+          <div className="intro-content">
+            <div className="intro-section">
+              <h3>¿Qué es el Estudio Inteligente?</h3>
+              <p>
+                El estudio inteligente utiliza el algoritmo de repaso espaciado SM-3 para 
+                mostrarte <strong>solo los conceptos que necesitas repasar hoy</strong>.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Cómo funciona?</h3>
+              <ul>
+                <li><i className="fas fa-calendar-alt"></i> Se basa en tu historial de aprendizaje</li>
+                <li><i className="fas fa-clock"></i> Te muestra conceptos en el momento óptimo</li>
+                <li><i className="fas fa-redo"></i> Los conceptos difíciles aparecen más seguido</li>
+                <li><i className="fas fa-star"></i> Los dominados aparecen menos frecuentemente</li>
+              </ul>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Qué pasa después?</h3>
+              <p>
+                Al completar el estudio inteligente, deberás hacer un <strong>Mini Quiz</strong> 
+                de 5 preguntas. Necesitas al menos <strong>8/10</strong> para que cuente como 
+                sesión validada.
+              </p>
+            </div>
+          </div>
+          
+          <div className="intro-actions">
+            <button
+              className="action-button secondary"
+              onClick={() => setShowSmartStudyIntro(false)}
+            >
+              <i className="fas fa-times"></i>
+              Cancelar
+            </button>
+            <button
+              className="action-button primary"
+              onClick={beginStudySession}
+            >
+              <i className="fas fa-play"></i>
+              Iniciar Estudio Inteligente
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizar introducción al Quiz
+  const renderQuizIntro = () => {
+    return (
+      <div className="study-intro-overlay">
+        <div className="study-intro-modal">
+          <div className="intro-header">
+            <i className="fas fa-question-circle"></i>
+            <h2>Quiz de Evaluación</h2>
+          </div>
+          
+          <div className="intro-content">
+            <div className="intro-section">
+              <h3>¿Qué es el Quiz?</h3>
+              <p>
+                El quiz es una evaluación de <strong>10 conceptos aleatorios</strong> 
+                de tu cuaderno para medir tu dominio general.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Cómo funciona?</h3>
+              <ul>
+                <li><i className="fas fa-clock"></i> Tiempo limitado: <strong>10 minutos para completar el quiz</strong></li>
+                <li><i className="fas fa-star"></i> Puntuación máxima basada en <strong>velocidad y exactitud</strong></li>
+                <li><i className="fas fa-calendar"></i> Disponible una vez por semana</li>
+              </ul>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Por qué hacer el Quiz?</h3>
+              <p>
+                Ayuda a identificar la <strong>constancia y eficacia de estudio</strong>. 
+                Es un componente importante del <strong>Score General</strong>.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Estás listo?</h3>
+              <p>
+                El quiz comenzará cuando hagas clic en "Iniciar Quiz". 
+                ¡Buena suerte!
+              </p>
+            </div>
+          </div>
+          
+          <div className="intro-actions">
+            <button
+              className="action-button secondary"
+              onClick={() => setShowQuizIntro(false)}
+            >
+              <i className="fas fa-times"></i>
+              Cancelar
+            </button>
+            <button
+              className="action-button primary"
+              onClick={beginStudySession}
+            >
+              <i className="fas fa-play"></i>
+              Iniciar Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizar introducción al Estudio Libre
+  const renderFreeStudyIntro = () => {
+    return (
+      <div className="study-intro-overlay">
+        <div className="study-intro-modal">
+          <div className="intro-header">
+            <i className="fas fa-book-open"></i>
+            <h2>Estudio Libre</h2>
+          </div>
+          
+          <div className="intro-content">
+            <div className="intro-section">
+              <h3>¿Qué es el Estudio Libre?</h3>
+              <p>
+                El estudio libre te permite revisar <strong>todos los conceptos</strong> 
+                de tu cuaderno sin restricciones del algoritmo de repaso espaciado.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Cómo funciona?</h3>
+              <ul>
+                <li><i className="fas fa-list"></i> Acceso a todos los conceptos del cuaderno</li>
+                <li><i className="fas fa-random"></i> Orden aleatorio para variedad</li>
+                <li><i className="fas fa-redo"></i> Conceptos difíciles se repiten inmediatamente</li>
+                <li><i className="fas fa-calendar"></i> Disponible una vez al día</li>
+              </ul>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Cuándo usar Estudio Libre?</h3>
+              <p>
+                Úsalo cuando quieras repasar todo el material, prepararte para un examen, 
+                o cuando el estudio inteligente no tenga conceptos disponibles.
+              </p>
+            </div>
+          </div>
+          
+          <div className="intro-actions">
+            <button
+              className="action-button secondary"
+              onClick={() => setShowFreeStudyIntro(false)}
+            >
+              <i className="fas fa-times"></i>
+              Cancelar
+            </button>
+            <button
+              className="action-button primary"
+              onClick={beginStudySession}
+            >
+              <i className="fas fa-play"></i>
+              Iniciar Estudio Libre
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Renderizar el componente principal
   return (
     <>
@@ -797,6 +1030,11 @@ const StudyModePage = () => {
           />
         </div>
       )}
+      
+      {/* Pantallas de introducción */}
+      {showSmartStudyIntro && renderSmartStudyIntro()}
+      {showQuizIntro && renderQuizIntro()}
+      {showFreeStudyIntro && renderFreeStudyIntro()}
       
       {/* Contenido principal */}
       <div className="study-mode-container">
@@ -961,7 +1199,19 @@ const StudyModePage = () => {
                 const totalConcepts = allConcepts.length;
                 const currentConcept = currentConcepts[0];
 
-                if (!currentConcept) {
+                // Si no hay concepto actual pero la sesión está activa, probablemente estamos en transición
+                // No mostrar nada hasta que se complete la transición
+                if (!currentConcept && sessionActive) {
+                  return (
+                    <div className="loading-transition">
+                      <div className="loading-spinner"></div>
+                      <p>Procesando...</p>
+                    </div>
+                  );
+                }
+
+                // Solo mostrar el mensaje de "no concepts" si realmente no hay conceptos y la sesión no está activa
+                if (!currentConcept && !sessionActive) {
                   return (
                     <div className="no-concepts-message">
                       <i className="fas fa-check-circle"></i>

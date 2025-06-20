@@ -53,6 +53,7 @@ const QuizModePage: React.FC = () => {
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
+  const [showQuizIntro, setShowQuizIntro] = useState<boolean>(false);
 
   // Configuración del timer
   const timerConfig: QuizTimerConfig = {
@@ -371,13 +372,23 @@ const QuizModePage: React.FC = () => {
       }
     }
 
+    // Mostrar pantalla de introducción
+    setShowQuizIntro(true);
+  };
+
+  // Función para iniciar el quiz después de la introducción
+  const beginQuizSession = async () => {
+    if (!selectedNotebook) return;
+    
+    setShowQuizIntro(false);
+    
     try {
       console.log('Iniciando sesión de quiz...');
       setLoading(true);
       
       console.log('Generando preguntas...');
       // Generar preguntas
-      const quizQuestions = await generateQuizQuestions(notebook.id);
+      const quizQuestions = await generateQuizQuestions(selectedNotebook.id);
       console.log('Preguntas generadas:', quizQuestions.length);
       
       if (quizQuestions.length === 0) {
@@ -393,8 +404,8 @@ const QuizModePage: React.FC = () => {
       const session: QuizSession = {
         id: `quiz-${Date.now()}`,
         userId: auth.currentUser!.uid,
-        notebookId: notebook.id,
-        notebookTitle: notebook.title,
+        notebookId: selectedNotebook.id,
+        notebookTitle: selectedNotebook.title,
         questions: quizQuestions,
         responses: [],
         startTime: new Date(),
@@ -757,110 +768,170 @@ const QuizModePage: React.FC = () => {
   const getWeekStartDate = (): Date => {
     const now = new Date();
     const dayOfWeek = now.getDay();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - dayOfWeek);
-    weekStart.setHours(0, 0, 0, 0);
-    return weekStart;
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    return new Date(now.setDate(diff));
+  };
+
+  // Seleccionar un cuaderno
+  const handleSelectNotebook = (notebook: Notebook) => {
+    setSelectedNotebook(notebook);
   };
 
   // Renderizar selección de cuaderno
   const renderNotebookSelection = () => (
     <div className="quiz-notebook-selection">
-      <h2>Selecciona un cuaderno para el quiz</h2>
+      <div className="quiz-header">
+        <h2>Selecciona un cuaderno para el Quiz</h2>
+        <div className="quiz-subtitle">
+          Elige el cuaderno que quieres evaluar
+        </div>
+      </div>
       
       {loading ? (
-        <div className="loading-notebooks">
-          <div className="loading-spinner"></div>
-          <p>Cargando cuadernos...</p>
+        <div className="empty-notebooks">
+          <div className="empty-icon">
+            <i className="fas fa-spinner fa-spin"></i>
+          </div>
+          <h3>Cargando cuadernos...</h3>
         </div>
       ) : notebooks.length === 0 ? (
         <div className="empty-notebooks">
-          <i className="fas fa-book-open"></i>
-          <h3>No tienes cuadernos</h3>
-          <p>Crea un cuaderno con conceptos para poder hacer quizzes</p>
+          <div className="empty-icon">
+            <i className="fas fa-book-open"></i>
+          </div>
+          <h3>No tienes cuadernos creados</h3>
+          <p>Crea tu primer cuaderno para comenzar a hacer quizzes</p>
           <button
             className="create-notebook-button"
             onClick={() => navigate('/notebooks')}
           >
-            <i className="fas fa-plus"></i>
-            Crear cuaderno
+            <i className="fas fa-plus"></i> Crear mi primer cuaderno
           </button>
         </div>
       ) : (
-        <div className="notebooks-list">
-          {notebooks.map((notebook) => (
-            <div
-              key={notebook.id}
-              className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedNotebook(notebook);
-                checkQuizAvailability(notebook.id);
-              }}
-            >
-              <div className="notebook-color" style={{ backgroundColor: notebook.color }}></div>
-              <div className="notebook-title">{notebook.title}</div>
+        <>
+          {/* Lista de cuadernos */}
+          <div className="notebooks-section">
+            <div className="notebooks-list">
+              {notebooks.map((notebook, index) => (
+                <div
+                  key={notebook.id || index}
+                  className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
+                  onClick={() => handleSelectNotebook(notebook)}
+                  style={{ borderColor: notebook.color }}
+                >
+                  <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
+                    {selectedNotebook?.id === notebook.id && (
+                      <div className="selected-indicator">
+                        <i className="fas fa-check"></i>
+                      </div>
+                    )}
+                  </div>
+                  <div className="notebook-info">
+                    <div className="notebook-title">{notebook.title}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-      
-      {selectedNotebook && (
-        <div className="quiz-options">
-          <div className="quiz-info">
-            <h3>¿Listo para el quiz?</h3>
-            <p>
-              Se te mostrarán definiciones y deberás seleccionar el término correcto.
-              <br />
-              <strong>10 preguntas aleatorias</strong> con <strong>10 minutos</strong> de tiempo.
-              <br />
-              <strong>Puntuación:</strong> Respuestas correctas × tiempo restante
-            </p>
-            
-            {!quizAvailable && (
-              <div className="quiz-limit-warning">
-                <i className="fas fa-clock"></i>
-                <span>{quizLimitMessage}</span>
-              </div>
-            )}
           </div>
           
-          <div className="quiz-buttons">
-            <button
-              className={`start-quiz-button ${!quizAvailable ? 'disabled' : ''}`}
-              onClick={() => startQuizSession()}
-              disabled={loading || !quizAvailable}
-            >
-              {loading ? (
-                <><i className="fas fa-spinner fa-spin"></i> Preparando quiz...</>
-              ) : !quizAvailable ? (
-                <><i className="fas fa-lock"></i> Quiz no disponible</>
+          {selectedNotebook && (
+            <div className="quiz-availability-section">
+              {!quizAvailable ? (
+                <div className="quiz-unavailable">
+                  <div className="unavailable-icon">
+                    <i className="fas fa-clock"></i>
+                  </div>
+                  <h3>Quiz no disponible</h3>
+                  <p>{quizLimitMessage}</p>
+                </div>
               ) : (
-                <><i className="fas fa-play"></i> Comenzar quiz</>
+                <div className="quiz-available">
+                  <div className="available-icon">
+                    <i className="fas fa-check-circle"></i>
+                  </div>
+                  <h3>Quiz disponible</h3>
+                  <p>Puedes hacer el quiz de este cuaderno</p>
+                  <button
+                    className="start-quiz-button"
+                    onClick={() => startQuizSessionWithNotebook(selectedNotebook)}
+                  >
+                    <i className="fas fa-play"></i> Iniciar Quiz
+                  </button>
+                </div>
               )}
-            </button>
-            
-            {/* Botón temporal para resetear límites (SOLO PARA DESARROLLO) */}
-            <button
-              className="reset-limits-button"
-              onClick={resetQuizLimits}
-              style={{
-                marginTop: '10px',
-                padding: '8px 16px',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              <i className="fas fa-sync-alt"></i> Resetear límites (Desarrollo)
-            </button>
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
+
+  // Renderizar introducción al Quiz
+  const renderQuizIntro = () => {
+    return (
+      <div className="study-intro-overlay">
+        <div className="study-intro-modal">
+          <div className="intro-header">
+            <i className="fas fa-question-circle"></i>
+            <h2>Quiz de Evaluación</h2>
+          </div>
+          
+          <div className="intro-content">
+            <div className="intro-section">
+              <h3>¿Qué es el Quiz?</h3>
+              <p>
+                El quiz es una evaluación de <strong>10 conceptos aleatorios</strong> 
+                de tu cuaderno para medir tu dominio general.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Cómo funciona?</h3>
+              <ul>
+                <li><i className="fas fa-clock"></i> Tiempo limitado: <strong>10 minutos para completar el quiz</strong></li>
+                <li><i className="fas fa-star"></i> Puntuación máxima basada en <strong>velocidad y exactitud</strong></li>
+                <li><i className="fas fa-calendar"></i> Disponible una vez por semana</li>
+              </ul>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Por qué hacer el Quiz?</h3>
+              <p>
+                Ayuda a identificar la <strong>constancia y eficacia de estudio</strong>. 
+                Es un componente importante del <strong>Score General</strong>.
+              </p>
+            </div>
+            
+            <div className="intro-section">
+              <h3>¿Estás listo?</h3>
+              <p>
+                El quiz comenzará cuando hagas clic en "Iniciar Quiz". 
+                ¡Buena suerte!
+              </p>
+            </div>
+          </div>
+          
+          <div className="intro-actions">
+            <button
+              className="action-button secondary"
+              onClick={() => setShowQuizIntro(false)}
+            >
+              <i className="fas fa-times"></i>
+              Cancelar
+            </button>
+            <button
+              className="action-button primary"
+              onClick={beginQuizSession}
+            >
+              <i className="fas fa-play"></i>
+              Iniciar Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Renderizar pregunta actual
   const renderCurrentQuestion = () => {
@@ -1018,6 +1089,9 @@ const QuizModePage: React.FC = () => {
 
   return (
     <div className="quiz-mode-container">
+      {/* Pantalla de introducción al Quiz */}
+      {showQuizIntro && renderQuizIntro()}
+      
       <header className="quiz-mode-header">
         <div className="header-content">
           <button

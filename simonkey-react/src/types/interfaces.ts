@@ -444,3 +444,24 @@ export interface SchoolCreationData {
   informacionBasica: { [key: string]: string };
   selectedEntity: string;
 }
+
+/**
+ * Sesión de estudio
+ */
+export interface StudySession {
+  id: string;
+  userId: string;
+  notebookId: string;
+  mode: StudyMode;
+  conceptsStudied: string[];
+  startTime: Date;
+  endTime?: Date;
+  validated?: boolean; // Si el estudio inteligente fue validado por el Mini Quiz
+  metrics?: {
+    totalConcepts: number;
+    conceptsReviewed: number;
+    mastered: number;
+    reviewing: number;
+    timeSpent: number;
+  }
+}

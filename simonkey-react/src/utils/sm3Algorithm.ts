@@ -25,6 +25,8 @@ export interface SM3Result {
 export const calculateSM3Interval = (params: SM3Params): SM3Result => {
   const { quality, repetitions, easeFactor, interval } = params;
   
+  console.log('🔍 SM-3 Input:', { quality, repetitions, easeFactor, interval });
+  
   let newInterval: number;
   let newEaseFactor: number;
   let newRepetitions: number;
@@ -58,12 +60,22 @@ export const calculateSM3Interval = (params: SM3Params): SM3Result => {
   const nextReviewDate = new Date();
   nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
 
-  return {
+  const result = {
     newInterval,
     newEaseFactor,
     nextReviewDate,
     repetitions: newRepetitions
   };
+  
+  console.log('🔍 SM-3 Output:', {
+    newInterval,
+    newEaseFactor,
+    nextReviewDate: nextReviewDate.toISOString(),
+    newRepetitions,
+    daysFromNow: newInterval
+  });
+
+  return result;
 };
 
 /**
@@ -210,20 +222,47 @@ export const calculateLearningStats = (
 export const getNextSmartStudyDate = (
   learningDataArray: LearningData[]
 ): Date | null => {
-  if (learningDataArray.length === 0) return null;
+  console.log('🔍 getNextSmartStudyDate llamado con:', learningDataArray.length, 'conceptos');
+  
+  if (learningDataArray.length === 0) {
+    console.log('❌ No hay conceptos, retornando null');
+    return null;
+  }
   
   const readyForReview = getConceptsReadyForReview(learningDataArray);
+  console.log('🔍 Conceptos listos para repaso hoy:', readyForReview.length);
+  
   if (readyForReview.length > 0) {
+    console.log('✅ Hay conceptos listos para hoy, retornando fecha actual');
     return new Date(); // Hay conceptos listos para hoy
   }
   
   // Encontrar la próxima fecha más cercana
+  const now = new Date();
   const futureDates = learningDataArray
     .map(data => new Date(data.nextReviewDate))
-    .filter(date => date > new Date())
+    .filter(date => date > now)
     .sort((a, b) => a.getTime() - b.getTime());
   
-  return futureDates.length > 0 ? futureDates[0] : null;
+  console.log('🔍 Fechas futuras encontradas:', futureDates.length);
+  console.log('🔍 Detalle de fechas futuras:', futureDates.map(date => ({
+    date: date.toISOString(),
+    daysFromNow: Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  })));
+  
+  if (futureDates.length > 0) {
+    const nextDate = futureDates[0]; // La primera es la más cercana porque está ordenada
+    const daysFromNow = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    console.log('📅 Próxima fecha de estudio inteligente:', {
+      date: nextDate.toISOString(),
+      daysFromNow: daysFromNow,
+      formatted: `${daysFromNow} días desde hoy`
+    });
+    return nextDate;
+  } else {
+    console.log('❌ No hay fechas futuras, retornando null');
+    return null;
+  }
 };
 
 /**

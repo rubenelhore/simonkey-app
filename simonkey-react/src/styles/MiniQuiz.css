@@ -614,4 +614,119 @@
 .time-up-message p:first-child {
   font-weight: 600;
   color: #d63031;
+}
+
+/* Estilos para la introducción del mini quiz */
+.mini-quiz-intro {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.intro-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e3f2fd;
+}
+
+.intro-header i {
+  font-size: 3rem;
+  color: #2196f3;
+  margin-bottom: 1rem;
+}
+
+.intro-header h2 {
+  color: #1976d2;
+  font-size: 1.8rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.intro-content {
+  margin-bottom: 2rem;
+}
+
+.intro-section {
+  margin-bottom: 1.5rem;
+}
+
+.intro-section h3 {
+  color: #1976d2;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.intro-section p {
+  color: #424242;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.intro-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.intro-section li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  color: #424242;
+  line-height: 1.5;
+}
+
+.intro-section li i {
+  color: #2196f3;
+  margin-right: 0.75rem;
+  width: 20px;
+  text-align: center;
+}
+
+.intro-section strong {
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.intro-actions {
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 2px solid #e3f2fd;
+}
+
+.intro-actions .action-button {
+  font-size: 1.1rem;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.intro-actions .action-button i {
+  margin-right: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mini-quiz-intro {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .intro-header i {
+    font-size: 2.5rem;
+  }
+  
+  .intro-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .intro-section h3 {
+    font-size: 1.1rem;
+  }
 } 

@@ -158,16 +158,22 @@ const NotebookDetail = () => {
   // Añadir al inicio del componente, después de cargar los datos del cuaderno
   useEffect(() => {
     if (cuaderno && cuaderno.color) {
-      // Actualizar la variable CSS para que afecte a todos los elementos que la usan
       document.documentElement.style.setProperty('--notebook-color', cuaderno.color);
+      // Forzar el color del título del header a blanco, ya que hereda el --notebook-color de forma extraña
+      const headerTitle = document.querySelector('.notebook-detail-header .title-container h1');
+      if (headerTitle) {
+        (headerTitle as HTMLElement).style.color = 'white';
+      }
     } else {
-      // Restaurar el valor predeterminado si no hay color personalizado
       document.documentElement.style.setProperty('--notebook-color', 'var(--primary-color)');
     }
 
-    // Limpiar al desmontar el componente
     return () => {
       document.documentElement.style.setProperty('--notebook-color', 'var(--primary-color)');
+      const headerTitle = document.querySelector('.notebook-detail-header .title-container h1');
+      if (headerTitle) {
+        (headerTitle as HTMLElement).style.color = ''; // Limpiar el estilo al desmontar
+      }
     };
   }, [cuaderno]);
 
@@ -602,11 +608,11 @@ const NotebookDetail = () => {
             {conceptosDocs.length === 0 ? (
               <div className="empty-state">
                 <p>Aún no hay conceptos en este cuaderno.</p>
-                <button 
+                <button
                   className="add-first-concept-button"
-                  onClick={() => openModalWithTab('upload')}
+                  onClick={() => openModalWithTab("upload")}
                 >
-                  <i className="fas fa-plus"></i> Añadir mi primer concepto
+                  Añadir mi primer concepto
                 </button>
               </div>
             ) : (

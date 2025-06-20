@@ -240,7 +240,13 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         // Filtrar sesiones completadas en el cliente
         if (sessionData.endTime) {
           if (sessionData.mode === StudyMode.SMART) {
-            completedSmartSessions++;
+            // Para estudio inteligente, solo contar si fue validado por el Mini Quiz
+            if (sessionData.validated === true) {
+              completedSmartSessions++;
+              console.log('✅ Sesión de estudio inteligente validada contada:', doc.id);
+            } else {
+              console.log('❌ Sesión de estudio inteligente NO validada (ignorada):', doc.id);
+            }
           } else if (sessionData.mode === StudyMode.FREE) {
             completedFreeSessions++;
           }

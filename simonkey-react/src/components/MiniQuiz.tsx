@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
@@ -45,6 +45,13 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const [score, setScore] = useState<number>(0);
   const [finalScore, setFinalScore] = useState<number>(0);
   const [passed, setPassed] = useState<boolean>(false);
+  const [showIntro, setShowIntro] = useState<boolean>(true);
+
+  // Usar useRef para guardar las preguntas y evitar que se pierdan
+  const questionsRef = useRef<QuizQuestion[]>([]);
+  
+  // Usar useRef para guardar el score actual y evitar que se pierda
+  const currentScoreRef = useRef<number>(0);
 
   // Configuración del timer para mini quiz (30 segundos)
   const timerConfig = {
@@ -81,25 +88,51 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
   // Manejar tiempo agotado
   const handleTimeUp = () => {
+    console.log('[MINI QUIZ] handleTimeUp llamado, sessionComplete:', sessionComplete);
+    
     if (!sessionComplete) {
       console.log('[MINI QUIZ] Completando mini quiz por tiempo agotado');
-      setSessionActive(false);
+      console.log('[MINI QUIZ] Estado actual:', {
+        questions: questions.length,
+        responses: responses.length,
+        currentQuestionIndex,
+        sessionActive,
+        sessionComplete
+      });
+      
+      // Marcar como completado inmediatamente para evitar múltiples ejecuciones
       setSessionComplete(true);
+      setSessionActive(false);
       stop();
       
       // Calcular score basado en las respuestas dadas hasta el momento
       const correctAnswers = responses.filter(r => r.isCorrect).length;
       const questionsAnswered = responses.length;
+      const totalQuestions = questionsRef.current.length;
       
       console.log('[MINI QUIZ] Tiempo agotado - respuestas hasta el momento:', {
         correctAnswers,
         questionsAnswered,
-        totalQuestions: questions.length,
-        responses: responses.map(r => ({ isCorrect: r.isCorrect }))
+        totalQuestions,
+        responses: responses.map(r => ({ isCorrect: r.isCorrect })),
+        currentScore: score,
+        questionsRefLength: questionsRef.current.length,
+        questionsLength: questions.length
       });
       
-      // Completar con el score actual basado en las respuestas dadas
-      completeMiniQuiz(correctAnswers, 0);
+      // USAR EL SCORE ACTUAL en lugar de recalcular
+      // El score actual ya incluye todas las respuestas dadas
+      const finalScore = currentScoreRef.current; // Usar el score guardado en ref
+      console.log('[MINI QUIZ] Score final (usando score actual):', {
+        scoreActual: currentScoreRef.current,
+        correctAnswers,
+        totalQuestions,
+        finalScore
+      });
+      
+      completeMiniQuiz(finalScore, 0);
+    } else {
+      console.log('[MINI QUIZ] handleTimeUp ignorado - ya completado');
     }
   };
 
@@ -193,7 +226,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   // Iniciar mini quiz
   const startMiniQuiz = async () => {
     try {
-      console.log('[MINI QUIZ] Iniciando mini quiz...');
+      console.log('[MINI QUIZ] Preparando mini quiz...');
       setLoading(true);
       
       // Generar preguntas
@@ -210,18 +243,27 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setCurrentQuestionIndex(0);
       setResponses([]);
       setScore(0);
-      setSessionActive(true);
+      setSessionActive(false);
       setSessionComplete(false);
       
-      // Iniciar timer
-      start();
+      // Guardar preguntas en ref para evitar que se pierdan
+      questionsRef.current = quizQuestions;
       
-      console.log('[MINI QUIZ] Mini quiz iniciado correctamente');
+      console.log('[MINI QUIZ] Mini quiz preparado correctamente');
+      console.log(`[MINI QUIZ] 🎯 Preparado con ${quizQuestions.length} preguntas. Score inicial: 0/10`);
       setLoading(false);
     } catch (error) {
-      console.error("[MINI QUIZ] Error al iniciar mini quiz:", error);
+      console.error("[MINI QUIZ] Error al preparar mini quiz:", error);
       setLoading(false);
     }
+  };
+
+  // Iniciar el mini quiz manualmente
+  const beginMiniQuiz = () => {
+    setShowIntro(false);
+    setSessionActive(true);
+    start(); // Iniciar timer
+    console.log('[MINI QUIZ] Mini quiz iniciado manualmente');
   };
 
   // Manejar respuesta del usuario
@@ -230,7 +272,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
     setSelectedOption(optionId);
     
-    const currentQuestion = questions[currentQuestionIndex];
+    // Usar questionsRef.current como fallback si questions está vacío
+    const currentQuestions = questions.length > 0 ? questions : questionsRef.current;
+    const currentQuestion = currentQuestions[currentQuestionIndex];
     const selectedOptionData = currentQuestion.options.find(opt => opt.id === optionId);
     const correctOption = currentQuestion.options.find(opt => opt.isCorrect);
     
@@ -249,11 +293,28 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     setResponses(prev => [...prev, response]);
     
     if (isCorrect) {
-      setScore(prev => prev + 1);
+      // Calcular puntuación actual incluyendo la respuesta actual
+      const correctAnswers = responses.filter(r => r.isCorrect).length + 1; // +1 por la respuesta actual
+      const totalQuestions = questionsRef.current.length;
+      const currentScore = Math.round((correctAnswers / totalQuestions) * 10);
+      setScore(currentScore);
+      currentScoreRef.current = currentScore; // Guardar en ref
+      
+      console.log(`[MINI QUIZ] ✅ Respuesta correcta! Score actualizado: ${currentScore}/10 (${correctAnswers}/${totalQuestions} correctas)`);
+      
       setFeedbackMessage('¡Correcto! 🎉');
       setFeedbackType('success');
     } else {
-      setFeedbackMessage(`Incorrecto. La respuesta correcta era: ${correctOption.term}`);
+      // Calcular puntuación actual incluyendo la respuesta actual
+      const correctAnswers = responses.filter(r => r.isCorrect).length; // No +1 porque esta respuesta es incorrecta
+      const totalQuestions = questionsRef.current.length;
+      const currentScore = Math.round((correctAnswers / totalQuestions) * 10);
+      setScore(currentScore);
+      currentScoreRef.current = currentScore; // Guardar en ref
+      
+      console.log(`[MINI QUIZ] ❌ Respuesta incorrecta. Score actualizado: ${currentScore}/10 (${correctAnswers}/${totalQuestions} correctas)`);
+      
+      setFeedbackMessage('Incorrecto. La respuesta correcta es: ' + correctOption.term);
       setFeedbackType('error');
     }
 
@@ -286,10 +347,15 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
   // Completar mini quiz
   const completeMiniQuiz = async (finalScoreValue: number, timeRemainingValue: number) => {
+    // Usar questionsRef.current como fallback si questions está vacío
+    const currentQuestions = questions.length > 0 ? questions : questionsRef.current;
+    
     console.log('[MINI QUIZ] Completando mini quiz:', {
       finalScoreValue,
       timeRemainingValue,
-      totalQuestions: questions.length
+      totalQuestions: currentQuestions.length,
+      responsesLength: responses.length,
+      currentScore: score
     });
 
     try {
@@ -297,18 +363,41 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setSessionComplete(true);
       stop();
       
+      // Usar questionsRef.current como fallback si questions está vacío
+      const currentQuestions = questions.length > 0 ? questions : questionsRef.current;
+      
+      // VERIFICACIÓN CRÍTICA: Si ambos están vacíos, algo salió mal
+      if (currentQuestions.length === 0) {
+        console.error('[MINI QUIZ] ERROR: questions y questionsRef están vacíos!');
+        console.error('[MINI QUIZ] Estado completo:', {
+          questions: questions.length,
+          questionsRef: questionsRef.current.length,
+          responses,
+          currentQuestionIndex,
+          sessionActive,
+          sessionComplete
+        });
+        // Intentar recuperar las preguntas o mostrar error
+        return;
+      }
+      
       const correctAnswers = responses.filter(r => r.isCorrect).length;
       const questionsAnswered = responses.length;
-      const totalQuestions = questions.length;
+      const totalQuestions = questionsRef.current.length;
+      
+      console.log('[MINI QUIZ] Datos de respuestas:', {
+        responses: responses.map(r => ({ isCorrect: r.isCorrect, questionId: r.questionId })),
+        correctAnswers,
+        questionsAnswered,
+        totalQuestions
+      });
       
       // Calcular precisión basada en las preguntas respondidas
       const accuracy = questionsAnswered > 0 ? (correctAnswers / questionsAnswered) * 100 : 0;
       
-      // Calcular puntuación base 10 basada en las preguntas respondidas
-      // Si respondió todas las preguntas: (correctas / total) * 10
-      // Si no respondió todas: (correctas / respondidas) * 10
-      const scoreBase10 = questionsAnswered > 0 
-        ? Math.round((correctAnswers / questionsAnswered) * 10)
+      // CORRECCIÓN: Calcular puntuación base 10 sobre el total de preguntas
+      const scoreBase10 = totalQuestions > 0 
+        ? Math.round((correctAnswers / totalQuestions) * 10)
         : 0;
       
       // Verificar si pasó (promedio mínimo de 8)
@@ -326,17 +415,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         responses: responses.map(r => ({ isCorrect: r.isCorrect }))
       });
       
-      // Verificar que el cálculo sea consistente
-      if (finalScoreValue !== correctAnswers) {
-        console.warn('[MINI QUIZ] INCONSISTENCIA DETECTADA:', {
-          finalScoreValue,
-          correctAnswers,
-          questionsAnswered
-        });
-      }
-      
-      setFinalScore(scoreBase10);
-      setPassed(passed);
+      setFinalScore(currentScoreRef.current);
+      setPassed(currentScoreRef.current >= 8);
       
       // Guardar resultados del mini quiz
       await saveMiniQuizResults({
@@ -344,15 +424,15 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         userId: auth.currentUser!.uid,
         notebookId,
         notebookTitle,
-        questions,
+        questions: currentQuestions,
         responses,
         startTime: new Date(),
         endTime: new Date(),
         score: correctAnswers,
-        maxScore: questionsAnswered, // Usar preguntas respondidas en lugar del total
+        maxScore: totalQuestions, // SIEMPRE sobre el total
         accuracy,
-        finalScore: scoreBase10,
-        passed,
+        finalScore: currentScoreRef.current,
+        passed: currentScoreRef.current >= 8,
         timeRemaining: timeRemainingValue
       });
       
@@ -365,7 +445,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       });
       
       // Llamar al callback con el resultado
-      onComplete(passed, scoreBase10);
+      onComplete(currentScoreRef.current >= 8, currentScoreRef.current);
       
     } catch (error) {
       console.error('[MINI QUIZ] Error completing mini quiz:', error);
@@ -384,27 +464,83 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         passed: session.passed
       });
 
-      const cleanData = {
+      // Log detallado de todos los campos para identificar undefined
+      console.log('[MINI QUIZ] Datos de sesión completos:', {
         id: session.id,
         userId: session.userId,
         notebookId: session.notebookId,
         notebookTitle: session.notebookTitle,
-        questions: session.questions,
-        responses: session.responses,
-        startTime: Timestamp.fromDate(session.startTime),
-        endTime: Timestamp.fromDate(session.endTime),
+        questions: session.questions?.length || 'undefined',
+        responses: session.responses?.length || 'undefined',
+        startTime: session.startTime,
+        endTime: session.endTime,
         score: session.score,
         maxScore: session.maxScore,
         accuracy: session.accuracy,
         finalScore: session.finalScore,
         passed: session.passed,
-        timeRemaining: session.timeRemaining,
+        timeRemaining: session.timeRemaining
+      });
+
+      const cleanData = {
+        id: session.id || `mini-quiz-${Date.now()}`,
+        userId: session.userId || auth.currentUser!.uid,
+        notebookId: session.notebookId || '',
+        notebookTitle: session.notebookTitle || '',
+        questions: session.questions || [],
+        responses: session.responses || [],
+        startTime: session.startTime ? Timestamp.fromDate(session.startTime) : Timestamp.now(),
+        endTime: session.endTime ? Timestamp.fromDate(session.endTime) : Timestamp.now(),
+        score: session.score || 0,
+        maxScore: session.maxScore || 0,
+        accuracy: session.accuracy || 0,
+        finalScore: session.finalScore || 0,
+        passed: session.passed || false,
+        timeRemaining: session.timeRemaining || 0,
         createdAt: Timestamp.now()
       };
 
+      // Verificar que no hay campos undefined
+      Object.keys(cleanData).forEach(key => {
+        if ((cleanData as any)[key] === undefined) {
+          console.error(`[MINI QUIZ] Campo undefined encontrado: ${key}`);
+          (cleanData as any)[key] = null;
+        }
+      });
+
+      // Limpieza profunda: eliminar campos undefined de objetos anidados
+      const cleanDeep = (obj: any): any => {
+        if (obj === null || obj === undefined) return null;
+        if (typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) {
+          return obj.map(cleanDeep).filter(item => item !== null);
+        }
+        const cleaned: any = {};
+        Object.keys(obj).forEach(key => {
+          const value = cleanDeep(obj[key]);
+          if (value !== null && value !== undefined) {
+            cleaned[key] = value;
+          }
+        });
+        return cleaned;
+      };
+
+      const finalCleanData = cleanDeep(cleanData);
+      console.log('[MINI QUIZ] Datos limpios para Firebase:', finalCleanData);
+
+      // Log detallado de cada campo para identificar undefined
+      console.log('[MINI QUIZ] Verificación detallada de campos:');
+      Object.keys(finalCleanData).forEach(key => {
+        const value = (finalCleanData as any)[key];
+        console.log(`  ${key}: ${value} (${typeof value})`);
+        if (value === undefined) {
+          console.error(`  ❌ CAMPO UNDEFINED ENCONTRADO: ${key}`);
+        }
+      });
+
       // Guardar resultado del mini quiz
       const miniQuizResultsRef = doc(db, 'users', auth.currentUser.uid, 'miniQuizResults', session.id);
-      await setDoc(miniQuizResultsRef, cleanData);
+      await setDoc(miniQuizResultsRef, finalCleanData);
       
       console.log('[MINI QUIZ] Resultados guardados exitosamente');
     } catch (error) {
@@ -419,10 +555,13 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
   // Renderizar pregunta actual
   const renderCurrentQuestion = () => {
-    if (!questions[currentQuestionIndex]) return null;
+    // Usar questionsRef.current como fallback si questions está vacío
+    const currentQuestions = questions.length > 0 ? questions : questionsRef.current;
+    
+    if (!currentQuestions[currentQuestionIndex]) return null;
 
-    const question = questions[currentQuestionIndex];
-    const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    const question = currentQuestions[currentQuestionIndex];
+    const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
 
     return (
       <div className="mini-quiz-session-container">
@@ -436,7 +575,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
               ></div>
             </div>
             <div className="progress-text">
-              Pregunta {currentQuestionIndex + 1} de {questions.length}
+              Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}
             </div>
           </div>
           
@@ -459,9 +598,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           
           <div className="mini-quiz-score">
             <span className="score-label">Puntuación:</span>
-            <span className={`score-value ${score >= 0 ? 'positive' : 'negative'}`}>
-              {score >= 0 ? '+' : ''}{score}
-            </span>
+            <span className="score-value">{score}/10</span>
           </div>
         </div>
 
@@ -514,7 +651,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const renderMiniQuizResults = () => {
     const correctAnswers = responses.filter(r => r.isCorrect).length;
     const questionsAnswered = responses.length;
-    const totalQuestions = questions.length;
+    const totalQuestions = questionsRef.current.length;
     const wasTimeUp = questionsAnswered < totalQuestions;
 
     return (
@@ -594,6 +731,56 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     );
   };
 
+  // Renderizar introducción al mini quiz
+  const renderMiniQuizIntro = () => {
+    return (
+      <div className="mini-quiz-intro">
+        <div className="intro-header">
+          <i className="fas fa-graduation-cap"></i>
+          <h2>Mini Quiz de Validación</h2>
+        </div>
+        
+        <div className="intro-content">
+          <div className="intro-section">
+            <h3>¿Qué es el Mini Quiz?</h3>
+            <p>
+              Para validar tu estudio inteligente, necesitas completar un mini quiz de 
+              <strong> 5 preguntas</strong> sobre los conceptos que acabas de estudiar.
+            </p>
+          </div>
+          
+          <div className="intro-section">
+            <h3>¿Cómo funciona?</h3>
+            <ul>
+              <li><i className="fas fa-clock"></i> Tienes <strong>30 segundos</strong> para responder</li>
+              <li><i className="fas fa-star"></i> Necesitas una calificación de <strong>8/10 o mayor</strong></li>
+              <li><i className="fas fa-check-circle"></i> Si apruebas, tu estudio inteligente se valida</li>
+              <li><i className="fas fa-redo"></i> Si no apruebas, puedes intentar mañana</li>
+            </ul>
+          </div>
+          
+          <div className="intro-section">
+            <h3>¿Estás listo?</h3>
+            <p>
+              El mini quiz comenzará cuando hagas clic en "Iniciar Mini Quiz". 
+              ¡Buena suerte!
+            </p>
+          </div>
+        </div>
+        
+        <div className="intro-actions">
+          <button
+            className="action-button primary"
+            onClick={beginMiniQuiz}
+          >
+            <i className="fas fa-play"></i>
+            Iniciar Mini Quiz
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="mini-quiz-loading">
@@ -617,6 +804,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       </div>
       
       <div className="mini-quiz-main">
+        {showIntro && renderMiniQuizIntro()}
         {sessionActive && renderCurrentQuestion()}
         {sessionComplete && renderMiniQuizResults()}
       </div>

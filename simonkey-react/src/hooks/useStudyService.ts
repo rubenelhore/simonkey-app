@@ -631,7 +631,15 @@ export const useStudyService = () => {
     async (userId: string, conceptId: string, quality: ResponseQuality): Promise<void> => {
       try {
         // Convertir ResponseQuality a calidad SM-3 (0-5)
-        const sm3Quality = quality === ResponseQuality.MASTERED ? 5 : 2;
+        // MODIFICACIÓN: Usar calidad 2 para intervalos más cortos y repasos más frecuentes
+        const sm3Quality = quality === ResponseQuality.MASTERED ? 2 : 2; // Cambiado de 4 a 2
+        
+        console.log('🔍 updateConceptResponse:', {
+          conceptId,
+          originalQuality: quality,
+          sm3Quality: sm3Quality,
+          reason: 'Usando calidad 2 para intervalos más cortos y repasos más frecuentes'
+        });
         
         // Obtener datos de aprendizaje actuales
         const learningRef = doc(db, 'users', userId, 'learningData', conceptId);
@@ -666,7 +674,7 @@ export const useStudyService = () => {
         await logStudyActivity(
           userId, 
           'concept_reviewed', 
-          `Concepto ${conceptId} marcado como ${quality === ResponseQuality.MASTERED ? 'dominado' : 'revisar después'}`
+          `Concepto ${conceptId} marcado como ${quality === ResponseQuality.MASTERED ? 'dominado' : 'revisar después'} (calidad SM-3: ${sm3Quality})`
         );
       } catch (err) {
         console.error('Error updating concept response:', err);
@@ -931,6 +939,29 @@ export const useStudyService = () => {
     []
   );
 
+  /**
+   * Marcar una sesión de estudio como validada o no validada
+   */
+  const markStudySessionAsValidated = useCallback(
+    async (sessionId: string, validated: boolean = true): Promise<void> => {
+      try {
+        console.log('🔄 Marcando sesión como validada:', { sessionId, validated });
+        const sessionRef = doc(db, 'studySessions', sessionId);
+        
+        await updateDoc(sessionRef, {
+          validated,
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log('✅ Sesión marcada como validada:', validated);
+      } catch (err) {
+        console.error('Error marking study session as validated:', err);
+        throw err;
+      }
+    },
+    []
+  );
+
   return {
     error,
     createStudySession,
@@ -948,6 +979,7 @@ export const useStudyService = () => {
     updateFreeStudyUsage,
     updateSmartStudyUsage,
     resetFreeStudyLimit,
-    resetQuizLimit
+    resetQuizLimit,
+    markStudySessionAsValidated
   };
 };

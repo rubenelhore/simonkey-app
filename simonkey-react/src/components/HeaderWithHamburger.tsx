@@ -78,9 +78,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               height="24"
               style={{ filter: 'brightness(0) invert(1)' }}
             />  
-            <h1 style={{ color: 'white !important', margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
-              <span style={{ color: 'white !important' }}>Simon</span>
-              <span style={{ color: 'white !important' }}>key</span>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+              <span>Simon</span>
+              <span>key</span>
             </h1>
           </div>
           
