@@ -1,0 +1,324 @@
+/* Estilos para el sistema escolar de Simonkey */
+
+/* Panel del profesor */
+.teacher-info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.teacher-info-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.teacher-info-card p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Dashboard de estudiante */
+.study-dashboard-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.notebook-selector {
+  margin-bottom: 2rem;
+}
+
+.notebook-selector h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.notebook-item {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.notebook-item:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.notebook-item.selected {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.notebook-item h4 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Selector de modo de estudio */
+.study-mode-selector {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.study-mode-selector h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.mode-btn {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.mode-btn:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.mode-btn.active {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.start-session-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.start-session-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.start-session-btn:active {
+  transform: translateY(0);
+}
+
+/* Estado vacío */
+.empty-state-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem;
+}
+
+.empty-state {
+  text-align: center;
+  max-width: 500px;
+  background: white;
+  padding: 3rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state h2 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.empty-state p {
+  color: #718096;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.student-info {
+  background: rgba(102, 126, 234, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.student-info p {
+  margin: 0.5rem 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .study-dashboard-container {
+    padding: 1rem;
+  }
+  
+  .mode-buttons {
+    flex-direction: column;
+  }
+  
+  .teacher-info-card {
+    padding: 1rem;
+  }
+  
+  .teacher-info-card h3 {
+    font-size: 1.1rem;
+  }
+  
+  .teacher-info-card p {
+    font-size: 0.85rem;
+  }
+}
+
+/* Mensaje informativo para profesores */
+.teacher-permissions-info {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #856404;
+  font-size: 0.9rem;
+}
+
+.teacher-permissions-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #856404;
+  font-size: 1rem;
+}
+
+/* Mensaje informativo para estudiantes */
+.student-info-banner {
+  background: rgba(23, 162, 184, 0.1);
+  border: 1px solid rgba(23, 162, 184, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #0c5460;
+  font-size: 0.9rem;
+}
+
+.student-info-banner h4 {
+  margin: 0 0 0.5rem 0;
+  color: #0c5460;
+  font-size: 1rem;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notebook-item,
+.study-mode-selector,
+.teacher-info-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estados de hover mejorados */
+.notebook-item:hover h4 {
+  color: #667eea;
+}
+
+.mode-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Indicadores de estado */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.status-indicator.active {
+  background-color: #48bb78;
+}
+
+.status-indicator.inactive {
+  background-color: #e2e8f0;
+}
+
+.status-indicator.warning {
+  background-color: #f6ad55;
+}
+
+/* Mejoras de accesibilidad */
+.mode-btn:focus,
+.notebook-item:focus,
+.start-session-btn:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Estilo para cuadernos heredados */
+.inherited-notebook {
+  position: relative;
+}
+
+.inherited-notebook::before {
+  content: "📚";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* Estilo para cuadernos del profesor */
+.teacher-notebook {
+  position: relative;
+}
+
+.teacher-notebook::before {
+  content: "👨‍🏫";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+} 

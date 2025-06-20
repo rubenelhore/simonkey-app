@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useAuth } from './useAuth';
 import { auth } from '../services/firebase';
 import { 
   getUserProfile, 
@@ -10,88 +10,51 @@ import {
 import { UserProfile, SubscriptionLimits, UserSubscriptionType, SchoolRole } from '../types/interfaces';
 
 export const useUserType = () => {
-  const [user, loading, error] = useAuthState(auth);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [subscriptionLimits, setSubscriptionLimits] = useState<SubscriptionLimits | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const { userProfile, loading } = useAuth();
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (user) {
-        try {
-          setLoadingProfile(true);
-          const profile = await getUserProfile(user.uid);
-          setUserProfile(profile);
-          
-          if (profile) {
-            const limits = getSubscriptionLimits(profile.subscription);
-            setSubscriptionLimits(limits);
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-        } finally {
-          setLoadingProfile(false);
-        }
-      } else {
-        setUserProfile(null);
-        setSubscriptionLimits(null);
-        setLoadingProfile(false);
-      }
+  // Logs para depuración
+  console.log('useUserType - loading:', loading);
+  if (!loading) {
+    console.log('useUserType - userProfile:', userProfile);
+  }
+
+  // Valores por defecto mientras carga
+  if (loading || !userProfile) {
+    return {
+      isSuperAdmin: false,
+      subscription: undefined,
+      schoolRole: undefined,
+      isSchoolUser: false,
+      isSchoolTeacher: false,
+      isSchoolStudent: false,
+      userProfile: null,
+      loading: true
     };
+  }
 
-    fetchUserProfile();
-  }, [user]);
+  // Extraer datos del perfil
+  const { subscription, schoolRole } = userProfile;
+  const isSuperAdmin = userProfile.email === 'ruben.elhore@gmail.com';
 
-  const checkCanCreateNotebook = async () => {
-    if (!user) return { canCreate: false, reason: 'Usuario no autenticado' };
-    return await canCreateNotebook(user.uid);
-  };
-
-  const checkCanAddConcepts = async (notebookId: string, currentConceptCount: number) => {
-    if (!user) return { canAdd: false, reason: 'Usuario no autenticado' };
-    return await canAddConcepts(user.uid, notebookId, currentConceptCount);
-  };
-
-  const isSuperAdmin = userProfile?.subscription === UserSubscriptionType.SUPER_ADMIN;
-  const isFreeUser = userProfile?.subscription === UserSubscriptionType.FREE;
-  const isProUser = userProfile?.subscription === UserSubscriptionType.PRO;
-  const isSchoolUser = userProfile?.subscription === UserSubscriptionType.SCHOOL;
-
-  // Debug logs
-  console.log('useUserType - user:', user?.email);
-  console.log('useUserType - userProfile:', userProfile);
-  console.log('useUserType - isSuperAdmin:', isSuperAdmin);
-  console.log('useUserType - subscription:', userProfile?.subscription);
-
-  const isSchoolAdmin = isSchoolUser && userProfile?.schoolRole === SchoolRole.ADMIN;
-  const isSchoolTeacher = isSchoolUser && userProfile?.schoolRole === SchoolRole.TEACHER;
-  const isSchoolStudent = isSchoolUser && userProfile?.schoolRole === SchoolRole.STUDENT;
+  // Determinar si es usuario escolar
+  const isSchoolUser = subscription === 'school';
+  const isSchoolTeacher = isSchoolUser && schoolRole === SchoolRole.TEACHER;
+  const isSchoolStudent = isSchoolUser && schoolRole === SchoolRole.STUDENT;
+  
+  // Log de los roles calculados
+  console.log('useUserType - Roles calculados:');
+  console.log('  - isSchoolUser:', isSchoolUser);
+  console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  console.log('  - isSchoolStudent:', isSchoolStudent);
 
   return {
-    user,
-    userProfile,
-    subscriptionLimits,
-    loading: loading || loadingProfile,
-    error,
-    checkCanCreateNotebook,
-    checkCanAddConcepts,
     isSuperAdmin,
-    isFreeUser,
-    isProUser,
+    subscription,
+    schoolRole,
     isSchoolUser,
-    isSchoolAdmin,
     isSchoolTeacher,
     isSchoolStudent,
-    // Información de límites
-    maxNotebooks: subscriptionLimits?.maxNotebooks,
-    maxConceptsPerNotebook: subscriptionLimits?.maxConceptsPerNotebook,
-    maxNotebooksPerWeek: subscriptionLimits?.maxNotebooksPerWeek,
-    maxConceptsPerWeek: subscriptionLimits?.maxConceptsPerWeek,
-    canDeleteAndRecreate: subscriptionLimits?.canDeleteAndRecreate,
-    // Permisos
-    canViewAllData: subscriptionLimits?.permissions.canViewAllData,
-    canEditAllData: subscriptionLimits?.permissions.canEditAllData,
-    canUseStudySection: subscriptionLimits?.permissions.canUseStudySection,
-    canManageUsers: subscriptionLimits?.permissions.canManageUsers,
+    userProfile,
+    loading: false
   };
 }; 

@@ -189,9 +189,11 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
         id: userData.id,
         email: userData.email,
         subscription: userData.subscription,
+        schoolRole: userData.schoolRole,
         notebookCount: userData.notebookCount,
         maxNotebooks: userData.maxNotebooks
       });
+      console.log('📋 Perfil completo JSON:', JSON.stringify(userData, null, 2));
       return userData;
     }
     

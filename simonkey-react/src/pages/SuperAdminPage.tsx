@@ -16,6 +16,7 @@ import { deleteAllUserData, deleteUserCompletely } from '../services/userService
 import UserDataManagement from '../components/UserDataManagement';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
+import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents } from '../utils/syncSchoolUsers';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -36,12 +37,15 @@ interface User {
 
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isSuperAdmin, user, userProfile, loading: userTypeLoading } = useUserType();
+  const { isSuperAdmin, userProfile, loading: userTypeLoading } = useUserType();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [sqlQuery, setSqlQuery] = useState('');
   const [sqlResults, setSqlResults] = useState<any[]>([]);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResults, setSyncResults] = useState<any>(null);
+  const [schools, setSchools] = useState<any[]>([]);
 
   console.log('SuperAdminPage - Component loaded - FULL VERSION');
   console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
@@ -240,6 +244,76 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
+  // Funciones de sincronización de usuarios escolares
+  const handleSyncAllSchoolUsers = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los usuarios escolares? Esto creará usuarios reales en Firebase Auth para todos los schoolTeachers y schoolStudents.')) {
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      console.log('🚀 Iniciando sincronización completa...');
+      const results = await syncAllSchoolUsers();
+      setSyncResults(results);
+      
+      // Mostrar resumen
+      const totalSuccess = results.teachers.success + results.students.success;
+      const totalErrors = results.teachers.errors.length + results.students.errors.length;
+      
+      alert(`Sincronización completada!\n✅ Exitosos: ${totalSuccess}\n❌ Errores: ${totalErrors}`);
+      
+      // Recargar datos
+      await loadData();
+    } catch (error) {
+      console.error('Error en sincronización:', error);
+      alert('Error durante la sincronización. Revisa la consola para más detalles.');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleSyncTeachers = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres sincronizar solo los profesores?')) {
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      console.log('👨‍🏫 Sincronizando solo profesores...');
+      const results = await syncSchoolTeachers();
+      setSyncResults({ teachers: results, students: null });
+      
+      alert(`Profesores sincronizados!\n✅ Exitosos: ${results.success}\n❌ Errores: ${results.errors.length}`);
+      await loadData();
+    } catch (error) {
+      console.error('Error sincronizando profesores:', error);
+      alert('Error sincronizando profesores. Revisa la consola para más detalles.');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleSyncStudents = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres sincronizar solo los estudiantes?')) {
+      return;
+    }
+
+    setSyncLoading(true);
+    try {
+      console.log('👨‍🎓 Sincronizando solo estudiantes...');
+      const results = await syncSchoolStudents();
+      setSyncResults({ teachers: null, students: results });
+      
+      alert(`Estudiantes sincronizados!\n✅ Exitosos: ${results.success}\n❌ Errores: ${results.errors.length}`);
+      await loadData();
+    } catch (error) {
+      console.error('Error sincronizando estudiantes:', error);
+      alert('Error sincronizando estudiantes. Revisa la consola para más detalles.');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   // Función para reparar usuarios con datos faltantes
   const repairUsers = async () => {
     try {
@@ -375,6 +449,13 @@ const SuperAdminPage: React.FC = () => {
           >
             <i className="fas fa-database"></i>
             Gestión de Datos
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'schoolSync' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schoolSync')}
+          >
+            <i className="fas fa-sync-alt"></i>
+            Sync Escolar
           </button>
         </nav>
 
@@ -603,6 +684,144 @@ const SuperAdminPage: React.FC = () => {
               </div>
               
               <UserDataManagement />
+            </div>
+          )}
+
+          {/* Tab de Sincronización Escolar */}
+          {activeTab === 'schoolSync' && (
+            <div className="school-sync-tab">
+              <div className="tab-header">
+                <h2>🔄 Sincronización de Usuarios Escolares</h2>
+                <p className="tab-description">
+                  Sincroniza los usuarios de las colecciones schoolTeachers y schoolStudents 
+                  para crear usuarios reales en Firebase Auth que puedan hacer login.
+                </p>
+              </div>
+
+              {syncLoading && (
+                <div className="loading-overlay">
+                  <div className="spinner"></div>
+                  <p>Sincronizando usuarios escolares...</p>
+                </div>
+              )}
+
+              <div className="sync-actions">
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🚀 Sincronización Completa</h3>
+                    <p>Sincroniza TODOS los profesores y estudiantes escolares</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-all"
+                    onClick={handleSyncAllSchoolUsers}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-sync-alt"></i>
+                    Sincronizar Todo
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>👨‍🏫 Solo Profesores</h3>
+                    <p>Sincroniza únicamente los schoolTeachers</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-teachers"
+                    onClick={handleSyncTeachers}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-chalkboard-teacher"></i>
+                    Sincronizar Profesores
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>👨‍🎓 Solo Estudiantes</h3>
+                    <p>Sincroniza únicamente los schoolStudents</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-students"
+                    onClick={handleSyncStudents}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-user-graduate"></i>
+                    Sincronizar Estudiantes
+                  </button>
+                </div>
+              </div>
+
+              {syncResults && (
+                <div className="sync-results">
+                  <h3>📊 Resultados de Sincronización</h3>
+                  
+                  {syncResults.teachers && (
+                    <div className="result-section">
+                      <h4>👨‍🏫 Profesores</h4>
+                      <div className="result-stats">
+                        <div className="stat-item success">
+                          <span className="stat-number">{syncResults.teachers.success}</span>
+                          <span className="stat-label">Exitosos</span>
+                        </div>
+                        <div className="stat-item error">
+                          <span className="stat-number">{syncResults.teachers.errors.length}</span>
+                          <span className="stat-label">Errores</span>
+                        </div>
+                      </div>
+                      
+                      {syncResults.teachers.errors.length > 0 && (
+                        <div className="error-details">
+                          <h5>Errores en Profesores:</h5>
+                          {syncResults.teachers.errors.map((error: any, index: number) => (
+                            <div key={index} className="error-item">
+                              <strong>{error.email}:</strong> {error.error}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {syncResults.students && (
+                    <div className="result-section">
+                      <h4>👨‍🎓 Estudiantes</h4>
+                      <div className="result-stats">
+                        <div className="stat-item success">
+                          <span className="stat-number">{syncResults.students.success}</span>
+                          <span className="stat-label">Exitosos</span>
+                        </div>
+                        <div className="stat-item error">
+                          <span className="stat-number">{syncResults.students.errors.length}</span>
+                          <span className="stat-label">Errores</span>
+                        </div>
+                      </div>
+                      
+                      {syncResults.students.errors.length > 0 && (
+                        <div className="error-details">
+                          <h5>Errores en Estudiantes:</h5>
+                          {syncResults.students.errors.map((error: any, index: number) => (
+                            <div key={index} className="error-item">
+                              <strong>{error.email}:</strong> {error.error}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="sync-info">
+                <h3>ℹ️ Información Importante</h3>
+                <ul>
+                  <li>La sincronización crea usuarios reales en Firebase Auth con contraseña "1234"</li>
+                  <li>Los usuarios sincronizados podrán hacer login en el sistema</li>
+                  <li>Se mantienen los datos originales en las colecciones escolares</li>
+                  <li>Los usuarios ya existentes solo se actualizarán en la colección users</li>
+                  <li>Es recomendable hacer backup antes de ejecutar la sincronización masiva</li>
+                </ul>
+              </div>
             </div>
           )}
         </div>

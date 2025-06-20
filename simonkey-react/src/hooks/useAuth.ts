@@ -4,6 +4,7 @@ import { auth } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
 import { getUserProfile } from '../services/userService';
 import { UserProfile } from '../types/interfaces';
+import { checkAndFixCurrentUser } from '../utils/fixOrphanUsers';
 
 export interface AuthState {
   user: User | null;
@@ -68,14 +69,68 @@ export const useAuth = () => {
   // Función para cargar el perfil completo del usuario
   const loadUserProfile = async (user: User) => {
     try {
+      console.log(`🔍 loadUserProfile - Iniciando carga para: ${user.email} (${user.uid})`);
       const profile = await getUserProfile(user.uid);
-      setAuthState(prev => ({
-        ...prev,
-        userProfile: profile
-      }));
+      
+      console.log(`🔍 loadUserProfile - Perfil obtenido:`, profile);
+      
+      // Si no se encuentra el perfil, verificar si es un usuario huérfano
+      if (!profile) {
+        console.log('⚠️ Perfil de usuario no encontrado, verificando si es usuario huérfano...');
+        const wasFixed = await checkAndFixCurrentUser();
+        
+        if (wasFixed) {
+          console.log('✅ Usuario huérfano arreglado, recargando perfil...');
+          // Recargar el perfil después de arreglarlo
+          const newProfile = await getUserProfile(user.uid);
+          console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
+          setAuthState(prev => ({
+            ...prev,
+            userProfile: newProfile
+          }));
+          return newProfile;
+        }
+      } else {
+        console.log(`🔍 loadUserProfile - Perfil encontrado, subscription: ${profile.subscription}, schoolRole: ${profile.schoolRole}`);
+      }
+      
+      setAuthState(prev => {
+        console.log('🔍 loadUserProfile - setAuthState - Estado anterior:', prev);
+        const newState = {
+          ...prev,
+          userProfile: profile
+        };
+        console.log('🔍 loadUserProfile - setAuthState - Nuevo estado:', newState);
+        return newState;
+      });
       return profile;
     } catch (error) {
       console.error('Error cargando perfil de usuario:', error);
+      
+      // Si hay error, intentar arreglar usuario huérfano
+      try {
+        console.log('⚠️ Error cargando perfil, verificando si es usuario huérfano...');
+        const wasFixed = await checkAndFixCurrentUser();
+        
+        if (wasFixed) {
+          console.log('✅ Usuario huérfano arreglado, recargando perfil...');
+          const newProfile = await getUserProfile(user.uid);
+          console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar (error):`, newProfile);
+          setAuthState(prev => {
+            console.log('🔍 loadUserProfile - setAuthState (primer arreglo) - Estado anterior:', prev);
+            const newState = {
+              ...prev,
+              userProfile: newProfile
+            };
+            console.log('🔍 loadUserProfile - setAuthState (primer arreglo) - Nuevo estado:', newState);
+            return newState;
+          });
+          return newProfile;
+        }
+      } catch (fixError) {
+        console.error('Error arreglando usuario huérfano:', fixError);
+      }
+      
       return null;
     }
   };
@@ -103,37 +158,57 @@ export const useAuth = () => {
     console.log('🔐 Configurando listener de autenticación');
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('🔄 Estado de autenticación cambió:', user ? 'Usuario logueado' : 'No hay usuario');
+      console.log('🔄 Estado de autenticación cambió:', user ? `Usuario logueado: ${user.email}` : 'No hay usuario');
       
       if (user) {
-        console.log('👤 Usuario encontrado:', user.email);
-        
-        // Actualizar estado básico inmediatamente
+        // Mantener el estado de carga mientras se obtiene el perfil
         setAuthState(prev => ({
           ...prev,
-          user,
-          isAuthenticated: true,
-          loading: false
+          loading: true,
         }));
+
+        console.log('👤 Usuario encontrado:', user.email);
         
-        // Cargar perfil de usuario y verificar email en paralelo
         try {
-          await Promise.all([
+          console.log('🔍 Iniciando carga de perfil y verificación...');
+          const [profile, verificationResult] = await Promise.all([
             loadUserProfile(user),
             updateVerificationState(user)
           ]);
           
-          console.log('✅ Información de usuario cargada completamente');
+          console.log('✅ Carga completa. Perfil:', profile, 'Verificación:', verificationResult);
+
+          // Actualizar todo el estado de una vez
+          setAuthState(prev => ({
+            ...prev,
+            user,
+            userProfile: profile,
+            isAuthenticated: true,
+            isEmailVerified: verificationResult,
+            emailVerificationState: {
+              ...prev.emailVerificationState, // Mantener el conteo si ya existe
+              isEmailVerified: verificationResult,
+            },
+            loading: false, // Ahora sí, la carga ha terminado
+          }));
+          
         } catch (error) {
           console.error('❌ Error cargando información de usuario:', error);
-          // No cambiar el estado de autenticación por errores de carga
+          // Si hay un error, terminar la carga y dejar al usuario sin perfil
+          setAuthState(prev => ({
+            ...prev,
+            user, // Mantener el usuario de Auth
+            isAuthenticated: true,
+            userProfile: null,
+            loading: false,
+          }));
         }
       } else {
         console.log('❌ No hay usuario autenticado');
         setAuthState({
           user: null,
           userProfile: null,
-          loading: false,
+          loading: false, // La carga termina, no hay usuario
           emailVerificationState: {
             isEmailVerified: false,
             verificationCount: 0

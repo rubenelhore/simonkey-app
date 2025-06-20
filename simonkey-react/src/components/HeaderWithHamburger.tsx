@@ -22,14 +22,15 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   onBackClick,
   children
 }) => {
+  const { user, logout, userProfile } = useAuth();
+  const { isSuperAdmin, subscription } = useUserType();
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { isFreeUser, isSuperAdmin } = useUserType();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const isFreeUser = subscription === 'free';
 
   const toggleMenu = () => {
-    setMenuOpen(!menuOpen);
+    setMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const handleLogout = async () => {
@@ -42,18 +43,17 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   };
 
   const handleOpenUpgradeModal = () => {
-    setIsUpgradeModalOpen(true);
-    setMenuOpen(false);
+    setMobileMenuOpen(false);
   };
 
   const handleCloseUpgradeModal = () => {
-    setIsUpgradeModalOpen(false);
+    setMobileMenuOpen(false);
   };
 
   return (
-    <div className={`header-with-hamburger-container ${menuOpen ? 'menu-open' : ''}`}>
+    <div className={`header-with-hamburger-container ${isMobileMenuOpen ? 'menu-open' : ''}`}>
       {/* Overlay para cerrar el menú */}
-      {menuOpen && (
+      {isMobileMenuOpen && (
         <div className="menu-overlay" onClick={toggleMenu}></div>
       )}
       
@@ -99,7 +99,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       </header>
       
       {/* Menú lateral deslizante */}
-      <div className={`side-menu ${menuOpen ? 'side-menu-open' : ''}`}>
+      <div className={`side-menu ${isMobileMenuOpen ? 'side-menu-open' : ''}`}>
         <div className="side-menu-header">
           <h3>Menú</h3>
           <button className="side-menu-close" onClick={toggleMenu}>
@@ -137,7 +137,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       </div>
       
-      {isUpgradeModalOpen && (
+      {isMobileMenuOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
             <div className="modal-header">

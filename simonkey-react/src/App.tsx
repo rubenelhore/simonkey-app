@@ -27,14 +27,21 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
+// Importaciones para el sistema escolar
+import SchoolTeacherNotebooksPage from './pages/SchoolTeacherNotebooksPage';
+import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
 // Importaciones del sistema de cookies y privacidad
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 // Importar el hook useAuth
 import { useAuth } from './hooks/useAuth';
+// Importar el hook useUserType para detectar usuarios escolares
+import { useUserType } from './hooks/useUserType';
 // Importar el guard de verificación de email
 import EmailVerificationGuard from './components/EmailVerificationGuard';
+// Importar el guard para usuarios escolares
+import SchoolUserGuard from './components/SchoolUserGuard';
 
 // Definir el tipo para el usuario
 interface User {
@@ -122,18 +129,15 @@ const AppWrapper: React.FC = () => {
 
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
-  // Usar el hook useAuth en lugar del estado local
   const { user, isAuthenticated, isEmailVerified, loading, initializing } = useAuth();
-  
+  const { isSchoolTeacher, isSchoolStudent } = useUserType();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Estado para gestionar si el usuario ha completado el onboarding
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
-    // Check localStorage or user preferences from database
     return localStorage.getItem('hasCompletedOnboarding') === 'true';
   });
 
-  // Efecto para redirigir usuarios no autenticados
   useEffect(() => {
     if (!loading && !initializing) {
       // Si no está autenticado y no está en una página pública, redirigir a login
@@ -141,14 +145,19 @@ const AppContent: React.FC = () => {
         navigate('/login', { replace: true });
       }
       
-      // Si está autenticado y verificado y está en login/signup, redirigir a notebooks
-      if (isAuthenticated && isEmailVerified && ['/login', '/signup'].includes(window.location.pathname)) {
-        navigate('/notebooks', { replace: true });
+      // Si está autenticado y verificado, solo manejar redirección de usuarios normales
+      if (isAuthenticated && isEmailVerified) {
+        const currentPath = window.location.pathname;
+        
+        // USUARIOS NORMALES: Si está en login/signup, redirigir a notebooks
+        // (Los usuarios escolares son manejados por EmailVerificationGuard)
+        if (!isSchoolTeacher && !isSchoolStudent && ['/login', '/signup'].includes(currentPath)) {
+          navigate('/notebooks', { replace: true });
+        }
       }
     }
-  }, [isAuthenticated, isEmailVerified, loading, initializing, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, initializing, isSchoolTeacher, isSchoolStudent, navigate]);
 
-  // Mostrar loading mientras se inicializa
   if (loading || initializing) {
     return (
       <div style={{
@@ -187,6 +196,8 @@ const AppContent: React.FC = () => {
       </div>
     );
   }
+  
+  const showMobileNav = isAuthenticated && !location.pathname.startsWith('/school');
 
   return (
     <UserContext.Provider value={{ user: user ? {
@@ -197,10 +208,20 @@ const AppContent: React.FC = () => {
       isAuthenticated: true
     } : { isAuthenticated: false }, setUser: () => {} }}>
       <Routes>
-        {/* Ruta principal: redirige a /notebooks si está autenticado */}
+        {/* Ruta principal: redirige según el tipo de usuario */}
         <Route 
           path="/" 
-          element={isAuthenticated && isEmailVerified ? <Navigate to="/notebooks" replace /> : <HomePage />} 
+          element={(() => {
+            if (isAuthenticated && isEmailVerified) {
+              // Redirigir usuarios escolares a su módulo específico
+              if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+              if (isSchoolStudent) return <Navigate to="/school/student" replace />;
+              // Usuarios normales van a notebooks
+              return <Navigate to="/notebooks" replace />;
+            }
+            // Usuarios no autenticados ven la página de inicio
+            return <HomePage />;
+          })()} 
         />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<LoginPage />} />
@@ -217,59 +238,87 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <>
-                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                    setHasCompletedOnboarding(true);
-                    localStorage.setItem('hasCompletedOnboarding', 'true');
-                  }} />}
-                  <Notebooks />
-                </>
+                <SchoolUserGuard>
+                  <>
+                    {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                      setHasCompletedOnboarding(true);
+                      localStorage.setItem('hasCompletedOnboarding', 'true');
+                    }} />}
+                    <Notebooks />
+                  </>
+                </SchoolUserGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
         />
         <Route
           path="/notebooks/:id"
-          element={isAuthenticated ? <EmailVerificationGuard><NotebookDetail /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><NotebookDetail /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route
           path="/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={isAuthenticated ? <EmailVerificationGuard><ConceptDetail /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ConceptDetail /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route
           path="/tools/explain/:type/:notebookId"
-          element={isAuthenticated ? <EmailVerificationGuard><ExplainConceptPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ExplainConceptPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         <Route path="/shared/:shareId" element={<SharedNotebook />} />
         
         {/* Nueva ruta para configuración de voz */}
         <Route
           path="/settings/voice"
-          element={isAuthenticated ? <EmailVerificationGuard><VoiceSettingsPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><VoiceSettingsPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para estudio */}
         <Route
           path="/study"
-          element={isAuthenticated ? <EmailVerificationGuard><StudyModePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><StudyModePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para progreso */}
         <Route
           path="/progress"
-          element={isAuthenticated ? <EmailVerificationGuard><ProgressPage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ProgressPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para perfil */}
         <Route
           path="/profile"
-          element={isAuthenticated ? <EmailVerificationGuard><ProfilePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ProfilePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
         />
         
         {/* Nueva ruta para quiz */}
         <Route
           path="/quiz"
-          element={isAuthenticated ? <EmailVerificationGuard><QuizModePage /></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><QuizModePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+        />
+        
+        {/* Rutas para el sistema escolar */}
+        <Route
+          path="/school/teacher"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolTeacherNotebooksPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/school/student"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolStudentStudyPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Ruta para el panel de control del súper admin */}
@@ -282,7 +331,7 @@ const AppContent: React.FC = () => {
               console.log('App - isEmailVerified:', isEmailVerified);
               if (isAuthenticated) {
                 console.log('App - Rendering SuperAdminPage');
-                return <EmailVerificationGuard><SuperAdminPage /></EmailVerificationGuard>;
+                return <EmailVerificationGuard><SchoolUserGuard><SuperAdminPage /></SchoolUserGuard></EmailVerificationGuard>;
               } else {
                 console.log('App - Redirecting to login');
                 return <Navigate to="/login" replace />;
@@ -291,7 +340,7 @@ const AppContent: React.FC = () => {
           }
         />
       </Routes>
-      {isAuthenticated && isEmailVerified && <MobileNavigation />}
+      {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
     </UserContext.Provider>

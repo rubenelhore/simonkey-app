@@ -24,7 +24,8 @@ const LoginPage: React.FC = () => {
   const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const { isAuthenticated, isEmailVerified, loading: authLoading } = useAuth();
   
-  // Check if user is already logged in and verified
+  // REDACTADO: Lógica de redirección movida a App.tsx y SchoolUserGuard
+  /*
   useEffect(() => {
     console.log("🔍 LoginPage - Verificando autenticación");
     console.log("🔍 LoginPage - Estado de autenticación:", { isAuthenticated, isEmailVerified, authLoading });
@@ -43,6 +44,7 @@ const LoginPage: React.FC = () => {
       console.log("⏳ LoginPage - Cargando estado de autenticación...");
     }
   }, [isAuthenticated, isEmailVerified, authLoading, navigate]);
+  */
 
   // Mostrar error de Google Auth si existe
   useEffect(() => {
@@ -65,6 +67,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    console.log(`Attempting to log in with email: "${email}"`); // Log para depurar
 
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
@@ -80,8 +83,8 @@ const LoginPage: React.FC = () => {
         return;
       }
       
-      // Usuario válido, redirigir
-      navigate('/notebooks', { replace: true });
+      // Usuario válido, la redirección se manejará en App.tsx o los guards
+      // navigate('/notebooks', { replace: true });
     } catch (error: any) {
       console.error("Error en login:", error);
       let errorMessage = "Error al iniciar sesión";

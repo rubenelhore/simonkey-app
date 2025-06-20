@@ -20,7 +20,9 @@ const Notebooks: React.FC = () => {
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isSuperAdmin, isFreeUser } = useUserType();
+  const { isSuperAdmin, subscription } = useUserType();
+
+  const isFreeUser = subscription === 'free';
 
   // Debug log para verificar el estado de isSuperAdmin
   console.log('Notebooks - isSuperAdmin:', isSuperAdmin);

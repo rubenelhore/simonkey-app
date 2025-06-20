@@ -1,36 +1,103 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas generales: Autenticación requerida para la mayoría de las operaciones
+    
+    // =================================
+    // FUNCIONES DE AUTENTICACIÓN
+    // =================================
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // NUEVA - Función para verificar si el usuario es súper admin
-    function isSuperAdmin() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscription == 'super_admin';
+    function getProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Reglas para notebooks
+    function isSuperAdmin() {
+      return isSignedIn() && getProfile().subscription == 'super_admin';
+    }
+
+    // NUEVO - Función para verificar si es usuario escolar
+    function isSchoolUser() {
+      return isSignedIn() && getProfile().subscription == 'school';
+    }
+
+    // NUEVO - Función para obtener el rol escolar
+    function getSchoolRole() {
+      return getProfile().schoolRole;
+    }
+
+    // NUEVO - Función para verificar si es profesor
+    function isTeacher() {
+      return isSchoolUser() && getSchoolRole() == 'teacher';
+    }
+
+    // NUEVO - Función para verificar si es estudiante
+    function isStudent() {
+      return isSchoolUser() && getSchoolRole() == 'student';
+    }
+
+    // NUEVO - Función para obtener el schoolId del usuario
+    function getUserSchoolId() {
+      return getProfile().schoolId;
+    }
+
+    // =================================
+    // REGLAS PARA COLECCIONES ESCOLARES
+    // =================================
+
+    // NUEVO - Reglas para la colección 'schools'
+    match /schools/{schoolId} {
+      // Profesores y estudiantes pueden leer los datos de su propia escuela
+      allow read: if isSchoolUser() && getUserSchoolId() == schoolId;
+      
+      // Solo súper admins pueden crear, actualizar o eliminar escuelas
+      allow write, create, update, delete: if isSuperAdmin();
+    }
+
+    // NUEVO - Reglas para schoolTeachers y schoolStudents
+    match /schoolTeachers/{teacherId} {
+      allow read: if isSchoolUser(); // Profesores pueden ver a otros profesores
+      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar
+    }
+
+    match /schoolStudents/{studentId} {
+      allow read: if isTeacher(); // Profesores pueden ver a sus estudiantes
+      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar
+    }
+
+    // NUEVO - Reglas para schoolNotebooks
+    match /schoolNotebooks/{notebookId} {
+      // Profesores pueden crear, leer, actualizar y eliminar cuadernos de su escuela
+      allow read, write, create, delete: if isTeacher() && getUserSchoolId() == request.resource.data.schoolId;
+
+      // Estudiantes pueden leer los cuadernos de su escuela
+      allow read: if isStudent() && getUserSchoolId() == resource.data.schoolId;
+    }
+
+    // =================================
+    // REGLAS PARA COLECCIONES GENERALES
+    // =================================
+
+    // Reglas para notebooks de usuarios normales
     match /notebooks/{notebookId} {
       allow read: if isSignedIn();
-      // Corrected create rule: check against request.resource.data
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
-      // Delete rule likely correct as it checks the existing document
       allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
-      allow update: if isSignedIn() && request.auth.uid == resource.data.userId &&
-        (
-          (request.resource.data.conceptos is list &&
-           resource.data.conceptos is list &&
-           request.resource.data.conceptos.size() >= resource.data.conceptos.size()) ||
-          (!request.resource.data.keys().hasAny(['conceptos']))
-        );
+      allow update: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
 
-      // NUEVA - Reglas para conceptos dentro de notebooks
-      match /concepts/{conceptId} {
-        allow read, write, delete: if isSignedIn();
+    // Reglas para la colección 'users'
+    match /users/{userId} {
+      // Súper admins tienen acceso total
+      allow read, write, delete: if isSuperAdmin();
+      // Usuarios autenticados pueden acceder a su propio perfil
+      allow read, write, delete: if isSignedIn() && request.auth.uid == userId;
+
+      // Subcolecciones de usuario
+      match /{subcollection}/{docId} {
+        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
       }
     }
 
@@ -53,69 +120,6 @@ service cloud.firestore {
     // NUEVA - Reglas para estadísticas de conceptos
     match /conceptStats/{statId} {
       allow read, write, delete: if isSignedIn(); // Consider more specific rules
-    }
-
-    // Reglas para users (colección en inglés) - MODIFICADO PARA SÚPER ADMINS
-    match /users/{userId} {
-      // Súper admins pueden leer/escribir/eliminar todos los usuarios
-      allow read, write, delete: if isSuperAdmin();
-      // Usuarios normales solo pueden leer/escribir/eliminar su propio perfil
-      allow read, write, delete: if isSignedIn() && request.auth.uid == userId;
-
-      // Reglas para las estadísticas del usuario
-      match /stats/{document=**} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // Reglas para la subcolección settings
-      match /settings/{document=**} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para datos de aprendizaje
-      match /learningData/{document=**} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para estadísticas de quiz por cuaderno
-      match /quizStats/{notebookId} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para límites de estudio
-      match /limits/{document} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para límites de cuadernos
-      match /notebookLimits/{notebookId} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para notebooks del usuario
-      match /notebooks/{notebookId} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-
-        // NUEVA - Reglas para conceptos dentro de notebooks del usuario
-        match /concepts/{conceptId} {
-          allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-        }
-
-        // NUEVA - Reglas para límites dentro de notebooks del usuario
-        match /limits/{document} {
-          allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-        }
-      }
-
-      // NUEVA - Reglas para resultados de quiz
-      match /quizResults/{quizId} {
-        allow read, write, delete: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
-      }
-
-      // NUEVA - Reglas para registros de eliminación de usuarios
-      match /userDeletions/{userId} {
-        allow read, write, delete: if isSuperAdmin();
-      }
     }
 
     // Reglas para usuarios (colección en español)
