@@ -28,9 +28,9 @@ const HowItWorks: React.FC = () => {
           <div className="step">
             <div className="step-number">3</div>
             <div className="step-content">
-              <h3 className="step-title">Genera mnemotecnias</h3>
+              <h3 className="step-title">Tarjetas inteligentes</h3>
               <p className="step-description">
-                Selecciona los conceptos que quieres aprender y crea herramientas de estudio personalizadas: tarjetas, historias, canciones y mnemotecnias.
+                Crea tarjetas de estudio interactivas que te ayudarán a memorizar conceptos clave de forma más efectiva. Refuerza tu aprendizaje con nuestras tarjetas inteligentes.
               </p>
             </div>
           </div>
