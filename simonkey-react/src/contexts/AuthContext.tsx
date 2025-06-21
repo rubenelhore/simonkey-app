@@ -7,7 +7,7 @@ import { UserProfile } from '../types/interfaces';
 import { checkAndFixCurrentUser } from '../utils/fixOrphanUsers';
 
 // Maintenance mode flag - DISABLE ALL FIREBASE OPERATIONS
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 export interface AuthState {
   user: User | null;
@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isEmailVerified: isVerified
       }));
       
-      console.log('🔍 updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
+      console.log('�� updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
       return isVerified;
     } catch (error) {
       console.error('Error actualizando estado de verificación:', error);

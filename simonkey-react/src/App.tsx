@@ -194,7 +194,7 @@ const AppContent: React.FC = () => {
   });
 
   // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
-  const MAINTENANCE_MODE = true;
+  const MAINTENANCE_MODE = false;
   
   if (MAINTENANCE_MODE) {
     return <MaintenanceMode />;

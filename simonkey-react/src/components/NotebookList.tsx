@@ -6,13 +6,12 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
-import './NotebookList.css';
 
 // Define la interfaz Notebook localmente en lugar de importarla
 interface Notebook {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
   conceptCount: number;

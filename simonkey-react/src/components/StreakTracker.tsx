@@ -2,22 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../services/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../contexts/AuthContext';
 
 interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  lastStudyDate: Timestamp | null;
-  totalStudyDays: number;
+  days: {
+    [key: string]: boolean; // 'monday', 'tuesday', etc.
+  };
+  lastVisit: Date | null;
+  consecutiveDays: number;
 }
 
 const StreakTracker: React.FC = () => {
-  const { user } = useAuth();
+  const [user] = useAuthState(auth);
   const [streakData, setStreakData] = useState<StreakData>({
-    currentStreak: 0,
-    longestStreak: 0,
-    lastStudyDate: null,
-    totalStudyDays: 0
+    days: {
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false
+    },
+    lastVisit: null,
+    consecutiveDays: 0
   });
   const [loading, setLoading] = useState(true);
 

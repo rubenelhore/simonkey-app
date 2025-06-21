@@ -343,18 +343,26 @@ const Notebooks: React.FC = () => {
           <h2>Mis cuadernos</h2>
           <NotebookList 
             notebooks={(notebooks || []).map(notebook => ({
-              ...notebook,
+              id: notebook.id,
+              title: notebook.title,
+              color: notebook.color,
               userId: notebook.userId || user?.uid || '',
               createdAt: notebook.createdAt instanceof Date ? 
                 notebook.createdAt : 
                 (notebook.createdAt && typeof notebook.createdAt.toDate === 'function' ? 
                   notebook.createdAt.toDate() : 
-                  new Date())
+                  new Date()),
+              updatedAt: notebook.updatedAt instanceof Date ? 
+                notebook.updatedAt : 
+                (notebook.updatedAt && typeof notebook.updatedAt.toDate === 'function' ? 
+                  notebook.updatedAt.toDate() : 
+                  new Date()),
+              conceptCount: notebook.conceptCount || 0
             }))} 
-            onDelete={handleDelete} 
-            onEdit={handleEdit}
+            onDeleteNotebook={handleDelete} 
+            onEditNotebook={handleEdit}
             onColorChange={handleColorChange}
-            onCreate={handleCreate}
+            onCreateNotebook={handleCreate}
           />
         </div>
       </main>

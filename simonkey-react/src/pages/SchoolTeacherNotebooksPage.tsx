@@ -262,19 +262,23 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
                 id: notebook.id,
                 title: notebook.title,
                 color: notebook.color,
-                userId: notebook.userId || '',
+                userId: notebook.userId,
                 createdAt: notebook.createdAt instanceof Date ? 
                   notebook.createdAt : 
                   (notebook.createdAt && typeof notebook.createdAt.toDate === 'function' ? 
                     notebook.createdAt.toDate() : 
                     new Date()),
-                updatedAt: notebook.updatedAt,
-                conceptCount: notebook.conceptCount
+                updatedAt: notebook.updatedAt instanceof Date ? 
+                  notebook.updatedAt : 
+                  (notebook.updatedAt && typeof notebook.updatedAt.toDate === 'function' ? 
+                    notebook.updatedAt.toDate() : 
+                    new Date()),
+                conceptCount: notebook.conceptCount || 0
               }))} 
-              onDelete={handleDelete} 
-              onEdit={handleEdit}
+              onDeleteNotebook={handleDelete} 
+              onEditNotebook={handleEdit}
               onColorChange={handleColorChange}
-              onCreate={handleCreate}
+              onCreateNotebook={handleCreate}
             />
           )}
         </div>
