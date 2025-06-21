@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { useSchoolNotebooks } from '../hooks/useSchoolNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
@@ -15,28 +15,32 @@ import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 
 const SchoolTeacherNotebooksPage: React.FC = () => {
-  const [user] = useAuthState(auth);
-  const { schoolNotebooks, loading, error } = useSchoolNotebooks();
+  const navigate = useNavigate();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const { schoolNotebooks, loading: notebooksLoading, error: notebooksError } = useSchoolNotebooks();
+  const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
+  const [newNotebookName, setNewNotebookName] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const { isSchoolTeacher, userProfile } = useUserType();
+  const { isSchoolTeacher } = useUserType();
 
   // Deep log: teacher role and notebooks
   console.log('🔍 SchoolTeacherNotebooksPage - userProfile:', userProfile);
   console.log('🔍 SchoolTeacherNotebooksPage - isSchoolTeacher:', isSchoolTeacher);
   console.log('🔍 SchoolTeacherNotebooksPage - schoolNotebooks:', schoolNotebooks);
-  console.log('🔍 SchoolTeacherNotebooksPage - loading:', loading, 'error:', error);
+  console.log('🔍 SchoolTeacherNotebooksPage - loading:', notebooksLoading, 'error:', notebooksError);
 
   // Verificar autorización
   useEffect(() => {
     // SOLO redirigir si loading es false
-    if (!loading && !isSchoolTeacher) {
+    if (!notebooksLoading && !isSchoolTeacher) {
       console.log('❌ Usuario no autorizado como profesor escolar, redirigiendo a /');
       navigate('/');
       return;
     }
-  }, [isSchoolTeacher, loading, navigate]);
+  }, [isSchoolTeacher, notebooksLoading, navigate]);
 
   // Estados para personalización del usuario
   const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
@@ -210,7 +214,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     };
   }, [menuOpen]);
 
-  if (loading) {
+  if (notebooksLoading) {
     console.log('⏳ SchoolTeacherNotebooksPage - loading...');
     return (
       <div className="loading-container">
@@ -220,8 +224,8 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     );
   }
 
-  if (error) {
-    console.error('❌ SchoolTeacherNotebooksPage - error:', error);
+  if (notebooksError) {
+    console.error('❌ SchoolTeacherNotebooksPage - error:', notebooksError);
     return (
       <div className="error-container">
         <p>Ocurrió un error al cargar los cuadernos escolares. Por favor, intenta de nuevo.</p>
@@ -254,7 +258,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
             </div>
           ) : (
             <NotebookList 
-              notebooks={(schoolNotebooks || []).map(notebook => ({
+              notebooks={(schoolNotebooks || []).map((notebook: any) => ({
                 id: notebook.id,
                 title: notebook.title,
                 color: notebook.color,

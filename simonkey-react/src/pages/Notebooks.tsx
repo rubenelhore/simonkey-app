@@ -13,14 +13,19 @@ import { updateNotebook, updateNotebookColor } from '../services/notebookService
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import { useAuth } from '../contexts/AuthContext';
 
 const Notebooks: React.FC = () => {
-  const [user] = useAuthState(auth);
-  const { notebooks, loading, error } = useNotebooks();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
+  const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
+  const [newNotebookName, setNewNotebookName] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isSuperAdmin, subscription } = useUserType();
+  const { isSchoolUser, isSchoolTeacher, isSchoolStudent, isSuperAdmin, subscription } = useUserType();
 
   const isFreeUser = subscription === 'free';
 
@@ -303,20 +308,21 @@ const Notebooks: React.FC = () => {
     setIsUpgradeModalOpen(false);
   };
 
-  if (loading) {
+  if (notebooksLoading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Cargando tus cuadernos...</p>
+        <div className="loading-spinner"></div>
+        <p>Cargando cuadernos...</p>
       </div>
     );
   }
 
-  if (error) {
-    console.error("Error loading notebooks:", error);
+  if (notebooksError) {
+    console.error('Error loading notebooks:', notebooksError);
     return (
       <div className="error-container">
-        <p>Ocurrió un error al cargar los cuadernos. Por favor, intenta de nuevo.</p>
+        <h2>Error al cargar los cuadernos</h2>
+        <p>{notebooksError.message}</p>
       </div>
     );
   }
