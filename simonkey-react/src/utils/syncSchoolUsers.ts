@@ -10,7 +10,8 @@ import {
   getDoc,
   serverTimestamp,
   query,
-  where
+  where,
+  deleteDoc
 } from 'firebase/firestore';
 import { SchoolTeacher, SchoolStudent, UserSubscriptionType, SchoolRole } from '../types/interfaces';
 
@@ -489,4 +490,75 @@ export const checkTeacherStatus = async (userId: string): Promise<{
     console.error(`❌ Error verificando estado del profesor ${userId}:`, error);
     return { exists: false, error: (error as Error).message };
   }
+};
+
+/**
+ * Limpia registros duplicados en schoolTeachers
+ */
+export const cleanDuplicateTeachers = async (): Promise<{
+  removed: number;
+  errors: Array<{ id: string; error: string }>;
+}> => {
+  console.log('🧹 Iniciando limpieza de registros duplicados en schoolTeachers...');
+  
+  const results = {
+    removed: 0,
+    errors: [] as Array<{ id: string; error: string }>
+  };
+
+  try {
+    // Obtener todos los registros de schoolTeachers
+    const teachersSnapshot = await getDocs(collection(db, 'schoolTeachers'));
+    const teachers = teachersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    console.log(`📚 Encontrados ${teachers.length} registros en schoolTeachers`);
+    
+    // Agrupar por id (userId)
+    const groupedByUserId = teachers.reduce((acc, teacher) => {
+      const userId = teacher.id;
+      if (!acc[userId]) {
+        acc[userId] = [];
+      }
+      acc[userId].push(teacher);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    // Encontrar duplicados
+    const duplicates = Object.entries(groupedByUserId)
+      .filter(([userId, records]) => records.length > 1)
+      .map(([userId, records]) => ({ userId, records }));
+    
+    console.log(`🔍 Encontrados ${duplicates.length} usuarios con registros duplicados`);
+    
+    // Eliminar duplicados (mantener el primero, eliminar el resto)
+    for (const { userId, records } of duplicates) {
+      console.log(`🧹 Limpiando duplicados para usuario ${userId} (${records.length} registros)`);
+      
+      // Mantener el primer registro, eliminar el resto
+      const toDelete = records.slice(1);
+      
+      for (const record of toDelete) {
+        try {
+          await deleteDoc(doc(db, 'schoolTeachers', record.id));
+          results.removed++;
+          console.log(`✅ Eliminado registro duplicado: ${record.id}`);
+        } catch (error) {
+          const errorMsg = (error as Error).message;
+          console.error(`❌ Error eliminando registro ${record.id}:`, errorMsg);
+          results.errors.push({ id: record.id, error: errorMsg });
+        }
+      }
+    }
+    
+    console.log(`✅ Limpieza completada: ${results.removed} registros eliminados, ${results.errors.length} errores`);
+    
+  } catch (error) {
+    console.error('❌ Error en limpieza de duplicados:', error);
+    results.errors.push({ id: 'general', error: (error as Error).message });
+  }
+  
+  return results;
 }; 

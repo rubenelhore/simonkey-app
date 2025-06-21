@@ -5,7 +5,7 @@ import { useSchoolNotebooks } from '../hooks/useSchoolNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc, getDocs, query, where, collection } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
 import StreakTracker from '../components/StreakTracker';
@@ -13,6 +13,7 @@ import { updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 
 const SchoolTeacherNotebooksPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +33,46 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
   console.log('🔍 SchoolTeacherNotebooksPage - schoolNotebooks:', schoolNotebooks);
   console.log('🔍 SchoolTeacherNotebooksPage - loading:', notebooksLoading, 'error:', notebooksError);
 
+  // Función temporal para migrar usuario a schoolTeachers si no existe
+  const migrateUserToSchoolTeachers = async () => {
+    if (!user?.uid || !userProfile) return;
+    
+    try {
+      console.log('🔄 Verificando si usuario existe en schoolTeachers...');
+      
+      // Verificar si ya existe en schoolTeachers
+      const teacherQuery = query(
+        collection(db, 'schoolTeachers'),
+        where('id', '==', user.uid)
+      );
+      const teacherSnapshot = await getDocs(teacherQuery);
+      
+      if (!teacherSnapshot.empty) {
+        console.log('✅ Usuario ya existe en schoolTeachers');
+        return;
+      }
+      
+      console.log('🔄 Usuario no existe en schoolTeachers, creando registro...');
+      
+      // Crear registro en schoolTeachers
+      await setDoc(doc(db, 'schoolTeachers', user.uid), {
+        id: user.uid,
+        nombre: userProfile.nombre || userProfile.displayName || userProfile.username || 'Profesor',
+        email: userProfile.email,
+        password: '1234', // Password por defecto
+        subscription: UserSubscriptionType.SCHOOL,
+        idAdmin: '', // Se vinculará después
+        createdAt: userProfile.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Usuario migrado exitosamente a schoolTeachers');
+      
+    } catch (error) {
+      console.error('❌ Error migrando usuario a schoolTeachers:', error);
+    }
+  };
+
   // Verificar autorización
   useEffect(() => {
     // SOLO redirigir si loading es false
@@ -41,6 +82,13 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
       return;
     }
   }, [isSchoolTeacher, notebooksLoading, navigate]);
+
+  // Migrar usuario a schoolTeachers cuando se carga el componente
+  useEffect(() => {
+    if (user && userProfile && isSchoolTeacher) {
+      migrateUserToSchoolTeachers();
+    }
+  }, [user, userProfile, isSchoolTeacher]);
 
   // Estados para personalización del usuario
   const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);

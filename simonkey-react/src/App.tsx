@@ -207,13 +207,24 @@ const AppContent: React.FC = () => {
         navigate('/login', { replace: true });
       }
       
-      // Si está autenticado y verificado, solo manejar redirección de usuarios normales
-      if (isAuthenticated && isEmailVerified) {
+      // Si está autenticado, manejar redirecciones
+      if (isAuthenticated) {
         const currentPath = window.location.pathname;
         
-        // USUARIOS NORMALES: Si está en login/signup, redirigir a notebooks
-        // (Los usuarios escolares son manejados por EmailVerificationGuard)
-        if (!isSchoolTeacher && !isSchoolStudent && ['/login', '/signup'].includes(currentPath)) {
+        // USUARIOS ESCOLARES: Redirigir desde login/signup a su módulo específico
+        if ((isSchoolTeacher || isSchoolStudent) && ['/login', '/signup'].includes(currentPath)) {
+          if (isSchoolTeacher) {
+            console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
+            navigate('/school/teacher', { replace: true });
+          } else if (isSchoolStudent) {
+            console.log('🎓 App - Redirigiendo estudiante escolar desde login a /school/student');
+            navigate('/school/student', { replace: true });
+          }
+          return;
+        }
+        
+        // USUARIOS NORMALES: Si está en login/signup y verificado, redirigir a notebooks
+        if (!isSchoolTeacher && !isSchoolStudent && isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
           navigate('/notebooks', { replace: true });
         }
       }

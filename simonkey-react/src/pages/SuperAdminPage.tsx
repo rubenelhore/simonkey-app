@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
-import UserDataManagement from '../components/UserDataManagement';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
 import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents, migrateExistingTeachers, checkTeacherStatus } from '../utils/syncSchoolUsers';
@@ -40,8 +39,6 @@ const SuperAdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sqlQuery, setSqlQuery] = useState('');
-  const [sqlResults, setSqlResults] = useState<any[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResults, setSyncResults] = useState<any>(null);
   const [schools, setSchools] = useState<any[]>([]);
@@ -181,68 +178,6 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  // SQL Query executor (simplificado)
-  const executeSqlQuery = async () => {
-    try {
-      setLoading(true);
-      // Aquí implementarías la lógica para ejecutar consultas SQL
-      // Por ahora, simulamos algunos resultados
-      const results = [
-        { id: 1, name: 'Ejemplo', value: 'Resultado' }
-      ];
-      setSqlResults(results);
-    } catch (error) {
-      console.error('Error executing SQL query:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Función para verificar usuarios huérfanos (en Auth pero no en Firestore)
-  const checkOrphanUsers = async () => {
-    try {
-      console.log('SuperAdminPage - Checking for orphan users...');
-      
-      // Obtener todos los usuarios de Firestore
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const firestoreUserIds = usersSnapshot.docs.map(doc => doc.id);
-      
-      console.log('SuperAdminPage - Firestore user IDs:', firestoreUserIds);
-      
-      // Nota: No podemos listar todos los usuarios de Firebase Auth desde el cliente
-      // por razones de seguridad, pero podemos verificar el usuario actual
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const isInFirestore = firestoreUserIds.includes(currentUser.uid);
-        console.log('SuperAdminPage - Current user in Firestore:', isInFirestore);
-        console.log('SuperAdminPage - Current user data:', {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-          photoURL: currentUser.photoURL
-        });
-      }
-      
-      // Mostrar información sobre usuarios sin email o nombre
-      const usersWithoutEmail = users.filter(u => !u.email);
-      const usersWithoutName = users.filter(u => !u.nombre && !u.displayName && !u.username);
-      
-      console.log('SuperAdminPage - Users without email:', usersWithoutEmail.length);
-      console.log('SuperAdminPage - Users without name:', usersWithoutName.length);
-      
-      if (usersWithoutEmail.length > 0) {
-        console.log('SuperAdminPage - Users without email details:', usersWithoutEmail);
-      }
-      
-      if (usersWithoutName.length > 0) {
-        console.log('SuperAdminPage - Users without name details:', usersWithoutName);
-      }
-      
-    } catch (error) {
-      console.error('Error checking orphan users:', error);
-    }
-  };
-
   // Funciones de sincronización de usuarios escolares
   const handleSyncAllSchoolUsers = async () => {
     if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los usuarios escolares? Esto creará usuarios reales en Firebase Auth para todos los schoolTeachers y schoolStudents.')) {
@@ -340,78 +275,6 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  // Función para reparar usuarios con datos faltantes
-  const repairUsers = async () => {
-    try {
-      console.log('SuperAdminPage - Starting user repair...');
-      
-      const usersToRepair = users.filter(u => !u.email || (!u.nombre && !u.displayName && !u.username));
-      
-      if (usersToRepair.length === 0) {
-        console.log('SuperAdminPage - No users need repair');
-        return;
-      }
-      
-      console.log(`SuperAdminPage - Repairing ${usersToRepair.length} users...`);
-      
-      for (const user of usersToRepair) {
-        try {
-          const updates: any = {};
-          
-          // Si no tiene email, intentar obtenerlo del ID (si es un email)
-          if (!user.email && user.id.includes('@')) {
-            updates.email = user.id;
-            console.log(`SuperAdminPage - Repaired email for user ${user.id}: ${user.id}`);
-          }
-          
-          // Si no tiene nombre, usar el ID como fallback
-          if (!user.nombre && !user.displayName && !user.username) {
-            const fallbackName = user.id.includes('@') ? user.id.split('@')[0] : `Usuario_${user.id.slice(0, 8)}`;
-            updates.nombre = fallbackName;
-            updates.displayName = fallbackName;
-            updates.username = fallbackName;
-            console.log(`SuperAdminPage - Repaired name for user ${user.id}: ${fallbackName}`);
-          }
-          
-          // Si no tiene suscripción, asignar FREE por defecto
-          if (!user.subscription) {
-            updates.subscription = UserSubscriptionType.FREE;
-            updates.maxNotebooks = 4;
-            updates.maxConceptsPerNotebook = 100;
-            console.log(`SuperAdminPage - Repaired subscription for user ${user.id}: FREE`);
-          }
-          
-          // Si no tiene fecha de creación, agregar una
-          if (!user.createdAt) {
-            updates.createdAt = serverTimestamp();
-            console.log(`SuperAdminPage - Repaired createdAt for user ${user.id}`);
-          }
-          
-          // Aplicar las actualizaciones si hay algo que reparar
-          if (Object.keys(updates).length > 0) {
-            await updateDoc(doc(db, 'users', user.id), {
-              ...updates,
-              updatedAt: serverTimestamp(),
-              repaired: true
-            });
-            console.log(`SuperAdminPage - ✅ Repaired user ${user.id}`);
-          }
-          
-        } catch (error) {
-          console.error(`SuperAdminPage - ❌ Error repairing user ${user.id}:`, error);
-        }
-      }
-      
-      console.log('SuperAdminPage - User repair completed');
-      
-      // Recargar datos después de la reparación
-      await loadData();
-      
-    } catch (error) {
-      console.error('Error repairing users:', error);
-    }
-  };
-
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -464,19 +327,6 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-plus-circle"></i> Creación Escolar
           </button>
           <button 
-            className={`tab-button ${activeTab === 'sql' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sql')}
-          >
-            <i className="fas fa-database"></i> SQL Console
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'userDataManagement' ? 'active' : ''}`}
-            onClick={() => setActiveTab('userDataManagement')}
-          >
-            <i className="fas fa-database"></i>
-            Gestión de Datos
-          </button>
-          <button 
             className={`tab-button ${activeTab === 'schoolSync' ? 'active' : ''}`}
             onClick={() => setActiveTab('schoolSync')}
           >
@@ -499,12 +349,6 @@ const SuperAdminPage: React.FC = () => {
               <div className="tab-header">
                 <h2>Gestión de Usuarios ({users.length})</h2>
                 <div className="header-actions">
-                  <button className="repair-button" onClick={repairUsers} title="Reparar usuarios con datos faltantes">
-                    <i className="fas fa-wrench"></i>
-                  </button>
-                  <button className="check-button" onClick={checkOrphanUsers} title="Verificar usuarios huérfanos">
-                    <i className="fas fa-search"></i>
-                  </button>
                   <button className="refresh-button" onClick={loadData} title="Actualizar datos">
                     <i className="fas fa-sync-alt"></i>
                   </button>
@@ -653,57 +497,6 @@ const SuperAdminPage: React.FC = () => {
           {/* Tab de Creación Escolar */}
           {activeTab === 'schoolCreation' && (
             <SchoolCreation onRefresh={loadData} />
-          )}
-
-          {/* Tab de SQL Console */}
-          {activeTab === 'sql' && (
-            <div className="sql-tab">
-              <div className="tab-header">
-                <h2>SQL Console</h2>
-                <button className="execute-button" onClick={executeSqlQuery}>
-                  <i className="fas fa-play"></i> Ejecutar
-                </button>
-              </div>
-              
-              <div className="sql-editor">
-                <textarea
-                  value={sqlQuery}
-                  onChange={(e) => setSqlQuery(e.target.value)}
-                  placeholder="Escribe tu consulta SQL aquí..."
-                  className="sql-textarea"
-                />
-              </div>
-              
-              <div className="sql-results">
-                <h3>Resultados:</h3>
-                <div className="results-table">
-                  {sqlResults.map((result, index) => (
-                    <div key={index} className="result-row">
-                      {Object.entries(result).map(([key, value]) => (
-                        <div key={key} className="result-cell">
-                          <strong>{key}:</strong> {String(value)}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab de Gestión de Datos de Usuario */}
-          {activeTab === 'userDataManagement' && (
-            <div className="user-data-management-tab">
-              <div className="tab-header">
-                <h2>Gestión de Datos de Usuario</h2>
-                <p className="tab-description">
-                  Herramientas para auditar y eliminar datos de usuario de manera segura.
-                  Solo disponible para super administradores.
-                </p>
-              </div>
-              
-              <UserDataManagement />
-            </div>
           )}
 
           {/* Tab de Sincronización Escolar */}
