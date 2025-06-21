@@ -1,7 +1,7 @@
 // src/pages/ProfilePage.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import Footer from '../components/Footer';

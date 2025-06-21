@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
 import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
-import { db, auth } from '../services/firebase';
+import { db } from '../services/firebase';
 import { SchoolNotebook, SchoolTeacher, SchoolClassroom } from '../types/interfaces';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolNotebooks = () => {
   const [schoolNotebooks, setSchoolNotebooks] = useState<SchoolNotebook[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [user] = useAuthState(auth);
+  const { user, userProfile } = useAuth();
 
   useEffect(() => {
     if (!user) {
@@ -22,23 +22,30 @@ export const useSchoolNotebooks = () => {
       try {
         console.log('🔄 Cargando cuadernos escolares para profesor:', user.uid);
         setLoading(true);
-
-        // 1. Obtener información del profesor
-        const teacherQuery = query(
-          collection(db, 'schoolTeachers'),
-          where('id', '==', user.uid)
-        );
-        const teacherSnapshot = await getDocs(teacherQuery);
         
-        if (teacherSnapshot.empty) {
-          console.log('❌ No se encontró información del profesor');
-          setSchoolNotebooks([]);
-          setLoading(false);
-          return undefined;
+        // LOG: userProfile
+        console.log('🔍 useSchoolNotebooks - userProfile:', userProfile);
+        if (userProfile && userProfile.schoolRole === 'teacher') {
+          console.log('✅ userProfile.schoolRole es teacher, saltando query a Firestore para teacher');
+        } else {
+          // 1. Obtener información del profesor desde la colección users con schoolRole
+          const teacherQuery = query(
+            collection(db, 'users'),
+            where('id', '==', user.uid),
+            where('schoolRole', '==', 'teacher')
+          );
+          const teacherSnapshot = await getDocs(teacherQuery);
+          console.log('🔍 teacherSnapshot.size:', teacherSnapshot.size);
+          teacherSnapshot.forEach(doc => {
+            console.log('🔍 teacherDoc:', doc.id, doc.data());
+          });
+          if (teacherSnapshot.empty) {
+            console.log('❌ No se encontró información del profesor para UID:', user.uid, 'schoolRole:', 'teacher');
+            setSchoolNotebooks([]);
+            setLoading(false);
+            return undefined;
+          }
         }
-
-        const teacherData = teacherSnapshot.docs[0].data() as SchoolTeacher;
-        console.log('👨‍🏫 Datos del profesor encontrados:', teacherData.nombre);
 
         // 2. Obtener los salones asignados al profesor
         const classroomQuery = query(
@@ -46,7 +53,10 @@ export const useSchoolNotebooks = () => {
           where('idProfesor', '==', user.uid)
         );
         const classroomSnapshot = await getDocs(classroomQuery);
-        
+        console.log('🔍 classroomSnapshot.size:', classroomSnapshot.size);
+        classroomSnapshot.forEach(doc => {
+          console.log('🔍 classroomDoc:', doc.id, doc.data());
+        });
         if (classroomSnapshot.empty) {
           console.log('❌ No se encontraron salones asignados al profesor');
           setSchoolNotebooks([]);
@@ -113,7 +123,7 @@ export const useSchoolNotebooks = () => {
         unsubscribeFunction();
       }
     };
-  }, [user]);
+  }, [user, userProfile]);
 
   return { schoolNotebooks, loading, error };
 }; 

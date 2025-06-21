@@ -1,22 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db, auth } from '../services/firebase';
-
-// Define la interfaz localmente en vez de importarla
-interface Notebook {
-  id: string;
-  title: string;
-  userId: string;
-  createdAt: Date | any;
-  color?: string;
-}
+import { collection, query, where, onSnapshot, orderBy, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { Notebook } from '../types/interfaces';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useNotebooks = () => {
   const [notebooks, setNotebooks] = useState<Notebook[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!user) {

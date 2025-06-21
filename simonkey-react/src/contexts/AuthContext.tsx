@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
@@ -15,7 +15,22 @@ export interface AuthState {
   isEmailVerified: boolean;
 }
 
-export const useAuth = () => {
+interface AuthContextType extends AuthState {
+  refreshEmailVerification: () => Promise<boolean>;
+  requiresEmailVerification: () => boolean;
+  canAccessApp: () => boolean;
+  logout: () => Promise<void>;
+  refreshUserData: () => Promise<void>;
+  updateVerificationState: () => Promise<boolean>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Global flag to ensure only one auth listener is set up
+let globalAuthListenerSetup = false;
+let globalAuthUnsubscribe: (() => void) | null = null;
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     userProfile: null,
@@ -27,8 +42,6 @@ export const useAuth = () => {
     isAuthenticated: false,
     isEmailVerified: false
   });
-
-  const [initializing, setInitializing] = useState(true);
 
   // Función para actualizar el estado de verificación
   const updateVerificationState = async (user: User) => {
@@ -153,9 +166,38 @@ export const useAuth = () => {
     return authState.isAuthenticated && authState.isEmailVerified;
   };
 
-  // Efecto para manejar cambios de autenticación
+  // Función para hacer logout
+  const logout = async (): Promise<void> => {
+    try {
+      await auth.signOut();
+      console.log('👋 Usuario deslogueado exitosamente');
+    } catch (error) {
+      console.error('❌ Error al hacer logout:', error);
+      throw error;
+    }
+  };
+
+  // Función para refrescar toda la información del usuario
+  const refreshUserData = async (): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    await Promise.all([
+      loadUserProfile(user),
+      updateVerificationState(user)
+    ]);
+  };
+
+  // Efecto para manejar cambios de autenticación - GLOBAL Y ÚNICO
   useEffect(() => {
-    console.log('🔐 Configurando listener de autenticación');
+    // Solo configurar el listener si no existe uno previo GLOBALMENTE
+    if (globalAuthListenerSetup) {
+      console.log('🔐 Listener de autenticación GLOBAL ya configurado, saltando...');
+      return;
+    }
+
+    console.log('🔐 Configurando listener de autenticación GLOBAL');
+    globalAuthListenerSetup = true;
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔄 Estado de autenticación cambió:', user ? `Usuario logueado: ${user.email}` : 'No hay usuario');
@@ -217,44 +259,25 @@ export const useAuth = () => {
           isEmailVerified: false
         });
       }
-      
-      if (initializing) {
-        setInitializing(false);
-      }
     });
 
+    // Guardar la función de limpieza globalmente
+    globalAuthUnsubscribe = unsubscribe;
+
+    // Cleanup function
     return () => {
-      console.log('🔐 Limpiando listener de autenticación');
-      unsubscribe();
+      console.log('🔐 Limpiando listener de autenticación GLOBAL');
+      if (globalAuthUnsubscribe) {
+        globalAuthUnsubscribe();
+        globalAuthUnsubscribe = null;
+        globalAuthListenerSetup = false;
+      }
     };
-  }, [initializing]);
+  }, []); // Sin dependencias para que solo se ejecute una vez
 
-  // Función para hacer logout
-  const logout = async (): Promise<void> => {
-    try {
-      await auth.signOut();
-      console.log('👋 Usuario deslogueado exitosamente');
-    } catch (error) {
-      console.error('❌ Error al hacer logout:', error);
-      throw error;
-    }
-  };
-
-  // Función para refrescar toda la información del usuario
-  const refreshUserData = async (): Promise<void> => {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    await Promise.all([
-      loadUserProfile(user),
-      updateVerificationState(user)
-    ]);
-  };
-
-  return {
+  const contextValue: AuthContextType = {
     // Estado
     ...authState,
-    initializing,
     
     // Funciones de utilidad
     refreshEmailVerification,
@@ -266,4 +289,18 @@ export const useAuth = () => {
     // Funciones para componentes específicos
     updateVerificationState: () => authState.user ? updateVerificationState(authState.user) : Promise.resolve(false)
   };
+
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 

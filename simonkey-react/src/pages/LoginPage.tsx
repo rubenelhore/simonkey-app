@@ -13,7 +13,7 @@ import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {     
   const [email, setEmail] = useState<string>('');

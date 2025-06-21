@@ -34,14 +34,16 @@ import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
-// Importar el hook useAuth
-import { useAuth } from './hooks/useAuth';
+// Importar el nuevo AuthProvider y useAuth
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
 // Importar el guard de verificación de email
 import EmailVerificationGuard from './components/EmailVerificationGuard';
 // Importar el guard para usuarios escolares
 import SchoolUserGuard from './components/SchoolUserGuard';
+// Importar auth de firebase
+import { auth } from './services/firebase';
 
 // Definir el tipo para el usuario
 interface User {
@@ -121,15 +123,17 @@ const HomePageContent: React.FC = () => {
 // Componente envoltorio para la aplicación con rutas
 const AppWrapper: React.FC = () => {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 };
 
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
-  const { user, isAuthenticated, isEmailVerified, loading, initializing } = useAuth();
+  const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
   const { isSchoolTeacher, isSchoolStudent } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
@@ -139,7 +143,7 @@ const AppContent: React.FC = () => {
   });
 
   useEffect(() => {
-    if (!loading && !initializing) {
+    if (!loading) {
       // Si no está autenticado y no está en una página pública, redirigir a login
       if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms'].includes(window.location.pathname)) {
         navigate('/login', { replace: true });
@@ -156,9 +160,9 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [isAuthenticated, isEmailVerified, loading, initializing, isSchoolTeacher, isSchoolStudent, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, isSchoolTeacher, isSchoolStudent, navigate]);
 
-  if (loading || initializing) {
+  if (loading) {
     return (
       <div style={{
         display: 'flex',
@@ -326,14 +330,37 @@ const AppContent: React.FC = () => {
           path="/super-admin"
           element={
             (() => {
-              console.log('App - Super Admin route accessed');
-              console.log('App - isAuthenticated:', isAuthenticated);
-              console.log('App - isEmailVerified:', isEmailVerified);
+              console.log('🔍 App - Super Admin route accessed');
+              console.log('🔍 App - isAuthenticated:', isAuthenticated);
+              console.log('🔍 App - isEmailVerified:', isEmailVerified);
+              console.log('🔍 App - loading:', loading);
+              console.log('🔍 App - current user email:', auth.currentUser?.email);
+              console.log('🔍 App - current pathname:', window.location.pathname);
+              
               if (isAuthenticated) {
-                console.log('App - Rendering SuperAdminPage');
-                return <EmailVerificationGuard><SchoolUserGuard><SuperAdminPage /></SchoolUserGuard></EmailVerificationGuard>;
+                console.log('🔍 App - User is authenticated, checking if super admin...');
+                // Verificar si realmente es super admin
+                const userEmail = auth.currentUser?.email;
+                const isSuperAdmin = userEmail === 'ruben.elhore@gmail.com';
+                console.log('🔍 App - User email:', userEmail);
+                console.log('🔍 App - Is super admin?', isSuperAdmin);
+                
+                if (isSuperAdmin) {
+                  console.log('🔍 App - Rendering SuperAdminPage for super admin');
+                  return <SuperAdminPage />;
+                } else {
+                  console.log('🔍 App - User is not super admin, redirecting to appropriate page');
+                  // Redirigir a la página apropiada según el tipo de usuario
+                  if (userEmail?.includes('@school.simonkey.com') || userEmail?.includes('@up.edu.mx')) {
+                    console.log('🔍 App - Redirecting school user to /school/teacher');
+                    return <Navigate to="/school/teacher" replace />;
+                  } else {
+                    console.log('🔍 App - Redirecting regular user to /notebooks');
+                    return <Navigate to="/notebooks" replace />;
+                  }
+                }
               } else {
-                console.log('App - Redirecting to login');
+                console.log('🔍 App - User not authenticated, redirecting to login');
                 return <Navigate to="/login" replace />;
               }
             })()

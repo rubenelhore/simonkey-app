@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { useAuth } from '../hooks/useAuth';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
+import { UserSubscriptionType } from '../types/interfaces';
 import './HeaderWithHamburger.css';
 
 interface HeaderWithHamburgerProps {
@@ -25,9 +26,57 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription } = useUserType();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const isFreeUser = subscription === 'free';
+
+  // Función de depuración para verificar y actualizar superadmin
+  const checkAndUpdateSuperAdmin = async () => {
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email === 'ruben.elhore@gmail.com') {
+      try {
+        console.log('🔍 Verificando usuario superadmin:', currentUser.email);
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('📋 Datos actuales del usuario:', userData);
+          if (userData.subscription !== UserSubscriptionType.SUPER_ADMIN) {
+            console.log('⚠️ Usuario no tiene tipo SUPER_ADMIN, actualizando...');
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+              subscription: UserSubscriptionType.SUPER_ADMIN,
+              updatedAt: serverTimestamp()
+            });
+            console.log('✅ Usuario actualizado como SUPER_ADMIN');
+            // Recargar la página para aplicar cambios
+            window.location.reload();
+          } else {
+            console.log('✅ Usuario ya tiene tipo SUPER_ADMIN');
+          }
+        } else {
+          console.log('❌ Documento de usuario no encontrado');
+        }
+      } catch (error) {
+        console.error('❌ Error verificando/actualizando usuario:', error);
+      }
+    }
+  };
+
+  // Verificar superadmin al cargar el componente
+  useEffect(() => {
+    if (user && user.email === 'ruben.elhore@gmail.com') {
+      checkAndUpdateSuperAdmin();
+    }
+  }, [user]);
+
+  // Logs de depuración
+  useEffect(() => {
+    console.log('🔍 HeaderWithHamburger - Estado actual:');
+    console.log('  - user:', user);
+    console.log('  - userProfile:', userProfile);
+    console.log('  - isSuperAdmin:', isSuperAdmin);
+    console.log('  - subscription:', subscription);
+  }, [user, userProfile, isSuperAdmin, subscription]);
 
   const toggleMenu = () => {
     setMobileMenuOpen(!isMobileMenuOpen);
@@ -44,10 +93,11 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleOpenUpgradeModal = () => {
     setMobileMenuOpen(false);
+    setIsUpgradeModalOpen(true);
   };
 
   const handleCloseUpgradeModal = () => {
-    setMobileMenuOpen(false);
+    setIsUpgradeModalOpen(false);
   };
 
   return (
@@ -137,7 +187,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       </div>
       
-      {isMobileMenuOpen && (
+      {isUpgradeModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
             <div className="modal-header">

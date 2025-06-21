@@ -1,8 +1,6 @@
 import { auth, db } from '../services/firebase';
 import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import { 
   collection, 
@@ -88,11 +86,11 @@ export const syncSchoolTeachers = async (): Promise<{
         // Obtener password válido
         const passwordToUse = getValidPassword(teacherData.password);
         
-        // Verificar si ya existe como usuario
+        // Verificar si ya existe como usuario en la colección users
         const userExists = await checkIfUserExists(teacherId);
         
         if (userExists) {
-          console.log(`✅ Usuario ya existe: ${emailToUse}`);
+          console.log(`✅ Usuario ya existe en Firestore: ${emailToUse}`);
           // Actualizar datos en la colección users si es necesario
           await updateUserDocument(teacherId, {
             subscription: UserSubscriptionType.SCHOOL,
@@ -106,19 +104,9 @@ export const syncSchoolTeachers = async (): Promise<{
           continue;
         }
         
-        // Crear usuario en Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(
-          auth, 
-          emailToUse, 
-          passwordToUse
-        );
-        
-        const newUser = userCredential.user;
-        console.log(`✅ Usuario creado en Firebase Auth: ${newUser.uid}`);
-        
-        // Crear/actualizar documento en colección users
-        await setDoc(doc(db, 'users', newUser.uid), {
-          id: newUser.uid,
+        // Crear documento en colección users (sin crear en Firebase Auth)
+        await setDoc(doc(db, 'users', teacherId), {
+          id: teacherId,
           email: emailToUse,
           username: teacherData.nombre,
           nombre: teacherData.nombre,
@@ -136,26 +124,16 @@ export const syncSchoolTeachers = async (): Promise<{
           canDeleteAndRecreate: false
         });
         
-        // Actualizar el documento schoolTeachers con el UID correcto y email válido
-        await setDoc(doc(db, 'schoolTeachers', newUser.uid), {
+        // Actualizar el documento schoolTeachers con el email válido
+        await setDoc(doc(db, 'schoolTeachers', teacherId), {
           ...teacherData,
-          id: newUser.uid,
           email: emailToUse, // Usar el email válido
           password: passwordToUse, // Usar el password válido
           updatedAt: serverTimestamp()
         });
         
-        // Si el ID original era diferente, eliminar el documento anterior
-        if (teacherId !== newUser.uid) {
-          // Nota: Aquí podrías eliminar el documento anterior si quieres
-          console.log(`📝 Nota: ID original ${teacherId} → nuevo ID ${newUser.uid}`);
-        }
-        
-        console.log(`✅ Profesor sincronizado: ${teacherData.nombre} con email: ${emailToUse}`);
+        console.log(`✅ Profesor sincronizado en Firestore: ${teacherData.nombre} con email: ${emailToUse}`);
         results.success++;
-        
-        // Cerrar sesión para no interferir con otros usuarios
-        await signOut(auth);
         
       } catch (error: any) {
         console.error(`❌ Error sincronizando profesor ${teacherData.email}:`, error);
@@ -213,11 +191,11 @@ export const syncSchoolStudents = async (): Promise<{
         // Obtener password válido
         const passwordToUse = getValidPassword(studentData.password);
         
-        // Verificar si ya existe como usuario
+        // Verificar si ya existe como usuario en la colección users
         const userExists = await checkIfUserExists(studentId);
         
         if (userExists) {
-          console.log(`✅ Usuario ya existe: ${emailToUse}`);
+          console.log(`✅ Usuario ya existe en Firestore: ${emailToUse}`);
           // Actualizar datos en la colección users si es necesario
           await updateUserDocument(studentId, {
             subscription: UserSubscriptionType.SCHOOL,
@@ -231,19 +209,9 @@ export const syncSchoolStudents = async (): Promise<{
           continue;
         }
         
-        // Crear usuario en Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(
-          auth, 
-          emailToUse, 
-          passwordToUse
-        );
-        
-        const newUser = userCredential.user;
-        console.log(`✅ Usuario creado en Firebase Auth: ${newUser.uid}`);
-        
-        // Crear/actualizar documento en colección users
-        await setDoc(doc(db, 'users', newUser.uid), {
-          id: newUser.uid,
+        // Crear documento en colección users (sin crear en Firebase Auth)
+        await setDoc(doc(db, 'users', studentId), {
+          id: studentId,
           email: emailToUse,
           username: studentData.nombre,
           nombre: studentData.nombre,
@@ -260,25 +228,16 @@ export const syncSchoolStudents = async (): Promise<{
           canDeleteAndRecreate: false
         });
         
-        // Actualizar el documento schoolStudents con el UID correcto y email válido
-        await setDoc(doc(db, 'schoolStudents', newUser.uid), {
+        // Actualizar el documento schoolStudents con el email válido
+        await setDoc(doc(db, 'schoolStudents', studentId), {
           ...studentData,
-          id: newUser.uid,
           email: emailToUse, // Usar el email válido
           password: passwordToUse, // Usar el password válido
           updatedAt: serverTimestamp()
         });
         
-        // Si el ID original era diferente, eliminar el documento anterior
-        if (studentId !== newUser.uid) {
-          console.log(`📝 Nota: ID original ${studentId} → nuevo ID ${newUser.uid}`);
-        }
-        
-        console.log(`✅ Estudiante sincronizado: ${studentData.nombre} con email: ${emailToUse}`);
+        console.log(`✅ Estudiante sincronizado en Firestore: ${studentData.nombre} con email: ${emailToUse}`);
         results.success++;
-        
-        // Cerrar sesión para no interferir con otros usuarios
-        await signOut(auth);
         
       } catch (error: any) {
         console.error(`❌ Error sincronizando estudiante ${studentData.email}:`, error);
@@ -372,18 +331,12 @@ export const createSchoolUser = async (
     // Obtener password válido
     const passwordToUse = getValidPassword(userData.password);
     
-    // Crear usuario en Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      emailToUse,
-      passwordToUse
-    );
+    // Generar un ID único para el usuario
+    const userId = `school_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const newUser = userCredential.user;
-    
-    // Crear documento en colección users
-    await setDoc(doc(db, 'users', newUser.uid), {
-      id: newUser.uid,
+    // Crear documento en colección users (sin crear en Firebase Auth)
+    await setDoc(doc(db, 'users', userId), {
+      id: userId,
       email: emailToUse,
       username: userData.nombre,
       nombre: userData.nombre,
@@ -402,8 +355,8 @@ export const createSchoolUser = async (
     
     // Crear documento en colección específica (schoolTeachers o schoolStudents)
     const collectionName = userData.role === 'teacher' ? 'schoolTeachers' : 'schoolStudents';
-    await setDoc(doc(db, collectionName, newUser.uid), {
-      id: newUser.uid,
+    await setDoc(doc(db, collectionName, userId), {
+      id: userId,
       nombre: userData.nombre,
       email: emailToUse,
       password: passwordToUse,
@@ -412,12 +365,9 @@ export const createSchoolUser = async (
       ...userData.additionalData
     });
     
-    console.log(`✅ Usuario escolar creado: ${userData.nombre} (ID: ${newUser.uid}) con email: ${emailToUse}`);
+    console.log(`✅ Usuario escolar creado en Firestore: ${userData.nombre} (ID: ${userId}) con email: ${emailToUse}`);
     
-    // Cerrar sesión
-    await signOut(auth);
-    
-    return newUser.uid;
+    return userId;
     
   } catch (error: any) {
     console.error('❌ Error creando usuario escolar:', error);

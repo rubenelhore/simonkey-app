@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { sendVerificationEmail, startVerificationMonitoring } from '../services/emailVerificationService';
 import EmailVerificationBanner from '../components/EmailVerification/EmailVerificationBanner';
 import simonLogo from '/img/favicon.svg';

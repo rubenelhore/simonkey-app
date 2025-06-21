@@ -20,12 +20,19 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isSchoolTeacher } = useUserType();
+  const { isSchoolTeacher, userProfile } = useUserType();
+
+  // Deep log: teacher role and notebooks
+  console.log('🔍 SchoolTeacherNotebooksPage - userProfile:', userProfile);
+  console.log('🔍 SchoolTeacherNotebooksPage - isSchoolTeacher:', isSchoolTeacher);
+  console.log('🔍 SchoolTeacherNotebooksPage - schoolNotebooks:', schoolNotebooks);
+  console.log('🔍 SchoolTeacherNotebooksPage - loading:', loading, 'error:', error);
 
   // Verificar autorización
   useEffect(() => {
+    // SOLO redirigir si loading es false
     if (!loading && !isSchoolTeacher) {
-      console.log('❌ Usuario no autorizado como profesor escolar');
+      console.log('❌ Usuario no autorizado como profesor escolar, redirigiendo a /');
       navigate('/');
       return;
     }
@@ -204,6 +211,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
   }, [menuOpen]);
 
   if (loading) {
+    console.log('⏳ SchoolTeacherNotebooksPage - loading...');
     return (
       <div className="loading-container">
         <div className="spinner"></div>
@@ -213,7 +221,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
   }
 
   if (error) {
-    console.error("Error loading school notebooks:", error);
+    console.error('❌ SchoolTeacherNotebooksPage - error:', error);
     return (
       <div className="error-container">
         <p>Ocurrió un error al cargar los cuadernos escolares. Por favor, intenta de nuevo.</p>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import EmailVerificationBanner from './EmailVerification/EmailVerificationBanner';
 
 interface ProtectedRouteProps {
@@ -14,11 +14,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireEmailVerification = true,
   fallbackPath = '/login'
 }) => {
-  const { isAuthenticated, isEmailVerified, loading, initializing } = useAuth();
+  const { isAuthenticated, isEmailVerified, loading } = useAuth();
   const location = useLocation();
 
   // Mostrar loading mientras se inicializa
-  if (loading || initializing) {
+  if (loading) {
     return (
       <div style={{
         display: 'flex',

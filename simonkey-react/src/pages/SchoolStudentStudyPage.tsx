@@ -19,7 +19,7 @@ const SchoolStudentStudyPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isSchoolStudent } = useUserType();
-  const { studentNotebooks, loading: notebooksLoading, studentInfo } = useSchoolStudentData();
+  const { schoolNotebooks, loading: notebooksLoading } = useSchoolStudentData();
   
   const [selectedNotebook, setSelectedNotebook] = useState<SchoolNotebook | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>(StudyMode.SMART);
@@ -90,22 +90,22 @@ const SchoolStudentStudyPage = () => {
     }
   }, [isSchoolStudent, notebooksLoading, navigate]);
 
-  // Convertir studentNotebooks a formato compatible con Notebook
+  // Convertir schoolNotebooks a formato compatible con Notebook
   const notebooks = useMemo(() => {
-    if (!studentNotebooks) return [];
-    return studentNotebooks.map(notebook => ({
+    if (!schoolNotebooks) return [];
+    return schoolNotebooks.map(notebook => ({
       id: notebook.id,
       title: notebook.title,
       color: notebook.color || '#6147FF'
     }));
-  }, [studentNotebooks]);
+  }, [schoolNotebooks]);
 
   // Verificar si viene de otra página con datos
   useEffect(() => {
     if (location.state && location.state.notebookId) {
       const notebook = notebooks.find(n => n.id === location.state.notebookId);
       if (notebook) {
-        setSelectedNotebook(studentNotebooks?.find(n => n.id === location.state.notebookId) || null);
+        setSelectedNotebook(schoolNotebooks?.find(n => n.id === location.state.notebookId) || null);
         
         if (location.state.refreshDashboard) {
           showFeedback('success', '¡Quiz completado! Tu progreso se ha actualizado');
@@ -113,7 +113,7 @@ const SchoolStudentStudyPage = () => {
         }
       }
     }
-  }, [location.state, notebooks, studentNotebooks]);
+  }, [location.state, notebooks, schoolNotebooks]);
   
   // Cargar estado inicial
   useEffect(() => {
@@ -134,13 +134,13 @@ const SchoolStudentStudyPage = () => {
         const lastNotebookId = localStorage.getItem(lastNotebookKey);
         
         if (lastNotebookId && notebooks.length > 0) {
-          const lastNotebook = studentNotebooks?.find(n => n.id === lastNotebookId);
+          const lastNotebook = schoolNotebooks?.find(n => n.id === lastNotebookId);
           if (lastNotebook) {
             setSelectedNotebook(lastNotebook);
           }
         } else if (notebooks.length === 1) {
           // Si solo hay un cuaderno, seleccionarlo automáticamente
-          setSelectedNotebook(studentNotebooks?.[0] || null);
+          setSelectedNotebook(schoolNotebooks?.[0] || null);
         }
         
         setLoading(false);
@@ -152,12 +152,12 @@ const SchoolStudentStudyPage = () => {
     };
     
     initializeStudentData();
-  }, [notebooks, studentNotebooks, notebooksLoading]);
+  }, [notebooks, schoolNotebooks, notebooksLoading]);
   
   // Cuando se selecciona un cuaderno, cargar estadísticas de estudio (específicas del estudiante)
   useEffect(() => {
     const loadNotebookStats = async () => {
-      if (!selectedNotebook || !auth.currentUser || !studentInfo) return;
+      if (!selectedNotebook || !auth.currentUser) return;
       
       try {
         // Para estudiantes escolares, las estadísticas se guardan con un prefijo específico
@@ -184,7 +184,7 @@ const SchoolStudentStudyPage = () => {
     if (selectedNotebook) {
       loadNotebookStats();
     }
-  }, [selectedNotebook, studentInfo]);
+  }, [selectedNotebook]);
   
   // Actualizar tiempo de estudio mientras la sesión está activa
   useEffect(() => {
@@ -216,7 +216,7 @@ const SchoolStudentStudyPage = () => {
   
   // Iniciar nueva sesión de estudio (adaptado para estudiantes escolares)
   const startStudySession = async (mode?: StudyMode) => {
-    if (!auth.currentUser || !selectedNotebook || !studentInfo) {
+    if (!auth.currentUser || !selectedNotebook) {
       showFeedback('warning', 'Por favor selecciona un cuaderno para estudiar');
       return;
     }
@@ -241,7 +241,7 @@ const SchoolStudentStudyPage = () => {
 
   // Función para iniciar la sesión después de la introducción (adaptado para estudiantes)
   const beginStudySession = async () => {
-    if (!pendingStudyMode || !studentInfo) return;
+    if (!pendingStudyMode) return;
     
     setShowSmartStudyIntro(false);
     setShowQuizIntro(false);
@@ -257,8 +257,7 @@ const SchoolStudentStudyPage = () => {
         state: { 
           notebookId: selectedNotebook!.id,
           notebookTitle: selectedNotebook!.title,
-          isSchoolStudent: true,
-          studentId: studentInfo.id
+          isSchoolStudent: true
         } 
       });
       return;
@@ -350,9 +349,9 @@ const SchoolStudentStudyPage = () => {
   
   // Manejar respuesta del estudiante a un concepto (con almacenamiento local por estudiante)
   const handleConceptResponse = async (conceptId: string, quality: ResponseQuality) => {
-    if (!auth.currentUser || !sessionId || !studentInfo) return;
+    if (!auth.currentUser || !sessionId) return;
     
-    console.log('🎓 handleConceptResponse del estudiante:', { conceptId, quality, studentId: studentInfo.id });
+    console.log('🎓 handleConceptResponse del estudiante:', { conceptId, quality });
     
     try {
       // Para estudiantes escolares, usar identificador específico
@@ -445,7 +444,7 @@ const SchoolStudentStudyPage = () => {
   const completeStudySession = async () => {
     console.log('✅ Completando sesión de estudio del estudiante');
     
-    if (!sessionId || !auth.currentUser || !studentInfo) return;
+    if (!sessionId || !auth.currentUser) return;
     
     try {
       const studentKey = `student_${auth.currentUser.uid}`;
@@ -525,7 +524,7 @@ const SchoolStudentStudyPage = () => {
   };
 
   const handleSelectNotebook = (notebook: any) => {
-    const schoolNotebook = studentNotebooks?.find(n => n.id === notebook.id);
+    const schoolNotebook = schoolNotebooks?.find(n => n.id === notebook.id);
     if (schoolNotebook) {
       setSelectedNotebook(schoolNotebook);
     }
@@ -678,21 +677,17 @@ const SchoolStudentStudyPage = () => {
   }
 
   // Si el estudiante no tiene cuadernos asignados
-  if (!studentNotebooks || studentNotebooks.length === 0) {
+  if (!schoolNotebooks || schoolNotebooks.length === 0) {
     return (
       <>
         <HeaderWithHamburger
           title="Área del Estudiante"
-          subtitle={`Estudio Escolar - ${studentInfo?.nombre || 'Estudiante'}`}
+          subtitle="Estudio Escolar"
         />
         <div className="empty-state-container">
           <div className="empty-state">
             <h2>📚 No tienes cuadernos asignados</h2>
             <p>Contacta a tu profesor o administrador para que te asignen cuadernos de estudio.</p>
-            <div className="student-info">
-              <p><strong>Estudiante:</strong> {studentInfo?.nombre}</p>
-              <p><strong>Email:</strong> {studentInfo?.email}</p>
-            </div>
           </div>
         </div>
       </>
@@ -704,7 +699,7 @@ const SchoolStudentStudyPage = () => {
     <>
       <HeaderWithHamburger
         title="Área del Estudiante"
-        subtitle={`${selectedNotebook ? selectedNotebook.title : 'Selecciona un cuaderno'} - ${studentInfo?.nombre || 'Estudiante'}`}
+        subtitle={`${selectedNotebook ? selectedNotebook.title : 'Selecciona un cuaderno'}`}
       />
       
       {sessionComplete && (

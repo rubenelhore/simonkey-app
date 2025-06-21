@@ -1,89 +1,95 @@
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '../services/firebase';
-import { SchoolNotebook, SchoolStudent } from '../types/interfaces';
+import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { SchoolNotebook, SchoolStudent, SchoolClassroom } from '../types/interfaces';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolStudentData = () => {
-  const [studentNotebooks, setStudentNotebooks] = useState<SchoolNotebook[] | null>(null);
+  const [schoolNotebooks, setSchoolNotebooks] = useState<SchoolNotebook[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [studentInfo, setStudentInfo] = useState<SchoolStudent | null>(null);
-  const [user] = useAuthState(auth);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!user) {
-      console.log('👤 No hay usuario autenticado, limpiando datos del estudiante');
-      setStudentNotebooks([]);
-      setStudentInfo(null);
+      console.log('👤 No hay usuario autenticado, limpiando datos escolares');
+      setSchoolNotebooks([]);
       setLoading(false);
       return;
     }
 
-    const loadStudentNotebooks = async (): Promise<(() => void) | undefined> => {
+    const loadSchoolStudentData = async (): Promise<(() => void) | undefined> => {
       try {
-        console.log('🔄 Cargando cuadernos para estudiante:', user.uid);
+        console.log('🔄 Cargando datos escolares para estudiante:', user.uid);
         setLoading(true);
 
-        // 1. Obtener información del estudiante
+        // 1. Obtener información del estudiante desde la colección users con schoolRole
         const studentQuery = query(
-          collection(db, 'schoolStudents'),
-          where('id', '==', user.uid)
+          collection(db, 'users'),
+          where('id', '==', user.uid),
+          where('schoolRole', '==', 'student')
         );
         const studentSnapshot = await getDocs(studentQuery);
         
         if (studentSnapshot.empty) {
           console.log('❌ No se encontró información del estudiante');
-          setStudentNotebooks([]);
-          setStudentInfo(null);
+          setSchoolNotebooks([]);
           setLoading(false);
           return undefined;
         }
 
         const studentData = studentSnapshot.docs[0].data() as SchoolStudent;
-        setStudentInfo(studentData);
         console.log('👨‍🎓 Datos del estudiante encontrados:', studentData.nombre);
-        console.log('📚 Cuadernos asignados:', studentData.idCuadernos);
 
-        // 2. Si el estudiante tiene cuadernos asignados
-        if (studentData.idCuadernos && studentData.idCuadernos.length > 0) {
-          // Usar onSnapshot para actualizaciones en tiempo real
-          const notebooksQuery = query(
-            collection(db, 'schoolNotebooks'),
-            where('__name__', 'in', studentData.idCuadernos), // __name__ es el ID del documento
-            orderBy('createdAt', 'desc')
-          );
-
-          const unsubscribe = onSnapshot(
-            notebooksQuery,
-            (snapshot) => {
-              const notebooksList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                color: doc.data().color || '#6147FF'
-              })) as SchoolNotebook[];
-              
-              console.log('📚 Cuadernos heredados cargados:', notebooksList.length, 'cuadernos');
-              setStudentNotebooks(notebooksList);
-              setLoading(false);
-            },
-            (err) => {
-              console.error("❌ Error fetching student notebooks:", err);
-              setError(err);
-              setLoading(false);
-            }
-          );
-
-          return unsubscribe;
-        } else {
-          console.log('📚 El estudiante no tiene cuadernos asignados');
-          setStudentNotebooks([]);
+        // 2. Obtener el salón del estudiante
+        const classroomQuery = query(
+          collection(db, 'schoolClassrooms'),
+          where('idEstudiante', '==', user.uid)
+        );
+        const classroomSnapshot = await getDocs(classroomQuery);
+        
+        if (classroomSnapshot.empty) {
+          console.log('❌ No se encontró salón asignado al estudiante');
+          setSchoolNotebooks([]);
           setLoading(false);
           return undefined;
         }
 
+        const classroomId = classroomSnapshot.docs[0].id;
+        console.log('🏫 Salón encontrado:', classroomId);
+
+        // 3. Obtener los cuadernos del salón
+        const notebooksQuery = query(
+          collection(db, 'schoolNotebooks'),
+          where('idSalon', '==', classroomId),
+          orderBy('createdAt', 'desc')
+        );
+
+        // Usar onSnapshot para actualizaciones en tiempo real
+        const unsubscribe = onSnapshot(
+          notebooksQuery,
+          (snapshot) => {
+            const notebooksList = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              color: doc.data().color || '#6147FF'
+            })) as SchoolNotebook[];
+            
+            console.log('📚 Cuadernos escolares cargados:', notebooksList.length, 'cuadernos');
+            setSchoolNotebooks(notebooksList);
+            setLoading(false);
+          },
+          (err) => {
+            console.error("❌ Error fetching school student data:", err);
+            setError(err);
+            setLoading(false);
+          }
+        );
+
+        return unsubscribe;
+
       } catch (err) {
-        console.error("❌ Error loading student notebooks:", err);
+        console.error("❌ Error loading school student data:", err);
         setError(err as Error);
         setLoading(false);
         return undefined;
@@ -92,7 +98,7 @@ export const useSchoolStudentData = () => {
 
     let unsubscribeFunction: (() => void) | undefined;
     
-    loadStudentNotebooks().then((unsubscribe) => {
+    loadSchoolStudentData().then((unsubscribe) => {
       unsubscribeFunction = unsubscribe;
     });
     
@@ -104,13 +110,5 @@ export const useSchoolStudentData = () => {
     };
   }, [user]);
 
-  return { 
-    studentNotebooks, 
-    loading, 
-    error, 
-    studentInfo,
-    // Información útil para el estudiante
-    hasNotebooks: studentNotebooks && studentNotebooks.length > 0,
-    notebookCount: studentNotebooks?.length || 0
-  };
+  return { schoolNotebooks, loading, error };
 }; 

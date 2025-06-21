@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../services/firebase';
 import { 
   getUserProfile, 
@@ -33,8 +33,16 @@ export const useUserType = () => {
   }
 
   // Extraer datos del perfil
-  const { subscription, schoolRole } = userProfile;
-  const isSuperAdmin = userProfile.email === 'ruben.elhore@gmail.com';
+  const { subscription, schoolRole, email } = userProfile;
+  
+  // Lógica mejorada para determinar si es superadmin
+  const isSuperAdmin = email === 'ruben.elhore@gmail.com' || subscription === UserSubscriptionType.SUPER_ADMIN;
+  
+  // Log específico para superadmin
+  console.log('useUserType - SuperAdmin check:');
+  console.log('  - email:', email);
+  console.log('  - subscription:', subscription);
+  console.log('  - isSuperAdmin:', isSuperAdmin);
 
   // Determinar si es usuario escolar
   const isSchoolUser = subscription === 'school';

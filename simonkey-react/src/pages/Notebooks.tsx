@@ -338,6 +338,7 @@ const Notebooks: React.FC = () => {
           <NotebookList 
             notebooks={(notebooks || []).map(notebook => ({
               ...notebook,
+              userId: notebook.userId || user?.uid || '',
               createdAt: notebook.createdAt instanceof Date ? 
                 notebook.createdAt : 
                 (notebook.createdAt && typeof notebook.createdAt.toDate === 'function' ? 

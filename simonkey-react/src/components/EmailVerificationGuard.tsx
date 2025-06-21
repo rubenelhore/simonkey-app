@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 
 interface EmailVerificationGuardProps {
@@ -8,58 +8,66 @@ interface EmailVerificationGuardProps {
 }
 
 const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ children }) => {
-  const { isAuthenticated, isEmailVerified, loading, initializing } = useAuth();
+  const { isAuthenticated, isEmailVerified, loading } = useAuth();
   const { isSchoolTeacher, isSchoolStudent, isSchoolUser, userProfile, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (!loading && !initializing && !userTypeLoading) {
-      // Si está autenticado pero no verificado y no está en la página de verificación
-      if (isAuthenticated && !isEmailVerified && location.pathname !== '/verify-email') {
-        console.log('🔒 Usuario no verificado, redirigiendo a verificación de email');
-        navigate('/verify-email', { replace: true });
-        return;
-      }
+    console.log('🔍 EmailVerificationGuard - useEffect triggered');
+    console.log('🔍 EmailVerificationGuard - loading:', loading);
+    console.log('🔍 EmailVerificationGuard - isAuthenticated:', isAuthenticated);
+    console.log('🔍 EmailVerificationGuard - isEmailVerified:', isEmailVerified);
+    console.log('🔍 EmailVerificationGuard - isSchoolUser:', isSchoolUser);
+    console.log('🔍 EmailVerificationGuard - isSchoolTeacher:', isSchoolTeacher);
+    console.log('🔍 EmailVerificationGuard - isSchoolStudent:', isSchoolStudent);
+    console.log('🔍 EmailVerificationGuard - location.pathname:', location.pathname);
+    
+    if (!loading) {
+      console.log('🔍 EmailVerificationGuard - Verificando redirecciones escolares:');
+      console.log('   - isSchoolUser:', isSchoolUser);
+      console.log('   - isSchoolTeacher:', isSchoolTeacher);
+      console.log('   - isSchoolStudent:', isSchoolStudent);
+      console.log('   - userProfile.schoolRole:', userProfile?.schoolRole);
+      console.log('   - location.pathname:', location.pathname);
 
-      // Si está autenticado y verificado, manejar redirecciones de usuarios escolares
-      if (isAuthenticated && isEmailVerified) {
-        console.log('🔍 EmailVerificationGuard - Verificando redirecciones escolares:');
-        console.log('   - isSchoolUser:', isSchoolUser);
-        console.log('   - isSchoolTeacher:', isSchoolTeacher);
-        console.log('   - isSchoolStudent:', isSchoolStudent);
-        console.log('   - userProfile.schoolRole:', userProfile?.schoolRole);
-        console.log('   - location.pathname:', location.pathname);
-
-        // Detectar usuarios escolares sin rol definido
-        const isSchoolUserWithoutRole = isSchoolUser && userProfile && !userProfile.schoolRole;
-
-        // CASO 1: Usuario escolar sin rol definido - BLOQUEAR ACCESO
-        if (isSchoolUserWithoutRole) {
-          console.log('🚫 EmailVerificationGuard - Usuario escolar sin rol definido');
-          // No redirigir, el SchoolUserGuard se encargará de mostrar el error
-          return;
-        }
-
-        // CASO 2: Profesor escolar - Solo /school/teacher
+      // USUARIOS ESCOLARES: Redirigir según su rol
+      if (isSchoolUser && userProfile?.schoolRole) {
+        console.log('🔍 EmailVerificationGuard - Usuario escolar detectado con rol:', userProfile.schoolRole);
+        
         if (isSchoolTeacher && location.pathname !== '/school/teacher') {
-          console.log('🏫 EmailVerificationGuard - Redirigiendo profesor escolar a su módulo');
+          console.log('🏫 EmailVerificationGuard - Redirigiendo profesor escolar a /school/teacher');
+          console.log('🏫 From:', location.pathname, 'To: /school/teacher');
           navigate('/school/teacher', { replace: true });
           return;
         }
         
-        // CASO 3: Estudiante escolar - Solo /school/student
         if (isSchoolStudent && location.pathname !== '/school/student') {
-          console.log('🎓 EmailVerificationGuard - Redirigiendo estudiante escolar a su módulo');
+          console.log('🎓 EmailVerificationGuard - Redirigiendo estudiante escolar a /school/student');
+          console.log('🎓 From:', location.pathname, 'To: /school/student');
           navigate('/school/student', { replace: true });
           return;
         }
+        
+        console.log('✅ EmailVerificationGuard - Usuario escolar ya está en la ruta correcta');
       }
+
+      // USUARIOS NORMALES: Verificar email
+      if (isAuthenticated && !isEmailVerified && !isSchoolUser) {
+        console.log('📧 EmailVerificationGuard - Usuario normal no verificado, redirigiendo a verificación');
+        console.log('📧 From:', location.pathname, 'To: /verify-email');
+        navigate('/verify-email', { replace: true });
+        return;
+      }
+      
+      console.log('✅ EmailVerificationGuard - No se requieren redirecciones');
+    } else {
+      console.log('🔍 EmailVerificationGuard - Still loading, skipping checks');
     }
-  }, [isAuthenticated, isEmailVerified, loading, initializing, userTypeLoading, isSchoolTeacher, isSchoolStudent, isSchoolUser, userProfile, location.pathname, navigate]);
+  }, [isAuthenticated, isEmailVerified, isSchoolUser, isSchoolTeacher, isSchoolStudent, userProfile, location.pathname, navigate, loading]);
 
   // Si está cargando, mostrar loading
-  if (loading || initializing || userTypeLoading) {
+  if (loading || userTypeLoading) {
     return (
       <div style={{
         display: 'flex',

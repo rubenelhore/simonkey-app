@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { sendVerificationEmail } from '../../services/emailVerificationService';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import './EmailVerificationBanner.css';
 
 interface EmailVerificationBannerProps {
