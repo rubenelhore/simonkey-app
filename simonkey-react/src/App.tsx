@@ -185,7 +185,7 @@ const AppWrapper: React.FC = () => {
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent } = useUserType();
+  const { isSchoolTeacher, isSchoolStudent, isSuperAdmin } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -300,7 +300,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
+                {isSuperAdmin ? (
                   <>
                     {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
                       setHasCompletedOnboarding(true);
@@ -308,53 +308,111 @@ const AppContent: React.FC = () => {
                     }} />}
                     <Notebooks />
                   </>
-                </SchoolUserGuard>
+                ) : (
+                  <SchoolUserGuard>
+                    <>
+                      {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                        setHasCompletedOnboarding(true);
+                        localStorage.setItem('hasCompletedOnboarding', 'true');
+                      }} />}
+                      <Notebooks />
+                    </>
+                  </SchoolUserGuard>
+                )}
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
         />
         <Route
           path="/notebooks/:id"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><NotebookDetail /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <NotebookDetail /> : <SchoolUserGuard><NotebookDetail /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ConceptDetail /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <ConceptDetail /> : <SchoolUserGuard><ConceptDetail /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="/tools/explain/:type/:notebookId"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ExplainConceptPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <ExplainConceptPage /> : <SchoolUserGuard><ExplainConceptPage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         <Route path="/shared/:shareId" element={<SharedNotebook />} />
         
         {/* Nueva ruta para configuración de voz */}
         <Route
           path="/settings/voice"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><VoiceSettingsPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <VoiceSettingsPage /> : <SchoolUserGuard><VoiceSettingsPage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Nueva ruta para estudio */}
         <Route
           path="/study"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><StudyModePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <StudyModePage /> : <SchoolUserGuard><StudyModePage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Nueva ruta para progreso */}
         <Route
           path="/progress"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ProgressPage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <ProgressPage /> : <SchoolUserGuard><ProgressPage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Nueva ruta para perfil */}
         <Route
           path="/profile"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><ProfilePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <ProfilePage /> : <SchoolUserGuard><ProfilePage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Nueva ruta para quiz */}
         <Route
           path="/quiz"
-          element={isAuthenticated ? <EmailVerificationGuard><SchoolUserGuard><QuizModePage /></SchoolUserGuard></EmailVerificationGuard> : <Navigate to="/login" replace />}
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                {isSuperAdmin ? <QuizModePage /> : <SchoolUserGuard><QuizModePage /></SchoolUserGuard>}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Rutas para el sistema escolar */}
