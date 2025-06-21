@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { SchoolNotebook, SchoolTeacher, SchoolClassroom } from '../types/interfaces';
+import { SchoolNotebook, SchoolTeacher, SchoolClassroom, SchoolAdmin } from '../types/interfaces';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolNotebooks = () => {
@@ -25,29 +25,72 @@ export const useSchoolNotebooks = () => {
         
         // LOG: userProfile
         console.log('🔍 useSchoolNotebooks - userProfile:', userProfile);
-        if (userProfile && userProfile.schoolRole === 'teacher') {
-          console.log('✅ userProfile.schoolRole es teacher, saltando query a Firestore para teacher');
-        } else {
-          // 1. Obtener información del profesor desde la colección users con schoolRole
-          const teacherQuery = query(
-            collection(db, 'users'),
-            where('id', '==', user.uid),
-            where('schoolRole', '==', 'teacher')
-          );
-          const teacherSnapshot = await getDocs(teacherQuery);
-          console.log('🔍 teacherSnapshot.size:', teacherSnapshot.size);
-          teacherSnapshot.forEach(doc => {
-            console.log('🔍 teacherDoc:', doc.id, doc.data());
-          });
-          if (teacherSnapshot.empty) {
-            console.log('❌ No se encontró información del profesor para UID:', user.uid, 'schoolRole:', 'teacher');
-            setSchoolNotebooks([]);
-            setLoading(false);
-            return undefined;
-          }
+        
+        // Verificar que el usuario es profesor
+        if (!userProfile || userProfile.schoolRole !== 'teacher') {
+          console.log('❌ Usuario no es profesor escolar');
+          setSchoolNotebooks([]);
+          setLoading(false);
+          return undefined;
         }
 
-        // 2. Obtener los salones asignados al profesor
+        console.log('✅ Usuario confirmado como profesor escolar');
+
+        // 1. Obtener el idAdmin del profesor desde la colección schoolTeachers
+        const teacherQuery = query(
+          collection(db, 'schoolTeachers'),
+          where('id', '==', user.uid)
+        );
+        const teacherSnapshot = await getDocs(teacherQuery);
+        console.log('🔍 teacherSnapshot.size:', teacherSnapshot.size);
+        
+        if (teacherSnapshot.empty) {
+          console.log('❌ No se encontró información del profesor en schoolTeachers para UID:', user.uid);
+          setSchoolNotebooks([]);
+          setLoading(false);
+          return undefined;
+        }
+
+        const teacherData = teacherSnapshot.docs[0].data() as SchoolTeacher;
+        console.log('👨‍🏫 Datos del profesor:', teacherData);
+        
+        if (!teacherData.idAdmin) {
+          console.log('❌ Profesor no tiene idAdmin asignado');
+          setSchoolNotebooks([]);
+          setLoading(false);
+          return undefined;
+        }
+
+        console.log('🔗 Profesor vinculado al admin:', teacherData.idAdmin);
+
+        // 2. Obtener el idInstitucion del admin
+        const adminQuery = query(
+          collection(db, 'schoolAdmins'),
+          where('id', '==', teacherData.idAdmin)
+        );
+        const adminSnapshot = await getDocs(adminQuery);
+        console.log('🔍 adminSnapshot.size:', adminSnapshot.size);
+        
+        if (adminSnapshot.empty) {
+          console.log('❌ No se encontró información del admin para idAdmin:', teacherData.idAdmin);
+          setSchoolNotebooks([]);
+          setLoading(false);
+          return undefined;
+        }
+
+        const adminData = adminSnapshot.docs[0].data() as SchoolAdmin;
+        console.log('👨‍💼 Datos del admin:', adminData);
+        
+        if (!adminData.idInstitucion) {
+          console.log('❌ Admin no tiene idInstitucion asignado');
+          setSchoolNotebooks([]);
+          setLoading(false);
+          return undefined;
+        }
+
+        console.log('🏫 Admin vinculado a la institución:', adminData.idInstitucion);
+
+        // 3. Obtener los salones asignados al profesor
         const classroomQuery = query(
           collection(db, 'schoolClassrooms'),
           where('idProfesor', '==', user.uid)
@@ -57,6 +100,7 @@ export const useSchoolNotebooks = () => {
         classroomSnapshot.forEach(doc => {
           console.log('🔍 classroomDoc:', doc.id, doc.data());
         });
+        
         if (classroomSnapshot.empty) {
           console.log('❌ No se encontraron salones asignados al profesor');
           setSchoolNotebooks([]);
@@ -67,7 +111,7 @@ export const useSchoolNotebooks = () => {
         const classroomIds = classroomSnapshot.docs.map(doc => doc.id);
         console.log('🏫 Salones encontrados:', classroomIds);
 
-        // 3. Si hay salones, obtener los cuadernos de esos salones
+        // 4. Obtener los cuadernos de esos salones
         if (classroomIds.length > 0) {
           const notebooksQuery = query(
             collection(db, 'schoolNotebooks'),

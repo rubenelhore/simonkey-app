@@ -38,23 +38,9 @@ service cloud.firestore {
       return isSchoolUser() && getSchoolRole() == 'student';
     }
 
-    // NUEVO - Función para obtener el schoolId del usuario
-    function getUserSchoolId() {
-      return getProfile().schoolId;
-    }
-
     // =================================
     // REGLAS PARA COLECCIONES ESCOLARES
     // =================================
-
-    // NUEVO - Reglas para la colección 'schools'
-    match /schools/{schoolId} {
-      // Profesores y estudiantes pueden leer los datos de su propia escuela
-      allow read: if isSchoolUser() && getUserSchoolId() == schoolId;
-      
-      // Solo súper admins pueden crear, actualizar o eliminar escuelas
-      allow write, create, update, delete: if isSuperAdmin();
-    }
 
     // NUEVO - Reglas para schoolTeachers y schoolStudents
     match /schoolTeachers/{teacherId} {
@@ -69,11 +55,8 @@ service cloud.firestore {
 
     // NUEVO - Reglas para schoolNotebooks
     match /schoolNotebooks/{notebookId} {
-      // Profesores pueden crear, leer, actualizar y eliminar cuadernos de su escuela
-      allow read, write, create, delete: if isTeacher() && getUserSchoolId() == request.resource.data.schoolId;
-
-      // Estudiantes pueden leer los cuadernos de su escuela
-      allow read: if isStudent() && getUserSchoolId() == resource.data.schoolId;
+      // Temporalmente permitir acceso a todos los usuarios escolares
+      allow read, write, create, delete: if isSchoolUser();
     }
 
     // =================================

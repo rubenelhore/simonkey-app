@@ -289,7 +289,6 @@ export interface UserProfile {
   notebookCount: number;
   // Campos específicos para usuarios escolares
   schoolRole?: SchoolRole;
-  schoolId?: string;
   schoolName?: string;
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;

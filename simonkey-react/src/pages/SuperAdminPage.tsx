@@ -26,7 +26,6 @@ interface User {
   apellidos: string;
   subscription: UserSubscriptionType;
   schoolRole?: SchoolRole;
-  schoolId?: string;
   createdAt: any;
   username?: string;
   displayName?: string;
@@ -529,13 +528,6 @@ const SuperAdminPage: React.FC = () => {
                           </div>
                         )}
                         
-                        {user.schoolId && (
-                          <div className="detail-row">
-                            <span className="detail-label">🏫 Institución:</span>
-                            <span className="detail-value">{user.schoolId}</span>
-                          </div>
-                        )}
-
                         {/* Mostrar fecha de nacimiento si existe */}
                         {user.birthdate && (
                           <div className="detail-row">

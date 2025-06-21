@@ -114,7 +114,6 @@ export const syncSchoolTeachers = async (): Promise<{
           birthdate: '',
           subscription: UserSubscriptionType.SCHOOL,
           schoolRole: SchoolRole.TEACHER,
-          schoolId: teacherData.idAdmin,
           notebookCount: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
