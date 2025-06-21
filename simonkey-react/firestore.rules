@@ -45,12 +45,34 @@ service cloud.firestore {
     // NUEVO - Reglas para schoolTeachers y schoolStudents
     match /schoolTeachers/{teacherId} {
       allow read: if isSchoolUser(); // Profesores pueden ver a otros profesores
-      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar
+      allow create: if isSchoolUser() && request.auth.uid == teacherId; // Usuarios escolares pueden auto-registrarse
+      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar registros existentes
     }
 
     match /schoolStudents/{studentId} {
       allow read: if isTeacher(); // Profesores pueden ver a sus estudiantes
-      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar
+      allow create: if isSchoolUser() && request.auth.uid == studentId; // Usuarios escolares pueden auto-registrarse
+      allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar registros existentes
+    }
+
+    // NUEVO - Reglas para schoolAdmins
+    match /schoolAdmins/{adminId} {
+      allow read: if isSchoolUser(); // Usuarios escolares pueden leer admins
+      allow create, write, delete: if isSuperAdmin(); // Solo súper admins pueden modificar
+    }
+
+    // NUEVO - Reglas para schoolClassrooms
+    match /schoolClassrooms/{classroomId} {
+      allow read: if isSchoolUser(); // Usuarios escolares pueden leer classrooms
+      allow create: if isSuperAdmin(); // Solo súper admins pueden crear
+      allow update: if isSuperAdmin() || (isTeacher() && (resource.data.idProfesor == request.auth.uid || request.resource.data.idProfesor == request.auth.uid)); // Profesores pueden actualizar si son dueños antes o después
+      allow delete: if isSuperAdmin(); // Solo súper admins pueden eliminar
+    }
+
+    // NUEVO - Reglas para schoolInstitutions
+    match /schoolInstitutions/{institutionId} {
+      allow read: if isSchoolUser(); // Usuarios escolares pueden leer instituciones
+      allow create, write, delete: if isSuperAdmin(); // Solo súper admins pueden modificar
     }
 
     // NUEVO - Reglas para schoolNotebooks

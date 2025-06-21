@@ -14,6 +14,7 @@ import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
+import { diagnoseSchoolDataStructure, autoFixAllInconsistencies, fixSpecificTeacherCase, fixAllSchoolIssues } from '../utils/fixMissingAdmin';
 
 const SchoolTeacherNotebooksPage: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +55,23 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
       
       console.log('🔄 Usuario no existe en schoolTeachers, creando registro...');
       
+      // Buscar un admin disponible para vincular
+      const adminQuery = query(
+        collection(db, 'schoolAdmins'),
+        where('idInstitucion', '!=', '') // Buscar admins que tengan institución asignada
+      );
+      const adminSnapshot = await getDocs(adminQuery);
+      
+      let idAdmin = '';
+      if (!adminSnapshot.empty) {
+        // Usar el primer admin disponible
+        const firstAdmin = adminSnapshot.docs[0];
+        idAdmin = firstAdmin.id;
+        console.log('🔗 Vinculando profesor al admin:', idAdmin);
+      } else {
+        console.log('⚠️ No hay admins disponibles, el profesor quedará sin vincular');
+      }
+      
       // Crear registro en schoolTeachers
       await setDoc(doc(db, 'schoolTeachers', user.uid), {
         id: user.uid,
@@ -61,7 +79,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
         email: userProfile.email,
         password: '1234', // Password por defecto
         subscription: UserSubscriptionType.SCHOOL,
-        idAdmin: '', // Se vinculará después
+        idAdmin: idAdmin, // Vincular al admin encontrado o dejar vacío
         createdAt: userProfile.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -262,6 +280,48 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     };
   }, [menuOpen]);
 
+  // Función para ejecutar diagnóstico
+  const handleDiagnoseData = async () => {
+    if (user) {
+      console.log('🔍 Ejecutando diagnóstico de datos escolares...');
+      await diagnoseSchoolDataStructure(user.uid);
+    }
+  };
+
+  // Función para corrección automática
+  const handleAutoFix = async () => {
+    if (user) {
+      console.log('🔧 Ejecutando corrección automática...');
+      await autoFixAllInconsistencies(user.uid);
+      // Recargar la página después de la corrección
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  };
+
+  // Función para corrección específica del caso
+  const handleSpecificFix = async () => {
+    console.log('🔧 Ejecutando corrección específica...');
+    await fixSpecificTeacherCase();
+    // Recargar la página después de la corrección
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
+  // Función para corrección completa
+  const handleCompleteFix = async () => {
+    if (user) {
+      console.log('🔧 Ejecutando corrección completa...');
+      await fixAllSchoolIssues(user.uid);
+      // Recargar la página después de la corrección
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    }
+  };
+
   if (notebooksLoading) {
     console.log('⏳ SchoolTeacherNotebooksPage - loading...');
     return (
@@ -295,6 +355,69 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
             <p>• Puedes añadir conceptos a los cuadernos</p>
             <p>• Puedes cambiar el título y color</p>
             <p>• No puedes crear o eliminar cuadernos</p>
+            <button 
+              onClick={handleDiagnoseData}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#6147FF',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                marginRight: '8px'
+              }}
+            >
+              🔍 Diagnosticar Datos
+            </button>
+            <button 
+              onClick={handleAutoFix}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                marginRight: '8px'
+              }}
+            >
+              🔧 Corregir Automáticamente
+            </button>
+            <button 
+              onClick={handleSpecificFix}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                marginRight: '8px'
+              }}
+            >
+              🔧 Corregir Caso Específico
+            </button>
+            <button 
+              onClick={handleCompleteFix}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#ffc107',
+                color: 'black',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              🔧 Corrección Completa
+            </button>
           </div>
         </div>
         <div className="notebooks-list-section">
@@ -302,7 +425,13 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
           {schoolNotebooks && schoolNotebooks.length === 0 ? (
             <div className="empty-state">
               <h3>No tienes cuadernos asignados</h3>
-              <p>Contacta al administrador escolar para que te asigne cuadernos para trabajar.</p>
+              <p>Para poder trabajar con cuadernos escolares, necesitas:</p>
+              <ol>
+                <li>Ser registrado por un administrador escolar</li>
+                <li>Tener salones asignados a tu perfil</li>
+                <li>Que los salones tengan cuadernos creados</li>
+              </ol>
+              <p>Contacta al administrador de tu institución para completar la configuración.</p>
             </div>
           ) : (
             <NotebookList 
