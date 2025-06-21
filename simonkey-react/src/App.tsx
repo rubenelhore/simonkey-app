@@ -44,6 +44,14 @@ import EmailVerificationGuard from './components/EmailVerificationGuard';
 import SchoolUserGuard from './components/SchoolUserGuard';
 // Importar auth de firebase
 import { auth } from './services/firebase';
+// Importar ProtectedRoute
+import ProtectedRoute from './components/ProtectedRoute';
+// Importar CookieConsentBanner
+import CookieConsentBanner from './components/CookieConsent/CookieConsentBanner';
+// Importar AuthCleaner
+import AuthCleaner from './components/AuthCleaner';
+// Importar AuthUnlocker
+import AuthUnlocker from './components/AuthUnlocker';
 
 // Definir el tipo para el usuario
 interface User {
@@ -120,6 +128,49 @@ const HomePageContent: React.FC = () => {
   );
 };
 
+// Maintenance Mode Component
+const MaintenanceMode: React.FC = () => {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      padding: '20px',
+      textAlign: 'center'
+    }}>
+      <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🚧 Mantenimiento</h1>
+      <p style={{ fontSize: '1.2rem', marginBottom: '1rem', maxWidth: '600px' }}>
+        Estamos solucionando un problema técnico que está causando un bucle infinito en la aplicación.
+      </p>
+      <p style={{ fontSize: '1rem', marginBottom: '2rem', maxWidth: '600px' }}>
+        Por favor, espera mientras resolvemos este problema. La aplicación estará disponible pronto.
+      </p>
+      <div style={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+        padding: '20px', 
+        borderRadius: '10px',
+        maxWidth: '500px'
+      }}>
+        <h3 style={{ marginBottom: '1rem' }}>Problema identificado:</h3>
+        <ul style={{ textAlign: 'left', lineHeight: '1.6' }}>
+          <li>Bucle infinito en la autenticación</li>
+          <li>Consumo excesivo de cuota de Firebase</li>
+          <li>Múltiples listeners de autenticación</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 // Componente envoltorio para la aplicación con rutas
 const AppWrapper: React.FC = () => {
   return (
@@ -141,6 +192,13 @@ const AppContent: React.FC = () => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
     return localStorage.getItem('hasCompletedOnboarding') === 'true';
   });
+
+  // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
+  const MAINTENANCE_MODE = true;
+  
+  if (MAINTENANCE_MODE) {
+    return <MaintenanceMode />;
+  }
 
   useEffect(() => {
     if (!loading) {

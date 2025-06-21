@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
 import { getUserProfile } from '../services/userService';
 import { UserProfile } from '../types/interfaces';
 import { checkAndFixCurrentUser } from '../utils/fixOrphanUsers';
+
+// Maintenance mode flag - DISABLE ALL FIREBASE OPERATIONS
+const MAINTENANCE_MODE = true;
 
 export interface AuthState {
   user: User | null;
@@ -22,6 +25,8 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   updateVerificationState: () => Promise<boolean>;
+  signOut: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +47,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated: false,
     isEmailVerified: false
   });
+
+  const authListenerRef = useRef<(() => void) | null>(null);
+  const isInitializedRef = useRef(false);
+
+  // If maintenance mode is enabled, return mock data and disable all Firebase operations
+  if (MAINTENANCE_MODE) {
+    const mockAuthContext: AuthContextType = {
+      user: null,
+      userProfile: null,
+      loading: false,
+      emailVerificationState: {
+        isEmailVerified: false,
+        verificationCount: 0,
+      },
+      isAuthenticated: false,
+      isEmailVerified: false,
+      signOut: async () => {
+        console.log('🔧 Maintenance mode: signOut disabled');
+      },
+      refreshUserProfile: async () => {
+        console.log('🔧 Maintenance mode: refreshUserProfile disabled');
+      },
+      refreshEmailVerification: async () => {
+        console.log('🔧 Maintenance mode: refreshEmailVerification disabled');
+        return false;
+      },
+      requiresEmailVerification: () => false,
+      canAccessApp: () => false,
+      logout: async () => {
+        console.log('🔧 Maintenance mode: logout disabled');
+      },
+      refreshUserData: async () => {
+        console.log('🔧 Maintenance mode: refreshUserData disabled');
+      },
+      updateVerificationState: async () => {
+        console.log('🔧 Maintenance mode: updateVerificationState disabled');
+        return false;
+      },
+    };
+
+    return (
+      <AuthContext.Provider value={mockAuthContext}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
 
   // Función para actualizar el estado de verificación
   const updateVerificationState = async (user: User) => {
@@ -287,7 +338,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     refreshUserData,
     
     // Funciones para componentes específicos
-    updateVerificationState: () => authState.user ? updateVerificationState(authState.user) : Promise.resolve(false)
+    updateVerificationState: () => authState.user ? updateVerificationState(authState.user) : Promise.resolve(false),
+    signOut: logout,
+    refreshUserProfile: refreshUserData
   };
 
   return (
