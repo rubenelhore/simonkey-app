@@ -16,7 +16,7 @@ import { deleteAllUserData, deleteUserCompletely } from '../services/userService
 import UserDataManagement from '../components/UserDataManagement';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
-import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents, migrateExistingTeachers } from '../utils/syncSchoolUsers';
+import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents, migrateExistingTeachers, checkTeacherStatus } from '../utils/syncSchoolUsers';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -315,6 +315,26 @@ const SuperAdminPage: React.FC = () => {
     } catch (error) {
       console.error('Error en migración de profesores existentes:', error);
       alert('Error en la migración de profesores existentes');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleCheckTeacherStatus = async () => {
+    const userId = prompt('Ingresa el ID del usuario a verificar:');
+    if (!userId) return;
+    
+    setSyncLoading(true);
+    try {
+      const result = await checkTeacherStatus(userId);
+      if (result.exists) {
+        alert(`✅ Usuario encontrado en schoolTeachers:\n\n${JSON.stringify(result.data, null, 2)}`);
+      } else {
+        alert(`❌ Usuario NO encontrado en schoolTeachers:\n\nError: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error verificando estado del profesor:', error);
+      alert('Error al verificar el estado del profesor');
     } finally {
       setSyncLoading(false);
     }
@@ -760,8 +780,23 @@ const SuperAdminPage: React.FC = () => {
                     onClick={handleMigrateExistingTeachers}
                     disabled={syncLoading}
                   >
-                    <i className="fas fa-exchange-alt"></i>
+                    <i className="fas fa-sync-alt"></i>
                     Migrar Profesores
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔍 Verificar Estado de Profesor</h3>
+                    <p>Verifica si un usuario existe en schoolTeachers</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-check"
+                    onClick={handleCheckTeacherStatus}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-search"></i>
+                    Verificar Estado
                   </button>
                 </div>
               </div>

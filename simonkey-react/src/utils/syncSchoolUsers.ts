@@ -449,4 +449,44 @@ export const migrateExistingTeachers = async (): Promise<{
   
   console.log(`🎯 Migración de profesores completada: ${results.success} exitosos, ${results.errors.length} errores`);
   return results;
+};
+
+/**
+ * Verifica el estado de un usuario específico en schoolTeachers
+ */
+export const checkTeacherStatus = async (userId: string): Promise<{
+  exists: boolean;
+  data?: any;
+  error?: string;
+}> => {
+  try {
+    console.log(`🔍 Verificando estado del profesor: ${userId}`);
+    
+    // Verificar en schoolTeachers
+    const teacherQuery = query(
+      collection(db, 'schoolTeachers'),
+      where('id', '==', userId)
+    );
+    const teacherSnapshot = await getDocs(teacherQuery);
+    
+    if (teacherSnapshot.empty) {
+      console.log(`❌ Usuario ${userId} no existe en schoolTeachers`);
+      return { exists: false, error: 'No existe en schoolTeachers' };
+    }
+    
+    const teacherData = teacherSnapshot.docs[0].data();
+    console.log(`✅ Usuario ${userId} encontrado en schoolTeachers:`, teacherData);
+    
+    return { 
+      exists: true, 
+      data: {
+        id: teacherSnapshot.docs[0].id,
+        ...teacherData
+      }
+    };
+    
+  } catch (error) {
+    console.error(`❌ Error verificando estado del profesor ${userId}:`, error);
+    return { exists: false, error: (error as Error).message };
+  }
 }; 
