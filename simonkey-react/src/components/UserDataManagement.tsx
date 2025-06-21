@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useUserType } from '../hooks/useUserType';
-import { auditUserData, testUserDataDeletion } from '../utils/testUserDeletion';
-import './UserDataManagement.css';
+import { deleteAllUserData } from '../services/userService';
+import { auth } from '../services/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
+// import '../styles/UserDataManagement.css';
 
 const UserDataManagement: React.FC = () => {
   const { isSuperAdmin } = useUserType();
@@ -10,10 +13,64 @@ const UserDataManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Solo mostrar para super admins
-  if (!isSuperAdmin) {
-    return null;
-  }
+  // Función para auditar datos de usuario (simplificada)
+  const auditUserData = async (userId: string): Promise<any> => {
+    try {
+      console.log('🔍 Auditando datos del usuario:', userId);
+      
+      const audit = {
+        notebooks: 0,
+        concepts: 0,
+        studySessions: 0,
+        userActivities: 0,
+        reviewConcepts: 0,
+        conceptStats: 0,
+        learningData: 0,
+        quizStats: 0,
+        quizResults: 0,
+        limits: 0,
+        notebookLimits: 0,
+        stats: 0,
+        settings: 0
+      };
+
+      // Contar notebooks
+      const notebooksQuery = query(collection(db, 'notebooks'), where('userId', '==', userId));
+      const notebooksSnapshot = await getDocs(notebooksQuery);
+      audit.notebooks = notebooksSnapshot.size;
+
+      // Contar conceptos
+      const conceptsQuery = query(collection(db, 'conceptos'), where('usuarioId', '==', userId));
+      const conceptsSnapshot = await getDocs(conceptsQuery);
+      audit.concepts = conceptsSnapshot.size;
+
+      // Contar sesiones de estudio
+      const studySessionsQuery = query(collection(db, 'studySessions'), where('userId', '==', userId));
+      const studySessionsSnapshot = await getDocs(studySessionsQuery);
+      audit.studySessions = studySessionsSnapshot.size;
+
+      // Contar actividades de usuario
+      const userActivitiesQuery = query(collection(db, 'userActivities'), where('userId', '==', userId));
+      const userActivitiesSnapshot = await getDocs(userActivitiesQuery);
+      audit.userActivities = userActivitiesSnapshot.size;
+
+      // Contar conceptos de repaso
+      const reviewConceptsQuery = query(collection(db, 'reviewConcepts'), where('userId', '==', userId));
+      const reviewConceptsSnapshot = await getDocs(reviewConceptsQuery);
+      audit.reviewConcepts = reviewConceptsSnapshot.size;
+
+      // Contar estadísticas de conceptos
+      const conceptStatsQuery = query(collection(db, 'conceptStats'), where('userId', '==', userId));
+      const conceptStatsSnapshot = await getDocs(conceptStatsQuery);
+      audit.conceptStats = conceptStatsSnapshot.size;
+
+      console.log('📊 Resultado de la auditoría:', audit);
+      return audit;
+    } catch (error) {
+      console.error('❌ Error durante la auditoría:', error);
+      throw error;
+    }
+  };
 
   const handleAudit = async () => {
     if (!userId.trim()) {
@@ -36,7 +93,7 @@ const UserDataManagement: React.FC = () => {
     }
   };
 
-  const handleTestDeletion = async () => {
+  const handleDeleteUser = async () => {
     if (!userId.trim()) {
       setMessage('Por favor ingresa un ID de usuario');
       return;
@@ -50,48 +107,67 @@ const UserDataManagement: React.FC = () => {
     setMessage('');
 
     try {
-      await testUserDataDeletion(userId);
-      setMessage('Eliminación de prueba completada exitosamente');
+      await deleteAllUserData(userId);
+      setMessage('✅ Datos del usuario eliminados exitosamente');
       setAuditResult(null);
+      setUserId('');
     } catch (error: any) {
-      setMessage(`Error en la eliminación: ${error.message}`);
+      setMessage(`Error eliminando datos: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isSuperAdmin) {
+    return (
+      <div className="user-data-management">
+        <div className="access-denied">
+          <h2>🚫 Acceso Denegado</h2>
+          <p>Solo los super administradores pueden acceder a esta funcionalidad.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="user-data-management">
-      <h3>🔧 Gestión de Datos de Usuario (Solo Super Admin)</h3>
-      
+      <div className="management-header">
+        <h2>🗂️ Gestión de Datos de Usuario</h2>
+        <p className="warning">
+          ⚠️ Esta funcionalidad es solo para super administradores. 
+          Las acciones aquí son IRREVERSIBLES.
+        </p>
+      </div>
+
       <div className="management-controls">
         <div className="input-group">
-          <label htmlFor="userId">ID de Usuario:</label>
+          <label htmlFor="userId">ID del Usuario:</label>
           <input
-            type="text"
             id="userId"
+            type="text"
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
             placeholder="Ingresa el ID del usuario"
+            className="user-id-input"
             disabled={loading}
           />
         </div>
 
         <div className="action-buttons">
-          <button
+          <button 
             onClick={handleAudit}
             disabled={loading || !userId.trim()}
             className="audit-button"
           >
-            {loading ? 'Auditando...' : '🔍 Auditar Datos'}
+            {loading ? '🔍 Auditando...' : '🔍 Auditar Datos'}
           </button>
 
-          <button
-            onClick={handleTestDeletion}
+          <button 
+            onClick={handleDeleteUser}
             disabled={loading || !userId.trim()}
             className="delete-button"
           >
-            {loading ? 'Eliminando...' : '🗑️ Eliminar Datos (Prueba)'}
+            {loading ? '🗑️ Eliminando...' : '🗑️ Eliminar Datos'}
           </button>
         </div>
       </div>
@@ -104,59 +180,31 @@ const UserDataManagement: React.FC = () => {
 
       {auditResult && (
         <div className="audit-results">
-          <h4>📊 Resultados de la Auditoría</h4>
+          <h3>📊 Resultados de la Auditoría</h3>
           <div className="audit-grid">
             <div className="audit-item">
-              <span className="label">📚 Notebooks:</span>
-              <span className="value">{auditResult.notebooks}</span>
+              <span className="audit-label">📚 Notebooks:</span>
+              <span className="audit-value">{auditResult.notebooks}</span>
             </div>
             <div className="audit-item">
-              <span className="label">📝 Conceptos:</span>
-              <span className="value">{auditResult.concepts}</span>
+              <span className="audit-label">📝 Conceptos:</span>
+              <span className="audit-value">{auditResult.concepts}</span>
             </div>
             <div className="audit-item">
-              <span className="label">⏱️ Sesiones de Estudio:</span>
-              <span className="value">{auditResult.studySessions}</span>
+              <span className="audit-label">📊 Sesiones de Estudio:</span>
+              <span className="audit-value">{auditResult.studySessions}</span>
             </div>
             <div className="audit-item">
-              <span className="label">📈 Actividades:</span>
-              <span className="value">{auditResult.userActivities}</span>
+              <span className="audit-label">📈 Actividades:</span>
+              <span className="audit-value">{auditResult.userActivities}</span>
             </div>
             <div className="audit-item">
-              <span className="label">🔄 Conceptos de Repaso:</span>
-              <span className="value">{auditResult.reviewConcepts}</span>
+              <span className="audit-label">🔄 Conceptos de Repaso:</span>
+              <span className="audit-value">{auditResult.reviewConcepts}</span>
             </div>
             <div className="audit-item">
-              <span className="label">📊 Estadísticas de Conceptos:</span>
-              <span className="value">{auditResult.conceptStats}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">🧠 Datos de Aprendizaje:</span>
-              <span className="value">{auditResult.learningData}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">📝 Estadísticas de Quiz:</span>
-              <span className="value">{auditResult.quizStats}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">📊 Resultados de Quiz:</span>
-              <span className="value">{auditResult.quizResults}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">⏰ Límites:</span>
-              <span className="value">{auditResult.limits}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">📚 Límites de Notebooks:</span>
-              <span className="value">{auditResult.notebookLimits}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">📈 Estadísticas:</span>
-              <span className="value">{auditResult.stats}</span>
-            </div>
-            <div className="audit-item">
-              <span className="label">⚙️ Configuraciones:</span>
-              <span className="value">{auditResult.settings}</span>
+              <span className="audit-label">📊 Estadísticas:</span>
+              <span className="audit-value">{auditResult.conceptStats}</span>
             </div>
           </div>
         </div>

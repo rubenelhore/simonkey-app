@@ -363,6 +363,7 @@ const Notebooks: React.FC = () => {
             onEditNotebook={handleEdit}
             onColorChange={handleColorChange}
             onCreateNotebook={handleCreate}
+            showCreateButton={true}
           />
         </div>
       </main>

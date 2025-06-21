@@ -185,7 +185,7 @@ const AppWrapper: React.FC = () => {
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent, isSuperAdmin } = useUserType();
+  const { isSchoolTeacher, isSchoolStudent, isSuperAdmin, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -201,7 +201,7 @@ const AppContent: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !userTypeLoading) {
       // Si no está autenticado y no está en una página pública, redirigir a login
       if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms'].includes(window.location.pathname)) {
         navigate('/login', { replace: true });
@@ -229,9 +229,9 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [isAuthenticated, isEmailVerified, loading, isSchoolTeacher, isSchoolStudent, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, isSchoolStudent, navigate]);
 
-  if (loading) {
+  if (loading || userTypeLoading) {
     return (
       <div style={{
         display: 'flex',

@@ -6,6 +6,7 @@ import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import Footer from '../components/Footer';
 import UserDataManagement from '../components/UserDataManagement';
+import CloudFunctionsTester from '../components/CloudFunctionsTester';
 import UserTypeBadge from '../components/UserTypeBadge';
 import '../styles/ProfilePage.css';
 
@@ -47,6 +48,8 @@ const ProfilePage: React.FC = () => {
           {isSchoolUser && <p><strong>Rol Escolar:</strong> {schoolRole}</p>}
           <UserTypeBadge subscription={userProfile.subscription} schoolRole={userProfile.schoolRole} />
         </div>
+        
+        <CloudFunctionsTester />
         
         <UserDataManagement />
 

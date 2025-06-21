@@ -4,7 +4,8 @@ import { auth } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
 import { getUserProfile } from '../services/userService';
 import { UserProfile } from '../types/interfaces';
-import { checkAndFixCurrentUser } from '../utils/fixOrphanUsers';
+import { checkAndFixCurrentUser } from '../utils/adminUtils';
+import { useUserType } from '../hooks/useUserType';
 
 // Maintenance mode flag - DISABLE ALL FIREBASE OPERATIONS
 const MAINTENANCE_MODE = false;
@@ -122,7 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isEmailVerified: isVerified
       }));
       
-      console.log('�� updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
+      console.log('🔍 updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
       return isVerified;
     } catch (error) {
       console.error('Error actualizando estado de verificación:', error);

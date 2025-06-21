@@ -13,9 +13,9 @@ import {
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
+import { deleteUserWithConfirmation, syncSchoolUsers, migrateUsers } from '../services/firebaseFunctions';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
-import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents, migrateExistingTeachers, checkTeacherStatus } from '../utils/syncSchoolUsers';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -161,20 +161,35 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  const deleteUser = async (userId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción eliminará TODOS sus datos incluyendo notebooks, conceptos, sesiones de estudio y estadísticas. Esta acción es irreversible.')) {
-      try {
-        console.log('🗑️ SuperAdmin eliminando usuario:', userId);
-        
-        // Usar la nueva función que elimina completamente el usuario
-        await deleteUserCompletely(userId);
-        
-        console.log('✅ Usuario eliminado exitosamente por SuperAdmin');
-        await loadData();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Error al eliminar el usuario. Por favor, intenta de nuevo.');
-      }
+  const deleteUser = async (userId: string, userName: string) => {
+    try {
+      console.log('🗑️ SuperAdmin eliminando usuario con Firebase Function:', userId);
+      
+      // Usar la nueva función con Firebase Functions
+      await deleteUserWithConfirmation(
+        userId,
+        userName,
+        // onProgress callback
+        (message) => {
+          console.log('📊 Progreso de eliminación:', message);
+          // Aquí podrías mostrar un toast o notificación
+        },
+        // onSuccess callback
+        (result) => {
+          console.log('✅ Usuario eliminado exitosamente:', result);
+          alert(`✅ Usuario "${userName}" eliminado exitosamente!\n\n${result.message}`);
+          loadData(); // Recargar la lista de usuarios
+        },
+        // onError callback
+        (error) => {
+          console.error('❌ Error eliminando usuario:', error);
+          alert(`❌ Error eliminando usuario: ${error}`);
+        }
+      );
+      
+    } catch (error) {
+      console.error('Error en deleteUser:', error);
+      alert('Error al eliminar el usuario. Por favor, intenta de nuevo.');
     }
   };
 
@@ -183,95 +198,98 @@ const SuperAdminPage: React.FC = () => {
     if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los usuarios escolares? Esto creará usuarios reales en Firebase Auth para todos los schoolTeachers y schoolStudents.')) {
       return;
     }
-
+    
     setSyncLoading(true);
     try {
       console.log('🚀 Iniciando sincronización completa...');
-      const results = await syncAllSchoolUsers();
-      setSyncResults(results);
+      const results = await syncSchoolUsers('all');
+      setSyncResults(results.results);
       
-      // Mostrar resumen
-      const totalSuccess = results.teachers.success + results.students.success;
-      const totalErrors = results.teachers.errors.length + results.students.errors.length;
-      
-      alert(`Sincronización completada!\n✅ Exitosos: ${totalSuccess}\n❌ Errores: ${totalErrors}`);
-      
-      // Recargar datos
-      await loadData();
-    } catch (error) {
-      console.error('Error en sincronización:', error);
-      alert('Error durante la sincronización. Revisa la consola para más detalles.');
+      console.log('🎉 Sincronización completada:', results);
+      alert(`Sincronización completada: ${results.results.teachers.success + results.results.students.success} exitosos, ${results.results.teachers.errors.length + results.results.students.errors.length} errores`);
+      loadData();
+    } catch (error: any) {
+      console.error('❌ Error en sincronización:', error);
+      alert(`Error en sincronización: ${error.message}`);
     } finally {
       setSyncLoading(false);
     }
   };
 
   const handleSyncTeachers = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres sincronizar solo los profesores?')) {
+    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los profesores escolares?')) {
       return;
     }
-
+    
     setSyncLoading(true);
     try {
-      console.log('👨‍🏫 Sincronizando solo profesores...');
-      const results = await syncSchoolTeachers();
-      setSyncResults({ teachers: results, students: null });
-      
-      alert(`Profesores sincronizados!\n✅ Exitosos: ${results.success}\n❌ Errores: ${results.errors.length}`);
-      await loadData();
-    } catch (error) {
-      console.error('Error sincronizando profesores:', error);
-      alert('Error sincronizando profesores. Revisa la consola para más detalles.');
+      const results = await syncSchoolUsers('teachers');
+      setSyncResults({ teachers: results.results.teachers, students: { success: 0, errors: [] } });
+      alert(`Sincronización de profesores completada: ${results.results.teachers.success} exitosos, ${results.results.teachers.errors.length} errores`);
+      loadData();
+    } catch (error: any) {
+      console.error('❌ Error en sincronización de profesores:', error);
+      alert(`Error en sincronización: ${error.message}`);
     } finally {
       setSyncLoading(false);
     }
   };
 
   const handleSyncStudents = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los estudiantes escolares?')) {
+      return;
+    }
+    
     setSyncLoading(true);
     try {
-      const result = await syncSchoolStudents();
-      alert(`Sincronización completada: ${result.success} exitosos, ${result.errors.length} errores`);
+      const results = await syncSchoolUsers('students');
+      setSyncResults({ teachers: { success: 0, errors: [] }, students: results.results.students });
+      alert(`Sincronización de estudiantes completada: ${results.results.students.success} exitosos, ${results.results.students.errors.length} errores`);
       loadData();
-    } catch (error) {
-      console.error('Error en sincronización de estudiantes:', error);
-      alert('Error en la sincronización de estudiantes');
+    } catch (error: any) {
+      console.error('❌ Error en sincronización de estudiantes:', error);
+      alert(`Error en sincronización: ${error.message}`);
     } finally {
       setSyncLoading(false);
     }
   };
 
   const handleMigrateExistingTeachers = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres migrar los profesores existentes?')) {
+      return;
+    }
+    
     setSyncLoading(true);
     try {
-      const result = await migrateExistingTeachers();
-      alert(`Migración completada: ${result.success} exitosos, ${result.errors.length} errores`);
+      const result = await migrateUsers();
+      alert(`Migración completada: ${result.updatedCount} usuarios actualizados, ${result.errorCount} errores`);
       loadData();
-    } catch (error) {
-      console.error('Error en migración de profesores existentes:', error);
-      alert('Error en la migración de profesores existentes');
+    } catch (error: any) {
+      console.error('❌ Error en migración:', error);
+      alert(`Error en migración: ${error.message}`);
     } finally {
       setSyncLoading(false);
     }
   };
 
   const handleCheckTeacherStatus = async () => {
-    const userId = prompt('Ingresa el ID del usuario a verificar:');
-    if (!userId) return;
+    const teacherId = prompt('Ingresa el ID del profesor a verificar:');
+    if (!teacherId) return;
     
-    setSyncLoading(true);
     try {
-      const result = await checkTeacherStatus(userId);
-      if (result.exists) {
-        alert(`✅ Usuario encontrado en schoolTeachers:\n\n${JSON.stringify(result.data, null, 2)}`);
+      const results = await syncSchoolUsers('specific', teacherId);
+      const teacherResult = results.results.teachers;
+      
+      if (teacherResult.success > 0) {
+        alert(`✅ Profesor encontrado y sincronizado correctamente`);
+      } else if (teacherResult.errors.length > 0) {
+        alert(`❌ Error con el profesor: ${teacherResult.errors[0].error}`);
       } else {
-        alert(`❌ Usuario NO encontrado en schoolTeachers:\n\nError: ${result.error}`);
+        alert(`ℹ️ Profesor no encontrado en la base de datos`);
       }
-    } catch (error) {
-      console.error('Error verificando estado del profesor:', error);
-      alert('Error al verificar el estado del profesor');
-    } finally {
-      setSyncLoading(false);
+    } catch (error: any) {
+      console.error('❌ Error verificando profesor:', error);
+      alert(`Error verificando profesor: ${error.message}`);
     }
   };
 
@@ -476,7 +494,7 @@ const SuperAdminPage: React.FC = () => {
                       <div className="action-buttons">
                         <button 
                           className="delete-button"
-                          onClick={() => deleteUser(user.id)}
+                          onClick={() => deleteUser(user.id, user.nombre || '')}
                           title="Eliminar usuario"
                         >
                           <i className="fas fa-trash"></i>
