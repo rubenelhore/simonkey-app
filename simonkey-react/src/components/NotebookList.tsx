@@ -1,33 +1,53 @@
 // src/components/NotebookList.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import NotebookItem from './NotebookItem';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
+import './NotebookList.css';
 
 // Define la interfaz Notebook localmente en lugar de importarla
 interface Notebook {
   id: string;
   title: string;
-  userId: string;
-  createdAt: Date | any;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+  conceptCount: number;
+  isShared?: boolean;
+  sharedBy?: string;
   color?: string;
 }
 
 interface NotebookListProps {
   notebooks: Notebook[];
-  onDelete: (id: string) => void;
-  onEdit?: (id: string, newTitle: string) => void;
-  onColorChange?: (id: string, newColor: string) => void;
-  onCreate?: () => void; // Callback to refresh the notebook list
+  onDeleteNotebook?: (id: string) => void;
+  onEditNotebook?: (id: string, title: string, description: string) => void;
+  showCreateButton?: boolean;
+  onCreateNotebook?: () => void;
+  isSchoolTeacher?: boolean;
+  onColorChange?: (id: string, color: string) => void;
 }
 
-const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit, onColorChange, onCreate }) => {
+const NotebookList: React.FC<NotebookListProps> = ({ 
+  notebooks, 
+  onDeleteNotebook, 
+  onEditNotebook, 
+  showCreateButton = false, 
+  onCreateNotebook,
+  isSchoolTeacher = false,
+  onColorChange
+}) => {
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null); // Nuevo estado para controlar qué acciones están abiertas
-  const [user] = useAuthState(auth);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +58,7 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
       await createNotebook(user.uid, newNotebookTitle);
       setNewNotebookTitle(''); // Clear the form
       setShowCreateModal(false); // Close modal
-      onCreate?.(); // Refresh the notebook list
+      onCreateNotebook?.(); // Refresh the notebook list
     } catch (error) {
       console.error("Error creating notebook:", error);
       
@@ -88,8 +108,8 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
             id={notebook.id}
             title={notebook.title}
             color={notebook.color}
-            onDelete={onDelete}
-            onEdit={onEdit}
+            onDelete={onDeleteNotebook || (() => {})}
+            onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle, '') : undefined}
             onColorChange={onColorChange}
             showActions={openActionsId === notebook.id}
             onToggleActions={handleToggleActions}
@@ -97,15 +117,17 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onDelete, onEdit
         ))}
         
         {/* Tarjeta para crear nuevo cuaderno */}
-        <div 
-          className="notebook-item create-notebook-card"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <div className="create-notebook-content">
-            <div className="create-notebook-icon">+</div>
-            <span className="create-notebook-text">Crear nuevo cuaderno</span>
+        {showCreateButton && (
+          <div 
+            className="notebook-item create-notebook-card"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <div className="create-notebook-content">
+              <div className="create-notebook-icon">+</div>
+              <span className="create-notebook-text">Crear nuevo cuaderno</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal para crear nuevo cuaderno */}

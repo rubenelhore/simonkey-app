@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/NotebookDetail.css';
 import '../styles/SharedNotebook.css';
 
-const SharedNotebook = () => {
+const SharedNotebook: React.FC = () => {
   const { shareId } = useParams<{ shareId: string }>();
-  const [user, loading] = useAuthState(auth);
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   
   const [notebook, setNotebook] = useState<any>(null);
   const [conceptDocs, setConceptDocs] = useState<any[]>([]);
@@ -130,7 +131,7 @@ const SharedNotebook = () => {
     }
   };
   
-  if (loading || isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="loading-container">
         <div className="spinner"></div>

@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
 
 interface NotebookFormProps {
-  onCreate: () => void; // Callback to refresh the notebook list
+  onNotebookCreated: () => void;
+  onCancel: () => void;
 }
 
-const NotebookForm: React.FC<NotebookFormProps> = ({ onCreate }) => {
+const NotebookForm: React.FC<NotebookFormProps> = ({ onNotebookCreated, onCancel }) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
-  const [user] = useAuthState(auth);
+  const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,7 +23,7 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onCreate }) => {
       setIsSubmitting(true);
       await createNotebook(user.uid, title);
       setTitle(''); // Clear the form
-      onCreate(); // Refresh the notebook list
+      onNotebookCreated(); // Refresh the notebook list
     } catch (error) {
       console.error("Error creating notebook:", error);
     } finally {
