@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy",
-    "deploy:hosting": "npm run build && firebase deploy --only hosting"
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "clean:console": "node scripts/clean-console-logs.js",
+    "analyze:size": "find src -name '*.tsx' -exec wc -l {} + | sort -nr | head -10",
+    "optimize": "npm run clean:console && npm run lint",
+    "build:prod": "npm run optimize && npm run build"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",

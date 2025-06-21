@@ -4,7 +4,7 @@ import { db } from '../services/firebase';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import '../styles/ExplainConcept.css';
-import { useUser } from '../hooks/useUser'; // Importar el hook useUser
+import { useAuth } from '../contexts/AuthContext'; // Importar el hook useAuth moderno
 import { Concept } from '../types/interfaces';
 
 // Interfaz para el formato de conceptos en Firebase
@@ -37,7 +37,7 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
   const [model, setModel] = useState<any>(null);
   const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [userInterests, setUserInterests] = useState<string[]>([]);
-  const { user } = useUser(); // Obtener el usuario actual
+  const { user } = useAuth(); // Obtener el usuario actual
 
   // Usa el notebookId de props o de parámetros de URL
   const params = useParams<Record<string, string>>();
@@ -120,15 +120,15 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
   // Obtener intereses del usuario (versión mejorada)
   useEffect(() => {
     const fetchUserInterests = async () => {
-      if (!user?.id) {
+      if (!user?.uid) {
         console.log("No hay ID de usuario disponible");
         return;
       }
       
-      console.log("Configurando listener para intereses de usuario ID:", user.id);
+      console.log("Configurando listener para intereses de usuario ID:", user.uid);
       
       // Referencia al documento del usuario - corregida a 'users' en lugar de 'usuarios'
-      const userDocRef = doc(db, 'users', user.id);
+      const userDocRef = doc(db, 'users', user.uid);
       
       try {
         // Primero hacemos una lectura única para tener datos inmediatamente
@@ -187,7 +187,7 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
     };
 
     fetchUserInterests();
-  }, [user?.id]);
+  }, [user?.uid]);
 
   useEffect(() => {
     console.log("Estructura completa del objeto user:", user);
