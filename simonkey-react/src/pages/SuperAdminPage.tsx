@@ -16,7 +16,7 @@ import { deleteAllUserData, deleteUserCompletely } from '../services/userService
 import UserDataManagement from '../components/UserDataManagement';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
-import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents } from '../utils/syncSchoolUsers';
+import { syncAllSchoolUsers, syncSchoolTeachers, syncSchoolStudents, migrateExistingTeachers } from '../utils/syncSchoolUsers';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -293,21 +293,28 @@ const SuperAdminPage: React.FC = () => {
   };
 
   const handleSyncStudents = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres sincronizar solo los estudiantes?')) {
-      return;
-    }
-
     setSyncLoading(true);
     try {
-      console.log('👨‍🎓 Sincronizando solo estudiantes...');
-      const results = await syncSchoolStudents();
-      setSyncResults({ teachers: null, students: results });
-      
-      alert(`Estudiantes sincronizados!\n✅ Exitosos: ${results.success}\n❌ Errores: ${results.errors.length}`);
-      await loadData();
+      const result = await syncSchoolStudents();
+      alert(`Sincronización completada: ${result.success} exitosos, ${result.errors.length} errores`);
+      loadData();
     } catch (error) {
-      console.error('Error sincronizando estudiantes:', error);
-      alert('Error sincronizando estudiantes. Revisa la consola para más detalles.');
+      console.error('Error en sincronización de estudiantes:', error);
+      alert('Error en la sincronización de estudiantes');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleMigrateExistingTeachers = async () => {
+    setSyncLoading(true);
+    try {
+      const result = await migrateExistingTeachers();
+      alert(`Migración completada: ${result.success} exitosos, ${result.errors.length} errores`);
+      loadData();
+    } catch (error) {
+      console.error('Error en migración de profesores existentes:', error);
+      alert('Error en la migración de profesores existentes');
     } finally {
       setSyncLoading(false);
     }
@@ -740,6 +747,21 @@ const SuperAdminPage: React.FC = () => {
                   >
                     <i className="fas fa-user-graduate"></i>
                     Sincronizar Estudiantes
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔄 Migrar Profesores Existentes</h3>
+                    <p>Migra usuarios con schoolRole: 'teacher' a schoolTeachers</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-migrate"
+                    onClick={handleMigrateExistingTeachers}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-exchange-alt"></i>
+                    Migrar Profesores
                   </button>
                 </div>
               </div>

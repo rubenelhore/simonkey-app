@@ -372,4 +372,81 @@ export const createSchoolUser = async (
     console.error('❌ Error creando usuario escolar:', error);
     throw error;
   }
+};
+
+/**
+ * Migra usuarios existentes que tienen schoolRole: 'teacher' pero no están en schoolTeachers
+ */
+export const migrateExistingTeachers = async (): Promise<{
+  success: number;
+  errors: Array<{ id: string; email: string; error: string }>;
+}> => {
+  console.log('🔄 Iniciando migración de profesores existentes...');
+  
+  const results = {
+    success: 0,
+    errors: [] as Array<{ id: string; email: string; error: string }>
+  };
+
+  try {
+    // Obtener todos los usuarios con schoolRole: 'teacher'
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('schoolRole', '==', 'teacher')
+    );
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    console.log(`📚 Encontrados ${usersSnapshot.docs.length} usuarios con schoolRole: 'teacher'`);
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      
+      try {
+        console.log(`👨‍🏫 Procesando usuario profesor: ${userData.nombre} (${userData.email})`);
+        
+        // Verificar si ya existe en schoolTeachers
+        const teacherQuery = query(
+          collection(db, 'schoolTeachers'),
+          where('id', '==', userId)
+        );
+        const teacherSnapshot = await getDocs(teacherQuery);
+        
+        if (!teacherSnapshot.empty) {
+          console.log(`✅ Usuario ya existe en schoolTeachers: ${userData.email}`);
+          results.success++;
+          continue;
+        }
+        
+        // Crear registro en schoolTeachers
+        await setDoc(doc(db, 'schoolTeachers', userId), {
+          id: userId,
+          nombre: userData.nombre || userData.displayName || userData.username || 'Profesor',
+          email: userData.email,
+          password: '1234', // Password por defecto
+          subscription: UserSubscriptionType.SCHOOL,
+          idAdmin: '', // Se vinculará después
+          createdAt: userData.createdAt || serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log(`✅ Profesor migrado a schoolTeachers: ${userData.nombre}`);
+        results.success++;
+        
+      } catch (error: any) {
+        console.error(`❌ Error migrando profesor ${userData.email}:`, error);
+        results.errors.push({
+          id: userId,
+          email: userData.email,
+          error: error.message
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error general en migración de profesores:', error);
+  }
+  
+  console.log(`🎯 Migración de profesores completada: ${results.success} exitosos, ${results.errors.length} errores`);
+  return results;
 }; 
