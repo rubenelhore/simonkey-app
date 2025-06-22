@@ -17,19 +17,11 @@ import {
   serverTimestamp,
   deleteDoc
 } from 'firebase/firestore';
-import { GoogleGenerativeAI} from '@google/generative-ai';
+import { generateConcepts, prepareFilesForGeneration } from '../services/firebaseFunctions';
 import '../styles/NotebookDetail.css';
 import ReactDOM from 'react-dom';
 
-// Add TypeScript declaration for window.env
-declare global {
-  interface Window {
-    env?: {
-      VITE_GEMINI_API_KEY?: string;
-      [key: string]: any;
-    };
-  }
-}
+// TypeScript declarations no longer needed for Gemini API
 
 interface ConceptDoc {
   id: string;
@@ -39,22 +31,7 @@ interface ConceptDoc {
   creadoEn: Date;
 }
 
-// Function to convert Uint8Array to base64 string
-function arrayBufferToBase64(buffer: Uint8Array | ArrayBuffer): string {
-  // If buffer is ArrayBuffer, convert to Uint8Array
-  const uint8Array = buffer instanceof ArrayBuffer 
-    ? new Uint8Array(buffer) 
-    : buffer;
-  
-  // Convert Uint8Array to a string of characters
-  const binaryString = uint8Array.reduce(
-    (data, byte) => data + String.fromCharCode(byte), 
-    ''
-  );
-  
-  // Convert binary string to base64
-  return btoa(binaryString);
-}
+// arrayBufferToBase64 function no longer needed with Cloud Functions
 
 const NotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,8 +41,6 @@ const NotebookDetail = () => {
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
   const [cargando, setCargando] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>("Cargando...");
-  const [model, setModel] = useState<any>(null);
-  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [nuevoConcepto, setNuevoConcepto] = useState<Concept>({
     id:  '',
     término: '',
@@ -82,32 +57,6 @@ const NotebookDetail = () => {
   
   // Usar el hook de estudio
   const studyService = useStudyService();
-
-  // Initialize Gemini AI
-  useEffect(() => {
-    const initializeGemini = () => {
-      try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) {
-          console.error("Gemini API key is missing. Check your .env file.");
-          setApiKeyError(true);
-          return null;
-        }
-        
-        const genAI = new GoogleGenerativeAI(apiKey);
-        // Importante: Usamos gemini-1.5-flash-latest para mejor soporte de archivos PDF
-        const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
-        setModel(geminiModel);
-        return geminiModel;
-      } catch (error) {
-        console.error("Error initializing Gemini AI:", error);
-        setApiKeyError(true);
-        return null;
-      }
-    };
-
-    initializeGemini();
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,19 +151,7 @@ const NotebookDetail = () => {
     }
   };
 
-  // Definimos una interfaz personalizada para nuestros archivos procesados
-  interface ProcessedFile {
-    mimeType: string;
-    data: Uint8Array;
-  }
-
-  const fileToProcessedFile = async (file: File): Promise<ProcessedFile> => {
-    const bytes = await file.arrayBuffer();
-    return {
-      mimeType: file.type,
-      data: new Uint8Array(bytes)
-    };
-  };
+  // fileToProcessedFile function no longer needed with Cloud Functions
 
   // Función para crear datos de aprendizaje iniciales para nuevos conceptos
   const createInitialLearningDataForConcepts = async (conceptIds: string[], userId: string, notebookId: string) => {
@@ -252,7 +189,7 @@ const NotebookDetail = () => {
     }
   };
 
-  // Función para generar conceptos desde archivos
+  // Función para generar conceptos desde archivos usando Cloud Functions (seguro)
   const generarConceptos = async () => {
     if (!id || !auth.currentUser || archivos.length === 0) {
       alert("Por favor selecciona al menos un archivo");
@@ -263,103 +200,23 @@ const NotebookDetail = () => {
     setLoadingText("Procesando archivos...");
 
     try {
-      // Convertir archivos a nuestro formato personalizado de procesamiento
-      const filePromises = archivos.map(file => fileToProcessedFile(file));
-      const fileContents = await Promise.all(filePromises);
+      // Preparar archivos para Cloud Functions (formato base64)
+      setLoadingText("Preparando archivos...");
+      const fileContents = await prepareFilesForGeneration(archivos);
       
-      setLoadingText("Generando conceptos con IA...");
+      setLoadingText("Generando conceptos con IA segura...");
 
-      // Crear el prompt para Gemini
-      const prompt = `
-        Por favor, analiza estos archivos y extrae una lista de conceptos clave con sus definiciones.
-        Devuelve el resultado como un array JSON con el siguiente formato:
-        [
-          {
-            "término": "nombre del concepto",
-            "definición": "explicación concisa del concepto (20-30 palabras)",
-            "fuente": "nombre del documento"
-          }
-        ]
-        
-        REGLAS IMPORTANTES:
-        1. El término NO puede aparecer en la definición (ej: si el término es "Hígado", la definición NO puede empezar con "El hígado es...")
-        2. La definición NO puede contener información que revele directamente el término
-        3. Usa sinónimos, descripciones funcionales o características para definir el concepto
-        4. La definición debe ser clara y específica sin mencionar el término exacto
-        5. PRESERVA información importante como:
-           - Números específicos (ej: "más de 200 estructuras", "10 minutos")
-           - Fechas exactas (ej: "en 1893", "durante la década de 1960")
-           - Palabras clave como "único", "primero", "mayor", "menor", "más", "menos"
-           - Comparaciones específicas (ej: "superando en número a Egipto")
-           - Características distintivas (ej: "con capacidad de renovación parcial")
-        
-        Ejemplos CORRECTOS:
-        - Término: "Pirámides de Sudán" → Definición: "Estructuras antiguas, con más de 200 estructuras, superando en número a Egipto"
-        - Término: "Hígado" → Definición: "Único órgano interno con capacidad de renovación parcial"
-        - Término: "Nueva Zelanda" → Definición: "Primer país en conceder el derecho al voto femenino, en 1893"
-        - Término: "Mitocondria" → Definición: "Orgánulo celular responsable de la producción de energía"
-        
-        Ejemplos INCORRECTOS:
-        - Término: "Hígado" → Definición: "El hígado es un órgano que..."
-        - Término: "Mitocondria" → Definición: "La mitocondria es un orgánulo..."
-        - Término: "Pirámides de Sudán" → Definición: "Estructuras antiguas, superando en número a las de Egipto" (falta "más de 200")
-        - Término: "Hígado" → Definición: "Órgano interno con capacidad de renovación parcial" (falta "Único")
-        
-        Extrae al menos 10 conceptos importantes si el documento es lo suficientemente extenso.
-        Asegúrate de que el resultado sea únicamente el array JSON, sin texto adicional.
-      `;
+      // Llamar a la Cloud Function segura
+      const result = await generateConcepts(fileContents, id);
 
-      // Crear un contenido con partes para enviar a Gemini
-      const result = await model.generateContent({
-        contents: [{
-          parts: [
-            { text: prompt },
-            ...fileContents.map(file => ({
-              inlineData: {
-                mimeType: file.mimeType,
-                // Convertir el Uint8Array a base64 string como requiere la API de Gemini
-                data: arrayBufferToBase64(file.data)
-              }
-            }))
-          ]
-        }],
-      });
-
-      const respuesta = result.response.text();
-      
-      // Parse the JSON response
-      let conceptosExtraidos: Concept[] = [];
-      try {
-        // Clean the response: remove potential markdown backticks and trim whitespace
-        let cleanedRespuesta = respuesta.trim();
-        if (cleanedRespuesta.startsWith("```json")) {
-          cleanedRespuesta = cleanedRespuesta.substring(7, cleanedRespuesta.length - 3).trim();
-        } else if (cleanedRespuesta.startsWith("```")) { 
-          cleanedRespuesta = cleanedRespuesta.substring(3, cleanedRespuesta.length - 3).trim();
-        }
-
-        // Directly parse the cleaned response
-        conceptosExtraidos = JSON.parse(cleanedRespuesta);
-
-      } catch (e) {
-        console.error('Error parsing JSON response:', e);
-        console.log('Raw response received:', respuesta); // Log original response for debugging
-        alert('Error al interpretar la respuesta de la IA. Por favor intenta de nuevo.');
-        setCargando(false);
-        return;
+      if (!result.success) {
+        throw new Error('Error generando conceptos');
       }
 
-      // --- Check if the result is actually an array ---
-      if (!Array.isArray(conceptosExtraidos)) {
-        console.error('Parsed response is not an array:', conceptosExtraidos);
-        console.log('Raw response received:', respuesta);
-        alert('La respuesta de la IA no tuvo el formato esperado (array JSON). Intenta de nuevo.');
-        setCargando(false);
-        return;
-      }
+      const conceptosExtraidos = result.concepts;
 
       if (!conceptosExtraidos.length) {
-        alert('No se pudieron extraer conceptos del documento. Intenta con otro PDF.');
+        alert('No se pudieron extraer conceptos del documento. Intenta con otro archivo.');
         setCargando(false);
         return;
       }
@@ -388,8 +245,8 @@ const NotebookDetail = () => {
             ...existingDoc,
             conceptos: [...existingDoc.conceptos, ...conceptosConIds]
           };
-          setConceptosDocs(prev =>
-            prev.map(doc => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
+          setConceptosDocs((prev: ConceptDoc[]) =>
+            prev.map((doc: ConceptDoc) => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
           );
         }
       }
@@ -409,7 +266,7 @@ const NotebookDetail = () => {
         });
         
         // Agregamos al estado local
-        setConceptosDocs(prev => [
+        setConceptosDocs((prev: ConceptDoc[]) => [
           ...prev,
           {
             id: newDocId,  // Usa el nuevo ID generado
@@ -463,7 +320,7 @@ const NotebookDetail = () => {
       
       if (conceptosToDelete.length > 0) {
         await deleteDoc(doc(db, 'conceptos', conceptosToDelete[0]));
-        setConceptosDocs(prev => prev.filter(doc => !conceptosToDelete.includes(doc.id)));
+        setConceptosDocs((prev: ConceptDoc[]) => prev.filter((doc: ConceptDoc) => !conceptosToDelete.includes(doc.id)));
       }
 
       // Eliminar el cuaderno
@@ -512,8 +369,8 @@ const NotebookDetail = () => {
             ...existingDoc,
             conceptos: [...existingDoc.conceptos, conceptoManual]
           };
-          setConceptosDocs(prev =>
-            prev.map(doc => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
+          setConceptosDocs((prev: ConceptDoc[]) =>
+            prev.map((doc: ConceptDoc) => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
           );
         }
       }
@@ -531,7 +388,7 @@ const NotebookDetail = () => {
           creadoEn: serverTimestamp()
         });
         
-        setConceptosDocs(prev => [
+        setConceptosDocs((prev: ConceptDoc[]) => [
           ...prev,
           {
             id: newDocId,  // Usa el nuevo ID generado
@@ -680,11 +537,7 @@ const NotebookDetail = () => {
             <div className="modal-body">
               {activeTab === 'upload' ? (
                 <div className="upload-container">
-                  {apiKeyError && (
-                    <div className="error-message">
-                      <p>⚠️ No se pudo inicializar la IA. Verifica la clave API de Gemini en tu archivo .env.</p>
-                    </div>
-                  )}
+
                   
                   <input
                     type="file"
@@ -709,7 +562,7 @@ const NotebookDetail = () => {
                   </div>
                   <button 
                     onClick={generarConceptos} 
-                    disabled={archivos.length === 0 || cargando || apiKeyError}
+                    disabled={archivos.length === 0 || cargando}
                     className="generate-button"
                   >
                     {cargando ? loadingText : 'Generar Conceptos'}

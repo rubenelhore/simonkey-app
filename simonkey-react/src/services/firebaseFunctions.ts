@@ -466,4 +466,235 @@ export const migrateUsers = async (): Promise<{
     console.error('❌ Error migrando usuarios:', error);
     throw new Error(`Error migrando usuarios: ${error.message}`);
   }
+};
+
+// ===== 🤖 SECURE GEMINI API FUNCTIONS =====
+// Estas funciones reemplazan las llamadas directas a Gemini desde el frontend
+// para proteger las claves API y controlar el uso
+
+/**
+ * Tipos para las funciones de Gemini
+ */
+interface GenerateConceptsRequest {
+  fileContents: Array<{
+    mimeType: string;
+    data: string; // base64 encoded file data
+  }>;
+  notebookId: string;
+}
+
+interface GenerateConceptsResponse {
+  success: boolean;
+  concepts: Array<{
+    término: string;
+    definición: string;
+    fuente: string;
+  }>;
+  usage: {
+    daily: number;
+    remaining: number;
+  };
+}
+
+interface ExplainConceptRequest {
+  conceptTerm: string;
+  conceptDefinition: string;
+  explanationType: 'simple' | 'related' | 'interests' | 'mnemotecnia';
+  userInterests?: string[];
+}
+
+interface ExplainConceptResponse {
+  success: boolean;
+  explanation: string;
+  usage: {
+    daily: number;
+    remaining: number;
+  };
+}
+
+interface GenerateContentRequest {
+  prompt: string;
+  model?: string;
+}
+
+interface GenerateContentResponse {
+  success: boolean;
+  content: string;
+  usage: {
+    daily: number;
+    remaining: number;
+  };
+}
+
+/**
+ * Generar conceptos desde archivos usando Gemini (seguro)
+ * Reemplaza la funcionalidad del frontend que exponía la API key
+ */
+export const generateConcepts = async (
+  fileContents: Array<{ mimeType: string; data: string }>,
+  notebookId: string
+): Promise<GenerateConceptsResponse> => {
+  try {
+    console.log('🤖 Generando conceptos con Cloud Function segura');
+    
+    const generateFunction = httpsCallable<GenerateConceptsRequest, GenerateConceptsResponse>(
+      functions, 
+      'generateConcepts'
+    );
+    
+    const result = await generateFunction({ fileContents, notebookId });
+    const data = result.data;
+    
+    console.log('✅ Conceptos generados exitosamente:', {
+      conceptsCount: data.concepts.length,
+      usage: data.usage
+    });
+    
+    return data;
+    
+  } catch (error: any) {
+    console.error('❌ Error generando conceptos:', error);
+    
+    // Manejar errores específicos de Firebase Functions
+    if (error.code === 'functions/resource-exhausted') {
+      throw new Error(error.message || 'Límite diario de generaciones alcanzado. Intenta mañana o actualiza tu plan.');
+    } else if (error.code === 'functions/failed-precondition') {
+      throw new Error('Servicio de IA no disponible temporalmente. Intenta de nuevo más tarde.');
+    } else if (error.code === 'functions/invalid-argument') {
+      throw new Error(error.message || 'Se requiere al menos un archivo para procesar.');
+    } else if (error.code === 'functions/unauthenticated') {
+      throw new Error('Debes estar autenticado para usar esta función.');
+    } else if (error.code === 'functions/deadline-exceeded') {
+      throw new Error('El procesamiento tardó demasiado. Intenta con archivos más pequeños.');
+    } else {
+      throw new Error(`Error generando conceptos: ${error.message}`);
+    }
+  }
+};
+
+/**
+ * Explicar conceptos usando Gemini (seguro)
+ * Reemplaza la funcionalidad del componente ExplainConcept
+ */
+export const explainConcept = async (
+  conceptTerm: string,
+  conceptDefinition: string,
+  explanationType: 'simple' | 'related' | 'interests' | 'mnemotecnia',
+  userInterests?: string[]
+): Promise<ExplainConceptResponse> => {
+  try {
+    console.log('🧠 Generando explicación con Cloud Function segura');
+    
+    const explainFunction = httpsCallable<ExplainConceptRequest, ExplainConceptResponse>(
+      functions, 
+      'explainConcept'
+    );
+    
+    const result = await explainFunction({ 
+      conceptTerm, 
+      conceptDefinition, 
+      explanationType, 
+      userInterests 
+    });
+    const data = result.data;
+    
+    console.log('✅ Explicación generada exitosamente:', {
+      explanationType,
+      usage: data.usage
+    });
+    
+    return data;
+    
+  } catch (error: any) {
+    console.error('❌ Error generando explicación:', error);
+    
+    // Manejar errores específicos de Firebase Functions
+    if (error.code === 'functions/resource-exhausted') {
+      throw new Error(error.message || 'Límite diario de explicaciones alcanzado.');
+    } else if (error.code === 'functions/failed-precondition') {
+      throw new Error('Servicio de IA no disponible temporalmente. Intenta de nuevo más tarde.');
+    } else if (error.code === 'functions/invalid-argument') {
+      throw new Error(error.message || 'Parámetros inválidos para la explicación.');
+    } else if (error.code === 'functions/unauthenticated') {
+      throw new Error('Debes estar autenticado para usar esta función.');
+    } else {
+      throw new Error(`Error generando explicación: ${error.message}`);
+    }
+  }
+};
+
+/**
+ * Generar contenido usando Gemini (seguro)
+ * Para casos específicos que no encajen en las otras funciones
+ */
+export const generateContent = async (
+  prompt: string,
+  model: string = 'gemini-1.5-flash'
+): Promise<GenerateContentResponse> => {
+  try {
+    console.log('🤖 Generando contenido con Cloud Function segura');
+    
+    const contentFunction = httpsCallable<GenerateContentRequest, GenerateContentResponse>(
+      functions, 
+      'generateContent'
+    );
+    
+    const result = await contentFunction({ prompt, model });
+    const data = result.data;
+    
+    console.log('✅ Contenido generado exitosamente:', {
+      contentLength: data.content.length,
+      usage: data.usage
+    });
+    
+    return data;
+    
+  } catch (error: any) {
+    console.error('❌ Error generando contenido:', error);
+    
+    // Manejar errores específicos de Firebase Functions
+    if (error.code === 'functions/resource-exhausted') {
+      throw new Error(error.message || 'Límite diario de generaciones alcanzado.');
+    } else if (error.code === 'functions/failed-precondition') {
+      throw new Error('Servicio de IA no disponible temporalmente. Intenta de nuevo más tarde.');
+    } else if (error.code === 'functions/invalid-argument') {
+      throw new Error(error.message || 'El prompt proporcionado no es válido.');
+    } else if (error.code === 'functions/unauthenticated') {
+      throw new Error('Debes estar autenticado para usar esta función.');
+    } else {
+      throw new Error(`Error generando contenido: ${error.message}`);
+    }
+  }
+};
+
+/**
+ * Función utilitaria para convertir archivos a base64 para enviar a Cloud Functions
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remover el prefijo data:mime/type;base64,
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+/**
+ * Función utilitaria para preparar archivos para las Cloud Functions
+ */
+export const prepareFilesForGeneration = async (files: File[]): Promise<Array<{ mimeType: string; data: string }>> => {
+  const filePromises = files.map(async (file) => {
+    const base64Data = await fileToBase64(file);
+    return {
+      mimeType: file.type,
+      data: base64Data
+    };
+  });
+  
+  return Promise.all(filePromises);
 }; 

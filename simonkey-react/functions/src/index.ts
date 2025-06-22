@@ -10,6 +10,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Inicializar Firebase Admin
 admin.initializeApp();
@@ -1475,6 +1476,534 @@ export const migrateUsers = onCall(
         "internal",
         `Error en la migración: ${error.message}`,
         { error: error.message }
+      );
+    }
+  }
+);
+
+/**
+ * 🤖 SECURE GEMINI API FUNCTIONS
+ * Estas funciones migran las llamadas a Gemini desde el frontend al backend
+ * para proteger las claves API y controlar el uso
+ */
+
+/**
+ * Función para generar conceptos desde archivos usando Gemini
+ * Reemplaza la funcionalidad del frontend que exponía la API key
+ */
+export const generateConcepts = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 180, // 3 minutos para procesar archivos grandes
+    memory: "1GiB"
+  },
+  async (request) => {
+    // Validar autenticación
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    const { fileContents, notebookId } = request.data;
+
+    // Validar parámetros
+    if (!fileContents || !Array.isArray(fileContents) || fileContents.length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Se requiere al menos un archivo para procesar"
+      );
+    }
+
+    if (!notebookId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Se requiere el ID del cuaderno"
+      );
+    }
+
+    logger.info("🤖 Generando conceptos con Gemini", {
+      userId: request.auth.uid,
+      notebookId,
+      fileCount: fileContents.length
+    });
+
+    try {
+      // Inicializar Gemini con clave API segura
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        logger.error("❌ Clave API de Gemini no configurada");
+        throw new HttpsError(
+          "failed-precondition",
+          "Servicio de IA no disponible temporalmente"
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+
+      // Verificar límites del usuario
+      const db = admin.firestore();
+      const userDoc = await db.collection("users").doc(request.auth.uid).get();
+      const userData = userDoc.data();
+
+      if (!userData) {
+        throw new HttpsError("not-found", "Usuario no encontrado");
+      }
+
+      // Verificar cuota de uso (ejemplo: máximo 10 generaciones por día para usuarios FREE)
+      const today = new Date().toDateString();
+      const usageKey = `gemini_usage_${today}`;
+      const dailyUsage = userData[usageKey] || 0;
+
+      const maxDailyUsage = userData.subscription === 'FREE' ? 5 : 
+                          userData.subscription === 'PRO' ? 20 : 
+                          userData.subscription === 'SCHOOL' ? 15 : 50;
+
+      if (dailyUsage >= maxDailyUsage) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `Límite diario de generaciones alcanzado (${maxDailyUsage}). Intenta mañana o actualiza tu plan.`
+        );
+      }
+
+      // Crear el prompt optimizado
+      const prompt = `
+        Por favor, analiza estos archivos y extrae una lista de conceptos clave con sus definiciones.
+        Devuelve el resultado como un array JSON con el siguiente formato:
+        [
+          {
+            "término": "nombre del concepto",
+            "definición": "explicación concisa del concepto (20-30 palabras)",
+            "fuente": "nombre del documento"
+          }
+        ]
+        
+        REGLAS IMPORTANTES:
+        1. El término NO puede aparecer en la definición (ej: si el término es "Hígado", la definición NO puede empezar con "El hígado es...")
+        2. La definición NO puede contener información que revele directamente el término
+        3. Usa sinónimos, descripciones funcionales o características para definir el concepto
+        4. La definición debe ser clara y específica sin mencionar el término exacto
+        5. PRESERVA información importante como:
+           - Números específicos (ej: "más de 200 estructuras", "10 minutos")
+           - Fechas exactas (ej: "en 1893", "durante la década de 1960")
+           - Palabras clave como "único", "primero", "mayor", "menor", "más", "menos"
+           - Comparaciones específicas (ej: "superando en número a Egipto")
+           - Características distintivas (ej: "con capacidad de renovación parcial")
+        
+        Extrae al menos 10 conceptos importantes si el documento es lo suficientemente extenso.
+        Asegúrate de que el resultado sea únicamente el array JSON, sin texto adicional.
+      `;
+
+      // Preparar contenido para Gemini
+      const contents = [{
+        role: "user",
+        parts: [
+          { text: prompt },
+          ...fileContents.map((file: any) => ({
+            inlineData: {
+              mimeType: file.mimeType,
+              data: file.data
+            }
+          }))
+        ]
+      }];
+
+      // Llamar a Gemini
+      const result = await model.generateContent({
+        contents
+      });
+
+      const response = result.response.text();
+
+      // Parsear la respuesta
+      let conceptosExtraidos: any[] = [];
+      try {
+        let cleanedResponse = response.trim();
+        if (cleanedResponse.startsWith("```json")) {
+          cleanedResponse = cleanedResponse.substring(7, cleanedResponse.length - 3).trim();
+        } else if (cleanedResponse.startsWith("```")) { 
+          cleanedResponse = cleanedResponse.substring(3, cleanedResponse.length - 3).trim();
+        }
+
+        conceptosExtraidos = JSON.parse(cleanedResponse);
+
+        if (!Array.isArray(conceptosExtraidos)) {
+          throw new Error('La respuesta no es un array válido');
+        }
+
+      } catch (parseError) {
+        logger.error('❌ Error parseando respuesta de Gemini:', parseError);
+        throw new HttpsError(
+          "internal",
+          "Error procesando la respuesta de IA. Intenta de nuevo."
+        );
+      }
+
+      // Actualizar contador de uso
+      await db.collection("users").doc(request.auth.uid).update({
+        [usageKey]: dailyUsage + 1,
+        lastGeminiUsage: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Conceptos generados exitosamente", {
+        userId: request.auth.uid,
+        conceptsCount: conceptosExtraidos.length,
+        usage: dailyUsage + 1
+      });
+
+      return {
+        success: true,
+        concepts: conceptosExtraidos,
+        usage: {
+          daily: dailyUsage + 1,
+          remaining: maxDailyUsage - (dailyUsage + 1)
+        }
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando conceptos", {
+        userId: request.auth.uid,
+        error: error.message
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Error generando conceptos: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para explicar conceptos usando Gemini
+ * Reemplaza la funcionalidad del componente ExplainConcept
+ */
+export const explainConcept = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 60,
+    memory: "512MiB"
+  },
+  async (request) => {
+    // Validar autenticación
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    const { conceptTerm, conceptDefinition, explanationType, userInterests } = request.data;
+
+    // Validar parámetros
+    if (!conceptTerm || !conceptDefinition || !explanationType) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Se requieren: término del concepto, definición y tipo de explicación"
+      );
+    }
+
+    const validTypes = ['simple', 'related', 'interests', 'mnemotecnia'];
+    if (!validTypes.includes(explanationType)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Tipo de explicación debe ser uno de: ${validTypes.join(', ')}`
+      );
+    }
+
+    logger.info("🧠 Generando explicación de concepto", {
+      userId: request.auth.uid,
+      conceptTerm,
+      explanationType
+    });
+
+    try {
+      // Inicializar Gemini
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Servicio de IA no disponible temporalmente"
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      // Verificar límites del usuario
+      const db = admin.firestore();
+      const userDoc = await db.collection("users").doc(request.auth.uid).get();
+      const userData = userDoc.data();
+
+      if (!userData) {
+        throw new HttpsError("not-found", "Usuario no encontrado");
+      }
+
+      // Control de uso (más permisivo para explicaciones)
+      const today = new Date().toDateString();
+      const usageKey = `explanation_usage_${today}`;
+      const dailyUsage = userData[usageKey] || 0;
+
+      const maxDailyUsage = userData.subscription === 'FREE' ? 15 : 
+                          userData.subscription === 'PRO' ? 50 : 
+                          userData.subscription === 'SCHOOL' ? 30 : 100;
+
+      if (dailyUsage >= maxDailyUsage) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `Límite diario de explicaciones alcanzado (${maxDailyUsage})`
+        );
+      }
+
+      // Crear prompt según el tipo de explicación
+      let prompt = '';
+      
+      switch (explanationType) {
+        case 'simple':
+          prompt = `Explica el siguiente concepto de manera sencilla, como si le hablaras a alguien sin conocimiento técnico. 
+          Usa analogías cotidianas. Limita tu respuesta a 3-4 oraciones.
+          
+          Concepto: ${conceptTerm}
+          Definición: ${conceptDefinition}`;
+          break;
+          
+        case 'related':
+          prompt = `Explica cómo el siguiente concepto se relaciona con otros conceptos del mismo campo. 
+          Menciona 2-3 conceptos relacionados y explica brevemente sus conexiones.
+          Limita tu respuesta a 3-4 oraciones.
+          
+          Concepto: ${conceptTerm}
+          Definición: ${conceptDefinition}`;
+          break;
+          
+        case 'interests':
+          if (!userInterests || !Array.isArray(userInterests) || userInterests.length === 0) {
+            return {
+              success: true,
+              explanation: 'Para personalizar las explicaciones, añade tus intereses en la configuración de tu perfil.',
+              usage: { daily: dailyUsage, remaining: maxDailyUsage - dailyUsage }
+            };
+          }
+          
+          prompt = `TAREA: Relacionar un concepto académico con los intereses personales de un estudiante.
+          
+          INTERESES DEL ESTUDIANTE: ${userInterests.join(', ')}.
+          
+          CONCEPTO A EXPLICAR: "${conceptTerm}"
+          DEFINICIÓN: "${conceptDefinition}"
+          
+          INSTRUCCIONES:
+          1. Explica de manera clara cómo este concepto académico se relaciona directamente con los intereses listados del estudiante.
+          2. Proporciona 1-2 ejemplos específicos de cómo este concepto podría aplicarse o encontrarse en esos intereses.
+          3. Tu respuesta debe ser breve (3-4 oraciones), concreta y dirigida al estudiante.
+          4. NO menciones que eres un modelo de lenguaje ni uses metareferencias sobre tu naturaleza.`;
+          break;
+          
+        case 'mnemotecnia':
+          prompt = `Crea una técnica mnemotécnica sencilla y práctica para recordar el siguiente concepto.
+
+          TÉCNICA MNEMOTÉCNICA: [TÍTULO CORTO Y CLARO]
+          
+          Utiliza UNA de estas técnicas (elige la más adecuada para este concepto específico):
+          - Acrónimo simple (máximo 5 letras)
+          - Asociación visual concreta (una sola imagen potente)
+          - Analogía cotidiana (comparación con algo familiar)
+          - Historia mínima (máximo 3 elementos)
+          - Rima breve y pegadiza
+          
+          Estructura tu respuesta así:
+          Título de la mnemotecnia (en mayúsculas) seguida de ":"
+          Descripción en 2-4 líneas máximo
+          
+          La mnemotecnia debe ser:
+          - Memorable al primer contacto
+          - Visualmente clara
+          - Directamente relacionada con el concepto
+          - Fácil de recordar sin esfuerzo
+
+          PROHIBIDO usar: "*" ni siquiera para poner en negritas.
+          
+          Concepto: ${conceptTerm}
+          Definición: ${conceptDefinition}`;
+          break;
+          
+        default:
+          prompt = `Explica el siguiente concepto brevemente:
+          Concepto: ${conceptTerm}
+          Definición: ${conceptDefinition}`;
+      }
+
+      // Generar explicación
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+
+      const explanation = result.response.text();
+
+      // Actualizar contador de uso
+      await db.collection("users").doc(request.auth.uid).update({
+        [usageKey]: dailyUsage + 1,
+        lastExplanationUsage: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Explicación generada exitosamente", {
+        userId: request.auth.uid,
+        explanationType,
+        usage: dailyUsage + 1
+      });
+
+      return {
+        success: true,
+        explanation,
+        usage: {
+          daily: dailyUsage + 1,
+          remaining: maxDailyUsage - (dailyUsage + 1)
+        }
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando explicación", {
+        userId: request.auth.uid,
+        error: error.message
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Error generando explicación: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función genérica para llamadas a Gemini
+ * Para casos específicos que no encajen en las otras funciones
+ */
+export const generateContent = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 90,
+    memory: "512MiB"
+  },
+  async (request) => {
+    // Validar autenticación
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    const { prompt, model: modelName = 'gemini-1.5-flash' } = request.data;
+
+    // Validar parámetros
+    if (!prompt || typeof prompt !== 'string') {
+      throw new HttpsError(
+        "invalid-argument",
+        "Se requiere un prompt válido"
+      );
+    }
+
+    // Validar longitud del prompt
+    if (prompt.length > 10000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "El prompt es demasiado largo (máximo 10,000 caracteres)"
+      );
+    }
+
+    logger.info("🤖 Generando contenido con Gemini", {
+      userId: request.auth.uid,
+      promptLength: prompt.length,
+      model: modelName
+    });
+
+    try {
+      // Inicializar Gemini
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Servicio de IA no disponible temporalmente"
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      // Verificar límites del usuario
+      const db = admin.firestore();
+      const userDoc = await db.collection("users").doc(request.auth.uid).get();
+      const userData = userDoc.data();
+
+      if (!userData) {
+        throw new HttpsError("not-found", "Usuario no encontrado");
+      }
+
+      // Control de uso
+      const today = new Date().toDateString();
+      const usageKey = `content_usage_${today}`;
+      const dailyUsage = userData[usageKey] || 0;
+
+      const maxDailyUsage = userData.subscription === 'FREE' ? 10 : 
+                          userData.subscription === 'PRO' ? 30 : 
+                          userData.subscription === 'SCHOOL' ? 20 : 50;
+
+      if (dailyUsage >= maxDailyUsage) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `Límite diario de generaciones alcanzado (${maxDailyUsage})`
+        );
+      }
+
+      // Generar contenido
+      const result = await model.generateContent(prompt);
+      const content = result.response.text();
+
+      // Actualizar contador de uso
+      await db.collection("users").doc(request.auth.uid).update({
+        [usageKey]: dailyUsage + 1,
+        lastContentUsage: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Contenido generado exitosamente", {
+        userId: request.auth.uid,
+        contentLength: content.length,
+        usage: dailyUsage + 1
+      });
+
+      return {
+        success: true,
+        content,
+        usage: {
+          daily: dailyUsage + 1,
+          remaining: maxDailyUsage - (dailyUsage + 1)
+        }
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando contenido", {
+        userId: request.auth.uid,
+        error: error.message
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Error generando contenido: ${error.message}`
       );
     }
   }
