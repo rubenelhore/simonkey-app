@@ -203,10 +203,11 @@ const SuperAdminPage: React.FC = () => {
     try {
       console.log('🚀 Iniciando sincronización completa...');
       const results = await syncSchoolUsers('all');
-      setSyncResults(results.results);
+      const data = results.data as any;
+      setSyncResults(data.results);
       
-      console.log('🎉 Sincronización completada:', results);
-      alert(`Sincronización completada: ${results.results.teachers.success + results.results.students.success} exitosos, ${results.results.teachers.errors.length + results.results.students.errors.length} errores`);
+      console.log('🎉 Sincronización completada:', data);
+      alert(`Sincronización completada: ${data.results.teachers.success + data.results.students.success} exitosos, ${data.results.teachers.errors.length + data.results.students.errors.length} errores`);
       loadData();
     } catch (error: any) {
       console.error('❌ Error en sincronización:', error);
@@ -224,8 +225,9 @@ const SuperAdminPage: React.FC = () => {
     setSyncLoading(true);
     try {
       const results = await syncSchoolUsers('teachers');
-      setSyncResults({ teachers: results.results.teachers, students: { success: 0, errors: [] } });
-      alert(`Sincronización de profesores completada: ${results.results.teachers.success} exitosos, ${results.results.teachers.errors.length} errores`);
+      const data = results.data as any;
+      setSyncResults({ teachers: data.results.teachers, students: { success: 0, errors: [] } });
+      alert(`Sincronización de profesores completada: ${data.results.teachers.success} exitosos, ${data.results.teachers.errors.length} errores`);
       loadData();
     } catch (error: any) {
       console.error('❌ Error en sincronización de profesores:', error);
@@ -243,8 +245,9 @@ const SuperAdminPage: React.FC = () => {
     setSyncLoading(true);
     try {
       const results = await syncSchoolUsers('students');
-      setSyncResults({ teachers: { success: 0, errors: [] }, students: results.results.students });
-      alert(`Sincronización de estudiantes completada: ${results.results.students.success} exitosos, ${results.results.students.errors.length} errores`);
+      const data = results.data as any;
+      setSyncResults({ teachers: { success: 0, errors: [] }, students: data.results.students });
+      alert(`Sincronización de estudiantes completada: ${data.results.students.success} exitosos, ${data.results.students.errors.length} errores`);
       loadData();
     } catch (error: any) {
       console.error('❌ Error en sincronización de estudiantes:', error);
@@ -262,7 +265,8 @@ const SuperAdminPage: React.FC = () => {
     setSyncLoading(true);
     try {
       const result = await migrateUsers();
-      alert(`Migración completada: ${result.updatedCount} usuarios actualizados, ${result.errorCount} errores`);
+      const data = result.data as any;
+      alert(`Migración completada: ${data.updatedCount} usuarios actualizados, ${data.errorCount} errores`);
       loadData();
     } catch (error: any) {
       console.error('❌ Error en migración:', error);
@@ -277,8 +281,9 @@ const SuperAdminPage: React.FC = () => {
     if (!teacherId) return;
     
     try {
-      const results = await syncSchoolUsers('specific', teacherId);
-      const teacherResult = results.results.teachers;
+      const results = await syncSchoolUsers();
+      const data = results.data as any;
+      const teacherResult = data.results.teachers;
       
       if (teacherResult.success > 0) {
         alert(`✅ Profesor encontrado y sincronizado correctamente`);

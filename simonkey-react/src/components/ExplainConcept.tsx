@@ -206,15 +206,18 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
       // Llamar a la Cloud Function segura
       const result = await explainConcept({
         concept: concept.término,
-        context: concept.definición,
+        type,
+        userInterests,
         difficulty: type === 'simple' ? 'beginner' : type === 'mnemotecnia' ? 'advanced' : 'intermediate'
       });
 
-      if (!result.data.success) {
+      const data = result.data as { success: boolean; explanation: string };
+      
+      if (!data.success) {
         throw new Error('Error generando explicación');
       }
 
-      setExplanation(result.data.explanation);
+      setExplanation(data.explanation);
       
     } catch (error: any) {
       console.error('Error al generar la explicación:', error);

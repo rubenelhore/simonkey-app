@@ -243,18 +243,20 @@ export const useProcessingTask = () => {
         const status = await checkTaskStatus(taskId);
         onUpdate(status);
 
-        if (status.task.status === 'completed') {
-          onComplete(status.task.result);
+        const statusData = status as any;
+        
+        if (statusData.task.status === 'completed') {
+          onComplete(statusData.task.result);
           return;
         }
 
-        if (status.task.status === 'failed' || status.task.status === 'error') {
-          onError(status.task.error || 'Tarea falló');
+        if (statusData.task.status === 'failed' || statusData.task.status === 'error') {
+          onError(statusData.task.error || 'Tarea falló');
           return;
         }
 
         // Continuar polling si la tarea está en progreso
-        if (['queued', 'enqueued', 'processing', 'processing_direct'].includes(status.task.status)) {
+        if (['queued', 'enqueued', 'processing', 'processing_direct'].includes(statusData.task.status)) {
           setTimeout(poll, 2000); // Revisar cada 2 segundos
         }
       } catch (error: any) {

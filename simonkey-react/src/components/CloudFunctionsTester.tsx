@@ -44,7 +44,7 @@ const CloudFunctionsTester: React.FC = () => {
       return;
     }
     testFunction('cleanupOldData', () => 
-      cleanupOldData(auth.currentUser!.uid, 90)
+      cleanupOldData(auth.currentUser!.uid)
     );
   };
 

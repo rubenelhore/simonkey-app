@@ -209,11 +209,13 @@ const NotebookDetail = () => {
       // Llamar a la Cloud Function segura
       const result = await generateConcepts({ fileContents, notebookId: id });
 
-      if (!result.data.success) {
+      const data = result.data as { success: boolean; concepts: any[] };
+      
+      if (!data.success) {
         throw new Error('Error generando conceptos');
       }
 
-      const conceptosExtraidos = result.data.concepts;
+      const conceptosExtraidos = data.concepts;
 
       if (!conceptosExtraidos.length) {
         alert('No se pudieron extraer conceptos del documento. Intenta con otro archivo.');
@@ -224,7 +226,7 @@ const NotebookDetail = () => {
       setLoadingText("Guardando conceptos...");
 
       // Generar IDs únicos para cada concepto
-      const conceptosConIds = conceptosExtraidos.map(concepto => ({
+      const conceptosConIds = conceptosExtraidos.map((concepto: any) => ({
         ...concepto,
         id: crypto.randomUUID() // Generar ID único para cada concepto
       }));
@@ -290,7 +292,7 @@ const NotebookDetail = () => {
 
       // Crear datos de aprendizaje iniciales para los nuevos conceptos
       await createInitialLearningDataForConcepts(
-        conceptosConIds.map(concepto => concepto.id), 
+        conceptosConIds.map((concepto: any) => concepto.id), 
         auth.currentUser?.uid || '', 
         id
       );
