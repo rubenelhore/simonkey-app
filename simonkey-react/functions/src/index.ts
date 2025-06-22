@@ -10,6 +10,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import * as functions from "firebase-functions/v1";
 
 // Inicializar Firebase Admin
 admin.initializeApp();
@@ -1479,3 +1480,552 @@ export const migrateUsers = onCall(
     }
   }
 );
+
+// =============================================================================
+// CLOUD FUNCTIONS CON TRIGGERS DE FIRESTORE - AUTOMACIÓN
+// =============================================================================
+
+/**
+ * TRIGGER: Eliminación automática de cuentas de Firebase Auth
+ * 
+ * Esta función se ejecuta automáticamente cuando se crea un documento en la colección 'userDeletions'
+ * Elimina la cuenta de Firebase Auth correspondiente, completando el proceso de eliminación iniciado
+ * por los super admins desde el frontend.
+ * 
+ * Beneficios:
+ * - Automatiza la eliminación completa de usuarios
+ * - Garantiza que usuarios eliminados no puedan reingresar
+ * - Centraliza la lógica de eliminación en el backend
+ * - Mejora la seguridad y consistencia del sistema
+ */
+export const onUserDeletionCreated = functions.firestore
+  .document('userDeletions/{userId}')
+  .onCreate(async (snap, context) => {
+    const userId = context.params.userId;
+    const deletionData = snap.data();
+    
+    logger.info("🗑️ Procesando eliminación automática de usuario", { 
+      userId, 
+      deletionData 
+    });
+
+    try {
+      const db = admin.firestore();
+      const auth = admin.auth();
+
+      // Verificar que el documento tiene la información necesaria
+      if (!deletionData || deletionData.status === 'completed') {
+        logger.info("ℹ️ Eliminación ya procesada o datos inválidos", { userId });
+        return null;
+      }
+
+      // Actualizar estado a 'processing'
+      await snap.ref.update({
+        status: 'processing',
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      let authDeleted = false;
+      let error = null;
+
+      try {
+        // Verificar si el usuario existe en Firebase Auth
+        await auth.getUser(userId);
+        
+        // Eliminar cuenta de Firebase Auth
+        await auth.deleteUser(userId);
+        authDeleted = true;
+        
+        logger.info("✅ Cuenta de Firebase Auth eliminada automáticamente", { userId });
+        
+      } catch (authError: any) {
+        if (authError.code === 'auth/user-not-found') {
+          logger.info("ℹ️ Usuario ya no existe en Firebase Auth", { userId });
+          authDeleted = true; // Ya no existe, misión cumplida
+        } else {
+          error = authError.message;
+          logger.error("❌ Error eliminando cuenta de Firebase Auth", { 
+            userId, 
+            error: authError.message 
+          });
+        }
+      }
+
+      // Actualizar el documento con el resultado
+      await snap.ref.update({
+        status: authDeleted ? 'completed' : 'failed',
+        authAccountDeleted: authDeleted,
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        autoProcessingError: error,
+        processedBy: 'automatic-trigger'
+      });
+
+      if (authDeleted) {
+        logger.info("🎉 Eliminación automática completada exitosamente", { userId });
+      } else {
+        logger.error("❌ Eliminación automática falló", { userId, error });
+      }
+
+      return null;
+
+    } catch (error: any) {
+      logger.error("❌ Error crítico en eliminación automática", {
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      // Actualizar estado a fallido
+      try {
+        await snap.ref.update({
+          status: 'failed',
+          autoProcessingError: error.message,
+          completedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (updateError) {
+        logger.error("❌ Error actualizando estado de eliminación fallida", { 
+          userId, 
+          updateError 
+        });
+      }
+
+      return null;
+    }
+  });
+
+/**
+ * TRIGGER: Creación automática de perfil en Firestore para nuevos usuarios de Auth
+ * 
+ * Esta función se ejecuta cuando se crea un nuevo usuario en Firebase Auth
+ * Genera automáticamente su perfil en Firestore con la configuración inicial apropiada
+ * 
+ * Beneficios:
+ * - Garantiza que todos los usuarios tengan un perfil en Firestore
+ * - Automatiza la configuración inicial de usuarios
+ * - Evita cuentas "huérfanas" en Firebase Auth
+ * - Establece límites y configuraciones por defecto
+ */
+export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => {
+  const userId = user.uid;
+  const email = user.email;
+  
+  logger.info("👤 Nuevo usuario creado en Firebase Auth, generando perfil en Firestore", { 
+    userId, 
+    email 
+  });
+
+  try {
+    const db = admin.firestore();
+
+    // Verificar si ya existe el perfil (por seguridad)
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (userDoc.exists) {
+      logger.info("ℹ️ Perfil de usuario ya existe en Firestore", { userId, email });
+      return null;
+    }
+
+    // Determinar tipo de usuario y configuración
+    let userType = 'FREE';
+    let maxNotebooks = 3;
+    let maxConceptsPerNotebook = 10;
+    let schoolRole = null;
+
+    // Verificar si es un usuario escolar
+    if (email) {
+      // Buscar en colecciones escolares
+      const teachersQuery = db.collection("schoolTeachers").where("email", "==", email);
+      const teachersSnapshot = await teachersQuery.get();
+      
+      const studentsQuery = db.collection("schoolStudents").where("email", "==", email);
+      const studentsSnapshot = await studentsQuery.get();
+
+      if (!teachersSnapshot.empty) {
+        userType = 'SCHOOL';
+        schoolRole = 'TEACHER';
+        maxNotebooks = 999;
+        maxConceptsPerNotebook = 999;
+        logger.info("👨‍🏫 Usuario identificado como profesor escolar", { userId, email });
+      } else if (!studentsSnapshot.empty) {
+        userType = 'SCHOOL';
+        schoolRole = 'STUDENT';
+        maxNotebooks = 0;
+        maxConceptsPerNotebook = 0;
+        logger.info("👨‍🎓 Usuario identificado como estudiante escolar", { userId, email });
+      } else if (email === 'ruben.elhore@gmail.com') {
+        userType = 'SUPER_ADMIN';
+        maxNotebooks = 999;
+        maxConceptsPerNotebook = 999;
+        logger.info("👑 Usuario identificado como super admin", { userId, email });
+      }
+    }
+
+    // Crear perfil de usuario en Firestore
+    const userProfile = {
+      id: userId,
+      email: email || '',
+      username: user.displayName || email?.split('@')[0] || 'Usuario',
+      nombre: user.displayName || email?.split('@')[0] || 'Usuario',
+      displayName: user.displayName || email?.split('@')[0] || 'Usuario',
+      birthdate: '',
+      subscription: userType,
+      schoolRole: schoolRole,
+      notebookCount: 0,
+      maxNotebooks: maxNotebooks,
+      maxConceptsPerNotebook: maxConceptsPerNotebook,
+      canDeleteAndRecreate: false,
+      emailVerified: user.emailVerified || false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      
+      // Configuraciones adicionales
+      notebooksCreatedThisWeek: 0,
+      conceptsCreatedThisWeek: 0,
+      weekStartDate: new Date(),
+      
+      // Metadatos de creación automática
+      autoCreated: true,
+      autoCreatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      autoCreatedBy: 'auth-trigger'
+    };
+
+    await db.collection("users").doc(userId).set(userProfile);
+    
+    logger.info("✅ Perfil de usuario creado automáticamente en Firestore", { 
+      userId, 
+      email, 
+      userType,
+      schoolRole
+    });
+
+    // Crear estadísticas iniciales del usuario
+    try {
+      await db.collection("users").doc(userId).collection("stats").doc("summary").set({
+        totalNotebooks: 0,
+        totalConcepts: 0,
+        masteredConcepts: 0,
+        totalStudyTimeMinutes: 0,
+        completedSessions: 0,
+        currentStreak: 0,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        autoCreated: true
+      });
+      
+      logger.info("✅ Estadísticas iniciales creadas automáticamente", { userId });
+    } catch (statsError) {
+      logger.error("⚠️ Error creando estadísticas iniciales", { userId, statsError });
+    }
+
+    // Registrar actividad de creación
+    try {
+      await db.collection("userActivities").add({
+        userId: userId,
+        type: 'user_created',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {
+          userType: userType,
+          schoolRole: schoolRole,
+          autoCreated: true,
+          email: email
+        }
+      });
+      
+      logger.info("✅ Actividad de creación registrada", { userId });
+    } catch (activityError) {
+      logger.error("⚠️ Error registrando actividad", { userId, activityError });
+    }
+
+    return null;
+
+  } catch (error: any) {
+    logger.error("❌ Error crítico creando perfil automático de usuario", {
+      userId,
+      email,
+      error: error.message,
+      stack: error.stack
+    });
+
+    // No lanzar error para evitar bloquear la creación de la cuenta en Auth
+    return null;
+  }
+});
+
+/**
+ * TRIGGER: Inicialización automática cuando se crea un perfil de usuario en Firestore
+ * 
+ * Esta función se ejecuta cuando se crea un documento en la colección 'users'
+ * Realiza tareas de inicialización y configuración adicional
+ * 
+ * Beneficios:
+ * - Automatiza la configuración de nuevos usuarios
+ * - Garantiza consistencia en la inicialización
+ * - Realiza tareas de preparación del entorno del usuario
+ */
+export const onUserProfileCreated = functions.firestore
+  .document('users/{userId}')
+  .onCreate(async (snap, context) => {
+    const userId = context.params.userId;
+    const userData = snap.data();
+    
+    logger.info("👤 Nuevo perfil de usuario creado, inicializando configuraciones", { 
+      userId, 
+      email: userData.email,
+      subscription: userData.subscription 
+    });
+
+    try {
+      const db = admin.firestore();
+
+      // Crear configuraciones predeterminadas del usuario
+      const defaultSettings = {
+        theme: 'system',
+        language: 'es',
+        notifications: {
+          email: true,
+          push: true,
+          studyReminders: true,
+          weeklyReports: true
+        },
+        privacy: {
+          shareStats: false,
+          shareProgress: false
+        },
+        study: {
+          defaultStudyTime: 25, // minutos
+          autoPlay: false,
+          showHints: true
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        autoCreated: true
+      };
+
+      await db.collection("users").doc(userId).collection("settings").doc("preferences").set(defaultSettings);
+      logger.info("✅ Configuraciones predeterminadas creadas", { userId });
+
+      // Crear límites de usuario basados en su suscripción
+      const limits = {
+        maxNotebooks: userData.maxNotebooks || 3,
+        maxConceptsPerNotebook: userData.maxConceptsPerNotebook || 10,
+        maxStudySessionsPerDay: userData.subscription === 'FREE' ? 5 : -1,
+        maxExportsPerWeek: userData.subscription === 'FREE' ? 1 : -1,
+        canCreatePublicNotebooks: userData.subscription !== 'FREE',
+        canUseAdvancedFeatures: userData.subscription === 'PRO' || userData.subscription === 'SUPER_ADMIN',
+        resetDate: admin.firestore.FieldValue.serverTimestamp(),
+        autoCreated: true
+      };
+
+      await db.collection("users").doc(userId).collection("limits").doc("current").set(limits);
+      logger.info("✅ Límites de usuario configurados", { userId, limits });
+
+      // Si es un usuario escolar, crear configuraciones específicas
+      if (userData.subscription === 'SCHOOL') {
+        const schoolConfig = {
+          role: userData.schoolRole,
+          canCreateNotebooks: userData.schoolRole === 'TEACHER',
+          canViewAllStudents: userData.schoolRole === 'TEACHER',
+          canExportData: userData.schoolRole === 'TEACHER',
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection("users").doc(userId).collection("school").doc("config").set(schoolConfig);
+        logger.info("✅ Configuración escolar creada", { userId, schoolConfig });
+      }
+
+      // Crear documento de progreso inicial
+      const initialProgress = {
+        level: 1,
+        experience: 0,
+        badges: [],
+        achievements: [],
+        streakRecord: 0,
+        totalStudyDays: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await db.collection("users").doc(userId).collection("progress").doc("current").set(initialProgress);
+      logger.info("✅ Progreso inicial configurado", { userId });
+
+      logger.info("🎉 Inicialización de usuario completada exitosamente", { 
+        userId, 
+        email: userData.email 
+      });
+
+      return null;
+
+    } catch (error: any) {
+      logger.error("❌ Error en inicialización automática de usuario", {
+        userId,
+        userData: userData,
+        error: error.message,
+        stack: error.stack
+      });
+
+      // No lanzar error para evitar bloquear otras operaciones
+      return null;
+    }
+  });
+
+/**
+ * TRIGGER: Limpieza automática cuando se elimina un notebook
+ * 
+ * Esta función se ejecuta cuando se elimina un documento de la colección 'notebooks'
+ * Limpia automáticamente todos los conceptos y datos relacionados
+ * 
+ * Beneficios:
+ * - Mantiene la base de datos limpia automáticamente
+ * - Evita datos huérfanos y referencias rotas
+ * - Optimiza el rendimiento eliminando datos innecesarios
+ */
+export const onNotebookDeleted = functions.firestore
+  .document('notebooks/{notebookId}')
+  .onDelete(async (snap, context) => {
+    const notebookId = context.params.notebookId;
+    const notebookData = snap.data();
+    
+    logger.info("📚 Notebook eliminado, iniciando limpieza automática", { 
+      notebookId, 
+      userId: notebookData.userId,
+      title: notebookData.title 
+    });
+
+    try {
+      const db = admin.firestore();
+      let deletedItems = {
+        concepts: 0,
+        studySessions: 0,
+        conceptStats: 0,
+        reviewConcepts: 0
+      };
+
+      // 1. Eliminar todos los conceptos relacionados con este notebook
+      try {
+        const conceptsQuery = db.collection("conceptos").where("cuadernoId", "==", notebookId);
+        const conceptsSnapshot = await conceptsQuery.get();
+        
+        const batch = db.batch();
+        conceptsSnapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+          deletedItems.concepts++;
+        });
+        await batch.commit();
+        
+        logger.info(`✅ Eliminados ${deletedItems.concepts} conceptos`, { notebookId });
+      } catch (error) {
+        logger.error("❌ Error eliminando conceptos", { notebookId, error });
+      }
+
+      // 2. Eliminar sesiones de estudio relacionadas
+      try {
+        const sessionsQuery = db.collection("studySessions")
+          .where("notebookId", "==", notebookId);
+        const sessionsSnapshot = await sessionsQuery.get();
+        
+        const batch = db.batch();
+        sessionsSnapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+          deletedItems.studySessions++;
+        });
+        await batch.commit();
+        
+        logger.info(`✅ Eliminadas ${deletedItems.studySessions} sesiones de estudio`, { notebookId });
+      } catch (error) {
+        logger.error("❌ Error eliminando sesiones de estudio", { notebookId, error });
+      }
+
+      // 3. Eliminar estadísticas de conceptos relacionadas
+      try {
+        const statsQuery = db.collection("conceptStats")
+          .where("notebookId", "==", notebookId);
+        const statsSnapshot = await statsQuery.get();
+        
+        const batch = db.batch();
+        statsSnapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+          deletedItems.conceptStats++;
+        });
+        await batch.commit();
+        
+        logger.info(`✅ Eliminadas ${deletedItems.conceptStats} estadísticas de conceptos`, { notebookId });
+      } catch (error) {
+        logger.error("❌ Error eliminando estadísticas", { notebookId, error });
+      }
+
+      // 4. Eliminar conceptos de repaso relacionados
+      try {
+        const reviewQuery = db.collection("reviewConcepts")
+          .where("notebookId", "==", notebookId);
+        const reviewSnapshot = await reviewQuery.get();
+        
+        const batch = db.batch();
+        reviewSnapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+          deletedItems.reviewConcepts++;
+        });
+        await batch.commit();
+        
+        logger.info(`✅ Eliminados ${deletedItems.reviewConcepts} conceptos de repaso`, { notebookId });
+      } catch (error) {
+        logger.error("❌ Error eliminando conceptos de repaso", { notebookId, error });
+      }
+
+      // 5. Actualizar contador de notebooks del usuario
+      if (notebookData.userId) {
+        try {
+          const userRef = db.collection("users").doc(notebookData.userId);
+          await userRef.update({
+            notebookCount: admin.firestore.FieldValue.increment(-1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          
+          logger.info("✅ Contador de notebooks actualizado", { 
+            userId: notebookData.userId, 
+            notebookId 
+          });
+        } catch (error) {
+          logger.error("❌ Error actualizando contador de notebooks", { 
+            userId: notebookData.userId, 
+            notebookId, 
+            error 
+          });
+        }
+      }
+
+      // 6. Registrar actividad de eliminación
+      try {
+        await db.collection("userActivities").add({
+          userId: notebookData.userId,
+          type: 'notebook_deleted',
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          metadata: {
+            notebookId: notebookId,
+            notebookTitle: notebookData.title,
+            deletedItems: deletedItems,
+            autoCleanup: true
+          }
+        });
+        
+        logger.info("✅ Actividad de eliminación registrada", { notebookId });
+      } catch (error) {
+        logger.error("❌ Error registrando actividad", { notebookId, error });
+      }
+
+      const totalDeleted = Object.values(deletedItems).reduce((sum, count) => sum + count, 0);
+      
+      logger.info("🎉 Limpieza automática de notebook completada", { 
+        notebookId, 
+        totalDeleted,
+        deletedItems 
+      });
+
+      return null;
+
+    } catch (error: any) {
+      logger.error("❌ Error crítico en limpieza automática de notebook", {
+        notebookId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      return null;
+    }
+  });
