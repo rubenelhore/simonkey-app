@@ -10,12 +10,27 @@ import {
 import { UserProfile, SubscriptionLimits, UserSubscriptionType, SchoolRole } from '../types/interfaces';
 
 export const useUserType = () => {
-  const { userProfile, loading } = useAuth();
+  const { userProfile, loading, isAuthenticated } = useAuth();
 
   // Logs para depuración
   console.log('useUserType - loading:', loading);
+  console.log('useUserType - isAuthenticated:', isAuthenticated);
   if (!loading) {
     console.log('useUserType - userProfile:', userProfile);
+  }
+
+  // Si no está autenticado, no necesitamos cargar el tipo de usuario
+  if (!isAuthenticated) {
+    return {
+      isSuperAdmin: false,
+      subscription: undefined,
+      schoolRole: undefined,
+      isSchoolUser: false,
+      isSchoolTeacher: false,
+      isSchoolStudent: false,
+      userProfile: null,
+      loading: false // Cambiado de true a false
+    };
   }
 
   // Valores por defecto mientras carga

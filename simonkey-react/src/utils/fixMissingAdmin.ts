@@ -1,5 +1,6 @@
 import { db } from '../services/firebase';
 import { collection, getDocs, query, where, doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 export const diagnoseSchoolDataStructure = async (teacherId: string) => {
   console.log('🔍 DIAGNÓSTICO DE ESTRUCTURA DE DATOS ESCOLARES');
@@ -84,16 +85,16 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
       console.log(`   - Total de salones encontrados: ${allSubjectsSnapshot.size}`);
       allSubjectsSnapshot.forEach(doc => {
         const subjectData = doc.data();
-        console.log(`   - Salón ID: ${doc.id}, idProfesor: ${subjectData.idProfesor}, idSalon: ${subjectData.idSalon}`);
+        console.log(`   - Materia ID: ${doc.id}, idProfesor: ${subjectData.idProfesor}, idMateria: ${subjectData.idMateria}`);
       });
       console.log('');
     } else {
       console.log(`✅ Se encontraron ${subjectSnapshot.size} salones asignados al profesor`);
       subjectSnapshot.forEach(doc => {
         const subjectData = doc.data();
-        console.log(`   - Salón ID: ${doc.id}`);
+        console.log(`   - Materia ID: ${doc.id}`);
         console.log(`     - idProfesor: ${subjectData.idProfesor}`);
-        console.log(`     - idSalon: ${subjectData.idSalon}`);
+        console.log(`     - idMateria: ${subjectData.idMateria}`);
         console.log(`     - Nombre: ${subjectData.nombre}`);
       });
       console.log('');
@@ -110,7 +111,7 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
       console.log(`   - Cuaderno ID: ${doc.id}`);
       console.log(`     - Título: ${notebookData.title}`);
       console.log(`     - idAdmin: ${notebookData.idAdmin}`);
-      console.log(`     - idSalon: ${notebookData.idSalon}`);
+      console.log(`     - idMateria: ${notebookData.idMateria}`);
     });
     console.log('');
 
@@ -157,7 +158,7 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
       console.log('⚠️ Hay salones asignados a otros profesores:');
       subjectsWithDifferentTeacher.forEach(doc => {
         const data = doc.data();
-        console.log(`   - Salón ${doc.id}: idProfesor = ${data.idProfesor}`);
+        console.log(`   - Materia ${doc.id}: idProfesor = ${data.idProfesor}`);
       });
     }
 
@@ -623,9 +624,9 @@ export const createMissingAdminIfNeeded = async (adminId: string) => {
   }
 };
 
-// Función para corregir el campo idSalon en subjects
-export const fixSubjectIdSalon = async (teacherId: string) => {
-  console.log('🔧 CORRIGIENDO CAMPO IDSALON EN SUBJECTS');
+// Función para corregir el campo idMateria en subjects
+export const fixSubjectIdMateria = async (teacherId: string) => {
+  console.log('🔧 CORRIGIENDO CAMPO IDMATERIA EN SUBJECTS');
   console.log('==========================================');
   console.log(`👨‍🏫 Profesor ID: ${teacherId}`);
   console.log('');
@@ -651,27 +652,26 @@ export const fixSubjectIdSalon = async (teacherId: string) => {
       const subjectId = subjectDoc.id;
       
       console.log(`🔧 Corrigiendo subject ${subjectId}...`);
-      console.log(`   - Nombre: ${subjectData.nombre}`);
-      console.log(`   - idSalon actual: ${subjectData.idSalon}`);
+      console.log(`   - idMateria actual: ${subjectData.idMateria}`);
       
-      // Si idSalon es undefined, establecerlo como el ID del documento
-      if (!subjectData.idSalon) {
+      // Si idMateria es undefined, establecerlo como el ID del documento
+      if (!subjectData.idMateria) {
         await updateDoc(doc(db, 'schoolSubjects', subjectId), {
-          idSalon: subjectId,
+          idMateria: subjectId,
           updatedAt: serverTimestamp()
         });
-        console.log(`   ✅ idSalon corregido a: ${subjectId}`);
+        console.log(`   ✅ idMateria corregido a: ${subjectId}`);
       } else {
-        console.log(`   ✅ idSalon ya está correcto: ${subjectData.idSalon}`);
+        console.log(`   ✅ idMateria ya está correcto: ${subjectData.idMateria}`);
       }
     }
 
     console.log('');
-    console.log('✅ CORRECCIÓN DE IDSALON COMPLETADA');
+    console.log('✅ CORRECCIÓN DE IDMATERIA COMPLETADA');
     console.log('====================================');
 
   } catch (error) {
-    console.error('❌ Error corrigiendo idSalon:', error);
+    console.error('❌ Error corrigiendo idMateria:', error);
   }
 };
 
@@ -683,9 +683,9 @@ export const fixAllSchoolIssues = async (teacherId: string) => {
   console.log('');
 
   try {
-    // 1. Corregir idSalon en subjects
-    console.log('1️⃣ Corrigiendo idSalon en subjects...');
-    await fixSubjectIdSalon(teacherId);
+    // 1. Corregir idMateria en subjects
+    console.log('1️⃣ Corrigiendo idMateria en subjects...');
+    await fixSubjectIdMateria(teacherId);
     
     // 2. Ejecutar corrección automática
     console.log('2️⃣ Ejecutando corrección automática...');
@@ -698,4 +698,103 @@ export const fixAllSchoolIssues = async (teacherId: string) => {
   } catch (error) {
     console.error('❌ Error durante la corrección completa:', error);
   }
-}; 
+};
+
+// Función global para ejecutar desde la consola del navegador
+export const fixTeacherNotebooksIssue = async () => {
+  console.log('🔧 === ARREGLANDO PROBLEMA DE CUADERNOS DEL PROFESOR ===');
+  console.log('========================================================');
+  
+  try {
+    // Obtener el usuario actual
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log(`👨‍🏫 Usuario actual: ${currentUser.email} (${currentUser.uid})`);
+    
+    // Ejecutar la corrección completa
+    await fixAllSchoolIssues(currentUser.uid);
+    
+    console.log('');
+    console.log('✅ PROBLEMA ARREGLADO - Recarga la página para ver los cambios');
+    console.log('============================================================');
+    
+  } catch (error) {
+    console.error('❌ Error arreglando el problema:', error);
+  }
+};
+
+// Función específica para arreglar el problema de idMateria
+export const fixIdMateriaIssue = async () => {
+  console.log('🔧 === ARREGLANDO PROBLEMA DE IDMATERIA ===');
+  console.log('===========================================');
+  
+  try {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log(`👨‍🏫 Usuario actual: ${currentUser.email} (${currentUser.uid})`);
+    
+    // 1. Obtener todos los subjects del profesor
+    const subjectQuery = query(
+      collection(db, 'schoolSubjects'),
+      where('idProfesor', '==', currentUser.uid)
+    );
+    const subjectSnapshot = await getDocs(subjectQuery);
+    
+    if (subjectSnapshot.empty) {
+      console.log('❌ No se encontraron materias para el profesor');
+      return;
+    }
+
+    console.log(`✅ Se encontraron ${subjectSnapshot.size} materias del profesor`);
+    
+    // 2. Corregir cada subject
+    for (const subjectDoc of subjectSnapshot.docs) {
+      const subjectData = subjectDoc.data();
+      const subjectId = subjectDoc.id;
+      
+      console.log(`🔧 Revisando materia ${subjectId}...`);
+      console.log(`   - Nombre: ${subjectData.nombre}`);
+      console.log(`   - idMateria actual: ${subjectData.idMateria}`);
+      
+      // Si idMateria es undefined o null, establecerlo como el ID del documento
+      if (!subjectData.idMateria) {
+        await updateDoc(doc(db, 'schoolSubjects', subjectId), {
+          idMateria: subjectId,
+          updatedAt: serverTimestamp()
+        });
+        console.log(`   ✅ idMateria corregido a: ${subjectId}`);
+      } else {
+        console.log(`   ✅ idMateria ya está correcto: ${subjectData.idMateria}`);
+      }
+    }
+
+    console.log('');
+    console.log('✅ PROBLEMA DE IDMATERIA ARREGLADO');
+    console.log('==================================');
+    console.log('🔄 Recarga la página para ver los cuadernos');
+    
+  } catch (error) {
+    console.error('❌ Error arreglando idMateria:', error);
+  }
+};
+
+// Hacer las funciones disponibles globalmente
+if (typeof window !== 'undefined') {
+  (window as any).fixTeacherNotebooksIssue = fixTeacherNotebooksIssue;
+  (window as any).fixIdMateriaIssue = fixIdMateriaIssue;
+  console.log('🔧 Funciones disponibles en la consola:');
+  console.log('   - fixIdMateriaIssue() - Arregla solo el problema de idMateria');
+  console.log('   - fixTeacherNotebooksIssue() - Arregla todos los problemas escolares');
+} 

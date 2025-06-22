@@ -16,6 +16,8 @@ import { deleteAllUserData, deleteUserCompletely } from '../services/userService
 import { deleteUserWithConfirmation, syncSchoolUsers, migrateUsers } from '../services/firebaseFunctions';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
+import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
+import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -298,6 +300,34 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
+  // Funciones para datos de prueba
+  const handleCreateTestData = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres crear datos de prueba? Esto agregará entidades de ejemplo al sistema escolar.')) {
+      return;
+    }
+    
+    try {
+      const result = await createTestSchoolData();
+      alert(`✅ Datos de prueba creados exitosamente!\n\nIDs creados:\n- Institución: ${result.institutionId}\n- Administrador: ${result.adminId}\n- Profesor: ${result.teacherId}\n- Materia: ${result.subjectId}\n- Cuaderno: ${result.notebookId}\n- Estudiante: ${result.studentId}\n- Tutor: ${result.tutorId}`);
+    } catch (error: any) {
+      console.error('❌ Error creando datos de prueba:', error);
+      alert(`Error creando datos de prueba: ${error.message}`);
+    }
+  };
+
+  const handleCheckCollections = async () => {
+    try {
+      const results = await checkSchoolCollections();
+      const summary = Object.entries(results)
+        .map(([collection, count]) => `${collection}: ${count}`)
+        .join('\n');
+      alert(`📊 Estado de las colecciones escolares:\n\n${summary}`);
+    } catch (error: any) {
+      console.error('❌ Error verificando colecciones:', error);
+      alert(`Error verificando colecciones: ${error.message}`);
+    }
+  };
+
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -355,6 +385,13 @@ const SuperAdminPage: React.FC = () => {
           >
             <i className="fas fa-sync-alt"></i>
             Sync Escolar
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'schoolVerification' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schoolVerification')}
+          >
+            <i className="fas fa-search"></i>
+            Verificación de Vinculación
           </button>
         </nav>
 
@@ -687,6 +724,34 @@ const SuperAdminPage: React.FC = () => {
                   <li>Es recomendable hacer backup antes de ejecutar la sincronización masiva</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* Tab de Verificación de Vinculación */}
+          {activeTab === 'schoolVerification' && (
+            <div className="school-verification-tab">
+              <div className="tab-header">
+                <h2>🔗 Verificación de Vinculación Escolar</h2>
+                <div className="header-actions">
+                  <button 
+                    className="test-button"
+                    onClick={handleCheckCollections}
+                    title="Verificar estado de colecciones"
+                  >
+                    <i className="fas fa-database"></i>
+                    Verificar Colecciones
+                  </button>
+                  <button 
+                    className="test-button"
+                    onClick={handleCreateTestData}
+                    title="Crear datos de prueba"
+                  >
+                    <i className="fas fa-plus"></i>
+                    Crear Datos de Prueba
+                  </button>
+                </div>
+              </div>
+              <SchoolLinkingVerification />
             </div>
           )}
         </div>

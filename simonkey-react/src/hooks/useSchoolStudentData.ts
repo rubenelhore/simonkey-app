@@ -41,7 +41,7 @@ export const useSchoolStudentData = () => {
         const studentData = studentSnapshot.docs[0].data() as SchoolStudent;
         console.log('👨‍🎓 Datos del estudiante encontrados:', studentData.nombre);
 
-        // 2. Obtener el salón del estudiante
+        // 2. Obtener la materia del estudiante
         const classroomQuery = query(
           collection(db, 'schoolSubjects'),
           where('idEstudiante', '==', user.uid)
@@ -49,19 +49,19 @@ export const useSchoolStudentData = () => {
         const classroomSnapshot = await getDocs(classroomQuery);
         
         if (classroomSnapshot.empty) {
-          console.log('❌ No se encontró salón asignado al estudiante');
+          console.log('❌ No se encontró materia asignada al estudiante');
           setSchoolNotebooks([]);
           setLoading(false);
           return undefined;
         }
 
         const classroomId = classroomSnapshot.docs[0].id;
-        console.log('🏫 Salón encontrado:', classroomId);
+        console.log('🏫 Materia encontrada:', classroomId);
 
-        // 3. Obtener los cuadernos del salón
+        // 3. Obtener los cuadernos de la materia
         const notebooksQuery = query(
           collection(db, 'schoolNotebooks'),
-          where('idSalon', '==', classroomId),
+          where('idMateria', '==', classroomId),
           orderBy('createdAt', 'desc')
         );
 

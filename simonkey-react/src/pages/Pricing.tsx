@@ -150,15 +150,11 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Creación de usuarios: Admin y Profesores</span>
+                    <span className="feature-text">Creación de materias</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Creación de salones</span>
-                  </li>
-                  <li className="feature-item">
-                    <span className="feature-icon">✔</span>
-                    <span className="feature-text">Competencia de Score de los alumnos por salón</span>
+                    <span className="feature-text">Competencia de Score por materia</span>
                   </li>
                 </ul>
               </div>
@@ -229,13 +225,13 @@ const Pricing: React.FC = () => {
                 <td>✔</td>
               </tr>
               <tr>
-                <td>Creación de salones</td>
+                <td>Creación de materias</td>
                 <td>-</td>
                 <td>-</td>
                 <td>✔</td>
               </tr>
               <tr>
-                <td>Competencia de Score por salón</td>
+                <td>Competencia de Score por materia</td>
                 <td>-</td>
                 <td>-</td>
                 <td>✔</td>
@@ -333,7 +329,7 @@ const Pricing: React.FC = () => {
                 className="faq-answer"
                 style={{ display: activeQuestion === 3 ? 'block' : 'none' }}
               >
-                El plan Escolar está diseñado específicamente para instituciones educativas. Permite crear usuarios administradores y profesores, gestionar salones de clase, y fomentar la competencia sana entre estudiantes a través del sistema de scores. Incluye analíticas avanzadas para el seguimiento del progreso institucional.
+                El plan Escolar está diseñado específicamente para instituciones educativas. Permite crear usuarios administradores y profesores, gestionar materias de clase, y fomentar la competencia sana entre estudiantes a través del sistema de scores. Incluye analíticas avanzadas para el seguimiento del progreso institucional.
               </div>
             </div>
 

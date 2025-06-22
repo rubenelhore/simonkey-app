@@ -12,9 +12,10 @@ interface NotebookItemProps {
   onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
   showActions: boolean; // Nuevo prop para controlar si las acciones están visibles
   onToggleActions: (notebookId: string) => void; // Nueva función para alternar las acciones
+  isSchoolNotebook?: boolean; // Nuevo prop
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -30,7 +31,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
   };
 
   const handleView = () => {
-    navigate(`/notebooks/${id}`);
+    if (isSchoolNotebook) {
+      navigate(`/school/notebooks/${id}`);
+    } else {
+      navigate(`/notebooks/${id}`);
+    }
   };
 
   const handleCardClick = () => {

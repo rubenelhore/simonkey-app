@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import Header from './components/Header';
@@ -52,6 +52,10 @@ import CookieConsentBanner from './components/CookieConsent/CookieConsentBanner'
 import AuthCleaner from './components/AuthCleaner';
 // Importar AuthUnlocker
 import AuthUnlocker from './components/AuthUnlocker';
+// Importar AuthDiagnostic
+import AuthDiagnostic from './components/AuthDiagnostic';
+import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
+import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 
 // Definir el tipo para el usuario
 interface User {
@@ -199,6 +203,16 @@ const AppContent: React.FC = () => {
   if (MAINTENANCE_MODE) {
     return <MaintenanceMode />;
   }
+
+  // Mostrar mensaje de ayuda en consola
+  useEffect(() => {
+    console.log('🔧 === SIMONKEY - AYUDA DE DIAGNÓSTICO ===');
+    console.log('💡 Si tienes problemas de autenticación, ejecuta en la consola:');
+    console.log('   window.quickFix() - Solución rápida');
+    console.log('   window.diagnoseAuthIssues() - Diagnóstico completo');
+    console.log('   window.fixOrphanUser() - Arreglar usuario huérfano');
+    console.log('==========================================');
+  }, []);
 
   useEffect(() => {
     if (!loading && !userTypeLoading) {
@@ -493,10 +507,35 @@ const AppContent: React.FC = () => {
             })()
           }
         />
+        <Route
+          path="/school/notebooks/:id"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolNotebookDetail />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/school/notebooks/:notebookId/concepto/:conceptoId/:index"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolNotebookConcepts />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
       </Routes>
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
+      <AuthDiagnostic />
     </UserContext.Provider>
   );
 };

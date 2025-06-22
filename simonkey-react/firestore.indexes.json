@@ -47,7 +47,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "idSalon",
+          "fieldPath": "idMateria",
           "order": "ASCENDING"
         },
         {

@@ -55,7 +55,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
         case SchoolCategory.PROFESORES:
           collectionName = 'schoolTeachers';
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
@@ -105,7 +105,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
         case SchoolCategory.PROFESORES:
           linkableCategory = 'schoolSubjects';
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           linkableCategory = 'schoolNotebooks';
           break;
         case SchoolCategory.CUADERNOS:
@@ -208,9 +208,9 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           collectionName = 'schoolSubjects';
           linkField = 'idProfesor';
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           collectionName = 'schoolNotebooks';
-          linkField = 'idSalon';
+          linkField = 'idMateria';
           break;
         case SchoolCategory.CUADERNOS:
           collectionName = 'schoolStudents';
@@ -275,7 +275,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
       [SchoolCategory.INSTITUCIONES]: 'Instituciones',
       [SchoolCategory.ADMINS]: 'Administradores',
       [SchoolCategory.PROFESORES]: 'Profesores',
-      [SchoolCategory.SALONES]: 'Salones',
+      [SchoolCategory.MATERIAS]: 'Materias',
       [SchoolCategory.CUADERNOS]: 'Cuadernos',
       [SchoolCategory.ALUMNOS]: 'Alumnos',
       [SchoolCategory.TUTORES]: 'Tutores'
@@ -287,8 +287,8 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
     const names = {
       [SchoolCategory.INSTITUCIONES]: 'Administrador',
       [SchoolCategory.ADMINS]: 'Profesor',
-      [SchoolCategory.PROFESORES]: 'Salón',
-      [SchoolCategory.SALONES]: 'Cuaderno',
+      [SchoolCategory.PROFESORES]: 'Materia',
+      [SchoolCategory.MATERIAS]: 'Cuaderno',
       [SchoolCategory.CUADERNOS]: 'Alumno',
       [SchoolCategory.ALUMNOS]: 'Tutor',
       [SchoolCategory.TUTORES]: 'Tutor'
@@ -318,7 +318,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
             <option value={SchoolCategory.INSTITUCIONES}>Instituciones</option>
             <option value={SchoolCategory.ADMINS}>Administradores</option>
             <option value={SchoolCategory.PROFESORES}>Profesores</option>
-            <option value={SchoolCategory.SALONES}>Salones</option>
+            <option value={SchoolCategory.MATERIAS}>Materias</option>
             <option value={SchoolCategory.CUADERNOS}>Cuadernos</option>
             <option value={SchoolCategory.ALUMNOS}>Alumnos</option>
           </select>

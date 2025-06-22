@@ -96,7 +96,7 @@ export const useSchoolNotebooks = () => {
               console.log('🏫 Admin vinculado a la institución:', adminData.idInstitucion);
               
               // Continuar con el resto del proceso...
-              // 3. Obtener los salones asignados al profesor
+              // 3. Obtener las materias asignadas al profesor
               console.log('🔍 Ejecutando query para schoolSubjects con idProfesor:', user.uid);
               const subjectQuery = query(
                 collection(db, 'schoolSubjects'),
@@ -109,7 +109,7 @@ export const useSchoolNotebooks = () => {
               });
               
               if (subjectSnapshot.empty) {
-                console.log('❌ No se encontraron salones asignados al profesor');
+                console.log('❌ No se encontraron materias asignadas al profesor');
                 console.log('🔍 Intentando buscar todos los subjects disponibles...');
                 
                 try {
@@ -130,23 +130,23 @@ export const useSchoolNotebooks = () => {
               }
 
               const subjectIds = subjectSnapshot.docs.map(doc => doc.id);
-              console.log('🏫 Salones encontrados (IDs de documento):', subjectIds);
+              console.log('🏫 Materias encontradas (IDs de documento):', subjectIds);
               
-              // También mostrar el campo idSalon de cada subject
-              const subjectSalonIds = subjectSnapshot.docs.map(doc => {
+              // También mostrar el campo idMateria de cada subject
+              const subjectMateriaIds = subjectSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`   - Subject ${doc.id}: idSalon = ${data.idSalon}`);
-                return data.idSalon;
+                console.log(`   - Subject ${doc.id}: idMateria = ${data.idMateria}`);
+                return data.idMateria;
               }).filter(id => id); // Filtrar valores undefined/null
               
-              console.log('🏫 Salones encontrados (campo idSalon):', subjectSalonIds);
+              console.log('🏫 Materias encontradas (campo idMateria):', subjectMateriaIds);
 
-              // 4. Obtener los cuadernos de esos salones
-              if (subjectSalonIds.length > 0) {
-                console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', subjectSalonIds);
+              // 4. Obtener los cuadernos de esas materias
+              if (subjectMateriaIds.length > 0) {
+                console.log('🔍 Ejecutando query para schoolNotebooks con idMateria:', subjectMateriaIds);
                 const notebooksQuery = query(
                   collection(db, 'schoolNotebooks'),
-                  where('idSalon', 'in', subjectSalonIds)
+                  where('idMateria', 'in', subjectMateriaIds)
                   // orderBy('createdAt', 'desc') // Comentado temporalmente mientras se construye el índice
                 );
 
@@ -222,7 +222,7 @@ export const useSchoolNotebooks = () => {
 
           console.log('🏫 Admin vinculado a la institución:', adminData.idInstitucion);
 
-          // 3. Obtener los salones asignados al profesor
+          // 3. Obtener las materias asignadas al profesor
           console.log('🔍 Ejecutando query para schoolSubjects con idProfesor:', user.uid);
           const subjectQuery = query(
             collection(db, 'schoolSubjects'),
@@ -235,7 +235,7 @@ export const useSchoolNotebooks = () => {
           });
           
           if (subjectSnapshot.empty) {
-            console.log('❌ No se encontraron salones asignados al profesor');
+            console.log('❌ No se encontraron materias asignadas al profesor');
             console.log('🔍 Intentando buscar todos los subjects disponibles...');
             
             try {
@@ -256,23 +256,23 @@ export const useSchoolNotebooks = () => {
           }
 
           const subjectIds = subjectSnapshot.docs.map(doc => doc.id);
-          console.log('🏫 Salones encontrados (IDs de documento):', subjectIds);
+          console.log('🏫 Materias encontradas (IDs de documento):', subjectIds);
           
-          // También mostrar el campo idSalon de cada subject
-          const subjectSalonIds = subjectSnapshot.docs.map(doc => {
+          // También mostrar el campo idMateria de cada subject
+          const subjectMateriaIds = subjectSnapshot.docs.map(doc => {
             const data = doc.data();
-            console.log(`   - Subject ${doc.id}: idSalon = ${data.idSalon}`);
-            return data.idSalon;
+            console.log(`   - Subject ${doc.id}: idMateria = ${data.idMateria}`);
+            return data.idMateria;
           }).filter(id => id); // Filtrar valores undefined/null
           
-          console.log('🏫 Salones encontrados (campo idSalon):', subjectSalonIds);
+          console.log('🏫 Materias encontradas (campo idMateria):', subjectMateriaIds);
 
-          // 4. Obtener los cuadernos de esos salones
-          if (subjectSalonIds.length > 0) {
-            console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', subjectSalonIds);
+          // 4. Obtener los cuadernos de esas materias
+          if (subjectMateriaIds.length > 0) {
+            console.log('🔍 Ejecutando query para schoolNotebooks con idMateria:', subjectMateriaIds);
             const notebooksQuery = query(
               collection(db, 'schoolNotebooks'),
-              where('idSalon', 'in', subjectSalonIds)
+              where('idMateria', 'in', subjectMateriaIds)
               // orderBy('createdAt', 'desc') // Comentado temporalmente mientras se construye el índice
             );
 

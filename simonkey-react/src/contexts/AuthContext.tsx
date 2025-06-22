@@ -142,18 +142,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Si no se encuentra el perfil, verificar si es un usuario huérfano
       if (!profile) {
         console.log('⚠️ Perfil de usuario no encontrado, verificando si es usuario huérfano...');
-        const wasFixed = await checkAndFixCurrentUser();
         
-        if (wasFixed) {
-          console.log('✅ Usuario huérfano arreglado, recargando perfil...');
-          // Recargar el perfil después de arreglarlo
+        // Intentar arreglar usuario huérfano usando la función local primero
+        try {
+          const { fixOrphanUser } = await import('../utils/authDebug');
+          const wasFixed = await fixOrphanUser();
+          
+          if (wasFixed) {
+            console.log('✅ Usuario huérfano arreglado localmente, recargando perfil...');
+            // Recargar el perfil después de arreglarlo
+            const newProfile = await getUserProfile(user.uid);
+            console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
+            setAuthState(prev => ({
+              ...prev,
+              userProfile: newProfile
+            }));
+            return newProfile;
+          }
+        } catch (localFixError) {
+          console.log('⚠️ Error arreglando usuario localmente, intentando con cloud function...');
+        }
+        
+        // Si el arreglo local falló, intentar con cloud function
+        try {
+          const wasFixed = await checkAndFixCurrentUser();
+          
+          if (wasFixed) {
+            console.log('✅ Usuario huérfano arreglado con cloud function, recargando perfil...');
+            // Recargar el perfil después de arreglarlo
+            const newProfile = await getUserProfile(user.uid);
+            console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
+            setAuthState(prev => ({
+              ...prev,
+              userProfile: newProfile
+            }));
+            return newProfile;
+          }
+        } catch (fixError) {
+          console.error('Error arreglando usuario huérfano:', fixError);
+        }
+        
+        // Si no se pudo arreglar, crear un perfil básico
+        console.log('⚠️ No se pudo arreglar usuario huérfano, creando perfil básico...');
+        try {
+          const { createUserProfile } = await import('../services/userService');
+          const userData = {
+            email: user.email || '',
+            username: user.displayName || user.email?.split('@')[0] || 'Usuario',
+            nombre: user.displayName || user.email?.split('@')[0] || 'Usuario',
+            displayName: user.displayName || user.email?.split('@')[0] || 'Usuario',
+            birthdate: ''
+          };
+          
+          await createUserProfile(user.uid, userData);
           const newProfile = await getUserProfile(user.uid);
-          console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
+          console.log(`🔍 loadUserProfile - Perfil básico creado:`, newProfile);
           setAuthState(prev => ({
             ...prev,
             userProfile: newProfile
           }));
           return newProfile;
+        } catch (createError) {
+          console.error('Error creando perfil básico:', createError);
         }
       } else {
         console.log(`🔍 loadUserProfile - Perfil encontrado, subscription: ${profile.subscription}, schoolRole: ${profile.schoolRole}`);

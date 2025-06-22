@@ -115,24 +115,68 @@ export const getProcessingTaskStatus = httpsCallable(functions, 'getProcessingTa
 export const generateConceptsFromFile = httpsCallable(functions, 'generateConceptsFromFile');
 
 /**
+ * Genera conceptos a partir de múltiples archivos usando IA segura
+ * Función específica para manejar múltiples archivos
+ */
+export const generateConceptsFromMultipleFiles = async (
+  files: Array<{ fileName: string; content: string; isSchoolNotebook: boolean; fileType?: string }>,
+  notebookId: string
+) => {
+  const results = [];
+  
+  for (const file of files) {
+    try {
+      const result = await generateConceptsFromFile({
+        fileContent: file.content,
+        notebookId,
+        fileName: file.fileName,
+        isSchoolNotebook: file.isSchoolNotebook,
+        fileType: file.fileType || 'file' // Por defecto usar 'file' para procesar con Gemini
+      });
+      results.push(result);
+    } catch (error) {
+      console.error(`Error procesando archivo ${file.fileName}:`, error);
+      throw error;
+    }
+  }
+  
+  return results;
+};
+
+/**
  * Alias para mantener compatibilidad con código existente
  * Genera conceptos a partir de archivos usando IA segura
  */
-export const generateConcepts = httpsCallable(functions, 'generateConceptsFromFile');
+export const generateConcepts = generateConceptsFromMultipleFiles;
 
 /**
  * Prepara archivos para generación de conceptos
  * Función auxiliar para procesar archivos antes de enviarlos a Cloud Functions
+ * Ahora convierte archivos a base64 para procesamiento directo con Gemini
  */
-export const prepareFilesForGeneration = async (files: File[]): Promise<Array<{ fileName: string; content: string }>> => {
+export const prepareFilesForGeneration = async (
+  files: File[], 
+  isSchoolNotebook: boolean = false
+): Promise<Array<{ fileName: string; content: string; isSchoolNotebook: boolean; fileType: string }>> => {
   const processedFiles = [];
   
   for (const file of files) {
-    const content = await file.text();
-    processedFiles.push({
-      fileName: file.name,
-      content
-    });
+    try {
+      // Convertir archivo a base64 para procesamiento directo con Gemini
+      const base64Data = await fileToBase64(file);
+      
+      processedFiles.push({
+        fileName: file.name,
+        content: base64Data.data, // Usar el contenido base64
+        isSchoolNotebook,
+        fileType: 'file' // Indicar que es un archivo para procesar con Gemini
+      });
+      
+      console.log(`✅ Archivo ${file.name} convertido a base64 (${base64Data.data.length} caracteres)`);
+    } catch (error) {
+      console.error(`❌ Error procesando archivo ${file.name}:`, error);
+      throw new Error(`Error procesando archivo ${file.name}: ${error}`);
+    }
   }
   
   return processedFiles;

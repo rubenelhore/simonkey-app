@@ -361,6 +361,7 @@ export interface SchoolSubject {
   id: string;
   nombre: string;
   idProfesor: string;
+  idMateria?: string; // Campo opcional que debe coincidir con el ID del documento
   createdAt: Timestamp;
 }
 
@@ -368,7 +369,7 @@ export interface SchoolSubject {
  * Cuaderno escolar (extending existing Notebook interface)
  */
 export interface SchoolNotebook extends Notebook {
-  idSalon: string;
+  idMateria: string;
 }
 
 /**
@@ -405,7 +406,7 @@ export enum SchoolCategory {
   INSTITUCIONES = 'instituciones',
   ADMINS = 'admins',
   PROFESORES = 'profesores',
-  SALONES = 'salones',
+  MATERIAS = 'materias',
   CUADERNOS = 'cuadernos',
   ALUMNOS = 'alumnos',
   TUTORES = 'tutores'

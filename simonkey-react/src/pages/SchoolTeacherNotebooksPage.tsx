@@ -428,8 +428,8 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
               <p>Para poder trabajar con cuadernos escolares, necesitas:</p>
               <ol>
                 <li>Ser registrado por un administrador escolar</li>
-                <li>Tener salones asignados a tu perfil</li>
-                <li>Que los salones tengan cuadernos creados</li>
+                <li>Tener materias asignadas a tu perfil</li>
+                <li>Que las materias tengan cuadernos creados</li>
               </ol>
               <p>Contacta al administrador de tu institución para completar la configuración.</p>
             </div>
@@ -456,6 +456,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
               onEditNotebook={handleEdit}
               onColorChange={handleColorChange}
               onCreateNotebook={handleCreate}
+              isSchoolTeacher={true}
             />
           )}
         </div>

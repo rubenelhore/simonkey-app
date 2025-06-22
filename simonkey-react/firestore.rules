@@ -77,7 +77,13 @@ service cloud.firestore {
 
     // NUEVO - Reglas para schoolNotebooks
     match /schoolNotebooks/{notebookId} {
-      // Temporalmente permitir acceso a todos los usuarios escolares
+      // Permitir acceso a usuarios escolares autenticados
+      allow read, write, create, delete: if isSchoolUser();
+    }
+
+    // NUEVO - Reglas para schoolConcepts
+    match /schoolConcepts/{conceptId} {
+      // Permitir acceso a usuarios escolares autenticados
       allow read, write, create, delete: if isSchoolUser();
     }
 
@@ -108,7 +114,10 @@ service cloud.firestore {
 
     // Reglas para conceptos
     match /conceptos/{conceptoId} {
-      allow read: if isSignedIn() && exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId));
+      allow read: if isSignedIn() && (
+        exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)) ||
+        exists(/databases/$(database)/documents/schoolNotebooks/$(resource.data.cuadernoId))
+      );
       allow write, delete: if isSignedIn(); // Consider tightening this rule if needed
     }
 

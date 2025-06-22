@@ -32,11 +32,75 @@ const SUBSCRIPTION_LIMITS = {
     dailyGeminiCalls: 500,
     maxConceptsPerFile: 100,
     maxExplanationLength: 1500
+  },
+  SUPER_ADMIN: {
+    dailyGeminiCalls: 1000,
+    maxConceptsPerFile: 200,
+    maxExplanationLength: 2000
   }
 } as const;
 
 type SubscriptionType = keyof typeof SUBSCRIPTION_LIMITS;
 type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+/**
+ * Función auxiliar para obtener límites de suscripción con fallback seguro
+ */
+const getSubscriptionLimits = (subscriptionType: string) => {
+  logger.info("🔍 Obteniendo límites de suscripción", { 
+    originalType: subscriptionType,
+    typeOf: typeof subscriptionType,
+    isNull: subscriptionType === null,
+    isUndefined: subscriptionType === undefined
+  });
+
+  // Manejar casos edge
+  if (!subscriptionType || subscriptionType === 'null' || subscriptionType === 'undefined') {
+    logger.warn("⚠️ Tipo de suscripción vacío o inválido, usando límites FREE", { subscriptionType });
+    return SUBSCRIPTION_LIMITS.FREE;
+  }
+
+  // Normalizar el tipo de suscripción
+  const normalizedType = subscriptionType?.toUpperCase() as SubscriptionType;
+  
+  logger.info("📋 Tipo normalizado", { 
+    original: subscriptionType, 
+    normalized: normalizedType 
+  });
+  
+  // Si el tipo está en SUBSCRIPTION_LIMITS, usarlo
+  if (SUBSCRIPTION_LIMITS[normalizedType]) {
+    logger.info("✅ Límites encontrados en SUBSCRIPTION_LIMITS", { 
+      type: normalizedType, 
+      limits: SUBSCRIPTION_LIMITS[normalizedType] 
+    });
+    return SUBSCRIPTION_LIMITS[normalizedType];
+  }
+  
+  // Fallbacks para tipos no estándar
+  if (normalizedType === 'SCHOOL' || normalizedType?.includes('SCHOOL')) {
+    logger.info("🏫 Usando límites SCHOOL por fallback", { type: normalizedType });
+    return SUBSCRIPTION_LIMITS.SCHOOL;
+  }
+  
+  if (normalizedType === 'SUPER_ADMIN' || normalizedType?.includes('ADMIN')) {
+    logger.info("👑 Usando límites SUPER_ADMIN por fallback", { type: normalizedType });
+    return SUBSCRIPTION_LIMITS.SUPER_ADMIN;
+  }
+  
+  if (normalizedType === 'PRO' || normalizedType?.includes('PREMIUM')) {
+    logger.info("⭐ Usando límites PRO por fallback", { type: normalizedType });
+    return SUBSCRIPTION_LIMITS.PRO;
+  }
+  
+  // Por defecto, usar límites FREE
+  logger.warn("⚠️ Tipo de suscripción no reconocido, usando límites FREE", { 
+    originalType: subscriptionType,
+    normalizedType: normalizedType,
+    availableTypes: Object.keys(SUBSCRIPTION_LIMITS)
+  });
+  return SUBSCRIPTION_LIMITS.FREE;
+};
 
 /**
  * Función para eliminar completamente todos los datos de un usuario
@@ -2069,6 +2133,7 @@ export const generateConceptsFromFile = onCall(
     maxInstances: 10,
     timeoutSeconds: 60,
     memory: "512MiB",
+    secrets: ["GEMINI_API_KEY"]
   },
   async (request) => {
     // Verificar autenticación
@@ -2076,13 +2141,15 @@ export const generateConceptsFromFile = onCall(
       throw new HttpsError("unauthenticated", "Debes estar autenticado");
     }
 
-    const { fileContent, notebookId, fileName } = request.data;
+    const { fileContent, notebookId, fileName, isSchoolNotebook = false, fileType = 'text' } = request.data;
     const userId = request.auth.uid;
 
     logger.info("🤖 Generando conceptos desde archivo", {
       userId,
       notebookId,
       fileName,
+      isSchoolNotebook,
+      fileType,
       contentLength: fileContent?.length || 0
     });
 
@@ -2096,8 +2163,31 @@ export const generateConceptsFromFile = onCall(
       }
 
       const userData = userDoc.data();
-      const subscriptionType = (userData?.subscriptionType || "FREE") as SubscriptionType;
-      const limits = SUBSCRIPTION_LIMITS[subscriptionType];
+      logger.info("👤 Datos del usuario obtenidos", {
+        userId,
+        userData: {
+          subscriptionType: userData?.subscriptionType,
+          subscription: userData?.subscription,
+          email: userData?.email,
+          schoolRole: userData?.schoolRole
+        }
+      });
+      
+      let subscriptionType = (userData?.subscriptionType || userData?.subscription || "FREE") as string;
+      
+      logger.info("📋 Tipo de suscripción determinado", {
+        userId,
+        subscriptionType,
+        source: userData?.subscriptionType ? 'subscriptionType' : userData?.subscription ? 'subscription' : 'default'
+      });
+      
+      // Mapear "school" a "SCHOOL" si es necesario
+      if (subscriptionType === "school") {
+        subscriptionType = "SCHOOL";
+        logger.info("🏫 Tipo de suscripción mapeado de 'school' a 'SCHOOL'", { userId });
+      }
+      
+      const limits = getSubscriptionLimits(subscriptionType);
 
       // Verificar límite diario
       const today = new Date().toISOString().split('T')[0];
@@ -2112,9 +2202,8 @@ export const generateConceptsFromFile = onCall(
         );
       }
 
-      // Obtener clave API desde configuración segura
-      const config = functions.config();
-      const apiKey = config.gemini?.api_key;
+      // Obtener clave API desde variables de entorno (Firebase Functions v2)
+      const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
         throw new HttpsError("internal", "Configuración de API no disponible");
@@ -2124,58 +2213,244 @@ export const generateConceptsFromFile = onCall(
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      // Prompt optimizado para extraer conceptos
+      // Determinar el tipo MIME basado en el nombre del archivo
+      const getMimeType = (filename: string): string => {
+        const ext = filename.toLowerCase().split('.').pop();
+        switch (ext) {
+          case 'pdf': return 'application/pdf';
+          case 'txt': return 'text/plain';
+          case 'doc': return 'application/msword';
+          case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          case 'jpg':
+          case 'jpeg': return 'image/jpeg';
+          case 'png': return 'image/png';
+          case 'gif': return 'image/gif';
+          case 'webp': return 'image/webp';
+          default: return 'text/plain';
+        }
+      };
+
+      const mimeType = getMimeType(fileName || '');
+      logger.info("📄 Tipo MIME detectado", { fileName, mimeType });
+
+      // Prompt optimizado para extraer conceptos educativos
       const prompt = `
-Analiza el siguiente contenido y extrae conceptos clave para estudiar.
-Para cada concepto, proporciona:
-- término: El concepto principal
-- definición: Explicación clara y concisa
-- ejemplos: 2-3 ejemplos prácticos
-- importancia: Por qué es importante aprenderlo
+Eres un experto educador especializado en crear tarjetas de estudio efectivas. Tu tarea es analizar el documento y extraer los conceptos más importantes para el aprendizaje.
 
-Contenido a analizar:
-${fileContent}
+## OBJETIVO
+Crear conceptos de estudio que sean:
+- **Específicos y memorizables**: Cada concepto debe ser una unidad de información clara
+- **Educativamente valiosos**: Información que realmente importa para el aprendizaje
+- **Bien estructurados**: Con definición clara y ejemplos relevantes
 
-Responde en formato JSON válido con esta estructura:
+## ESTRATEGIA DE EXTRACCIÓN
+
+### 1. PRIORIZA ESTOS TIPOS DE CONTENIDO:
+- **Preguntas y respuestas**: Si hay Q&A, cada par es un concepto potencial
+- **Datos y estadísticas**: Números importantes, rankings, cantidades
+- **Definiciones**: Términos que se explican o definen
+- **Hechos sorprendentes**: Información contraintuitiva o poco conocida
+- **Procesos y mecanismos**: Cómo funciona algo, pasos, procedimientos
+
+### 2. EVITA:
+- Información demasiado general u obvia
+- Metadatos técnicos del documento
+- Información redundante o repetitiva
+- Conceptos demasiado amplios o vagos
+
+### 3. ESTRUCTURA IDEAL DE CONCEPTO:
+- **Término**: Nombre simple y directo del concepto (máx 50 chars)
+- **Definición**: Explicación clara y concisa (máx 200 chars)
+- **Ejemplos**: Casos concretos del documento (1-2 ejemplos)
+- **Importancia**: Por qué es relevante aprenderlo (máx 150 chars)
+
+## EJEMPLOS DE BUENOS CONCEPTOS:
+
+Para el texto: "¿Cuál es el país con más pirámides en el mundo?: Sudán tiene más pirámides que Egipto, con más de 200 estructuras antiguas."
+
+**Concepto:**
+- término: "Sudán"
+- definicion: "Posee más pirámides que Egipto, con más de 200 estructuras antiguas"
+- ejemplos: ["Más de 200 pirámides", "Más que Egipto"]
+- importancia: "Contrarresta la creencia común de que Egipto tiene más pirámides"
+
+## INSTRUCCIONES ESPECÍFICAS:
+
+1. **Extrae máximo ${limits.maxConceptsPerFile} conceptos** de alta calidad
+2. **Cada concepto debe ser una unidad de información independiente**
+3. **Prioriza información sorprendente o contraintuitiva**
+4. **Incluye datos numéricos cuando estén disponibles**
+5. **Para Q&A, crea conceptos tanto de la pregunta como de la respuesta**
+6. **Mantén un balance entre cantidad y calidad**
+7. **Son tarjetas de estudio, por lo que es importante que el concepto no haga referencia a la definición ni la definición al concepto**
+
+## REGLAS CRÍTICAS PARA EL TÉRMINO:
+- **Solo el nombre del concepto**: "Sudán", "Hígado", "Chino Mandarín"
+- **NO incluir descripciones**: Evita "Sudán: Más pirámides" o "Hígado: regeneración"
+- **NO incluir dos puntos (:)** en el término
+- **Mantén el término simple y directo**
+
+## FORMATO DE RESPUESTA:
+Responde ÚNICAMENTE con este JSON válido:
+
 {
   "conceptos": [
     {
-      "termino": "Nombre del concepto",
-      "definicion": "Definición clara",
-      "ejemplos": ["Ejemplo 1", "Ejemplo 2"],
-      "importancia": "Por qué es importante"
+      "termino": "Nombre simple del concepto",
+      "definicion": "Explicación clara y concisa",
+      "ejemplos": ["Ejemplo 1 del documento", "Ejemplo 2 relacionado"],
+      "importancia": "Por qué es importante aprenderlo"
     }
   ]
 }
 
-Extrae máximo ${limits.maxConceptsPerFile} conceptos. Prioriza los más importantes y fundamentales.
+## REGLAS FINALES:
+- Responde SOLO con el JSON, sin texto adicional
+- Asegúrate de que el JSON sea válido
+- Si el contenido es escaso, extrae al menos 1 concepto básico
+- FOCALÍZATE EN CONTENIDO EDUCATIVO REAL, NO METADATOS
+- Cada concepto debe ser útil para estudiar y recordar
+- **EL TÉRMINO DEBE SER SIMPLE: solo el nombre, sin descripciones ni dos puntos**
 `;
 
-      const result = await model.generateContent(prompt);
+      let result;
+      
+      // Si es un archivo (PDF, imagen, etc.), usar la funcionalidad de archivos de Gemini
+      if (fileType === 'file' && fileContent) {
+        try {
+          // Convertir base64 a buffer
+          const fileBuffer = Buffer.from(fileContent, 'base64');
+          
+          // Crear el archivo para Gemini
+          const fileData = {
+            inlineData: {
+              data: fileContent,
+              mimeType: mimeType
+            }
+          };
+          
+          logger.info("📁 Procesando archivo con Gemini", { 
+            fileName, 
+            mimeType, 
+            fileSize: fileBuffer.length 
+          });
+          
+          result = await model.generateContent([prompt, fileData]);
+        } catch (fileError: any) {
+          logger.error("❌ Error procesando archivo con Gemini", { error: fileError });
+          throw new HttpsError("internal", "Error procesando archivo: " + fileError.message);
+        }
+      } else {
+        // Procesar como texto plano (fallback)
+        logger.info("📝 Procesando como texto plano", { contentLength: fileContent?.length });
+        result = await model.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`);
+      }
+
       const response = await result.response;
       const text = response.text();
+
+      // Log de la respuesta de Gemini para debugging
+      logger.info("🤖 Respuesta de Gemini", {
+        userId,
+        responseLength: text.length,
+        responsePreview: text.substring(0, 500) + "..."
+      });
 
       // Parsear respuesta JSON
       let concepts;
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
+          logger.error("❌ No se encontró JSON válido en la respuesta", { text });
           throw new Error("No se encontró JSON válido en la respuesta");
         }
         concepts = JSON.parse(jsonMatch[0]);
+        logger.info("✅ JSON parseado correctamente", { concepts });
       } catch (parseError) {
-        logger.error("Error parseando respuesta de Gemini", { error: parseError, text });
-        throw new HttpsError("internal", "Error procesando respuesta de IA");
+        logger.error("❌ Error parseando respuesta de Gemini", { error: parseError, text });
+        
+        // Intento de respaldo: buscar conceptos en el texto
+        logger.info("🔄 Intentando extracción de respaldo...");
+        const fallbackConcepts = extractConceptsFromText(text);
+        if (fallbackConcepts.length > 0) {
+          concepts = { conceptos: fallbackConcepts };
+          logger.info("✅ Conceptos extraídos con método de respaldo", { concepts });
+        } else {
+          throw new HttpsError("internal", "Error procesando respuesta de IA");
+        }
       }
 
       // Validar y limitar conceptos
       const validConcepts = concepts.conceptos?.slice(0, limits.maxConceptsPerFile) || [];
+      
+      logger.info("📊 Conceptos extraídos", {
+        userId,
+        totalConcepts: concepts.conceptos?.length || 0,
+        validConcepts: validConcepts.length,
+        concepts: validConcepts
+      });
 
       // Actualizar contador de uso
       await usageRef.set({
         count: currentUsage + 1,
         lastUsed: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+
+      // Guardar conceptos en la colección correspondiente
+      const conceptIds: string[] = [];
+      const batch = db.batch();
+      
+      if (isSchoolNotebook) {
+        // Guardar en schoolConcepts
+        const schoolConceptRef = db.collection("schoolConcepts").doc();
+        const conceptData = {
+          cuadernoId: notebookId,
+          usuarioId: userId,
+          conceptos: validConcepts.map((concept: any, index: number) => ({
+            id: `${schoolConceptRef.id}_${index}`,
+            término: concept.termino,
+            definición: concept.definicion,
+            fuente: fileName || 'Archivo subido',
+            ejemplos: concept.ejemplos || [],
+            importancia: concept.importancia || ''
+          })),
+          creadoEn: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        batch.set(schoolConceptRef, conceptData);
+        conceptIds.push(schoolConceptRef.id);
+        
+        logger.info("✅ Conceptos guardados en schoolConcepts", {
+          conceptCount: validConcepts.length,
+          conceptIds
+        });
+      } else {
+        // Guardar en conceptos (colección normal)
+        const conceptRef = db.collection("conceptos").doc();
+        const conceptData = {
+          cuadernoId: notebookId,
+          usuarioId: userId,
+          conceptos: validConcepts.map((concept: any, index: number) => ({
+            id: `${conceptRef.id}_${index}`,
+            término: concept.termino,
+            definición: concept.definicion,
+            fuente: fileName || 'Archivo subido',
+            ejemplos: concept.ejemplos || [],
+            importancia: concept.importancia || ''
+          })),
+          creadoEn: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        batch.set(conceptRef, conceptData);
+        conceptIds.push(conceptRef.id);
+        
+        logger.info("✅ Conceptos guardados en conceptos", {
+          conceptCount: validConcepts.length,
+          conceptIds
+        });
+      }
+
+      await batch.commit();
 
       // Registrar actividad
       await db.collection("userActivities").add({
@@ -2186,19 +2461,26 @@ Extrae máximo ${limits.maxConceptsPerFile} conceptos. Prioriza los más importa
           notebookId,
           fileName,
           conceptsCount: validConcepts.length,
-          subscriptionType
+          subscriptionType,
+          isSchoolNotebook,
+          fileType,
+          mimeType
         }
       });
 
       logger.info("✅ Conceptos generados exitosamente", {
         userId,
         notebookId,
-        conceptsCount: validConcepts.length
+        conceptsCount: validConcepts.length,
+        isSchoolNotebook,
+        fileType
       });
 
       return {
         success: true,
         concepts: validConcepts,
+        conceptIds,
+        conceptCount: validConcepts.length,
         usage: {
           current: currentUsage + 1,
           limit: limits.dailyGeminiCalls,
@@ -2231,6 +2513,7 @@ export const explainConcept = onCall(
     maxInstances: 10,
     timeoutSeconds: 30,
     memory: "256MiB",
+    secrets: ["GEMINI_API_KEY"]
   },
   async (request) => {
     // Verificar autenticación
@@ -2257,8 +2540,14 @@ export const explainConcept = onCall(
       }
 
       const userData = userDoc.data();
-      const subscriptionType = (userData?.subscriptionType || "FREE") as SubscriptionType;
-      const limits = SUBSCRIPTION_LIMITS[subscriptionType];
+      let subscriptionType = (userData?.subscriptionType || userData?.subscription || "FREE") as string;
+      
+      // Mapear "school" a "SCHOOL" si es necesario
+      if (subscriptionType === "school") {
+        subscriptionType = "SCHOOL";
+      }
+      
+      const limits = getSubscriptionLimits(subscriptionType);
 
       // Verificar límite diario
       const today = new Date().toISOString().split('T')[0];
@@ -2273,9 +2562,8 @@ export const explainConcept = onCall(
         );
       }
 
-      // Obtener clave API desde configuración segura
-      const config = functions.config();
-      const apiKey = config.gemini?.api_key;
+      // Obtener clave API desde variables de entorno (Firebase Functions v2)
+      const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
         throw new HttpsError("internal", "Configuración de API no disponible");
@@ -2372,6 +2660,7 @@ export const generateContent = onCall(
     maxInstances: 10,
     timeoutSeconds: 45,
     memory: "512MiB",
+    secrets: ["GEMINI_API_KEY"]
   },
   async (request) => {
     // Verificar autenticación
@@ -2398,8 +2687,14 @@ export const generateContent = onCall(
       }
 
       const userData = userDoc.data();
-      const subscriptionType = (userData?.subscriptionType || "FREE") as SubscriptionType;
-      const limits = SUBSCRIPTION_LIMITS[subscriptionType];
+      let subscriptionType = (userData?.subscriptionType || "FREE") as string;
+      
+      // Mapear "school" a "SCHOOL" si es necesario
+      if (subscriptionType === "school") {
+        subscriptionType = "SCHOOL";
+      }
+      
+      const limits = getSubscriptionLimits(subscriptionType);
 
       // Verificar límite diario
       const today = new Date().toISOString().split('T')[0];
@@ -2414,9 +2709,8 @@ export const generateContent = onCall(
         );
       }
 
-      // Obtener clave API desde configuración segura
-      const config = functions.config();
-      const apiKey = config.gemini?.api_key;
+      // Obtener clave API desde variables de entorno (Firebase Functions v2)
+      const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
         throw new HttpsError("internal", "Configuración de API no disponible");
@@ -2529,3 +2823,47 @@ export const generateContent = onCall(
     }
   }
 );
+
+/**
+ * Función de respaldo para extraer conceptos de texto cuando Gemini no devuelve JSON válido
+ */
+const extractConceptsFromText = (text: string): any[] => {
+  const concepts = [];
+  
+  // Buscar patrones comunes de conceptos en el texto
+  const lines = text.split('\n').filter(line => line.trim().length > 0);
+  
+  for (const line of lines) {
+    // Buscar líneas que contengan definiciones (patrón: término - definición)
+    const definitionMatch = line.match(/^([^:]+):\s*(.+)$/);
+    if (definitionMatch) {
+      const termino = definitionMatch[1].trim();
+      const definicion = definitionMatch[2].trim();
+      
+      if (termino.length > 2 && definicion.length > 10) {
+        concepts.push({
+          termino,
+          definicion,
+          ejemplos: [],
+          importancia: "Concepto importante del contenido"
+        });
+      }
+    }
+    
+    // Buscar líneas que contengan términos en negrita o mayúsculas
+    const boldMatch = line.match(/\*\*([^*]+)\*\*/);
+    if (boldMatch) {
+      const termino = boldMatch[1].trim();
+      if (termino.length > 3 && !concepts.find(c => c.termino === termino)) {
+        concepts.push({
+          termino,
+          definicion: "Concepto clave identificado en el contenido",
+          ejemplos: [],
+          importancia: "Término importante destacado en el texto"
+        });
+      }
+    }
+  }
+  
+  return concepts.slice(0, 10); // Máximo 10 conceptos de respaldo
+};

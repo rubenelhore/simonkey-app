@@ -39,7 +39,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         return ['nombre', 'email'];
       case SchoolCategory.PROFESORES:
         return ['nombre', 'email'];
-      case SchoolCategory.SALONES:
+      case SchoolCategory.MATERIAS:
         return ['nombre'];
       case SchoolCategory.CUADERNOS:
         return ['titulo'];
@@ -67,7 +67,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         case SchoolCategory.PROFESORES:
           collectionName = 'schoolTeachers';
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
@@ -179,7 +179,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
             idAdmin: '' // Se vinculará después
           };
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           collectionName = 'schoolSubjects';
           entityData = {
             ...entityData,
@@ -193,7 +193,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
             ...entityData,
             title: creationData.informacionBasica.titulo,
             color: 'default',
-            idSalon: '' // Se vinculará después
+            idMateria: '' // Se vinculará después
           };
           break;
         case SchoolCategory.ALUMNOS:
@@ -276,7 +276,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         case SchoolCategory.PROFESORES:
           collectionName = 'schoolTeachers';
           break;
-        case SchoolCategory.SALONES:
+        case SchoolCategory.MATERIAS:
           collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
@@ -317,7 +317,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
       [SchoolCategory.INSTITUCIONES]: 'Instituciones',
       [SchoolCategory.ADMINS]: 'Administradores',
       [SchoolCategory.PROFESORES]: 'Profesores',
-      [SchoolCategory.SALONES]: 'Salones',
+      [SchoolCategory.MATERIAS]: 'Materias',
       [SchoolCategory.CUADERNOS]: 'Cuadernos',
       [SchoolCategory.ALUMNOS]: 'Alumnos',
       [SchoolCategory.TUTORES]: 'Tutores'
@@ -356,7 +356,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
             <option value={SchoolCategory.INSTITUCIONES}>Institución</option>
             <option value={SchoolCategory.ADMINS}>Admin</option>
             <option value={SchoolCategory.PROFESORES}>Profesor</option>
-            <option value={SchoolCategory.SALONES}>Salón</option>
+            <option value={SchoolCategory.MATERIAS}>Materia</option>
             <option value={SchoolCategory.CUADERNOS}>Cuaderno</option>
             <option value={SchoolCategory.ALUMNOS}>Alumno</option>
             <option value={SchoolCategory.TUTORES}>Tutor</option>

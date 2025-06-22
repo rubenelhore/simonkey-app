@@ -15,13 +15,12 @@ import {
   setDoc,
   arrayUnion, 
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  addDoc
 } from 'firebase/firestore';
 import { generateConcepts, prepareFilesForGeneration } from '../services/firebaseFunctions';
 import '../styles/NotebookDetail.css';
 import ReactDOM from 'react-dom';
-
-// TypeScript declarations no longer needed for Gemini API
 
 interface ConceptDoc {
   id: string;
@@ -31,9 +30,7 @@ interface ConceptDoc {
   creadoEn: Date;
 }
 
-// arrayBufferToBase64 function no longer needed with Cloud Functions
-
-const NotebookDetail = () => {
+const SchoolNotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [cuaderno, setCuaderno] = useState<any>(null);
@@ -70,22 +67,22 @@ const NotebookDetail = () => {
       }
       
       try {
-        // Fetch notebook details
-        const docRef = doc(db, 'notebooks', id);
+        // Fetch notebook details (COLECCIÓN ESCOLAR)
+        const docRef = doc(db, 'schoolNotebooks', id);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
           setCuaderno({ id: docSnap.id, ...data });
         } else {
-          console.error("No such notebook!");
-          navigate('/notebooks');
+          console.error("No such school notebook!");
+          navigate('/school/teacher');
           return;
         }
         
-        // Fetch concept documents for this notebook
+        // Fetch concept documents for this notebook (COLECCIÓN ESCOLAR)
         const q = query(
-          collection(db, 'conceptos'),
+          collection(db, 'schoolConcepts'),
           where('cuadernoId', '==', id)
         );
         
@@ -151,8 +148,6 @@ const NotebookDetail = () => {
     }
   };
 
-  // fileToProcessedFile function no longer needed with Cloud Functions
-
   // Función para crear datos de aprendizaje iniciales para nuevos conceptos
   const createInitialLearningDataForConcepts = async (conceptIds: string[], userId: string, notebookId: string) => {
     try {
@@ -200,8 +195,8 @@ const NotebookDetail = () => {
     setLoadingText("Procesando archivos...");
 
     try {
-      // Preparar archivos para el procesamiento (indicar que NO es cuaderno escolar)
-      const processedFiles = await prepareFilesForGeneration(archivos, false);
+      // Preparar archivos para el procesamiento (indicar que es cuaderno escolar)
+      const processedFiles = await prepareFilesForGeneration(archivos, true);
       setLoadingText("Generando conceptos con IA...");
 
       // Generar conceptos usando Cloud Functions
@@ -231,7 +226,7 @@ const NotebookDetail = () => {
 
         // Recargar los conceptos
         const q = query(
-          collection(db, 'conceptos'),
+          collection(db, 'schoolConcepts'),
           where('cuadernoId', '==', id)
         );
         const querySnapshot = await getDocs(q);
@@ -256,47 +251,9 @@ const NotebookDetail = () => {
     }
   };
 
-  // Función para eliminar el cuaderno y todos sus conceptos relacionados
-  const handleDeleteNotebook = async () => {
-    if (!id || !auth.currentUser) {
-      console.error("No se pudo verificar la sesión de usuario o el ID del cuaderno");
-      return;
-    }
-
-    try {
-      // Eliminar conceptos del cuaderno
-      const q = query(
-        collection(db, 'conceptos'),
-        where('cuadernoId', '==', id)
-      );
-      const querySnapshot = await getDocs(q);
-      const conceptosToDelete = querySnapshot.docs.map(doc => doc.id);
-      
-      if (conceptosToDelete.length > 0) {
-        await deleteDoc(doc(db, 'conceptos', conceptosToDelete[0]));
-        setConceptosDocs((prev: ConceptDoc[]) => prev.filter((doc: ConceptDoc) => !conceptosToDelete.includes(doc.id)));
-      }
-
-      // Eliminar el cuaderno
-      await deleteDoc(doc(db, 'notebooks', id));
-
-      // Redirigir al usuario a la lista de cuadernos
-      navigate('/notebooks');
-    } catch (error) {
-      console.error("Error al eliminar el cuaderno:", error);
-      alert('Error al eliminar el cuaderno. Por favor intenta nuevamente.');
-    }
-  };
-
-  // Función para añadir concepto manualmente
   const agregarConceptoManual = async () => {
-    if (!id || !auth.currentUser) {
-      alert("No se pudo verificar la sesión de usuario");
-      return;
-    }
-
-    if (!nuevoConcepto.término || !nuevoConcepto.definición) {
-      alert("Por favor completa todos los campos obligatorios");
+    if (!id || !auth.currentUser || !nuevoConcepto.término || !nuevoConcepto.definición) {
+      alert("Por favor completa todos los campos");
       return;
     }
 
@@ -304,55 +261,20 @@ const NotebookDetail = () => {
     setLoadingText("Guardando concepto...");
 
     try {
+      // Generar ID único para el concepto
       const conceptoManual: Concept = {
-        término: nuevoConcepto.término,
-        definición: nuevoConcepto.definición,
-        fuente: nuevoConcepto.fuente || 'Manual',
-        id: crypto.randomUUID() // Generar ID único para el concepto
+        ...nuevoConcepto,
+        id: `manual_${Date.now()}`
       };
 
-      let updatedConceptosDoc: ConceptDoc | null = null;
-      if (conceptosDocs.length > 0) {
-        const existingDoc = conceptosDocs.find(doc => doc.cuadernoId === id);
-        if (existingDoc) {
-          const conceptosRef = doc(db, 'conceptos', existingDoc.id);
-          await updateDoc(conceptosRef, {
-            conceptos: arrayUnion(conceptoManual)
-          });
-          updatedConceptosDoc = {
-            ...existingDoc,
-            conceptos: [...existingDoc.conceptos, conceptoManual]
-          };
-          setConceptosDocs((prev: ConceptDoc[]) =>
-            prev.map((doc: ConceptDoc) => (doc.id === existingDoc.id ? updatedConceptosDoc! : doc))
-          );
-        }
-      }
-
-      if (!updatedConceptosDoc) {
-        // Si no existe un documento, crear uno nuevo usando un ID generado
-        const newDocRef = doc(collection(db, 'conceptos'));
-        const newDocId = newDocRef.id;
-        
-        await setDoc(newDocRef, {
-          id: newDocId,
-          cuadernoId: id,
-          usuarioId: auth.currentUser.uid,
-          conceptos: [conceptoManual],
-          creadoEn: serverTimestamp()
-        });
-        
-        setConceptosDocs((prev: ConceptDoc[]) => [
-          ...prev,
-          {
-            id: newDocId,  // Usa el nuevo ID generado
-            cuadernoId: id,
-            usuarioId: auth.currentUser?.uid || '',
-            conceptos: [conceptoManual],
-            creadoEn: new Date()
-          }
-        ]);
-      }
+      // Agregar a la colección escolar
+      const conceptosRef = collection(db, 'schoolConcepts');
+      await addDoc(conceptosRef, {
+        cuadernoId: id,
+        usuarioId: auth.currentUser.uid,
+        conceptos: [conceptoManual],
+        creadoEn: serverTimestamp()
+      });
 
       // Crear datos de aprendizaje iniciales para el nuevo concepto
       await createInitialLearningDataForConcepts(
@@ -371,6 +293,18 @@ const NotebookDetail = () => {
       
       // Cerrar el modal después de creación exitosa
       setIsModalOpen(false);
+      
+      // Recargar conceptos
+      const q = query(
+        collection(db, 'schoolConcepts'),
+        where('cuadernoId', '==', id)
+      );
+      const querySnapshot = await getDocs(q);
+      const conceptosData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ConceptDoc[];
+      setConceptosDocs(conceptosData);
       
       alert("Concepto añadido exitosamente");
     } catch (error) {
@@ -392,7 +326,7 @@ const NotebookDetail = () => {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
-        <p>Cargando cuaderno...</p>
+        <p>Cargando cuaderno escolar...</p>
       </div>
     );
   }
@@ -401,7 +335,7 @@ const NotebookDetail = () => {
     <div className="notebook-detail-container">
       <header className="notebook-detail-header">
         <div className="header-content">
-          <button onClick={() => navigate('/notebooks')} className="back-button">
+          <button onClick={() => navigate('/school/teacher')} className="back-button">
             <i className="fas fa-arrow-left"></i>
           </button>
           
@@ -434,7 +368,7 @@ const NotebookDetail = () => {
                       <div 
                         key={`${doc.id}-${conceptIndex}`}
                         className="concept-card"
-                        onClick={() => navigate(`/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`)}
+                        onClick={() => navigate(`/school/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`)}
                       >
                         <h4>{concepto.término}</h4>
                       </div>
@@ -491,8 +425,6 @@ const NotebookDetail = () => {
             <div className="modal-body">
               {activeTab === 'upload' ? (
                 <div className="upload-container">
-
-                  
                   <input
                     type="file"
                     id="pdf-upload"
@@ -586,4 +518,4 @@ const NotebookDetail = () => {
   );
 };
 
-export default NotebookDetail;
+export default SchoolNotebookDetail; 

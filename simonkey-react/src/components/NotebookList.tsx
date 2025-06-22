@@ -112,6 +112,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             onColorChange={onColorChange}
             showActions={openActionsId === notebook.id}
             onToggleActions={handleToggleActions}
+            isSchoolNotebook={isSchoolTeacher}
           />
         ))}
         

@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import UserDataManagement from '../components/UserDataManagement';
 import CloudFunctionsTester from '../components/CloudFunctionsTester';
 import UserTypeBadge from '../components/UserTypeBadge';
+import AuthDiagnostic from '../components/AuthDiagnostic';
 import '../styles/ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
@@ -52,6 +53,8 @@ const ProfilePage: React.FC = () => {
         <CloudFunctionsTester />
         
         <UserDataManagement />
+
+        <AuthDiagnostic />
 
         {isSuperAdmin && (
           <div className="super-admin-section card">
