@@ -5,10 +5,10 @@ import {
   SchoolInstitution,
   SchoolAdmin,
   SchoolTeacher,
-  SchoolClassroom,
   SchoolNotebook,
   SchoolStudent,
-  SchoolTutor
+  SchoolTutor,
+  SchoolSubject
 } from '../types/interfaces';
 import { db } from '../services/firebase';
 import { 
@@ -56,7 +56,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           collectionName = 'schoolTeachers';
           break;
         case SchoolCategory.SALONES:
-          collectionName = 'schoolClassrooms';
+          collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
           collectionName = 'schoolNotebooks';
@@ -103,7 +103,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           linkableCategory = 'schoolTeachers';
           break;
         case SchoolCategory.PROFESORES:
-          linkableCategory = 'schoolClassrooms';
+          linkableCategory = 'schoolSubjects';
           break;
         case SchoolCategory.SALONES:
           linkableCategory = 'schoolNotebooks';
@@ -205,7 +205,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           linkField = 'idAdmin';
           break;
         case SchoolCategory.PROFESORES:
-          collectionName = 'schoolClassrooms';
+          collectionName = 'schoolSubjects';
           linkField = 'idProfesor';
           break;
         case SchoolCategory.SALONES:

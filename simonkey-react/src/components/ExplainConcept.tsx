@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { explainConcept } from '../services/firebaseFunctions';
 import '../styles/ExplainConcept.css';
 import { useUser } from '../hooks/useUser'; // Importar el hook useUser
 import { Concept } from '../types/interfaces';
@@ -34,8 +34,6 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
   const [activeButton, setActiveButton] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [model, setModel] = useState<any>(null);
-  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [userInterests, setUserInterests] = useState<string[]>([]);
   const { user } = useUser(); // Obtener el usuario actual
 
@@ -44,31 +42,7 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
   const paramNotebookId = params.notebookId;
   const notebookId = propNotebookId || paramNotebookId;
 
-  // Inicializar Gemini AI
-  useEffect(() => {
-    const initializeGemini = () => {
-      try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) {
-          console.error("Gemini API key is missing. Check your .env file.");
-          setApiKeyError(true);
-          return null;
-        }
-        
-        const genAI = new GoogleGenerativeAI(apiKey);
-        // Usando gemini-1.5-flash para respuestas rápidas
-        const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        setModel(geminiModel);
-        return geminiModel;
-      } catch (error) {
-        console.error("Error initializing Gemini AI:", error);
-        setApiKeyError(true);
-        return null;
-      }
-    };
-
-    initializeGemini();
-  }, []);
+  // Gemini AI initialization no longer needed with Cloud Functions
 
   // Cargar los conceptos cuando el componente se monta
   useEffect(() => {
@@ -199,15 +173,10 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
     console.log("ESTADO ACTUAL - userInterests:", userInterests);
   }, [userInterests]);
 
-  // Función para generar explicaciones usando Gemini
-  const generateExplanation = async (type: string) => {
+  // Función para generar explicaciones usando Cloud Functions (seguro)
+  const generateExplanation = async (type: 'simple' | 'related' | 'interests' | 'mnemotecnia') => {
     if (!selectedConcept) {
       alert('Por favor, selecciona un concepto primero');
-      return;
-    }
-    
-    if (!model) {
-      alert('No se pudo inicializar el modelo de IA. Verifica tu API key.');
       return;
     }
 
@@ -224,93 +193,40 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
     }
     
     try {
-      // Crear el prompt según el tipo de explicación
-      let prompt = '';
-      
-      switch (type) {
-        case 'simple':
-          prompt = `Explica el siguiente concepto de manera sencilla, como si le hablaras a alguien sin conocimiento técnico. 
-          Usa analogías cotidianas. Limita tu respuesta a 3-4 oraciones.
-          
-          Concepto: ${concept.término}
-          Definición: ${concept.definición}`;
-          break;
-        case 'related':
-          prompt = `Explica cómo el siguiente concepto se relaciona con otros conceptos del mismo campo. 
-          Menciona 2-3 conceptos relacionados y explica brevemente sus conexiones.
-          Limita tu respuesta a 3-4 oraciones.
-          
-          Concepto: ${concept.término}
-          Definición: ${concept.definición}`;
-          break;
-        case 'interests':
-          // Verificamos si hay intereses disponibles y filtramos los vacíos
-          const filteredInterests = userInterests.filter(interest => interest.trim() !== '');
-          
-          if (filteredInterests.length > 0) {
-            console.log("Usando intereses para el prompt:", filteredInterests.join(', '));
-            prompt = `TAREA: Relacionar un concepto académico con los intereses personales de un estudiante.
-            
-            INTERESES DEL ESTUDIANTE: ${filteredInterests.join(', ')}.
-            
-            CONCEPTO A EXPLICAR: "${concept.término}"
-            DEFINICIÓN: "${concept.definición}"
-            
-            INSTRUCCIONES:
-            1. Explica de manera clara cómo este concepto académico se relaciona directamente con los intereses listados del estudiante.
-            2. Proporciona 1-2 ejemplos específicos de cómo este concepto podría aplicarse o encontrarse en esos intereses.
-            3. Tu respuesta debe ser breve (3-4 oraciones), concreta y dirigida al estudiante.
-            4. NO menciones que eres un modelo de lenguaje ni uses metareferencias sobre tu naturaleza.`;
-          } else {
-            setExplanation('Para personalizar las explicaciones, añade tus intereses en la sección de "Personalización" accesible desde la página de cuadernos.');
-            setIsLoading(false);
-            return;
-          }
-          break;
-        case 'mnemotecnia':
-          prompt = `Crea una técnica mnemotécnica sencilla y práctica para recordar el siguiente concepto.
-  
-          TÉCNICA MNEMOTÉCNICA: [TÍTULO CORTO Y CLARO]
-          
-          Utiliza UNA de estas técnicas (elige la más adecuada para este concepto específico):
-          - Acrónimo simple (máximo 5 letras)
-          - Asociación visual concreta (una sola imagen potente)
-          - Analogía cotidiana (comparación con algo familiar)
-          - Historia mínima (máximo 3 elementos)
-          - Rima breve y pegadiza
-          
-          Estructura tu respuesta así:
-          Título de la mnemotecnia (en mayúsculas) seguida de ":"
-          Descripción en 2-4 líneas máximo
-          
-          La mnemotecnia debe ser:
-          - Memorable al primer contacto
-          - Visualmente clara
-          - Directamente relacionada con el concepto
-          - Fácil de recordar sin esfuerzo
-
-          PROHIBIDO usar: "*" ni siquiera para poner en negritas.
-          
-          Concepto: ${concept.término}
-          Definición: ${concept.definición}`;
-          break;
-        default:
-          prompt = `Explica el siguiente concepto brevemente:
-          Concepto: ${concept.término}
-          Definición: ${concept.definición}`;
+      // Para el tipo 'interests', verificar si hay intereses antes de llamar la función
+      if (type === 'interests') {
+        const filteredInterests = userInterests.filter(interest => interest.trim() !== '');
+        if (filteredInterests.length === 0) {
+          setExplanation('Para personalizar las explicaciones, añade tus intereses en la configuración de tu perfil.');
+          setIsLoading(false);
+          return;
+        }
       }
-      
-      // Llamar a la API de Gemini
-      const result = await model.generateContent({
-        contents: [{ parts: [{ text: prompt }] }],
+
+      // Llamar a la Cloud Function segura
+      const result = await explainConcept({
+        concept: concept.término,
+        context: concept.definición,
+        difficulty: type === 'simple' ? 'beginner' : type === 'mnemotecnia' ? 'advanced' : 'intermediate'
       });
+
+      if (!result.data.success) {
+        throw new Error('Error generando explicación');
+      }
+
+      setExplanation(result.data.explanation);
       
-      const respuesta = result.response.text();
-      setExplanation(respuesta);
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al generar la explicación:', error);
-      setExplanation('Ocurrió un error al generar la explicación. Por favor, intenta de nuevo.');
+      
+      // Manejar errores específicos de la Cloud Function
+      if (error.message.includes('Límite diario')) {
+        setExplanation(`❌ ${error.message}\n\nPuedes esperar hasta mañana o considerar actualizar tu plan para obtener más explicaciones diarias.`);
+      } else if (error.message.includes('no disponible')) {
+        setExplanation('⚠️ El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo más tarde.');
+      } else {
+        setExplanation('Ocurrió un error al generar la explicación. Por favor, intenta de nuevo.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -409,11 +325,7 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
     <div className="explain-concept-container">
       <h2>Explicar concepto</h2>
       
-      {apiKeyError && (
-        <div className="error-message">
-          <p>⚠️ No se pudo inicializar la IA. Verifica la clave API de Gemini en tu archivo .env.</p>
-        </div>
-      )}
+
       
       <div className="concept-selector">
         <label htmlFor="concept-select">Selecciona un concepto:</label>
@@ -448,28 +360,28 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
       <div className="explanation-buttons">
         <button 
           onClick={() => generateExplanation('simple')}
-          disabled={isLoading || isSaving || !selectedConcept || apiKeyError}
+          disabled={isLoading || isSaving || !selectedConcept}
           className={activeButton === 'simple' ? 'active' : ''}
         >
           <i className="fas fa-child"></i> Sencillamente
         </button>
         <button 
           onClick={() => generateExplanation('related')}
-          disabled={isLoading || isSaving || !selectedConcept || apiKeyError}
+          disabled={isLoading || isSaving || !selectedConcept}
           className={activeButton === 'related' ? 'active' : ''}
         >
           <i className="fas fa-project-diagram"></i> Relacionado con mis conceptos
         </button>
         <button 
           onClick={() => generateExplanation('interests')}
-          disabled={isLoading || isSaving || !selectedConcept || apiKeyError}
+          disabled={isLoading || isSaving || !selectedConcept}
           className={activeButton === 'interests' ? 'active' : ''}
         >
           <i className="fas fa-heart"></i> Relacionado con mis intereses
         </button>
         <button 
           onClick={() => generateExplanation('mnemotecnia')}
-          disabled={isLoading || isSaving || !selectedConcept || apiKeyError}
+          disabled={isLoading || isSaving || !selectedConcept}
           className={activeButton === 'mnemotecnia' ? 'active' : ''}
         >
           <i className="fas fa-brain"></i> Mnemotecnia

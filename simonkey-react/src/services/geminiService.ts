@@ -1,25 +1,29 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+/**
+ * ⚠️ DEPRECADO: Este servicio ha sido migrado a Cloud Functions para mayor seguridad
+ * 
+ * Las llamadas directas a Gemini desde el frontend han sido reemplazadas por
+ * Cloud Functions seguras que protegen las claves API y controlan el uso.
+ * 
+ * En su lugar, usa las funciones de /services/firebaseFunctions.ts:
+ * - generateConcepts() - Para generar conceptos desde archivos
+ * - explainConcept() - Para explicar conceptos
+ * - generateContent() - Para generación general de contenido
+ * 
+ * Migración completada: ✅
+ * Fecha de deprecación: [Fecha actual]
+ * 
+ * Beneficios de la migración:
+ * ✅ Claves API protegidas en el servidor
+ * ✅ Control de uso y límites por usuario
+ * ✅ Autenticación y autorización
+ * ✅ Mejor manejo de errores
+ * ✅ Logging para auditoría
+ * ✅ Cumplimiento de mejores prácticas de seguridad
+ */
 
-// Initialize the Gemini API with your API key
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+// Este archivo ya no debe ser usado
+console.warn(
+  '⚠️ geminiService.ts está deprecado. Usa las funciones de firebaseFunctions.ts en su lugar.'
+);
 
-// Create and export the generative AI instance
-export const genAI = new GoogleGenerativeAI(API_KEY);
-
-// Helper function to get a specific model
-export const getGeminiModel = (modelName = 'gemini-pro') => {
-  return genAI.getGenerativeModel({ model: modelName });
-};
-
-// Example function to generate content
-export async function generateContent(prompt: string) {
-  try {
-    const model = getGeminiModel();
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error('Error generating content:', error);
-    throw error;
-  }
-}
+export default null;

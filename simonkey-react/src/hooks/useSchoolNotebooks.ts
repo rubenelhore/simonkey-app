@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { SchoolNotebook, SchoolTeacher, SchoolClassroom, SchoolAdmin } from '../types/interfaces';
+import { SchoolNotebook, SchoolTeacher, SchoolSubject, SchoolAdmin } from '../types/interfaces';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolNotebooks = () => {
@@ -97,31 +97,31 @@ export const useSchoolNotebooks = () => {
               
               // Continuar con el resto del proceso...
               // 3. Obtener los salones asignados al profesor
-              console.log('🔍 Ejecutando query para schoolClassrooms con idProfesor:', user.uid);
-              const classroomQuery = query(
-                collection(db, 'schoolClassrooms'),
+              console.log('🔍 Ejecutando query para schoolSubjects con idProfesor:', user.uid);
+              const subjectQuery = query(
+                collection(db, 'schoolSubjects'),
                 where('idProfesor', '==', user.uid)
               );
-              const classroomSnapshot = await getDocs(classroomQuery);
-              console.log('🔍 classroomSnapshot.size:', classroomSnapshot.size);
-              classroomSnapshot.forEach(doc => {
-                console.log('🔍 classroomDoc:', doc.id, doc.data());
+              const subjectSnapshot = await getDocs(subjectQuery);
+              console.log('🔍 subjectSnapshot.size:', subjectSnapshot.size);
+              subjectSnapshot.forEach(doc => {
+                console.log('🔍 subjectDoc:', doc.id, doc.data());
               });
               
-              if (classroomSnapshot.empty) {
+              if (subjectSnapshot.empty) {
                 console.log('❌ No se encontraron salones asignados al profesor');
-                console.log('🔍 Intentando buscar todos los classrooms disponibles...');
+                console.log('🔍 Intentando buscar todos los subjects disponibles...');
                 
                 try {
-                  const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
-                  const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
-                  console.log('🔍 Total de classrooms en la base de datos:', allClassroomsSnapshot.size);
-                  allClassroomsSnapshot.forEach(doc => {
+                  const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+                  const allSubjectsSnapshot = await getDocs(allSubjectsQuery);
+                  console.log('🔍 Total de subjects en la base de datos:', allSubjectsSnapshot.size);
+                  allSubjectsSnapshot.forEach(doc => {
                     const data = doc.data();
-                    console.log('   - Classroom ID:', doc.id, 'idProfesor:', data.idProfesor, 'Data:', data);
+                    console.log('   - Subject ID:', doc.id, 'idProfesor:', data.idProfesor, 'Data:', data);
                   });
-                } catch (classroomError) {
-                  console.error('❌ Error buscando todos los classrooms:', classroomError);
+                } catch (subjectError) {
+                  console.error('❌ Error buscando todos los subjects:', subjectError);
                 }
                 
                 setSchoolNotebooks([]);
@@ -129,24 +129,24 @@ export const useSchoolNotebooks = () => {
                 return undefined;
               }
 
-              const classroomIds = classroomSnapshot.docs.map(doc => doc.id);
-              console.log('🏫 Salones encontrados (IDs de documento):', classroomIds);
+              const subjectIds = subjectSnapshot.docs.map(doc => doc.id);
+              console.log('🏫 Salones encontrados (IDs de documento):', subjectIds);
               
-              // También mostrar el campo idSalon de cada classroom
-              const classroomSalonIds = classroomSnapshot.docs.map(doc => {
+              // También mostrar el campo idSalon de cada subject
+              const subjectSalonIds = subjectSnapshot.docs.map(doc => {
                 const data = doc.data();
-                console.log(`   - Classroom ${doc.id}: idSalon = ${data.idSalon}`);
+                console.log(`   - Subject ${doc.id}: idSalon = ${data.idSalon}`);
                 return data.idSalon;
               }).filter(id => id); // Filtrar valores undefined/null
               
-              console.log('🏫 Salones encontrados (campo idSalon):', classroomSalonIds);
+              console.log('🏫 Salones encontrados (campo idSalon):', subjectSalonIds);
 
               // 4. Obtener los cuadernos de esos salones
-              if (classroomSalonIds.length > 0) {
-                console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', classroomSalonIds);
+              if (subjectSalonIds.length > 0) {
+                console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', subjectSalonIds);
                 const notebooksQuery = query(
                   collection(db, 'schoolNotebooks'),
-                  where('idSalon', 'in', classroomSalonIds)
+                  where('idSalon', 'in', subjectSalonIds)
                   // orderBy('createdAt', 'desc') // Comentado temporalmente mientras se construye el índice
                 );
 
@@ -223,31 +223,31 @@ export const useSchoolNotebooks = () => {
           console.log('🏫 Admin vinculado a la institución:', adminData.idInstitucion);
 
           // 3. Obtener los salones asignados al profesor
-          console.log('🔍 Ejecutando query para schoolClassrooms con idProfesor:', user.uid);
-          const classroomQuery = query(
-            collection(db, 'schoolClassrooms'),
+          console.log('🔍 Ejecutando query para schoolSubjects con idProfesor:', user.uid);
+          const subjectQuery = query(
+            collection(db, 'schoolSubjects'),
             where('idProfesor', '==', user.uid)
           );
-          const classroomSnapshot = await getDocs(classroomQuery);
-          console.log('🔍 classroomSnapshot.size:', classroomSnapshot.size);
-          classroomSnapshot.forEach(doc => {
-            console.log('🔍 classroomDoc:', doc.id, doc.data());
+          const subjectSnapshot = await getDocs(subjectQuery);
+          console.log('🔍 subjectSnapshot.size:', subjectSnapshot.size);
+          subjectSnapshot.forEach(doc => {
+            console.log('🔍 subjectDoc:', doc.id, doc.data());
           });
           
-          if (classroomSnapshot.empty) {
+          if (subjectSnapshot.empty) {
             console.log('❌ No se encontraron salones asignados al profesor');
-            console.log('🔍 Intentando buscar todos los classrooms disponibles...');
+            console.log('🔍 Intentando buscar todos los subjects disponibles...');
             
             try {
-              const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
-              const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
-              console.log('🔍 Total de classrooms en la base de datos:', allClassroomsSnapshot.size);
-              allClassroomsSnapshot.forEach(doc => {
+              const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+              const allSubjectsSnapshot = await getDocs(allSubjectsQuery);
+              console.log('🔍 Total de subjects en la base de datos:', allSubjectsSnapshot.size);
+              allSubjectsSnapshot.forEach(doc => {
                 const data = doc.data();
-                console.log('   - Classroom ID:', doc.id, 'idProfesor:', data.idProfesor, 'Data:', data);
+                console.log('   - Subject ID:', doc.id, 'idProfesor:', data.idProfesor, 'Data:', data);
               });
-            } catch (classroomError) {
-              console.error('❌ Error buscando todos los classrooms:', classroomError);
+            } catch (subjectError) {
+              console.error('❌ Error buscando todos los subjects:', subjectError);
             }
             
             setSchoolNotebooks([]);
@@ -255,24 +255,24 @@ export const useSchoolNotebooks = () => {
             return undefined;
           }
 
-          const classroomIds = classroomSnapshot.docs.map(doc => doc.id);
-          console.log('🏫 Salones encontrados (IDs de documento):', classroomIds);
+          const subjectIds = subjectSnapshot.docs.map(doc => doc.id);
+          console.log('🏫 Salones encontrados (IDs de documento):', subjectIds);
           
-          // También mostrar el campo idSalon de cada classroom
-          const classroomSalonIds = classroomSnapshot.docs.map(doc => {
+          // También mostrar el campo idSalon de cada subject
+          const subjectSalonIds = subjectSnapshot.docs.map(doc => {
             const data = doc.data();
-            console.log(`   - Classroom ${doc.id}: idSalon = ${data.idSalon}`);
+            console.log(`   - Subject ${doc.id}: idSalon = ${data.idSalon}`);
             return data.idSalon;
           }).filter(id => id); // Filtrar valores undefined/null
           
-          console.log('🏫 Salones encontrados (campo idSalon):', classroomSalonIds);
+          console.log('🏫 Salones encontrados (campo idSalon):', subjectSalonIds);
 
           // 4. Obtener los cuadernos de esos salones
-          if (classroomSalonIds.length > 0) {
-            console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', classroomSalonIds);
+          if (subjectSalonIds.length > 0) {
+            console.log('🔍 Ejecutando query para schoolNotebooks con idSalon:', subjectSalonIds);
             const notebooksQuery = query(
               collection(db, 'schoolNotebooks'),
-              where('idSalon', 'in', classroomSalonIds)
+              where('idSalon', 'in', subjectSalonIds)
               // orderBy('createdAt', 'desc') // Comentado temporalmente mientras se construye el índice
             );
 

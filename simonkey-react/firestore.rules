@@ -61,9 +61,9 @@ service cloud.firestore {
       allow create, write, delete: if isSuperAdmin(); // Solo súper admins pueden modificar
     }
 
-    // NUEVO - Reglas para schoolClassrooms
-    match /schoolClassrooms/{classroomId} {
-      allow read: if isSchoolUser(); // Usuarios escolares pueden leer classrooms
+    // NUEVO - Reglas para schoolSubjects
+    match /schoolSubjects/{subjectId} {
+      allow read: if isSchoolUser(); // Usuarios escolares pueden leer subjects
       allow create: if isSuperAdmin(); // Solo súper admins pueden crear
       allow update: if isSuperAdmin() || (isTeacher() && (resource.data.idProfesor == request.auth.uid || request.resource.data.idProfesor == request.auth.uid)); // Profesores pueden actualizar si son dueños antes o después
       allow delete: if isSuperAdmin(); // Solo súper admins pueden eliminar

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { SchoolNotebook, SchoolStudent, SchoolClassroom } from '../types/interfaces';
+import { SchoolNotebook, SchoolStudent, SchoolSubject } from '../types/interfaces';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolStudentData = () => {
@@ -43,7 +43,7 @@ export const useSchoolStudentData = () => {
 
         // 2. Obtener el salón del estudiante
         const classroomQuery = query(
-          collection(db, 'schoolClassrooms'),
+          collection(db, 'schoolSubjects'),
           where('idEstudiante', '==', user.uid)
         );
         const classroomSnapshot = await getDocs(classroomQuery);

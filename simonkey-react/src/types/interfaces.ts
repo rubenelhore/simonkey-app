@@ -355,9 +355,9 @@ export interface SchoolTeacher {
 }
 
 /**
- * Salón escolar
+ * Materia escolar
  */
-export interface SchoolClassroom {
+export interface SchoolSubject {
   id: string;
   nombre: string;
   idProfesor: string;

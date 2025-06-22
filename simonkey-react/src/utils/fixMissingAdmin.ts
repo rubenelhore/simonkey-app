@@ -67,34 +67,34 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
 
     // 3. Verificar salones asignados al profesor
     console.log('3️⃣ VERIFICANDO SALONES ASIGNADOS AL PROFESOR...');
-    const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+    const subjectQuery = query(
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', teacherId)
     );
-    const classroomSnapshot = await getDocs(classroomQuery);
+    const subjectSnapshot = await getDocs(subjectQuery);
     
-    if (classroomSnapshot.empty) {
+    if (subjectSnapshot.empty) {
       console.log('❌ NO SE ENCONTRARON SALONES ASIGNADOS AL PROFESOR');
       console.log('');
       
       // Buscar todos los salones para ver qué IDs de profesor existen
       console.log('🔍 BUSCANDO TODOS LOS SALONES DISPONIBLES...');
-      const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
-      const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
-      console.log(`   - Total de salones encontrados: ${allClassroomsSnapshot.size}`);
-      allClassroomsSnapshot.forEach(doc => {
-        const classroomData = doc.data();
-        console.log(`   - Salón ID: ${doc.id}, idProfesor: ${classroomData.idProfesor}, idSalon: ${classroomData.idSalon}`);
+      const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+      const allSubjectsSnapshot = await getDocs(allSubjectsQuery);
+      console.log(`   - Total de salones encontrados: ${allSubjectsSnapshot.size}`);
+      allSubjectsSnapshot.forEach(doc => {
+        const subjectData = doc.data();
+        console.log(`   - Salón ID: ${doc.id}, idProfesor: ${subjectData.idProfesor}, idSalon: ${subjectData.idSalon}`);
       });
       console.log('');
     } else {
-      console.log(`✅ Se encontraron ${classroomSnapshot.size} salones asignados al profesor`);
-      classroomSnapshot.forEach(doc => {
-        const classroomData = doc.data();
+      console.log(`✅ Se encontraron ${subjectSnapshot.size} salones asignados al profesor`);
+      subjectSnapshot.forEach(doc => {
+        const subjectData = doc.data();
         console.log(`   - Salón ID: ${doc.id}`);
-        console.log(`     - idProfesor: ${classroomData.idProfesor}`);
-        console.log(`     - idSalon: ${classroomData.idSalon}`);
-        console.log(`     - Nombre: ${classroomData.nombre}`);
+        console.log(`     - idProfesor: ${subjectData.idProfesor}`);
+        console.log(`     - idSalon: ${subjectData.idSalon}`);
+        console.log(`     - Nombre: ${subjectData.nombre}`);
       });
       console.log('');
     }
@@ -147,15 +147,15 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
     }
 
     // Verificar si hay salones con idProfesor diferente al actual
-    const allClassrooms = await getDocs(collection(db, 'schoolClassrooms'));
-    const classroomsWithDifferentTeacher = allClassrooms.docs.filter(doc => {
+    const allSubjects = await getDocs(collection(db, 'schoolSubjects'));
+    const subjectsWithDifferentTeacher = allSubjects.docs.filter(doc => {
       const data = doc.data();
       return data.idProfesor && data.idProfesor !== teacherId;
     });
     
-    if (classroomsWithDifferentTeacher.length > 0) {
+    if (subjectsWithDifferentTeacher.length > 0) {
       console.log('⚠️ Hay salones asignados a otros profesores:');
-      classroomsWithDifferentTeacher.forEach(doc => {
+      subjectsWithDifferentTeacher.forEach(doc => {
         const data = doc.data();
         console.log(`   - Salón ${doc.id}: idProfesor = ${data.idProfesor}`);
       });
@@ -246,21 +246,21 @@ export const fixSpecificInconsistencies = async (teacherId: string) => {
       console.log(`   - ID: ${doc.id}, Nombre: ${adminData.nombre}, idInstitucion: ${adminData.idInstitucion}`);
     });
 
-    // 3. Buscar classrooms con idProfesor incorrecto
-    console.log('🔍 Buscando classrooms con idProfesor incorrecto...');
-    const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
-    const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
+    // 3. Buscar subjects con idProfesor incorrecto
+    console.log('🔍 Buscando subjects con idProfesor incorrecto...');
+    const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+    const allSubjectsSnapshot = await getDocs(allSubjectsQuery);
     
-    const classroomsToFix = allClassroomsSnapshot.docs.filter(doc => {
+    const subjectsToFix = allSubjectsSnapshot.docs.filter(doc => {
       const data = doc.data();
       return data.idProfesor && data.idProfesor !== teacherId;
     });
 
-    if (classroomsToFix.length > 0) {
-      console.log('⚠️ Classrooms que necesitan corrección:');
-      classroomsToFix.forEach(doc => {
+    if (subjectsToFix.length > 0) {
+      console.log('⚠️ Subjects que necesitan corrección:');
+      subjectsToFix.forEach(doc => {
         const data = doc.data();
-        console.log(`   - Classroom ${doc.id}: idProfesor actual = ${data.idProfesor}`);
+        console.log(`   - Subject ${doc.id}: idProfesor actual = ${data.idProfesor}`);
       });
     }
 
@@ -285,7 +285,7 @@ export const fixSpecificInconsistencies = async (teacherId: string) => {
     console.log('');
     console.log('🔧 CORRECCIONES DISPONIBLES:');
     console.log('1. Crear admin faltante');
-    console.log('2. Corregir idProfesor en classrooms');
+    console.log('2. Corregir idProfesor en subjects');
     console.log('3. Corregir idAdmin en notebooks');
     console.log('4. Vincular profesor con admin correcto');
     console.log('');
@@ -331,24 +331,24 @@ export const createMissingAdmin = async (adminId: string, adminName: string, ins
   }
 };
 
-// Función para corregir idProfesor en classrooms
-export const fixClassroomTeacherId = async (classroomId: string, correctTeacherId: string) => {
-  console.log('🔧 CORRIGIENDO ID PROFESOR EN CLASSROOM');
+// Función para corregir idProfesor en subjects
+export const fixSubjectTeacherId = async (subjectId: string, correctTeacherId: string) => {
+  console.log('🔧 CORRIGIENDO ID PROFESOR EN SUBJECT');
   console.log('=======================================');
-  console.log(`   - Classroom: ${classroomId}`);
+  console.log(`   - Subject: ${subjectId}`);
   console.log(`   - Profesor correcto: ${correctTeacherId}`);
   console.log('');
 
   try {
-    await updateDoc(doc(db, 'schoolClassrooms', classroomId), {
+    await updateDoc(doc(db, 'schoolSubjects', subjectId), {
       idProfesor: correctTeacherId,
       updatedAt: serverTimestamp()
     });
-    console.log('✅ Classroom corregido exitosamente');
+    console.log('✅ Subject corregido exitosamente');
     return true;
 
   } catch (error) {
-    console.error('❌ Error corrigiendo classroom:', error);
+    console.error('❌ Error corrigiendo subject:', error);
     return false;
   }
 };
@@ -422,15 +422,15 @@ export const autoFixAllInconsistencies = async (teacherId: string) => {
       console.log('✅ idAdmin del profesor corregido');
     }
 
-    // 4. Corregir classrooms
-    const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
-    const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
+    // 4. Corregir subjects
+    const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+    const allSubjectsSnapshot = await getDocs(allSubjectsQuery);
     
-    for (const classroomDoc of allClassroomsSnapshot.docs) {
-      const classroomData = classroomDoc.data();
-      if (classroomData.idProfesor && classroomData.idProfesor !== teacherId) {
-        console.log(`🔧 Corrigiendo classroom ${classroomDoc.id}...`);
-        await fixClassroomTeacherId(classroomDoc.id, teacherId);
+    for (const subjectDoc of allSubjectsSnapshot.docs) {
+      const subjectData = subjectDoc.data();
+      if (subjectData.idProfesor && subjectData.idProfesor !== teacherId) {
+        console.log(`🔧 Corrigiendo subject ${subjectDoc.id}...`);
+        await fixSubjectTeacherId(subjectDoc.id, teacherId);
       }
     }
 
@@ -499,14 +499,14 @@ export const fixSpecificTeacherCase = async () => {
     const allAdminsSnapshot = await getDocs(allAdminsQuery);
     console.log('   - Total de admins disponibles:', allAdminsSnapshot.size);
 
-    // 2. Buscar classrooms con idProfesor incorrecto
-    console.log('2️⃣ BUSCANDO CLASSROOMS CON ID PROFESOR INCORRECTO...');
-    const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+    // 2. Buscar subjects con idProfesor incorrecto
+    console.log('2️⃣ BUSCANDO SUBJECTS CON ID PROFESOR INCORRECTO...');
+    const subjectQuery = query(
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', incorrectTeacherId)
     );
-    const classroomSnapshot = await getDocs(classroomQuery);
-    console.log('   - Classrooms con idProfesor incorrecto:', classroomSnapshot.size);
+    const subjectSnapshot = await getDocs(subjectQuery);
+    console.log('   - Subjects con idProfesor incorrecto:', subjectSnapshot.size);
 
     // 3. Buscar notebooks con idAdmin incorrecto
     console.log('3️⃣ BUSCANDO NOTEBOOKS CON ID ADMIN INCORRECTO...');
@@ -533,15 +533,15 @@ export const fixSpecificTeacherCase = async () => {
       console.log('✅ idAdmin del profesor corregido');
     }
 
-    // 5. Corregir classrooms
-    if (!classroomSnapshot.empty) {
-      console.log('🔧 Corrigiendo classrooms...');
-      for (const classroomDoc of classroomSnapshot.docs) {
-        await updateDoc(doc(db, 'schoolClassrooms', classroomDoc.id), {
+    // 5. Corregir subjects
+    if (!subjectSnapshot.empty) {
+      console.log('🔧 Corrigiendo subjects...');
+      for (const subjectDoc of subjectSnapshot.docs) {
+        await updateDoc(doc(db, 'schoolSubjects', subjectDoc.id), {
           idProfesor: teacherId,
           updatedAt: serverTimestamp()
         });
-        console.log(`   - Classroom ${classroomDoc.id} corregido`);
+        console.log(`   - Subject ${subjectDoc.id} corregido`);
       }
     }
 
@@ -623,46 +623,46 @@ export const createMissingAdminIfNeeded = async (adminId: string) => {
   }
 };
 
-// Función para corregir el campo idSalon en classrooms
-export const fixClassroomIdSalon = async (teacherId: string) => {
-  console.log('🔧 CORRIGIENDO CAMPO IDSALON EN CLASSROOMS');
+// Función para corregir el campo idSalon en subjects
+export const fixSubjectIdSalon = async (teacherId: string) => {
+  console.log('🔧 CORRIGIENDO CAMPO IDSALON EN SUBJECTS');
   console.log('==========================================');
   console.log(`👨‍🏫 Profesor ID: ${teacherId}`);
   console.log('');
 
   try {
-    // 1. Obtener todos los classrooms del profesor
-    const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+    // 1. Obtener todos los subjects del profesor
+    const subjectQuery = query(
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', teacherId)
     );
-    const classroomSnapshot = await getDocs(classroomQuery);
+    const subjectSnapshot = await getDocs(subjectQuery);
     
-    if (classroomSnapshot.empty) {
-      console.log('❌ No se encontraron classrooms para el profesor');
+    if (subjectSnapshot.empty) {
+      console.log('❌ No se encontraron subjects para el profesor');
       return;
     }
 
-    console.log(`✅ Se encontraron ${classroomSnapshot.size} classrooms del profesor`);
+    console.log(`✅ Se encontraron ${subjectSnapshot.size} subjects del profesor`);
     
-    // 2. Corregir cada classroom
-    for (const classroomDoc of classroomSnapshot.docs) {
-      const classroomData = classroomDoc.data();
-      const classroomId = classroomDoc.id;
+    // 2. Corregir cada subject
+    for (const subjectDoc of subjectSnapshot.docs) {
+      const subjectData = subjectDoc.data();
+      const subjectId = subjectDoc.id;
       
-      console.log(`🔧 Corrigiendo classroom ${classroomId}...`);
-      console.log(`   - Nombre: ${classroomData.nombre}`);
-      console.log(`   - idSalon actual: ${classroomData.idSalon}`);
+      console.log(`🔧 Corrigiendo subject ${subjectId}...`);
+      console.log(`   - Nombre: ${subjectData.nombre}`);
+      console.log(`   - idSalon actual: ${subjectData.idSalon}`);
       
       // Si idSalon es undefined, establecerlo como el ID del documento
-      if (!classroomData.idSalon) {
-        await updateDoc(doc(db, 'schoolClassrooms', classroomId), {
-          idSalon: classroomId,
+      if (!subjectData.idSalon) {
+        await updateDoc(doc(db, 'schoolSubjects', subjectId), {
+          idSalon: subjectId,
           updatedAt: serverTimestamp()
         });
-        console.log(`   ✅ idSalon corregido a: ${classroomId}`);
+        console.log(`   ✅ idSalon corregido a: ${subjectId}`);
       } else {
-        console.log(`   ✅ idSalon ya está correcto: ${classroomData.idSalon}`);
+        console.log(`   ✅ idSalon ya está correcto: ${subjectData.idSalon}`);
       }
     }
 
@@ -683,9 +683,9 @@ export const fixAllSchoolIssues = async (teacherId: string) => {
   console.log('');
 
   try {
-    // 1. Corregir idSalon en classrooms
-    console.log('1️⃣ Corrigiendo idSalon en classrooms...');
-    await fixClassroomIdSalon(teacherId);
+    // 1. Corregir idSalon en subjects
+    console.log('1️⃣ Corrigiendo idSalon en subjects...');
+    await fixSubjectIdSalon(teacherId);
     
     // 2. Ejecutar corrección automática
     console.log('2️⃣ Ejecutando corrección automática...');

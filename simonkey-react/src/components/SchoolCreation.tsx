@@ -68,7 +68,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           collectionName = 'schoolTeachers';
           break;
         case SchoolCategory.SALONES:
-          collectionName = 'schoolClassrooms';
+          collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
           collectionName = 'schoolNotebooks';
@@ -180,7 +180,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           };
           break;
         case SchoolCategory.SALONES:
-          collectionName = 'schoolClassrooms';
+          collectionName = 'schoolSubjects';
           entityData = {
             ...entityData,
             nombre: creationData.informacionBasica.nombre,
@@ -277,7 +277,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           collectionName = 'schoolTeachers';
           break;
         case SchoolCategory.SALONES:
-          collectionName = 'schoolClassrooms';
+          collectionName = 'schoolSubjects';
           break;
         case SchoolCategory.CUADERNOS:
           collectionName = 'schoolNotebooks';
