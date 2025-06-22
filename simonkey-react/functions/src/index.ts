@@ -10,9 +10,13 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { PubSub } from "@google-cloud/pubsub";
 
 // Inicializar Firebase Admin
 admin.initializeApp();
+
+// Inicializar Pub/Sub
+const pubsub = new PubSub();
 
 /**
  * Función para eliminar completamente todos los datos de un usuario
@@ -1479,3 +1483,680 @@ export const migrateUsers = onCall(
     }
   }
 );
+
+// ===========================================
+// SISTEMA PUB/SUB PARA ARQUITECTURA EVENT-DRIVEN
+// ===========================================
+
+/**
+ * Tipos de eventos disponibles en el sistema Pub/Sub
+ */
+interface AIProcessingEvent {
+  type: 'CONCEPT_EXTRACTION' | 'STORY_GENERATION' | 'SONG_GENERATION' | 'IMAGE_GENERATION' | 'QUIZ_GENERATION';
+  userId: string;
+  notebookId: string;
+  conceptId?: string;
+  data: any;
+  requestId: string;
+  timestamp: string;
+  priority: 'LOW' | 'NORMAL' | 'HIGH';
+}
+
+/**
+ * Nombres de los tópicos Pub/Sub
+ */
+const TOPICS = {
+  CONCEPT_PROCESSING: 'concept-processing',
+  STORY_GENERATION: 'story-generation', 
+  SONG_GENERATION: 'song-generation',
+  IMAGE_GENERATION: 'image-generation',
+  QUIZ_GENERATION: 'quiz-generation',
+  AI_RESULTS: 'ai-results'
+};
+
+/**
+ * Función principal para publicar eventos de procesamiento de IA
+ * Esta función actúa como el punto de entrada para iniciar flujos de IA
+ */
+export const processAIContent = onCall(
+  {
+    maxInstances: 20,
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const { type, userId, notebookId, conceptId, data, priority = 'NORMAL' } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    logger.info("🚀 Iniciando procesamiento de contenido IA", {
+      type,
+      userId,
+      notebookId,
+      conceptId,
+      priority
+    });
+
+    try {
+      const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const event: AIProcessingEvent = {
+        type,
+        userId,
+        notebookId,
+        conceptId,
+        data,
+        requestId,
+        timestamp: new Date().toISOString(),
+        priority
+      };
+
+      // Determinar el tópico según el tipo de evento
+      let topicName = '';
+      switch (type) {
+        case 'CONCEPT_EXTRACTION':
+          topicName = TOPICS.CONCEPT_PROCESSING;
+          break;
+        case 'STORY_GENERATION':
+          topicName = TOPICS.STORY_GENERATION;
+          break;
+        case 'SONG_GENERATION':
+          topicName = TOPICS.SONG_GENERATION;
+          break;
+        case 'IMAGE_GENERATION':
+          topicName = TOPICS.IMAGE_GENERATION;
+          break;
+        case 'QUIZ_GENERATION':
+          topicName = TOPICS.QUIZ_GENERATION;
+          break;
+        default:
+          throw new HttpsError("invalid-argument", `Tipo de evento no válido: ${type}`);
+      }
+
+      // Publicar el evento
+      const topic = pubsub.topic(topicName);
+      const messageBuffer = Buffer.from(JSON.stringify(event));
+      
+      await topic.publishMessage({
+        data: messageBuffer,
+        attributes: {
+          type,
+          userId,
+          notebookId,
+          priority,
+          requestId
+        }
+      });
+
+      logger.info("✅ Evento publicado exitosamente", {
+        topicName,
+        requestId,
+        type
+      });
+
+      // Almacenar el estado del procesamiento
+      const db = admin.firestore();
+      await db.collection("aiProcessingRequests").doc(requestId).set({
+        ...event,
+        status: 'QUEUED',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return {
+        success: true,
+        requestId,
+        message: `Evento ${type} publicado para procesamiento`,
+        estimatedProcessingTime: getEstimatedProcessingTime(type)
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error publicando evento", {
+        type,
+        userId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error publicando evento: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para procesar extracción de conceptos
+ * Subscriber del tópico concept-processing
+ */
+export const processConceptExtraction = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 300, // 5 minutos
+    memory: "1GiB",
+  },
+  async (request) => {
+    // Esta función simularía ser un subscriber, pero Firebase Functions v2
+    // maneja Pub/Sub de manera diferente. En producción usarías:
+    // export const processConceptExtraction = functions.pubsub.topic('concept-processing').onPublish(...)
+    
+    const eventData = request.data;
+    
+    logger.info("🧠 Procesando extracción de conceptos", { eventData });
+
+    try {
+      const db = admin.firestore();
+      const { userId, notebookId, data, requestId } = eventData;
+
+      // Actualizar estado a procesando
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'PROCESSING',
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Simular procesamiento de extracción de conceptos con IA
+      const extractedConcepts = await extractConceptsWithAI(data.content);
+
+      // Guardar conceptos extraídos
+      const conceptsRef = db.collection("conceptos").doc();
+      await conceptsRef.set({
+        cuadernoId: notebookId,
+        usuarioId: userId,
+        conceptos: extractedConcepts,
+        extractedBy: 'AI_PROCESSING',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        processingMetadata: {
+          requestId,
+          processingTime: Date.now(),
+          version: '1.0'
+        }
+      });
+
+      // Publicar eventos paralelos para generar contenido adicional
+      const parallelEvents = [
+        { type: 'STORY_GENERATION', topicName: TOPICS.STORY_GENERATION },
+        { type: 'SONG_GENERATION', topicName: TOPICS.SONG_GENERATION },
+        { type: 'IMAGE_GENERATION', topicName: TOPICS.IMAGE_GENERATION }
+      ];
+
+      const publishPromises = parallelEvents.map(async ({ type, topicName }) => {
+        const topic = pubsub.topic(topicName);
+        const childEvent: AIProcessingEvent = {
+          type: type as AIProcessingEvent['type'],
+          userId,
+          notebookId,
+          conceptId: conceptsRef.id,
+          data: { concepts: extractedConcepts },
+          requestId: `${requestId}_${type}`,
+          timestamp: new Date().toISOString(),
+          priority: 'NORMAL'
+        };
+
+        await topic.publishMessage({
+          data: Buffer.from(JSON.stringify(childEvent)),
+          attributes: {
+            type,
+            userId,
+            notebookId,
+            priority: 'NORMAL',
+            requestId: childEvent.requestId,
+            parentRequestId: requestId
+          }
+        });
+      });
+
+      await Promise.all(publishPromises);
+
+      // Actualizar estado a completado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'COMPLETED',
+        result: {
+          conceptsId: conceptsRef.id,
+          conceptsCount: extractedConcepts.length
+        },
+        completedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Extracción de conceptos completada", {
+        requestId,
+        conceptsCount: extractedConcepts.length
+      });
+
+      return {
+        success: true,
+        conceptsId: conceptsRef.id,
+        conceptsCount: extractedConcepts.length,
+        parallelTasksStarted: parallelEvents.length
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error procesando extracción de conceptos", {
+        requestId: eventData.requestId,
+        error: error.message
+      });
+
+      // Actualizar estado a error
+      if (eventData.requestId) {
+        const db = admin.firestore();
+        await db.collection("aiProcessingRequests").doc(eventData.requestId).update({
+          status: 'ERROR',
+          error: error.message,
+          errorAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Error procesando conceptos: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para generar historias educativas
+ * Subscriber del tópico story-generation
+ */
+export const generateEducationalStory = onCall(
+  {
+    maxInstances: 15,
+    timeoutSeconds: 240, // 4 minutos
+    memory: "512MiB",
+  },
+  async (request) => {
+    const eventData = request.data;
+    
+    logger.info("📚 Generando historia educativa", { eventData });
+
+    try {
+      const db = admin.firestore();
+      const { userId, notebookId, conceptId, data, requestId } = eventData;
+
+      // Actualizar estado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'PROCESSING',
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Generar historia con IA
+      const story = await generateStoryWithAI(data.concepts);
+
+      // Guardar historia generada
+      await db.collection("educationalContent").doc().set({
+        type: 'STORY',
+        userId,
+        notebookId,
+        conceptId,
+        content: story,
+        generatedBy: 'AI_STORY_GENERATOR',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {
+          requestId,
+          conceptsUsed: data.concepts?.length || 0,
+          processingTime: Date.now()
+        }
+      });
+
+      // Actualizar estado a completado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'COMPLETED',
+        result: { storyGenerated: true, storyLength: story.length },
+        completedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Historia educativa generada", {
+        requestId,
+        storyLength: story.length
+      });
+
+      return {
+        success: true,
+        story,
+        storyLength: story.length
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando historia", {
+        requestId: eventData.requestId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error generando historia: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para generar canciones mnemotécnicas
+ * Subscriber del tópico song-generation
+ */
+export const generateMnemonicSong = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 180, // 3 minutos
+    memory: "512MiB",
+  },
+  async (request) => {
+    const eventData = request.data;
+    
+    logger.info("🎵 Generando canción mnemotécnica", { eventData });
+
+    try {
+      const db = admin.firestore();
+      const { userId, notebookId, conceptId, data, requestId } = eventData;
+
+      // Actualizar estado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'PROCESSING',
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Generar canción con IA
+      const song = await generateSongWithAI(data.concepts);
+
+      // Guardar canción generada
+      await db.collection("educationalContent").doc().set({
+        type: 'SONG',
+        userId,
+        notebookId,
+        conceptId,
+        content: song,
+        generatedBy: 'AI_SONG_GENERATOR',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {
+          requestId,
+          conceptsUsed: data.concepts?.length || 0
+        }
+      });
+
+      // Actualizar estado a completado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'COMPLETED',
+        result: { songGenerated: true, verses: song.verses?.length || 0 },
+        completedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Canción mnemotécnica generada", {
+        requestId,
+        verses: song.verses?.length || 0
+      });
+
+      return {
+        success: true,
+        song
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando canción", {
+        requestId: eventData.requestId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error generando canción: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para generar imágenes mnemotécnicas
+ * Subscriber del tópico image-generation
+ */
+export const generateMnemonicImage = onCall(
+  {
+    maxInstances: 8,
+    timeoutSeconds: 300, // 5 minutos para procesamiento de imágenes
+    memory: "1GiB",
+  },
+  async (request) => {
+    const eventData = request.data;
+    
+    logger.info("🎨 Generando imagen mnemotécnica", { eventData });
+
+    try {
+      const db = admin.firestore();
+      const { userId, notebookId, conceptId, data, requestId } = eventData;
+
+      // Actualizar estado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'PROCESSING',
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Generar imagen con IA
+      const imageData = await generateImageWithAI(data.concepts);
+
+      // Guardar imagen generada
+      await db.collection("educationalContent").doc().set({
+        type: 'IMAGE',
+        userId,
+        notebookId,
+        conceptId,
+        content: imageData,
+        generatedBy: 'AI_IMAGE_GENERATOR',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: {
+          requestId,
+          conceptsUsed: data.concepts?.length || 0,
+          imageFormat: imageData.format,
+          imageDimensions: imageData.dimensions
+        }
+      });
+
+      // Actualizar estado a completado
+      await db.collection("aiProcessingRequests").doc(requestId).update({
+        status: 'COMPLETED',
+        result: { 
+          imageGenerated: true, 
+          imageUrl: imageData.url,
+          format: imageData.format 
+        },
+        completedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.info("✅ Imagen mnemotécnica generada", {
+        requestId,
+        imageFormat: imageData.format
+      });
+
+      return {
+        success: true,
+        imageData
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando imagen", {
+        requestId: eventData.requestId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error generando imagen: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * Función para obtener el estado de procesamiento de IA
+ */
+export const getAIProcessingStatus = onCall(
+  {
+    maxInstances: 20,
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    const { requestId, userId } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      const requestDoc = await db.collection("aiProcessingRequests").doc(requestId).get();
+      
+      if (!requestDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Solicitud de procesamiento no encontrada"
+        );
+      }
+
+      const requestData = requestDoc.data();
+      
+      // Verificar que el usuario tenga acceso a esta solicitud
+      if (requestData?.userId !== userId) {
+        throw new HttpsError(
+          "permission-denied",
+          "No tienes acceso a esta solicitud"
+        );
+      }
+
+      // Obtener contenido generado si está completado
+      let generatedContent = null;
+      if (requestData?.status === 'COMPLETED' && requestData?.conceptId) {
+        const contentQuery = db.collection("educationalContent")
+          .where("conceptId", "==", requestData.conceptId)
+          .where("userId", "==", userId);
+        const contentSnapshot = await contentQuery.get();
+        
+        generatedContent = contentSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      }
+
+      return {
+        success: true,
+        status: requestData?.status || 'UNKNOWN',
+        request: requestData,
+        generatedContent
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error obteniendo estado de procesamiento", {
+        requestId,
+        userId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error obteniendo estado: ${error.message}`
+      );
+    }
+  }
+);
+
+// ===========================================
+// FUNCIONES AUXILIARES PARA IA
+// ===========================================
+
+/**
+ * Simula la extracción de conceptos con IA
+ */
+async function extractConceptsWithAI(content: string): Promise<any[]> {
+  // En un entorno real, aquí llamarías a un servicio de IA como GPT, Gemini, etc.
+  logger.info("🤖 Simulando extracción de conceptos con IA");
+  
+  // Simulación básica
+  await new Promise(resolve => setTimeout(resolve, 2000)); // Simular tiempo de procesamiento
+  
+  const concepts = [
+    {
+      concepto: "Concepto Principal",
+      explicacion: "Explicación generada por IA basada en el contenido proporcionado",
+      ejemplos: ["Ejemplo 1", "Ejemplo 2"],
+      dominado: false,
+      dificultad: "medio",
+      fechaCreacion: new Date().toISOString(),
+      generatedByAI: true
+    }
+  ];
+  
+  return concepts;
+}
+
+/**
+ * Simula la generación de historias con IA
+ */
+async function generateStoryWithAI(concepts: any[]): Promise<any> {
+  logger.info("📖 Simulando generación de historia con IA");
+  
+  await new Promise(resolve => setTimeout(resolve, 3000)); // Simular tiempo de procesamiento
+  
+  return {
+    title: "Historia Educativa Generada",
+    content: `Había una vez en un reino llamado Conocimiento, donde los conceptos ${concepts?.map(c => c.concepto).join(', ')} vivían en armonía...`,
+    characters: ["Protagonista", "Concepto Héroe"],
+    moral: "El aprendizaje es una aventura emocionante",
+    generatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Simula la generación de canciones con IA
+ */
+async function generateSongWithAI(concepts: any[]): Promise<any> {
+  logger.info("🎵 Simulando generación de canción con IA");
+  
+  await new Promise(resolve => setTimeout(resolve, 2500)); // Simular tiempo de procesamiento
+  
+  return {
+    title: "Canción Mnemotécnica",
+    verses: [
+      `🎵 Recuerda siempre, no olvides jamás`,
+      `🎵 Los conceptos que hoy aprenderás`,
+      `🎵 ${concepts?.map(c => c.concepto).join(', ')}`,
+      `🎵 En tu mente siempre estarán 🎵`
+    ],
+    rhythm: "pop",
+    generatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Simula la generación de imágenes con IA
+ */
+async function generateImageWithAI(concepts: any[]): Promise<any> {
+  logger.info("🎨 Simulando generación de imagen con IA");
+  
+  await new Promise(resolve => setTimeout(resolve, 4000)); // Simular tiempo de procesamiento
+  
+  return {
+    url: `https://ai-generated-images.example.com/mnemonic_${Date.now()}.jpg`,
+    format: "jpg",
+    dimensions: { width: 1024, height: 768 },
+    description: `Imagen mnemotécnica para los conceptos: ${concepts?.map(c => c.concepto).join(', ')}`,
+    generatedAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Obtiene el tiempo estimado de procesamiento según el tipo
+ */
+function getEstimatedProcessingTime(type: string): string {
+  const times = {
+    'CONCEPT_EXTRACTION': '2-3 minutos',
+    'STORY_GENERATION': '3-4 minutos', 
+    'SONG_GENERATION': '2-3 minutos',
+    'IMAGE_GENERATION': '4-5 minutos',
+    'QUIZ_GENERATION': '1-2 minutos'
+  };
+  
+  return times[type as keyof typeof times] || '2-5 minutos';
+}

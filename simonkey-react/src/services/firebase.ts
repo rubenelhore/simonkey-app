@@ -22,6 +22,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { getStorage } from "firebase/storage";
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Tu configuración de Firebase
 const firebaseConfig = {
