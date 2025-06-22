@@ -58,6 +58,170 @@ interface CheckUserDeletionStatusResponse {
   status: 'active' | 'deleted';
 }
 
+// ================================
+// FUNCIONES DE USUARIOS
+// ================================
+
+export const deleteUserData = httpsCallable(functions, 'deleteUserData');
+export const checkUserDeletionStatus = httpsCallable(functions, 'checkUserDeletionStatus');
+export const calculateUserStats = httpsCallable(functions, 'calculateUserStats');
+export const cleanupOldData = httpsCallable(functions, 'cleanupOldData');
+export const exportUserData = httpsCallable(functions, 'exportUserData');
+
+// ================================
+// FUNCIONES DE USUARIOS ESCOLARES
+// ================================
+
+export const syncSchoolUsers = httpsCallable(functions, 'syncSchoolUsers');
+export const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
+export const fixOrphanUsers = httpsCallable(functions, 'fixOrphanUsers');
+export const migrateUsers = httpsCallable(functions, 'migrateUsers');
+
+// ================================
+// FUNCIONES DE IA INTENSIVA
+// ================================
+
+/**
+ * Función para extraer conceptos de archivos usando IA en el servidor
+ * Reemplaza el procesamiento local pesado
+ */
+export const processConceptExtraction = httpsCallable(functions, 'processConceptExtraction');
+
+/**
+ * Función para generar explicaciones de conceptos usando IA en el servidor
+ * Reemplaza las llamadas locales a Gemini
+ */
+export const generateConceptExplanation = httpsCallable(functions, 'generateConceptExplanation');
+
+/**
+ * Función para encolar tareas pesadas de procesamiento de archivos
+ * Implementa procesamiento asíncrono con Cloud Tasks
+ */
+export const enqueueConceptExtraction = httpsCallable(functions, 'enqueueConceptExtraction');
+
+/**
+ * Función para obtener el estado de una tarea de procesamiento
+ */
+export const getProcessingTaskStatus = httpsCallable(functions, 'getProcessingTaskStatus');
+
+// ================================
+// FUNCIONES AUXILIARES PARA IA
+// ================================
+
+/**
+ * Convierte un archivo File a base64 para envío a Cloud Functions
+ */
+export const fileToBase64 = (file: File): Promise<{ mimeType: string; data: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = reader.result as string;
+        const base64Data = result.split(',')[1]; // Remover el prefijo data:mime/type;base64,
+        resolve({
+          mimeType: file.type,
+          data: base64Data
+        });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * Procesa múltiples archivos y los convierte a formato para Cloud Functions
+ */
+export const processFilesForCloudFunction = async (files: File[]): Promise<Array<{ mimeType: string; data: string; fileName: string }>> => {
+  const processedFiles = [];
+  
+  for (const file of files) {
+    const fileData = await fileToBase64(file);
+    processedFiles.push({
+      ...fileData,
+      fileName: file.name
+    });
+  }
+  
+  return processedFiles;
+};
+
+/**
+ * Maneja errores de Cloud Functions y proporciona mensajes amigables
+ */
+export const handleCloudFunctionError = (error: any): string => {
+  console.error('Cloud Function Error:', error);
+  
+  if (error.code === 'unauthenticated') {
+    return 'Necesitas iniciar sesión para realizar esta acción.';
+  }
+  
+  if (error.code === 'permission-denied') {
+    return 'No tienes permisos para realizar esta acción.';
+  }
+  
+  if (error.code === 'failed-precondition') {
+    return 'El servidor no está configurado correctamente. Por favor contacta al administrador.';
+  }
+  
+  if (error.code === 'internal') {
+    return error.message || 'Error interno del servidor. Por favor intenta de nuevo.';
+  }
+  
+  if (error.code === 'not-found') {
+    return 'El recurso solicitado no fue encontrado.';
+  }
+  
+  return error.message || 'Error inesperado. Por favor intenta de nuevo.';
+};
+
+/**
+ * Hook personalizado para manejar el estado de las tareas de procesamiento
+ */
+export const useProcessingTask = () => {
+  const checkTaskStatus = async (taskId: string) => {
+    try {
+      const result = await getProcessingTaskStatus({ taskId });
+      return result.data;
+    } catch (error) {
+      console.error('Error checking task status:', error);
+      throw new Error(handleCloudFunctionError(error));
+    }
+  };
+
+  const pollTaskStatus = (taskId: string, onUpdate: (status: any) => void, onComplete: (result: any) => void, onError: (error: string) => void) => {
+    const poll = async () => {
+      try {
+        const status = await checkTaskStatus(taskId);
+        onUpdate(status);
+
+        if (status.task.status === 'completed') {
+          onComplete(status.task.result);
+          return;
+        }
+
+        if (status.task.status === 'failed' || status.task.status === 'error') {
+          onError(status.task.error || 'Tarea falló');
+          return;
+        }
+
+        // Continuar polling si la tarea está en progreso
+        if (['queued', 'enqueued', 'processing', 'processing_direct'].includes(status.task.status)) {
+          setTimeout(poll, 2000); // Revisar cada 2 segundos
+        }
+      } catch (error: any) {
+        onError(handleCloudFunctionError(error));
+      }
+    };
+
+    poll();
+  };
+
+  return { checkTaskStatus, pollTaskStatus };
+};
+
 /**
  * Eliminar completamente todos los datos de un usuario usando Firebase Functions
  * Esta función reemplaza la lógica compleja del cliente con operaciones optimizadas del servidor
@@ -111,32 +275,6 @@ export const deleteUserDataWithFunction = async (
     } else {
       throw new Error(`Error desconocido: ${error.message}`);
     }
-  }
-};
-
-/**
- * Verificar el estado de eliminación de un usuario
- */
-export const checkUserDeletionStatus = async (
-  userId: string
-): Promise<CheckUserDeletionStatusResponse> => {
-  try {
-    console.log('🔍 Verificando estado de eliminación para usuario:', userId);
-    
-    const checkStatusFunction = httpsCallable<CheckUserDeletionStatusRequest, CheckUserDeletionStatusResponse>(
-      functions, 
-      'checkUserDeletionStatus'
-    );
-    
-    const result = await checkStatusFunction({ userId });
-    const data = result.data;
-    
-    console.log('✅ Estado verificado:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error verificando estado:', error);
-    throw new Error(`Error verificando estado: ${error.message}`);
   }
 };
 
@@ -211,259 +349,5 @@ export const deleteUserWithConfirmation = async (
     const errorMessage = `❌ Error eliminando usuario: ${error.message}`;
     onProgress?.(errorMessage);
     onError?.(errorMessage);
-  }
-};
-
-/**
- * Calcular y actualizar estadísticas automáticas de usuario
- */
-export const calculateUserStats = async (
-  userId: string
-): Promise<{
-  success: boolean;
-  stats: {
-    totalNotebooks: number;
-    totalConcepts: number;
-    masteredConcepts: number;
-    totalStudyTimeMinutes: number;
-    completedSessions: number;
-    currentStreak: number;
-    lastUpdated: any;
-  };
-}> => {
-  try {
-    console.log('📊 Calculando estadísticas para usuario:', userId);
-    
-    const calculateStatsFunction = httpsCallable<
-      { userId: string },
-      {
-        success: boolean;
-        stats: {
-          totalNotebooks: number;
-          totalConcepts: number;
-          masteredConcepts: number;
-          totalStudyTimeMinutes: number;
-          completedSessions: number;
-          currentStreak: number;
-          lastUpdated: any;
-        };
-      }
-    >(functions, 'calculateUserStats');
-    
-    const result = await calculateStatsFunction({ userId });
-    const data = result.data;
-    
-    console.log('✅ Estadísticas calculadas:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error calculando estadísticas:', error);
-    throw new Error(`Error calculando estadísticas: ${error.message}`);
-  }
-};
-
-/**
- * Limpiar datos antiguos automáticamente
- */
-export const cleanupOldData = async (
-  userId: string,
-  daysToKeep: number = 90
-): Promise<{
-  success: boolean;
-  message: string;
-  deletedItems: {
-    oldStudySessions: number;
-    oldActivities: number;
-    oldQuizResults: number;
-  };
-}> => {
-  try {
-    console.log('🧹 Iniciando limpieza de datos antiguos para usuario:', userId);
-    
-    const cleanupFunction = httpsCallable<
-      { userId: string; daysToKeep: number },
-      {
-        success: boolean;
-        message: string;
-        deletedItems: {
-          oldStudySessions: number;
-          oldActivities: number;
-          oldQuizResults: number;
-        };
-      }
-    >(functions, 'cleanupOldData');
-    
-    const result = await cleanupFunction({ userId, daysToKeep });
-    const data = result.data;
-    
-    console.log('✅ Limpieza completada:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error durante limpieza:', error);
-    throw new Error(`Error durante limpieza: ${error.message}`);
-  }
-};
-
-/**
- * Exportar datos de usuario en formato JSON
- */
-export const exportUserData = async (
-  userId: string
-): Promise<{
-  success: boolean;
-  data: {
-    user: any;
-    notebooks: any[];
-    concepts: any[];
-    studySessions: any[];
-    learningData: any[];
-    quizResults: any[];
-    stats: { [key: string]: any };
-    exportDate: string;
-  };
-  summary: {
-    notebooks: number;
-    concepts: number;
-    studySessions: number;
-    learningData: number;
-    quizResults: number;
-  };
-}> => {
-  try {
-    console.log('📤 Exportando datos de usuario:', userId);
-    
-    const exportFunction = httpsCallable(functions, 'exportUserData');
-    const result = await exportFunction({ userId });
-    const data = result.data as any;
-    
-    console.log('✅ Datos exportados exitosamente');
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error exportando datos:', error);
-    throw new Error(`Error exportando datos: ${error.message}`);
-  }
-};
-
-// ===== NUEVAS FUNCIONES OPTIMIZADAS =====
-
-/**
- * Sincronizar usuarios escolares (profesores y estudiantes)
- * Reemplaza las funciones de syncSchoolUsers.ts del cliente
- */
-export const syncSchoolUsers = async (
-  type: 'all' | 'teachers' | 'students' | 'specific' = 'all',
-  userId?: string
-): Promise<{
-  success: boolean;
-  message: string;
-  results: {
-    teachers: { success: number; errors: Array<{ id: string; email: string; error: string }> };
-    students: { success: number; errors: Array<{ id: string; email: string; error: string }> };
-  };
-}> => {
-  try {
-    console.log('🔄 Sincronizando usuarios escolares:', { type, userId });
-    
-    const syncFunction = httpsCallable(functions, 'syncSchoolUsers');
-    const result = await syncFunction({ type, userId });
-    const data = result.data as any;
-    
-    console.log('✅ Sincronización completada:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error sincronizando usuarios:', error);
-    throw new Error(`Error sincronizando usuarios: ${error.message}`);
-  }
-};
-
-/**
- * Crear usuario escolar
- * Reemplaza createSchoolUser de utils
- */
-export const createSchoolUser = async (
-  userData: {
-    email: string;
-    nombre: string;
-    password?: string;
-    role: 'teacher' | 'student';
-    additionalData?: any;
-  }
-): Promise<{
-  success: boolean;
-  userId: string;
-  message: string;
-}> => {
-  try {
-    console.log('🔄 Creando usuario escolar:', userData);
-    
-    const createFunction = httpsCallable(functions, 'createSchoolUser');
-    const result = await createFunction({ userData });
-    const data = result.data as any;
-    
-    console.log('✅ Usuario escolar creado:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error creando usuario escolar:', error);
-    throw new Error(`Error creando usuario escolar: ${error.message}`);
-  }
-};
-
-/**
- * Arreglar usuarios huérfanos
- * Reemplaza fixOrphanUsers de utils
- */
-export const fixOrphanUsers = async (
-  userId?: string
-): Promise<{
-  success: boolean;
-  message: string;
-  results: {
-    success: number;
-    errors: Array<{ email: string; error: string }>;
-  };
-}> => {
-  try {
-    console.log('🔧 Arreglando usuarios huérfanos:', { userId });
-    
-    const fixFunction = httpsCallable(functions, 'fixOrphanUsers');
-    const result = await fixFunction({ userId });
-    const data = result.data as any;
-    
-    console.log('✅ Reparación completada:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error arreglando usuarios:', error);
-    throw new Error(`Error arreglando usuarios: ${error.message}`);
-  }
-};
-
-/**
- * Migrar usuarios existentes
- * Reemplaza migrateUsers de utils
- */
-export const migrateUsers = async (): Promise<{
-  success: boolean;
-  message: string;
-  updatedCount: number;
-  errorCount: number;
-}> => {
-  try {
-    console.log('🔄 Migrando usuarios existentes...');
-    
-    const migrateFunction = httpsCallable(functions, 'migrateUsers');
-    const result = await migrateFunction({});
-    const data = result.data as any;
-    
-    console.log('✅ Migración completada:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('❌ Error migrando usuarios:', error);
-    throw new Error(`Error migrando usuarios: ${error.message}`);
   }
 }; 

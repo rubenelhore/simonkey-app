@@ -10,9 +10,18 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { CloudTasksClient } from "@google-cloud/tasks";
+import { Storage } from "@google-cloud/storage";
 
 // Inicializar Firebase Admin
 admin.initializeApp();
+
+// Inicializar cliente de Cloud Tasks
+const tasksClient = new CloudTasksClient();
+
+// Inicializar cliente de Storage
+const storage = new Storage();
 
 /**
  * Función para eliminar completamente todos los datos de un usuario
@@ -1475,6 +1484,613 @@ export const migrateUsers = onCall(
         "internal",
         `Error en la migración: ${error.message}`,
         { error: error.message }
+      );
+    }
+  }
+);
+
+// ================================
+// FUNCIONES DE IA INTENSIVA
+// ================================
+
+/**
+ * Función para extraer conceptos de archivos usando IA
+ * Migra el procesamiento pesado del cliente al servidor
+ */
+export const processConceptExtraction = onCall(
+  {
+    maxInstances: 10,
+    timeoutSeconds: 300, // 5 minutos
+    memory: "2GiB", // Memoria adicional para procesamiento de archivos
+  },
+  async (request) => {
+    const { notebookId, fileData, fileName, userId } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    logger.info("🤖 Iniciando extracción de conceptos con IA", {
+      notebookId,
+      fileName,
+      userId: userId || request.auth.uid
+    });
+
+    try {
+      const db = admin.firestore();
+      const actualUserId = userId || request.auth.uid;
+
+      // Verificar que el usuario tenga acceso al notebook
+      const notebookDoc = await db.collection("notebooks").doc(notebookId).get();
+      if (!notebookDoc.exists || notebookDoc.data()?.userId !== actualUserId) {
+        throw new HttpsError(
+          "permission-denied",
+          "No tienes permisos para este notebook"
+        );
+      }
+
+      // Inicializar Gemini AI
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Gemini API key no configurada en el servidor"
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+
+      // Crear el prompt optimizado
+      const prompt = `
+        Por favor, analiza este archivo y extrae una lista de conceptos clave con sus definiciones.
+        Devuelve el resultado como un array JSON con el siguiente formato:
+        [
+          {
+            "término": "nombre del concepto",
+            "definición": "explicación concisa del concepto (20-30 palabras)",
+            "fuente": "${fileName}"
+          }
+        ]
+        
+        REGLAS IMPORTANTES:
+        1. El término NO puede aparecer en la definición (ej: si el término es "Hígado", la definición NO puede empezar con "El hígado es...")
+        2. La definición NO puede contener información que revele directamente el término
+        3. Usa sinónimos, descripciones funcionales o características para definir el concepto
+        4. La definición debe ser clara y específica sin mencionar el término exacto
+        5. PRESERVA información importante como:
+           - Números específicos (ej: "más de 200 estructuras", "10 minutos")
+           - Fechas exactas (ej: "en 1893", "durante la década de 1960")
+           - Palabras clave como "único", "primero", "mayor", "menor", "más", "menos"
+           - Comparaciones específicas (ej: "superando en número a Egipto")
+           - Características distintivas (ej: "con capacidad de renovación parcial")
+        
+        Ejemplos CORRECTOS:
+        - Término: "Pirámides de Sudán" → Definición: "Estructuras antiguas, con más de 200 estructuras, superando en número a Egipto"
+        - Término: "Hígado" → Definición: "Único órgano interno con capacidad de renovación parcial"
+        
+        Extrae al menos 10 conceptos importantes si el documento es lo suficientemente extenso.
+        Asegúrate de que el resultado sea únicamente el array JSON, sin texto adicional.
+      `;
+
+      // Procesar el archivo con Gemini
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: fileData.mimeType,
+                data: fileData.data
+              }
+            }
+          ]
+        }],
+      });
+
+      const respuesta = result.response.text();
+      
+      // Parsear la respuesta JSON
+      let conceptosExtraidos: any[] = [];
+      try {
+        let cleanedRespuesta = respuesta.trim();
+        if (cleanedRespuesta.startsWith("```json")) {
+          cleanedRespuesta = cleanedRespuesta.substring(7, cleanedRespuesta.length - 3).trim();
+        } else if (cleanedRespuesta.startsWith("```")) {
+          cleanedRespuesta = cleanedRespuesta.substring(3, cleanedRespuesta.length - 3).trim();
+        }
+
+        conceptosExtraidos = JSON.parse(cleanedRespuesta);
+
+        if (!Array.isArray(conceptosExtraidos)) {
+          throw new Error('La respuesta no es un array válido');
+        }
+
+      } catch (parseError) {
+        logger.error('Error parsing JSON response:', parseError);
+        throw new HttpsError(
+          "internal",
+          `Error al interpretar la respuesta de la IA: ${parseError}`
+        );
+      }
+
+      if (!conceptosExtraidos.length) {
+        throw new HttpsError(
+          "internal",
+          "No se pudieron extraer conceptos del documento"
+        );
+      }
+
+      // Generar IDs únicos para cada concepto
+      const conceptosConIds = conceptosExtraidos.map(concepto => ({
+        ...concepto,
+        id: crypto.randomUUID()
+      }));
+
+      // Guardar conceptos en Firestore
+      let updatedConceptosDoc: any = null;
+      
+      // Buscar documento existente de conceptos para este notebook
+      const conceptsQuery = db.collection("conceptos").where("cuadernoId", "==", notebookId);
+      const conceptsSnapshot = await conceptsQuery.get();
+
+      if (!conceptsSnapshot.empty) {
+        // Actualizar documento existente
+        const existingDoc = conceptsSnapshot.docs[0];
+        const existingData = existingDoc.data();
+        
+        await existingDoc.ref.update({
+          conceptos: [...(existingData.conceptos || []), ...conceptosConIds]
+        });
+        
+        updatedConceptosDoc = {
+          id: existingDoc.id,
+          conceptos: [...(existingData.conceptos || []), ...conceptosConIds]
+        };
+      } else {
+        // Crear nuevo documento
+        const newDocRef = db.collection("conceptos").doc();
+        
+        await newDocRef.set({
+          id: newDocRef.id,
+          cuadernoId: notebookId,
+          usuarioId: actualUserId,
+          conceptos: conceptosConIds,
+          creadoEn: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        updatedConceptosDoc = {
+          id: newDocRef.id,
+          conceptos: conceptosConIds
+        };
+      }
+
+      // Crear datos de aprendizaje iniciales para los nuevos conceptos
+      try {
+        for (const concepto of conceptosConIds) {
+          const learningDataRef = db.collection("users").doc(actualUserId).collection("learningData").doc(concepto.id);
+          await learningDataRef.set({
+            conceptId: concepto.id,
+            notebookId,
+            userId: actualUserId,
+            nextReviewDate: new Date(),
+            easeFactor: 2.5,
+            interval: 1,
+            repetitions: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      } catch (learningError) {
+        logger.warn("Error creando datos de aprendizaje:", learningError);
+        // No interrumpir el flujo principal
+      }
+
+      logger.info("✅ Extracción de conceptos completada", {
+        notebookId,
+        conceptsExtracted: conceptosConIds.length
+      });
+
+      return {
+        success: true,
+        conceptsExtracted: conceptosConIds.length,
+        concepts: conceptosConIds,
+        message: `Se generaron ${conceptosConIds.length} conceptos exitosamente`
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error procesando extracción de conceptos", {
+        notebookId,
+        fileName,
+        error: error.message,
+        stack: error.stack
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error procesando archivo: ${error.message}`,
+        { notebookId, fileName }
+      );
+    }
+  }
+);
+
+/**
+ * Función para generar explicaciones de conceptos usando IA
+ * Migra la generación de explicaciones del cliente al servidor
+ */
+export const generateConceptExplanation = onCall(
+  {
+    maxInstances: 20,
+    timeoutSeconds: 60,
+    memory: "1GiB",
+  },
+  async (request) => {
+    const { conceptId, explanationType, userInterests, notebookId } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    logger.info("🧠 Generando explicación de concepto", {
+      conceptId,
+      explanationType,
+      notebookId
+    });
+
+    try {
+      const db = admin.firestore();
+      const userId = request.auth.uid;
+
+      // Buscar el concepto en la base de datos
+      const conceptsQuery = db.collection("conceptos").where("cuadernoId", "==", notebookId);
+      const conceptsSnapshot = await conceptsQuery.get();
+
+      let concept: any = null;
+      for (const doc of conceptsSnapshot.docs) {
+        const data = doc.data();
+        if (data.conceptos && Array.isArray(data.conceptos)) {
+          concept = data.conceptos.find((c: any) => c.id === conceptId);
+          if (concept) break;
+        }
+      }
+
+      if (!concept) {
+        throw new HttpsError(
+          "not-found",
+          "Concepto no encontrado"
+        );
+      }
+
+      // Inicializar Gemini AI
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Gemini API key no configurada en el servidor"
+        );
+      }
+
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      // Crear el prompt según el tipo de explicación
+      let prompt = '';
+      
+      switch (explanationType) {
+        case 'simple':
+          prompt = `Explica el siguiente concepto de manera sencilla, como si le hablaras a alguien sin conocimiento técnico. 
+          Usa analogías cotidianas. Limita tu respuesta a 3-4 oraciones.
+          
+          Concepto: ${concept.término}
+          Definición: ${concept.definición}`;
+          break;
+          
+        case 'related':
+          prompt = `Explica cómo el siguiente concepto se relaciona con otros conceptos del mismo campo. 
+          Menciona 2-3 conceptos relacionados y explica brevemente sus conexiones.
+          Limita tu respuesta a 3-4 oraciones.
+          
+          Concepto: ${concept.término}
+          Definición: ${concept.definición}`;
+          break;
+          
+        case 'interests':
+          const filteredInterests = userInterests?.filter((interest: string) => interest.trim() !== '') || [];
+          
+          if (filteredInterests.length > 0) {
+            prompt = `TAREA: Relacionar un concepto académico con los intereses personales de un estudiante.
+            
+            INTERESES DEL ESTUDIANTE: ${filteredInterests.join(', ')}.
+            
+            CONCEPTO A EXPLICAR: "${concept.término}"
+            DEFINICIÓN: "${concept.definición}"
+            
+            INSTRUCCIONES:
+            1. Explica de manera clara cómo este concepto académico se relaciona directamente con los intereses listados del estudiante.
+            2. Proporciona 1-2 ejemplos específicos de cómo este concepto podría aplicarse o encontrarse en esos intereses.
+            3. Tu respuesta debe ser breve (3-4 oraciones), concreta y dirigida al estudiante.
+            4. NO menciones que eres un modelo de lenguaje ni uses metareferencias sobre tu naturaleza.`;
+          } else {
+            return {
+              success: true,
+              explanation: 'Para personalizar las explicaciones, añade tus intereses en la sección de "Personalización" accesible desde la página de cuadernos.'
+            };
+          }
+          break;
+          
+        case 'mnemotecnia':
+          prompt = `Crea una técnica mnemotécnica sencilla y práctica para recordar el siguiente concepto.
+
+          TÉCNICA MNEMOTÉCNICA: [TÍTULO CORTO Y CLARO]
+          
+          Utiliza UNA de estas técnicas (elige la más adecuada para este concepto específico):
+          - Acrónimo simple (máximo 5 letras)
+          - Asociación visual concreta (una sola imagen potente)
+          - Analogía cotidiana (comparación con algo familiar)
+          - Historia mínima (máximo 3 elementos)
+          - Rima breve y pegadiza
+          
+          Estructura tu respuesta así:
+          Título de la mnemotecnia (en mayúsculas) seguida de ":"
+          Descripción en 2-4 líneas máximo
+          
+          La mnemotecnia debe ser:
+          - Memorable al primer contacto
+          - Visualmente clara
+          - Directamente relacionada con el concepto
+          - Fácil de recordar sin esfuerzo
+
+          PROHIBIDO usar: "*" ni siquiera para poner en negritas.
+          
+          Concepto: ${concept.término}
+          Definición: ${concept.definición}`;
+          break;
+          
+        default:
+          prompt = `Explica el siguiente concepto brevemente:
+          Concepto: ${concept.término}
+          Definición: ${concept.definición}`;
+      }
+
+      // Generar explicación con Gemini
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+      
+      const explanation = result.response.text();
+
+      logger.info("✅ Explicación generada exitosamente", {
+        conceptId,
+        explanationType,
+        explanationLength: explanation.length
+      });
+
+      return {
+        success: true,
+        explanation,
+        conceptTerm: concept.término,
+        explanationType
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error generando explicación", {
+        conceptId,
+        explanationType,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error generando explicación: ${error.message}`,
+        { conceptId, explanationType }
+      );
+    }
+  }
+);
+
+/**
+ * Función para encolar tareas pesadas de procesamiento de archivos
+ * Implementa Cloud Tasks para procesamiento asíncrono
+ */
+export const enqueueConceptExtraction = onCall(
+  {
+    maxInstances: 30,
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    const { notebookId, fileData, fileName, userId } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    logger.info("📋 Encolando tarea de extracción de conceptos", {
+      notebookId,
+      fileName,
+      userId: userId || request.auth.uid
+    });
+
+    try {
+      const db = admin.firestore();
+      const actualUserId = userId || request.auth.uid;
+
+      // Crear registro de tarea en Firestore para seguimiento
+      const taskRef = db.collection("processingTasks").doc();
+      const taskId = taskRef.id;
+
+      await taskRef.set({
+        id: taskId,
+        type: 'concept_extraction',
+        status: 'queued',
+        userId: actualUserId,
+        notebookId,
+        fileName,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        progress: 0
+      });
+
+      // Configurar Cloud Task
+      const project = process.env.GCLOUD_PROJECT;
+      const location = process.env.FUNCTION_REGION || 'us-central1';
+      const queue = 'concept-extraction-queue';
+      
+      const parent = tasksClient.queuePath(project!, location, queue);
+      
+      // URL de la función target (será la misma función processConceptExtraction pero se puede separar)
+      const url = `https://${location}-${project}.cloudfunctions.net/processConceptExtraction`;
+
+      const task = {
+        httpRequest: {
+          httpMethod: 'POST' as const,
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: Buffer.from(JSON.stringify({
+            taskId,
+            notebookId,
+            fileData,
+            fileName,
+            userId: actualUserId
+          })).toString('base64'),
+        },
+        scheduleTime: {
+          seconds: Math.floor(Date.now() / 1000) + 10, // Ejecutar en 10 segundos
+        },
+      };
+
+      try {
+        const [response] = await tasksClient.createTask({ parent, task });
+        logger.info(`✅ Tarea encolada exitosamente: ${response.name}`);
+
+        // Actualizar el estado de la tarea
+        await taskRef.update({
+          status: 'enqueued',
+          cloudTaskName: response.name,
+          scheduledAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+          success: true,
+          taskId,
+          message: "Archivo en cola para procesamiento. Recibirás una notificación cuando esté listo.",
+          estimatedTime: "2-5 minutos"
+        };
+
+      } catch (taskError: any) {
+        logger.warn("⚠️ Error creando Cloud Task, ejecutando directamente:", taskError);
+        
+        // Fallback: ejecutar directamente si Cloud Tasks falla
+        await taskRef.update({
+          status: 'processing_direct',
+          startedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Llamar directamente a la función de procesamiento
+        const result = await processConceptExtraction.run({ 
+          data: { notebookId, fileData, fileName, userId: actualUserId },
+          auth: request.auth 
+        } as any);
+
+        await taskRef.update({
+          status: 'completed',
+          result,
+          completedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+          success: true,
+          taskId,
+          directExecution: true,
+          result,
+          message: `Procesamiento completado directamente. ${result.conceptsExtracted} conceptos extraídos.`
+        };
+      }
+
+    } catch (error: any) {
+      logger.error("❌ Error encolando tarea", {
+        notebookId,
+        fileName,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error encolando tarea: ${error.message}`,
+        { notebookId, fileName }
+      );
+    }
+  }
+);
+
+/**
+ * Función para obtener el estado de una tarea de procesamiento
+ */
+export const getProcessingTaskStatus = onCall(
+  {
+    maxInstances: 50,
+    timeoutSeconds: 10,
+  },
+  async (request) => {
+    const { taskId } = request.data;
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes estar autenticado para usar esta función"
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      const taskDoc = await db.collection("processingTasks").doc(taskId).get();
+
+      if (!taskDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Tarea no encontrada"
+        );
+      }
+
+      const taskData = taskDoc.data();
+      
+      // Verificar que el usuario tenga permisos para ver esta tarea
+      if (taskData?.userId !== request.auth.uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "No tienes permisos para ver esta tarea"
+        );
+      }
+
+      return {
+        success: true,
+        task: taskData
+      };
+
+    } catch (error: any) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      logger.error("❌ Error obteniendo estado de tarea", {
+        taskId,
+        error: error.message
+      });
+
+      throw new HttpsError(
+        "internal",
+        `Error obteniendo estado: ${error.message}`,
+        { taskId }
       );
     }
   }
