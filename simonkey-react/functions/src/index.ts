@@ -10,9 +10,413 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { v4 as uuidv4 } from 'uuid';
+import { 
+  cloudMonitoring, 
+  errorReportingService, 
+  AlertUtils,
+  MONITORING_THRESHOLDS 
+} from './monitoring.config';
 
 // Inicializar Firebase Admin
 admin.initializeApp();
+
+// ========================================
+// SISTEMA DE LOGGING ESTRUCTURADO Y TRAZABILIDAD
+// ========================================
+
+/**
+ * Interfaz para el contexto de logging estructurado
+ */
+interface LogContext {
+  requestId: string;
+  userId?: string;
+  functionName: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Clase para manejo de logging estructurado y trazabilidad
+ */
+class StructuredLogger {
+  private context: LogContext;
+
+  constructor(functionName: string, userId?: string, metadata?: Record<string, any>) {
+    this.context = {
+      requestId: uuidv4(),
+      userId,
+      functionName,
+      timestamp: new Date().toISOString(),
+      metadata
+    };
+    
+    // Log inicial de la petición
+    this.info("🚀 Función iniciada", {
+      requestId: this.context.requestId,
+      userId: this.context.userId,
+      metadata: this.context.metadata
+    });
+  }
+
+  /**
+   * Log de información con contexto estructurado
+   */
+  info(message: string, additionalData?: Record<string, any>) {
+    logger.info(message, {
+      ...this.context,
+      level: 'INFO',
+      additionalData,
+      labels: {
+        function: this.context.functionName,
+        requestId: this.context.requestId,
+        userId: this.context.userId || 'anonymous'
+      }
+    });
+  }
+
+  /**
+   * Log de advertencias con contexto estructurado
+   */
+  warn(message: string, additionalData?: Record<string, any>) {
+    logger.warn(message, {
+      ...this.context,
+      level: 'WARNING',
+      additionalData,
+      labels: {
+        function: this.context.functionName,
+        requestId: this.context.requestId,
+        userId: this.context.userId || 'anonymous'
+      }
+    });
+  }
+
+  /**
+   * Log de errores con contexto estructurado y stack trace
+   */
+  error(message: string, error?: Error | any, additionalData?: Record<string, any>) {
+    const errorDetails = error ? {
+      errorMessage: error.message || String(error),
+      errorStack: error.stack,
+      errorCode: error.code,
+      errorType: error.constructor?.name
+    } : {};
+
+    logger.error(message, {
+      ...this.context,
+      level: 'ERROR',
+      error: errorDetails,
+      additionalData,
+      labels: {
+        function: this.context.functionName,
+        requestId: this.context.requestId,
+        userId: this.context.userId || 'anonymous',
+        errorType: error?.constructor?.name || 'UnknownError'
+      }
+    });
+
+    // Reportar error a Cloud Error Reporting si es un error real
+    if (error instanceof Error) {
+      errorReportingService.reportError(error, {
+        functionName: this.context.functionName,
+        userId: this.context.userId,
+        requestId: this.context.requestId,
+        severity: 'ERROR',
+        additionalContext: additionalData
+      }).catch(reportingError => {
+        logger.warn('⚠️ No se pudo reportar error a Cloud Error Reporting', reportingError);
+      });
+    }
+  }
+
+  /**
+   * Log de métricas de rendimiento
+   */
+  metric(metricName: string, value: number, unit: string = '', additionalData?: Record<string, any>) {
+    logger.info(`📊 Métrica: ${metricName}`, {
+      ...this.context,
+      level: 'METRIC',
+      metric: {
+        name: metricName,
+        value,
+        unit,
+        timestamp: new Date().toISOString()
+      },
+      additionalData,
+      labels: {
+        function: this.context.functionName,
+        requestId: this.context.requestId,
+        userId: this.context.userId || 'anonymous',
+        metricType: metricName
+      }
+    });
+  }
+
+  /**
+   * Log de finalización exitosa con métricas de tiempo
+   */
+  success(message: string, result?: any, startTime?: number) {
+    const duration = startTime ? Date.now() - startTime : undefined;
+    
+    this.info(`✅ ${message}`, {
+      result: this.sanitizeResult(result),
+      performance: duration ? {
+        duration: `${duration}ms`,
+        durationMs: duration
+      } : undefined
+    });
+
+    if (duration) {
+      this.metric(`${this.context.functionName}_duration`, duration, 'ms');
+      
+      // Reportar métricas de rendimiento a Cloud Monitoring
+      cloudMonitoring.reportFunctionPerformance(
+        this.context.functionName,
+        duration,
+        true,
+        this.context.requestId
+      ).catch(error => {
+        logger.warn('⚠️ No se pudo reportar métrica de rendimiento', error);
+      });
+
+      // Verificar umbrales de rendimiento
+      AlertUtils.checkPerformanceThresholds(
+        this.context.functionName,
+        duration,
+        this.context.requestId
+      ).catch(error => {
+        logger.warn('⚠️ No se pudo verificar umbrales de rendimiento', error);
+      });
+    }
+  }
+
+  /**
+   * Crear un logger hijo con contexto adicional
+   */
+  child(additionalContext: Record<string, any>): StructuredLogger {
+    const childLogger = Object.create(this);
+    childLogger.context = {
+      ...this.context,
+      metadata: {
+        ...this.context.metadata,
+        ...additionalContext
+      }
+    };
+    return childLogger;
+  }
+
+  /**
+   * Obtener el ID de la petición para incluir en respuestas
+   */
+  getRequestId(): string {
+    return this.context.requestId;
+  }
+
+  /**
+   * Obtener el nombre de la función
+   */
+  getFunctionName(): string {
+    return this.context.functionName;
+  }
+
+  /**
+   * Obtener el ID del usuario
+   */
+  getUserId(): string | undefined {
+    return this.context.userId;
+  }
+
+  /**
+   * Sanitizar resultado para evitar exponer información sensible
+   */
+  private sanitizeResult(result: any): any {
+    if (!result) return result;
+    
+    // Crear una copia del resultado
+    const sanitized = JSON.parse(JSON.stringify(result));
+    
+    // Eliminar campos sensibles
+    const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
+    const sanitizeObject = (obj: any) => {
+      if (typeof obj !== 'object' || obj === null) return;
+      
+      for (const key in obj) {
+        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+          obj[key] = '[REDACTED]';
+        } else if (typeof obj[key] === 'object') {
+          sanitizeObject(obj[key]);
+        }
+      }
+    };
+    
+    sanitizeObject(sanitized);
+    return sanitized;
+  }
+}
+
+/**
+ * Clase para manejo centralizado de errores
+ */
+class ErrorHandler {
+  private logger: StructuredLogger;
+
+  constructor(logger: StructuredLogger) {
+    this.logger = logger;
+  }
+
+  /**
+   * Crear HttpsError con logging estructurado
+   */
+  createError(
+    code: 'unauthenticated' | 'permission-denied' | 'invalid-argument' | 'not-found' | 'already-exists' | 'resource-exhausted' | 'failed-precondition' | 'aborted' | 'out-of-range' | 'unimplemented' | 'internal' | 'unavailable' | 'data-loss',
+    message: string,
+    originalError?: Error | any,
+    additionalData?: Record<string, any>
+  ): HttpsError {
+    
+    // Log del error con contexto completo
+    this.logger.error(`❌ Error ${code}: ${message}`, originalError, {
+      errorCode: code,
+      userMessage: message,
+      additionalData
+    });
+
+    // Crear mensaje de error user-friendly
+    const userFriendlyMessage = this.getUserFriendlyMessage(code, message);
+    
+    // Incluir requestId en los detalles del error para trazabilidad
+    const errorDetails = {
+      requestId: this.logger.getRequestId(),
+      timestamp: new Date().toISOString(),
+      ...additionalData
+    };
+
+    return new HttpsError(code, userFriendlyMessage, errorDetails);
+  }
+
+  /**
+   * Manejar errores inesperados
+   */
+  handleUnexpectedError(error: Error | any, context?: string): HttpsError {
+    const contextMessage = context ? ` en ${context}` : '';
+    
+    this.logger.error(`🚨 Error inesperado${contextMessage}`, error, {
+      context,
+      isUnexpectedError: true
+    });
+
+    // Reportar error crítico a Cloud Error Reporting
+    if (error instanceof Error) {
+      errorReportingService.reportCriticalError(error, {
+        functionName: this.logger.getFunctionName(),
+        userId: this.logger.getUserId(),
+        requestId: this.logger.getRequestId(),
+        impact: `Alto - Error inesperado${contextMessage}`,
+        additionalContext: { context, isUnexpectedError: true }
+      }).catch(reportingError => {
+        this.logger.warn('⚠️ No se pudo reportar error crítico', reportingError);
+      });
+    }
+
+    // No exponer detalles del error interno al usuario
+    return this.createError(
+      'internal', 
+      `Ocurrió un error interno${contextMessage}. Por favor, contacta al soporte técnico.`,
+      error,
+      { context }
+    );
+  }
+
+  /**
+   * Obtener mensaje user-friendly basado en el código de error
+   */
+  private getUserFriendlyMessage(code: string, originalMessage: string): string {
+    const friendlyMessages: Record<string, string> = {
+      'unauthenticated': 'Debes iniciar sesión para realizar esta acción.',
+      'permission-denied': 'No tienes permisos para realizar esta acción.',
+      'invalid-argument': 'Los datos proporcionados no son válidos.',
+      'not-found': 'El recurso solicitado no fue encontrado.',
+      'already-exists': 'El recurso ya existe.',
+      'resource-exhausted': 'Has alcanzado el límite de recursos permitidos.',
+      'failed-precondition': 'No se cumplen las condiciones necesarias para esta acción.',
+      'internal': 'Ocurrió un error interno. Por favor, inténtalo de nuevo más tarde.'
+    };
+
+    return friendlyMessages[code] || originalMessage;
+  }
+}
+
+/**
+ * Middleware para validaciones comunes
+ */
+class ValidationMiddleware {
+  private logger: StructuredLogger;
+  private errorHandler: ErrorHandler;
+
+  constructor(logger: StructuredLogger) {
+    this.logger = logger;
+    this.errorHandler = new ErrorHandler(logger);
+  }
+
+  /**
+   * Validar autenticación
+   */
+  validateAuth(request: any): void {
+    if (!request.auth) {
+      throw this.errorHandler.createError(
+        'unauthenticated',
+        'Debes estar autenticado para usar esta función'
+      );
+    }
+    
+    this.logger.info('🔐 Usuario autenticado', {
+      userId: request.auth.uid,
+      email: request.auth.token?.email
+    });
+  }
+
+  /**
+   * Validar datos requeridos
+   */
+  validateRequiredFields(data: any, requiredFields: string[]): void {
+    const missingFields = requiredFields.filter(field => 
+      data[field] === undefined || data[field] === null || data[field] === ''
+    );
+
+    if (missingFields.length > 0) {
+      throw this.errorHandler.createError(
+        'invalid-argument',
+        `Campos requeridos faltantes: ${missingFields.join(', ')}`,
+        undefined,
+        { missingFields, providedData: Object.keys(data) }
+      );
+    }
+
+    this.logger.info('✅ Validación de campos requeridos exitosa', {
+      requiredFields,
+      providedFields: Object.keys(data)
+    });
+  }
+
+  /**
+   * Validar email
+   */
+  validateEmail(email: string): void {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw this.errorHandler.createError(
+        'invalid-argument',
+        'El formato del email no es válido',
+        undefined,
+        { providedEmail: email }
+      );
+    }
+  }
+}
+
+// ========================================
+// FUNCIONES CLOUD MEJORADAS
+// ========================================
 
 /**
  * Función para eliminar completamente todos los datos de un usuario
@@ -25,48 +429,53 @@ export const deleteUserData = onCall(
     memory: "1GiB",
   },
   async (request) => {
+    const startTime = Date.now();
     const { userId, deletedBy } = request.data;
     
-    // Verificar que el usuario que llama la función es super admin
-    if (!request.auth) {
-      throw new HttpsError(
-        "unauthenticated",
-        "Debes estar autenticado para usar esta función"
-      );
-    }
-
-    logger.info("🗑️ Iniciando eliminación de usuario", {
-      userId,
-      deletedBy: deletedBy || request.auth.uid,
-      caller: request.auth.uid
+    // Inicializar logging estructurado
+    const structuredLogger = new StructuredLogger('deleteUserData', request.auth?.uid, {
+      targetUserId: userId,
+      deletedBy: deletedBy || request.auth?.uid
     });
-
-    const deletedItems = {
-      notebooks: 0,
-      concepts: 0,
-      studySessions: 0,
-      userActivities: 0,
-      reviewConcepts: 0,
-      conceptStats: 0,
-      learningData: 0,
-      quizStats: 0,
-      quizResults: 0,
-      limits: 0,
-      notebookLimits: 0,
-      stats: 0,
-      settings: 0,
-      userDocument: false,
-      authAccount: false
-    };
-
-    const errors: string[] = [];
-
+    
+    const validator = new ValidationMiddleware(structuredLogger);
+    const errorHandler = new ErrorHandler(structuredLogger);
+    
     try {
+      // Validaciones
+      validator.validateAuth(request);
+      validator.validateRequiredFields(request.data, ['userId']);
+      
+      structuredLogger.info("🗑️ Iniciando eliminación de usuario", {
+        targetUserId: userId,
+        deletedBy: deletedBy || request.auth.uid,
+        caller: request.auth.uid
+      });
+
+      const deletedItems = {
+        notebooks: 0,
+        concepts: 0,
+        studySessions: 0,
+        userActivities: 0,
+        reviewConcepts: 0,
+        conceptStats: 0,
+        learningData: 0,
+        quizStats: 0,
+        quizResults: 0,
+        limits: 0,
+        notebookLimits: 0,
+        stats: 0,
+        settings: 0,
+        userDocument: false,
+        authAccount: false
+      };
+
+      const errors: string[] = [];
       const db = admin.firestore();
       const auth = admin.auth();
 
       // 1. ELIMINAR NOTEBOOKS Y CONCEPTOS (operación optimizada)
-      logger.info("📚 Eliminando notebooks y conceptos...");
+      structuredLogger.info("📚 Eliminando notebooks y conceptos...");
       try {
         const notebooksQuery = db.collection("notebooks").where("userId", "==", userId);
         const notebooksSnapshot = await notebooksQuery.get();
@@ -88,10 +497,12 @@ export const deleteUserData = onCall(
         }
         
         await batch.commit();
-        logger.info(`✅ Eliminados ${deletedItems.notebooks} notebooks y ${deletedItems.concepts} conceptos`);
+        structuredLogger.info(`✅ Eliminados ${deletedItems.notebooks} notebooks y ${deletedItems.concepts} conceptos`);
+        structuredLogger.metric('notebooks_deleted', deletedItems.notebooks);
+        structuredLogger.metric('concepts_deleted', deletedItems.concepts);
       } catch (error) {
         const errorMsg = `Error eliminando notebooks: ${error}`;
-        logger.error(errorMsg);
+        structuredLogger.error(errorMsg, error);
         errors.push(errorMsg);
       }
 
@@ -271,31 +682,21 @@ export const deleteUserData = onCall(
                           deletedItems.notebookLimits + deletedItems.stats + 
                           deletedItems.settings;
 
-      logger.info("🎉 Eliminación de usuario completada", {
-        userId,
-        totalDeleted,
-        errors: errors.length
-      });
-
-      return {
+      const result = {
         success: true,
         message: `Usuario eliminado exitosamente. ${totalDeleted} elementos eliminados.`,
         deletedItems,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
+        requestId: structuredLogger.getRequestId()
       };
 
-    } catch (error: any) {
-      logger.error("❌ Error crítico durante eliminación de usuario", {
-        userId,
-        error: error.message,
-        stack: error.stack
-      });
+      structuredLogger.metric('total_items_deleted', totalDeleted);
+      structuredLogger.success("🎉 Eliminación de usuario completada", result, startTime);
 
-      throw new HttpsError(
-        "internal",
-        `Error eliminando usuario: ${error.message}`,
-        { userId, errors }
-      );
+      return result;
+
+    } catch (error: any) {
+      throw errorHandler.handleUnexpectedError(error, 'eliminación de usuario');
     }
   }
 );
