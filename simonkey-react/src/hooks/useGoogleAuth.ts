@@ -34,6 +34,51 @@ export const useGoogleAuth = () => {
       const existingUserCheck = await checkUserExistsByEmail(user.email || '');
       console.log('🔍 Resultado de verificación de usuario existente:', existingUserCheck);
       
+      if (!existingUserCheck.exists) {
+        // Usuario no existe, mostrar error y cerrar sesión
+        console.log('❌ El correo no está registrado, cerrando sesión y mostrando mensaje.');
+        await signOut(auth);
+        setError('Esta cuenta de Google no ha sido registrada. Por favor, regístrate primero.');
+        localStorage.removeItem('user');
+        setIsLoading(false);
+        window.location.replace('/signup');
+        return;
+      }
+      
+      // Si es login (isSignup = false), NO crear perfiles, solo verificar que existe
+      if (!isSignup) {
+        console.log('🔍 Modo LOGIN: Verificando que el usuario existe sin crear perfiles...');
+        
+        // Verificar que el usuario existe en Firestore
+        const existingProfile = await getUserProfile(existingUserCheck.userId || user.uid);
+        if (!existingProfile) {
+          console.log('❌ Usuario no tiene perfil en Firestore, cerrando sesión...');
+          await signOut(auth);
+          setError('Tu cuenta no tiene un perfil válido. Por favor, regístrate nuevamente.');
+          localStorage.removeItem('user');
+          setIsLoading(false);
+          window.location.replace('/signup');
+          return;
+        }
+        
+        console.log('✅ Usuario existe y tiene perfil válido, continuando con login...');
+        
+        // Guardar información básica del usuario
+        const userData = {
+          id: existingUserCheck.userId || user.uid,
+          email: user.email || '',
+          name: user.displayName || '',
+          isAuthenticated: true
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        console.log('✅ Login con Google completado exitosamente.');
+        return;
+      }
+      
+      // Si es registro (isSignup = true), continuar con la lógica existente
+      console.log('🔍 Modo REGISTRO: Continuando con lógica de registro...');
+      
       let userIdToUse = user.uid; // Por defecto usar el UID de Google Auth
       let shouldCreateProfile = true; // Por defecto crear perfil
       
