@@ -53,7 +53,7 @@ import AuthCleaner from './components/AuthCleaner';
 // Importar AuthUnlocker
 import AuthUnlocker from './components/AuthUnlocker';
 // Importar AuthDiagnostic
-import AuthDiagnostic from './components/AuthDiagnostic';
+// import AuthDiagnostic from './components/AuthDiagnostic';
 import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 
@@ -471,38 +471,21 @@ const AppContent: React.FC = () => {
           path="/super-admin"
           element={
             (() => {
-              console.log('🔍 App - Super Admin route accessed');
-              console.log('🔍 App - isAuthenticated:', isAuthenticated);
-              console.log('🔍 App - isEmailVerified:', isEmailVerified);
-              console.log('🔍 App - loading:', loading);
-              console.log('🔍 App - current user email:', auth.currentUser?.email);
-              console.log('🔍 App - current pathname:', window.location.pathname);
-              
-              if (isAuthenticated) {
-                console.log('🔍 App - User is authenticated, checking if super admin...');
-                // Verificar si realmente es super admin
-                const userEmail = auth.currentUser?.email;
-                const isSuperAdmin = userEmail === 'ruben.elhore@gmail.com';
-                console.log('🔍 App - User email:', userEmail);
-                console.log('🔍 App - Is super admin?', isSuperAdmin);
-                
+              const { isSuperAdmin, loading: userTypeLoading } = useUserType();
+              if (isAuthenticated && !userTypeLoading) {
                 if (isSuperAdmin) {
-                  console.log('🔍 App - Rendering SuperAdminPage for super admin');
                   return <SuperAdminPage />;
                 } else {
-                  console.log('🔍 App - User is not super admin, redirecting to appropriate page');
-                  // Redirigir a la página apropiada según el tipo de usuario
-                  if (userEmail?.includes('@school.simonkey.com') || userEmail?.includes('@up.edu.mx')) {
-                    console.log('🔍 App - Redirecting school user to /school/teacher');
+                  if (auth.currentUser?.email?.includes('@school.simonkey.com') || auth.currentUser?.email?.includes('@up.edu.mx')) {
                     return <Navigate to="/school/teacher" replace />;
                   } else {
-                    console.log('🔍 App - Redirecting regular user to /notebooks');
                     return <Navigate to="/notebooks" replace />;
                   }
                 }
-              } else {
-                console.log('🔍 App - User not authenticated, redirecting to login');
+              } else if (!isAuthenticated) {
                 return <Navigate to="/login" replace />;
+              } else {
+                return null; // o un loader si prefieres
               }
             })()
           }
@@ -535,7 +518,7 @@ const AppContent: React.FC = () => {
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
-      <AuthDiagnostic />
+      {/* <AuthDiagnostic /> */}
     </UserContext.Provider>
   );
 };

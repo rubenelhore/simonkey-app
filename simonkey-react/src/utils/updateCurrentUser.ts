@@ -15,8 +15,8 @@ export const updateCurrentUserAsSuperAdmin = async () => {
       return false;
     }
 
-    if (currentUser.email !== 'ruben.elhore@gmail.com') {
-      console.error('Solo ruben.elhore@gmail.com puede ser super admin');
+    if (currentUser.email !== 'ruben.elhore@gmail.com' && currentUser.email !== 'santiagoarceofel@gmail.com') {
+      console.error('Solo ruben.elhore@gmail.com o santiagoarceofel@gmail.com pueden ser super admin');
       return false;
     }
 
