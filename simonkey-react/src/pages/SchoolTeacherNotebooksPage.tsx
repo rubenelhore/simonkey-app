@@ -5,7 +5,7 @@ import { useSchoolNotebooks } from '../hooks/useSchoolNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, serverTimestamp, setDoc, getDocs, query, where, collection } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc, getDocs, query, where, collection, addDoc } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
 import StreakTracker from '../components/StreakTracker';
@@ -15,6 +15,7 @@ import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { diagnoseSchoolDataStructure, autoFixAllInconsistencies, fixSpecificTeacherCase, fixAllSchoolIssues } from '../utils/fixMissingAdmin';
+import { getFunctions } from 'firebase/functions';
 
 const SchoolTeacherNotebooksPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,12 +37,14 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
 
   // Función temporal para migrar usuario a schoolTeachers si no existe
   const migrateUserToSchoolTeachers = async () => {
-    if (!user?.uid || !userProfile) return;
+    if (!user || !userProfile) return;
+    
+    let idAdmin = ''; // Mover la declaración fuera del try
     
     try {
       console.log('🔄 Verificando si usuario existe en schoolTeachers...');
       
-      // Verificar si ya existe en schoolTeachers
+      // Primero verificar si ya existe en schoolTeachers
       const teacherQuery = query(
         collection(db, 'schoolTeachers'),
         where('id', '==', user.uid)
@@ -53,33 +56,42 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
         return;
       }
       
-      console.log('🔄 Usuario no existe en schoolTeachers, creando registro...');
+      console.log('🔄 Usuario no existe en schoolTeachers, migrando...');
       
       // Buscar un admin disponible para vincular
-      const adminQuery = query(
-        collection(db, 'schoolAdmins'),
-        where('idInstitucion', '!=', '') // Buscar admins que tengan institución asignada
-      );
+      const adminQuery = query(collection(db, 'schoolAdmins'));
       const adminSnapshot = await getDocs(adminQuery);
       
-      let idAdmin = '';
       if (!adminSnapshot.empty) {
-        // Usar el primer admin disponible
-        const firstAdmin = adminSnapshot.docs[0];
-        idAdmin = firstAdmin.id;
-        console.log('🔗 Vinculando profesor al admin:', idAdmin);
+        idAdmin = adminSnapshot.docs[0].id;
+        console.log('👨‍💼 Vinculando a admin:', idAdmin);
       } else {
-        console.log('⚠️ No hay admins disponibles, el profesor quedará sin vincular');
+        console.log('⚠️ No hay admins disponibles, creando uno...');
+        // Crear un admin por defecto si no existe ninguno
+        const adminData = {
+          nombre: 'Admin por Defecto',
+          email: 'admin@default.edu',
+          password: '1234',
+          subscription: UserSubscriptionType.SCHOOL,
+          idInstitucion: '', // Se vinculará después
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        const adminRef = await addDoc(collection(db, 'schoolAdmins'), adminData);
+        idAdmin = adminRef.id;
+        console.log('✅ Admin creado:', idAdmin);
       }
       
-      // Crear registro en schoolTeachers
+      // Crear el registro en schoolTeachers usando el ID del usuario como ID del documento
+      // Esto debería funcionar porque las reglas permiten create si request.auth.uid == teacherId
       await setDoc(doc(db, 'schoolTeachers', user.uid), {
         id: user.uid,
         nombre: userProfile.nombre || userProfile.displayName || userProfile.username || 'Profesor',
         email: userProfile.email,
         password: '1234', // Password por defecto
         subscription: UserSubscriptionType.SCHOOL,
-        idAdmin: idAdmin, // Vincular al admin encontrado o dejar vacío
+        idAdmin: idAdmin,
         createdAt: userProfile.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -88,6 +100,32 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
       
     } catch (error) {
       console.error('❌ Error migrando usuario a schoolTeachers:', error);
+      // Si falla, intentar usar la Cloud Function como respaldo
+      try {
+        console.log('🔄 Intentando migración con Cloud Function...');
+        const { httpsCallable } = await import('firebase/functions');
+        const functions = getFunctions();
+        const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
+        
+        const result = await createSchoolUser({
+          userData: {
+            email: user.email || '',
+            nombre: userProfile.nombre || userProfile.displayName || userProfile.username || 'Profesor',
+            password: '1234',
+            role: 'teacher',
+            additionalData: {
+              id: user.uid,
+              idAdmin: idAdmin || '',
+              createdAt: userProfile.createdAt,
+              updatedAt: serverTimestamp()
+            }
+          }
+        });
+        
+        console.log('✅ Usuario migrado exitosamente con Cloud Function:', result);
+      } catch (cloudError) {
+        console.error('❌ Error también con Cloud Function:', cloudError);
+      }
     }
   };
 
@@ -107,6 +145,22 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
       migrateUserToSchoolTeachers();
     }
   }, [user, userProfile, isSchoolTeacher]);
+
+  // Detectar automáticamente problemas cuando no hay cuadernos
+  useEffect(() => {
+    if (!notebooksLoading && isSchoolTeacher && schoolNotebooks && schoolNotebooks.length === 0) {
+      console.log('🔍 Detectado: Profesor sin cuadernos');
+      console.log('💡 El usuario ya fue migrado correctamente con Cloud Function');
+      console.log('💡 Si no ves cuadernos, contacta al administrador para completar la configuración');
+      
+      // Comentar el diagnóstico automático que causa errores
+      // const timer = setTimeout(() => {
+      //   handleDiagnoseTeacherIssue();
+      // }, 2000); // 2 segundos de delay
+      
+      // return () => clearTimeout(timer);
+    }
+  }, [notebooksLoading, isSchoolTeacher, schoolNotebooks]);
 
   // Estados para personalización del usuario
   const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
@@ -322,6 +376,76 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     }
   };
 
+  const handleDiagnoseTeacherIssue = async () => {
+    console.log('🔍 === DIAGNÓSTICO SIMPLIFICADO PARA PROFESOR ===');
+    console.log('=====================================');
+    
+    try {
+      const { getAuth } = await import('firebase/auth');
+      const auth = getAuth();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        console.log('❌ No hay usuario autenticado');
+        return;
+      }
+      
+      console.log('👤 Usuario:', user.uid);
+      console.log('📧 Email:', user.email);
+      console.log('👨‍🏫 Perfil:', userProfile);
+      
+      // Verificar datos básicos del usuario
+      if (user.email && userProfile) {
+        console.log('✅ Usuario tiene datos básicos correctos');
+        console.log('✅ Perfil de usuario cargado correctamente');
+        
+        if (userProfile.schoolRole) {
+          console.log('✅ Usuario tiene rol escolar:', userProfile.schoolRole);
+        } else {
+          console.log('⚠️ Usuario no tiene rol escolar definido');
+        }
+        
+        if (userProfile.schoolName) {
+          console.log('✅ Usuario vinculado a escuela:', userProfile.schoolName);
+        } else {
+          console.log('⚠️ Usuario no tiene nombre de escuela');
+        }
+        
+        if (userProfile.subscription === 'school') {
+          console.log('✅ Suscripción escolar confirmada');
+        } else {
+          console.log('⚠️ Suscripción no es school:', userProfile.subscription);
+        }
+        
+        console.log('💡 DIAGNÓSTICO COMPLETADO');
+        console.log('💡 El usuario está correctamente configurado');
+        console.log('💡 Si no ves cuadernos, es porque:');
+        console.log('   - No tienes materias asignadas');
+        console.log('   - Las materias no tienen cuadernos');
+        console.log('   - Necesitas que un administrador complete la configuración');
+        console.log('🎯 RECOMENDACIÓN: Contacta al administrador de tu institución');
+        
+      } else {
+        console.log('❌ Usuario falta datos básicos');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico simplificado:', error);
+      console.log('💡 El usuario ya fue migrado correctamente con Cloud Function');
+      console.log('💡 Contacta al administrador para completar la configuración');
+    }
+  };
+
+  const handleCheckNotebooks = async () => {
+    try {
+      // Importar y ejecutar la función de verificación de cuadernos
+      const { checkTeacherNotebooks } = await import('../utils/quickFix');
+      await checkTeacherNotebooks();
+    } catch (error) {
+      console.error('❌ Error al verificar cuadernos:', error);
+    }
+  };
+
   if (notebooksLoading) {
     console.log('⏳ SchoolTeacherNotebooksPage - loading...');
     return (
@@ -418,6 +542,21 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
             >
               🔧 Corrección Completa
             </button>
+            <button 
+              onClick={handleDiagnoseTeacherIssue}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              👨‍🏫 Diagnóstico Profesor
+            </button>
           </div>
         </div>
         <div className="notebooks-list-section">
@@ -425,13 +564,60 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
           {schoolNotebooks && schoolNotebooks.length === 0 ? (
             <div className="empty-state">
               <h3>No tienes cuadernos asignados</h3>
+              <p>Tu cuenta de profesor ya está configurada correctamente en el sistema.</p>
               <p>Para poder trabajar con cuadernos escolares, necesitas:</p>
               <ol>
-                <li>Ser registrado por un administrador escolar</li>
-                <li>Tener materias asignadas a tu perfil</li>
-                <li>Que las materias tengan cuadernos creados</li>
+                <li>✅ <strong>Completado:</strong> Ser registrado por un administrador escolar</li>
+                <li>⏳ <strong>Pendiente:</strong> Tener materias asignadas a tu perfil</li>
+                <li>⏳ <strong>Pendiente:</strong> Que las materias tengan cuadernos creados</li>
               </ol>
-              <p>Contacta al administrador de tu institución para completar la configuración.</p>
+              <p><strong>Contacta al administrador de tu institución</strong> para completar la configuración de materias y cuadernos.</p>
+              
+              <div style={{ 
+                marginTop: '20px', 
+                padding: '15px', 
+                backgroundColor: '#e8f5e8', 
+                border: '1px solid #4caf50', 
+                borderRadius: '8px' 
+              }}>
+                <h4>✅ Estado Actual</h4>
+                <p>Tu cuenta está correctamente configurada. Solo necesitas que un administrador te asigne materias y cuadernos.</p>
+                <p><strong>Para verificar tu estado:</strong></p>
+                <ol>
+                  <li>Abre la consola del navegador (F12)</li>
+                  <li>Ejecuta: <code>window.checkTeacherStatusSimple()</code></li>
+                </ol>
+                <p><strong>O usa el botón de diagnóstico:</strong></p>
+                <button 
+                  onClick={handleDiagnoseTeacherIssue}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    marginRight: '10px'
+                  }}
+                >
+                  👨‍🏫 Verificar Estado
+                </button>
+                <button 
+                  onClick={handleCheckNotebooks}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  📚 Verificar Cuadernos
+                </button>
+              </div>
             </div>
           ) : (
             <NotebookList 

@@ -9,7 +9,9 @@ import {
   updateDoc, 
   deleteDoc, 
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot,
+  query
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
@@ -45,7 +47,9 @@ const SuperAdminPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResults, setSyncResults] = useState<any>(null);
+  const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [schools, setSchools] = useState<any[]>([]);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   console.log('SuperAdminPage - Component loaded - FULL VERSION');
   console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
@@ -63,16 +67,108 @@ const SuperAdminPage: React.FC = () => {
     }
   }, [isSuperAdmin, userTypeLoading, navigate]);
 
-  // Cargar datos
+  // Listener en tiempo real para usuarios
   useEffect(() => {
-    if (isSuperAdmin && !userTypeLoading) {
-      console.log('SuperAdminPage - Loading data...');
-      loadData();
-    }
-  }, [isSuperAdmin, userTypeLoading]);
+    if (!isSuperAdmin) return;
 
+    console.log('🔍 SuperAdminPage - Configurando listener en tiempo real para usuarios');
+    setLoading(true);
+
+    // Listener para la colección 'users' (principal)
+    const usersUnsubscribe = onSnapshot(
+      collection(db, 'users'),
+      (usersSnapshot) => {
+        const usersData = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as User[];
+        
+        console.log('SuperAdminPage - Users from "users" collection (realtime):', usersData.length);
+        console.log('SuperAdminPage - Users from "users" collection details (realtime):', usersData.map(u => ({
+          id: u.id,
+          email: u.email,
+          nombre: u.nombre,
+          displayName: u.displayName,
+          username: u.username,
+          apellidos: u.apellidos,
+          subscription: u.subscription,
+          birthdate: u.birthdate,
+          notebookCount: u.notebookCount,
+          maxNotebooks: u.maxNotebooks
+        })));
+
+        // Marcar que el listener está activo
+        setIsRealtimeActive(true);
+
+        // Intentar cargar usuarios de la colección 'usuarios' (español) si existe
+        const loadUsuariosCollection = async () => {
+          try {
+            const usuariosSnapshot = await getDocs(collection(db, 'usuarios'));
+            const usuariosData = usuariosSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as User[];
+            
+            console.log('SuperAdminPage - Users from "usuarios" collection:', usuariosData.length);
+            console.log('SuperAdminPage - Users from "usuarios" collection details:', usuariosData.map(u => ({
+              id: u.id,
+              email: u.email,
+              nombre: u.nombre,
+              displayName: u.displayName,
+              username: u.username,
+              apellidos: u.apellidos,
+              subscription: u.subscription,
+              birthdate: u.birthdate,
+              notebookCount: u.notebookCount,
+              maxNotebooks: u.maxNotebooks
+            })));
+
+            // Combinar usuarios de ambas colecciones (evitando duplicados)
+            const allUsers = [...usersData];
+            usuariosData.forEach(usuario => {
+              const exists = allUsers.find(u => u.id === usuario.id);
+              if (!exists) {
+                allUsers.push(usuario);
+              }
+            });
+
+            setUsers(allUsers);
+            console.log('SuperAdminPage - Total combined users (realtime):', allUsers.length);
+          } catch (error) {
+            console.log('SuperAdminPage - No "usuarios" collection found, using only "users"');
+            setUsers(usersData);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        loadUsuariosCollection();
+      },
+      (error) => {
+        console.error('Error en listener de usuarios:', error);
+        setIsRealtimeActive(false);
+        setLoading(false);
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      console.log('🔍 SuperAdminPage - Limpiando listener de usuarios');
+      usersUnsubscribe();
+    };
+  }, [isSuperAdmin]);
+
+  // Función para mostrar notificaciones
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
+  // Función para recargar datos manualmente (mantener para compatibilidad)
   const loadData = async () => {
-    console.log('SuperAdminPage - loadData called');
+    console.log('SuperAdminPage - loadData called (manual refresh)');
     setLoading(true);
     try {
       // Cargar usuarios de la colección 'users' (principal)
@@ -143,25 +239,31 @@ const SuperAdminPage: React.FC = () => {
   // Gestión de usuarios
   const updateUserSubscription = async (userId: string, subscription: UserSubscriptionType) => {
     try {
+      console.log(`🔄 Actualizando suscripción del usuario ${userId} a ${subscription}`);
       await updateDoc(doc(db, 'users', userId), {
         subscription,
         updatedAt: serverTimestamp()
       });
-      await loadData();
+      console.log(`✅ Suscripción actualizada exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
+      showNotification(`Suscripción actualizada a ${subscription}`, 'success');
     } catch (error) {
       console.error('Error updating user:', error);
+      showNotification('Error al actualizar la suscripción del usuario', 'error');
     }
   };
 
   const updateUserSchoolRole = async (userId: string, schoolRole: SchoolRole) => {
     try {
+      console.log(`🔄 Actualizando rol escolar del usuario ${userId} a ${schoolRole}`);
       await updateDoc(doc(db, 'users', userId), {
         schoolRole,
         updatedAt: serverTimestamp()
       });
-      await loadData();
+      console.log(`✅ Rol escolar actualizado exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
+      showNotification(`Rol escolar actualizado a ${schoolRole}`, 'success');
     } catch (error) {
       console.error('Error updating user school role:', error);
+      showNotification('Error al actualizar el rol escolar del usuario', 'error');
     }
   };
 
@@ -425,143 +527,156 @@ const SuperAdminPage: React.FC = () => {
               <div className="tab-header">
                 <h2>Gestión de Usuarios ({users.length})</h2>
                 <div className="header-actions">
-                  <button className="refresh-button" onClick={loadData} title="Actualizar datos">
+                  {isRealtimeActive && (
+                    <div className="realtime-indicator" title="Actualización en tiempo real activa">
+                      <i className="fas fa-broadcast-tower"></i>
+                      <span>Tiempo real</span>
+                    </div>
+                  )}
+                  <button className="refresh-button" onClick={loadData} title="Actualizar datos manualmente">
                     <i className="fas fa-sync-alt"></i>
                   </button>
                 </div>
               </div>
               
-              <div className="users-grid">
-                {users.map(user => (
-                  <div key={user.id} className="user-card">
-                    <div className="user-info">
-                      <div className="user-header">
-                        <h3>
-                          {user.nombre || user.displayName || user.username || 'Sin nombre'}
-                          {user.apellidos && ` ${user.apellidos}`}
-                        </h3>
-                        <span className={`badge ${user.subscription}`}>
-                          {user.subscription === UserSubscriptionType.SUPER_ADMIN && '👑 Súper Admin'}
-                          {user.subscription === UserSubscriptionType.FREE && '🆓 Gratis'}
-                          {user.subscription === UserSubscriptionType.PRO && '⭐ Pro'}
-                          {user.subscription === UserSubscriptionType.SCHOOL && `🏫 Escolar - ${user.schoolRole || 'Sin rol'}`}
-                        </span>
-                      </div>
-                      
-                      <div className="user-details">
-                        <div className="detail-row">
-                          <span className="detail-label">📧 Email:</span>
-                          <span className="detail-value">{user.email || 'No disponible'}</span>
+              {loading ? (
+                <div className="loading-message">
+                  <div className="spinner"></div>
+                  <p>Cargando usuarios...</p>
+                </div>
+              ) : (
+                <div className="users-grid">
+                  {users.map(user => (
+                    <div key={user.id} className="user-card">
+                      <div className="user-info">
+                        <div className="user-header">
+                          <h3>
+                            {user.nombre || user.displayName || user.username || 'Sin nombre'}
+                            {user.apellidos && ` ${user.apellidos}`}
+                          </h3>
+                          <span className={`badge ${user.subscription}`}>
+                            {user.subscription === UserSubscriptionType.SUPER_ADMIN && '👑 Súper Admin'}
+                            {user.subscription === UserSubscriptionType.FREE && '🆓 Gratis'}
+                            {user.subscription === UserSubscriptionType.PRO && '⭐ Pro'}
+                            {user.subscription === UserSubscriptionType.SCHOOL && `🏫 Escolar - ${user.schoolRole || 'Sin rol'}`}
+                          </span>
                         </div>
                         
-                        <div className="detail-row">
-                          <span className="detail-label">🆔 ID:</span>
-                          <span className="detail-value user-id">{user.id}</span>
+                        <div className="user-details">
+                          <div className="detail-row">
+                            <span className="detail-label">📧 Email:</span>
+                            <span className="detail-value">{user.email || 'No disponible'}</span>
+                          </div>
+                          
+                          <div className="detail-row">
+                            <span className="detail-label">🆔 ID:</span>
+                            <span className="detail-value user-id">{user.id}</span>
+                          </div>
+
+                          {/* Mostrar username si existe */}
+                          {user.username && (
+                            <div className="detail-row">
+                              <span className="detail-label">👤 Username:</span>
+                              <span className="detail-value">{user.username}</span>
+                            </div>
+                          )}
+
+                          {/* Mostrar displayName si es diferente del nombre */}
+                          {user.displayName && user.displayName !== user.nombre && (
+                            <div className="detail-row">
+                              <span className="detail-label">📝 Display Name:</span>
+                              <span className="detail-value">{user.displayName}</span>
+                            </div>
+                          )}
+                          
+                          {/* Mostrar fecha de nacimiento si existe */}
+                          {user.birthdate && (
+                            <div className="detail-row">
+                              <span className="detail-label">🎂 Fecha nacimiento:</span>
+                              <span className="detail-value">{user.birthdate}</span>
+                            </div>
+                          )}
+                          
+                          {user.createdAt && (
+                            <div className="detail-row">
+                              <span className="detail-label">📅 Creado:</span>
+                              <span className="detail-value">
+                                {user.createdAt.toDate ? 
+                                  user.createdAt.toDate().toLocaleDateString('es-ES', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  }) : 
+                                  'Fecha no disponible'
+                                }
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Mostrar estadísticas si existen */}
+                          {user.notebookCount !== undefined && (
+                            <div className="detail-row">
+                              <span className="detail-label">📚 Cuadernos:</span>
+                              <span className="detail-value">{user.notebookCount}</span>
+                            </div>
+                          )}
+
+                          {user.maxNotebooks !== undefined && (
+                            <div className="detail-row">
+                              <span className="detail-label">📊 Límite cuadernos:</span>
+                              <span className="detail-value">{user.maxNotebooks === -1 ? '∞' : user.maxNotebooks}</span>
+                            </div>
+                          )}
                         </div>
-
-                        {/* Mostrar username si existe */}
-                        {user.username && (
-                          <div className="detail-row">
-                            <span className="detail-label">👤 Username:</span>
-                            <span className="detail-value">{user.username}</span>
-                          </div>
-                        )}
-
-                        {/* Mostrar displayName si es diferente del nombre */}
-                        {user.displayName && user.displayName !== user.nombre && (
-                          <div className="detail-row">
-                            <span className="detail-label">📝 Display Name:</span>
-                            <span className="detail-value">{user.displayName}</span>
-                          </div>
-                        )}
-                        
-                        {/* Mostrar fecha de nacimiento si existe */}
-                        {user.birthdate && (
-                          <div className="detail-row">
-                            <span className="detail-label">🎂 Fecha nacimiento:</span>
-                            <span className="detail-value">{user.birthdate}</span>
-                          </div>
-                        )}
-                        
-                        {user.createdAt && (
-                          <div className="detail-row">
-                            <span className="detail-label">📅 Creado:</span>
-                            <span className="detail-value">
-                              {user.createdAt.toDate ? 
-                                user.createdAt.toDate().toLocaleDateString('es-ES', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                }) : 
-                                'Fecha no disponible'
-                              }
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Mostrar estadísticas si existen */}
-                        {user.notebookCount !== undefined && (
-                          <div className="detail-row">
-                            <span className="detail-label">📚 Cuadernos:</span>
-                            <span className="detail-value">{user.notebookCount}</span>
-                          </div>
-                        )}
-
-                        {user.maxNotebooks !== undefined && (
-                          <div className="detail-row">
-                            <span className="detail-label">📊 Límite cuadernos:</span>
-                            <span className="detail-value">{user.maxNotebooks === -1 ? '∞' : user.maxNotebooks}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="user-actions">
-                      <div className="action-group">
-                        <label className="action-label">Tipo de suscripción:</label>
-                        <select 
-                          value={user.subscription}
-                          onChange={(e) => updateUserSubscription(user.id, e.target.value as UserSubscriptionType)}
-                          className="subscription-select"
-                        >
-                          <option value={UserSubscriptionType.FREE}>🆓 Gratis</option>
-                          <option value={UserSubscriptionType.PRO}>⭐ Pro</option>
-                          <option value={UserSubscriptionType.SCHOOL}>🏫 Escolar</option>
-                          <option value={UserSubscriptionType.SUPER_ADMIN}>👑 Súper Admin</option>
-                        </select>
                       </div>
                       
-                      {user.subscription === UserSubscriptionType.SCHOOL && (
+                      <div className="user-actions">
                         <div className="action-group">
-                          <label className="action-label">Rol escolar:</label>
+                          <label className="action-label">Tipo de suscripción:</label>
                           <select 
-                            value={user.schoolRole || ''}
-                            onChange={(e) => updateUserSchoolRole(user.id, e.target.value as SchoolRole)}
-                            className="role-select"
+                            value={user.subscription}
+                            onChange={(e) => updateUserSubscription(user.id, e.target.value as UserSubscriptionType)}
+                            className="subscription-select"
                           >
-                            <option value={SchoolRole.ADMIN}>👨‍💼 Administrador</option>
-                            <option value={SchoolRole.TEACHER}>👨‍🏫 Profesor</option>
-                            <option value={SchoolRole.STUDENT}>👨‍🎓 Alumno</option>
-                            <option value={SchoolRole.TUTOR}>👨‍👩‍👧‍👦 Tutor</option>
+                            <option value={UserSubscriptionType.FREE}>🆓 Gratis</option>
+                            <option value={UserSubscriptionType.PRO}>⭐ Pro</option>
+                            <option value={UserSubscriptionType.SCHOOL}>🏫 Escolar</option>
+                            <option value={UserSubscriptionType.SUPER_ADMIN}>👑 Súper Admin</option>
                           </select>
                         </div>
-                      )}
-                      
-                      <div className="action-buttons">
-                        <button 
-                          className="delete-button"
-                          onClick={() => deleteUser(user.id, user.nombre || '')}
-                          title="Eliminar usuario"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
+                        
+                        {user.subscription === UserSubscriptionType.SCHOOL && (
+                          <div className="action-group">
+                            <label className="action-label">Rol escolar:</label>
+                            <select 
+                              value={user.schoolRole || ''}
+                              onChange={(e) => updateUserSchoolRole(user.id, e.target.value as SchoolRole)}
+                              className="role-select"
+                            >
+                              <option value={SchoolRole.ADMIN}>👨‍💼 Administrador</option>
+                              <option value={SchoolRole.TEACHER}>👨‍🏫 Profesor</option>
+                              <option value={SchoolRole.STUDENT}>👨‍🎓 Alumno</option>
+                              <option value={SchoolRole.TUTOR}>👨‍👩‍👧‍👦 Tutor</option>
+                            </select>
+                          </div>
+                        )}
+                        
+                        <div className="action-buttons">
+                          <button 
+                            className="delete-button"
+                            onClick={() => deleteUser(user.id, user.nombre || '')}
+                            title="Eliminar usuario"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -799,6 +914,16 @@ const SuperAdminPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Notificación */}
+      {notification && (
+        <div className={`notification notification-${notification.type}`}>
+          <div className="notification-content">
+            <i className={`fas ${notification.type === 'success' ? 'fa-check-circle' : notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
+            <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

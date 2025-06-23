@@ -138,6 +138,110 @@ const SchoolStudentDiagnostic: React.FC = () => {
     }
   };
 
+  const runSchoolStudentLinkingFix = async () => {
+    setIsRunning(true);
+    setDiagnosticResult('');
+    
+    try {
+      const originalLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalLog.apply(console, args);
+      };
+      
+      const { fixSchoolStudentLinking } = await import('../utils/fixCurrentSchoolStudent');
+      const result = await fixSchoolStudentLinking(email || user?.email || '');
+      
+      console.log = originalLog;
+      setDiagnosticResult(logs.join('\n') + '\n\n' + `Resultado: ${result.success ? '✅' : '❌'} ${result.message}`);
+      
+    } catch (error) {
+      setDiagnosticResult(`Error ejecutando arreglo de vinculación: ${error}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runDiagnoseSchoolStudentLinking = async () => {
+    setIsRunning(true);
+    setDiagnosticResult('');
+    
+    try {
+      const originalLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalLog.apply(console, args);
+      };
+      
+      const { diagnoseSchoolStudentLinking } = await import('../utils/fixCurrentSchoolStudent');
+      const result = await diagnoseSchoolStudentLinking(email || user?.email || '');
+      
+      console.log = originalLog;
+      setDiagnosticResult(logs.join('\n') + '\n\n' + `Resultado: ${result.success ? '✅' : '❌'} ${result.message}`);
+      
+    } catch (error) {
+      setDiagnosticResult(`Error ejecutando diagnóstico: ${error}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runForceLoadSchoolStudentProfile = async () => {
+    setIsRunning(true);
+    setDiagnosticResult('');
+    
+    try {
+      const originalLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalLog.apply(console, args);
+      };
+      
+      const { forceLoadSchoolStudentProfile } = await import('../utils/fixCurrentSchoolStudent');
+      const result = await forceLoadSchoolStudentProfile(email || user?.email || '');
+      
+      console.log = originalLog;
+      setDiagnosticResult(logs.join('\n') + '\n\n' + `Resultado: ${result.success ? '✅' : '❌'} ${result.message}`);
+      
+    } catch (error) {
+      setDiagnosticResult(`Error forzando carga de perfil: ${error}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runSwitchToSchoolStudentProfile = async () => {
+    setIsRunning(true);
+    setDiagnosticResult('');
+    
+    try {
+      const originalLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalLog.apply(console, args);
+      };
+      
+      const { switchToSchoolStudentProfile } = await import('../utils/fixCurrentSchoolStudent');
+      const result = await switchToSchoolStudentProfile(email || user?.email || '');
+      
+      console.log = originalLog;
+      setDiagnosticResult(logs.join('\n') + '\n\n' + `Resultado: ${result.success ? '✅' : '❌'} ${result.message}`);
+      
+    } catch (error) {
+      setDiagnosticResult(`Error cambiando al perfil del estudiante: ${error}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="diagnostic-container" style={{
       padding: '20px',
@@ -260,6 +364,70 @@ const SchoolStudentDiagnostic: React.FC = () => {
         >
           🗑️ Eliminar Duplicado
         </button>
+        
+        <button
+          onClick={runSchoolStudentLinkingFix}
+          disabled={isRunning}
+          style={{
+            backgroundColor: '#6f42c1',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            marginLeft: '10px',
+            cursor: isRunning ? 'not-allowed' : 'pointer'
+          }}
+        >
+          🔗 Arreglar Vinculación Escolar
+        </button>
+        
+        <button
+          onClick={runDiagnoseSchoolStudentLinking}
+          disabled={isRunning}
+          style={{
+            backgroundColor: '#fd7e14',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            marginLeft: '10px',
+            cursor: isRunning ? 'not-allowed' : 'pointer'
+          }}
+        >
+          🔍 Diagnosticar Vinculación
+        </button>
+        
+        <button
+          onClick={runForceLoadSchoolStudentProfile}
+          disabled={isRunning}
+          style={{
+            backgroundColor: '#20c997',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            marginLeft: '10px',
+            cursor: isRunning ? 'not-allowed' : 'pointer'
+          }}
+        >
+          🔧 Forzar Carga de Perfil
+        </button>
+        
+        <button
+          onClick={runSwitchToSchoolStudentProfile}
+          disabled={isRunning}
+          style={{
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            marginLeft: '10px',
+            cursor: isRunning ? 'not-allowed' : 'pointer'
+          }}
+        >
+          🔄 Cambiar a Perfil Estudiante
+        </button>
       </div>
       
       {isRunning && (
@@ -300,7 +468,20 @@ const SchoolStudentDiagnostic: React.FC = () => {
           <li><strong>Arreglar General:</strong> Crea o actualiza el perfil del estudiante en la colección users</li>
           <li><strong>Arreglar Vinculación:</strong> Resuelve conflictos entre usuarios duplicados y vincula correctamente con Google Auth</li>
           <li><strong>Arreglar Actual:</strong> Arregla específicamente el problema del usuario autenticado actual (para rubenelhore23@gmail.com)</li>
+          <li><strong>Arreglar Vinculación Escolar:</strong> Vincula específicamente un estudiante escolar con su cuenta de Google Auth</li>
+          <li><strong>Diagnosticar Vinculación:</strong> Analiza el estado actual de vinculación y identifica problemas específicos</li>
+          <li><strong>Forzar Carga de Perfil:</strong> <strong>NUEVO</strong> - Fuerza la carga del perfil correcto del estudiante escolar</li>
+          <li><strong>Cambiar a Perfil Estudiante:</strong> <strong>NUEVO</strong> - Cambia desde cualquier cuenta al perfil del estudiante escolar</li>
         </ul>
+        
+        <h4>Para el problema actual:</h4>
+        <ol>
+          <li>Ingresa el email del estudiante que creaste (ej: rubenelhore23@gmail.com)</li>
+          <li>Haz clic en <strong>"🔍 Diagnosticar Vinculación"</strong> para ver qué está pasando</li>
+          <li>Si el diagnóstico muestra que todo está bien pero sigue creando cuenta FREE, usa <strong>"🔄 Cambiar a Perfil Estudiante"</strong></li>
+          <li>Si hay problemas de vinculación, usa <strong>"🔧 Forzar Carga de Perfil"</strong></li>
+          <li>Recarga la página después del arreglo</li>
+        </ol>
       </div>
     </div>
   );

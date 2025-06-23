@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
 import { getUserProfile } from '../services/userService';
 import { UserProfile } from '../types/interfaces';
@@ -155,13 +155,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log(`🔍 loadUserProfile - Iniciando carga para: ${user.email} (${user.uid})`);
       
-      // Primero intentar obtener el perfil con el UID de Google Auth
-      let profile = await getUserProfile(user.uid);
-      console.log(`🔍 loadUserProfile - Perfil obtenido con UID de Google Auth:`, profile);
+      // PRIMERO: Verificar si existe un usuario escolar vinculado con este UID de Google Auth
+      console.log('🔍 Verificando si existe usuario escolar vinculado...');
+      let linkedSchoolUserId = null;
+      
+      try {
+        // Buscar en users por googleAuthUid
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        const linkedUsersQuery = query(collection(db, 'users'), where('googleAuthUid', '==', user.uid));
+        const linkedUsersSnapshot = await getDocs(linkedUsersQuery);
+        
+        if (!linkedUsersSnapshot.empty) {
+          const linkedUserDoc = linkedUsersSnapshot.docs[0];
+          const linkedUserData = linkedUserDoc.data();
+          
+          if (linkedUserData.subscription === 'SCHOOL') {
+            linkedSchoolUserId = linkedUserDoc.id;
+            console.log('✅ Usuario escolar vinculado encontrado:', {
+              schoolUserId: linkedSchoolUserId,
+              email: linkedUserData.email,
+              subscription: linkedUserData.subscription,
+              schoolRole: linkedUserData.schoolRole
+            });
+          }
+        }
+      } catch (linkError) {
+        console.log('⚠️ Error verificando usuario vinculado:', linkError);
+      }
+      
+      // Si encontramos un usuario escolar vinculado, usar ese ID
+      const userIdToUse = linkedSchoolUserId || user.uid;
+      console.log(`🔍 Usando ID para cargar perfil: ${userIdToUse} (original: ${user.uid})`);
+      
+      // Primero intentar obtener el perfil con el ID correcto
+      let profile = await getUserProfile(userIdToUse);
+      console.log(`🔍 loadUserProfile - Perfil obtenido con ID ${userIdToUse}:`, profile);
       
       // Si no se encuentra el perfil, verificar si hay un usuario vinculado
       if (!profile) {
-        console.log('⚠️ Perfil no encontrado con UID de Google Auth, verificando si hay usuario vinculado...');
+        console.log('⚠️ Perfil no encontrado con ID correcto, verificando si hay usuario vinculado...');
         
         // Buscar si existe un usuario con el mismo email que tenga este UID de Google Auth vinculado
         try {
@@ -191,51 +223,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
       
-      // Si no se encuentra el perfil, verificar si es un usuario huérfano
       if (!profile) {
-        console.log('⚠️ Perfil de usuario no encontrado, verificando si es usuario huérfano...');
+        console.log('⚠️ No se encontró perfil, creando perfil básico...');
         
-        // Intentar arreglar usuario huérfano usando la función local primero
-        try {
-          const { fixOrphanUser } = await import('../utils/authDebug');
-          const wasFixed = await fixOrphanUser();
-          
-          if (wasFixed) {
-            console.log('✅ Usuario huérfano arreglado localmente, recargando perfil...');
-            // Recargar el perfil después de arreglarlo
-            const newProfile = await getUserProfile(user.uid);
-            console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
-            setAuthState(prev => ({
-              ...prev,
-              userProfile: newProfile
-            }));
-            return newProfile;
-          }
-        } catch (localFixError) {
-          console.log('⚠️ Error arreglando usuario localmente, intentando con cloud function...');
-        }
-        
-        // Si el arreglo local falló, intentar con cloud function
-        try {
-          const wasFixed = await checkAndFixCurrentUser();
-          
-          if (wasFixed) {
-            console.log('✅ Usuario huérfano arreglado con cloud function, recargando perfil...');
-            // Recargar el perfil después de arreglarlo
-            const newProfile = await getUserProfile(user.uid);
-            console.log(`🔍 loadUserProfile - Nuevo perfil después de arreglar:`, newProfile);
-            setAuthState(prev => ({
-              ...prev,
-              userProfile: newProfile
-            }));
-            return newProfile;
-          }
-        } catch (fixError) {
-          console.error('Error arreglando usuario huérfano:', fixError);
-        }
-        
-        // Si no se pudo arreglar, crear un perfil básico
-        console.log('⚠️ No se pudo arreglar usuario huérfano, creando perfil básico...');
         try {
           const { createUserProfile } = await import('../services/userService');
           const userData = {
@@ -246,8 +236,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             birthdate: ''
           };
           
-          await createUserProfile(user.uid, userData);
-          const newProfile = await getUserProfile(user.uid);
+          await createUserProfile(userIdToUse, userData);
+          const newProfile = await getUserProfile(userIdToUse);
           console.log(`🔍 loadUserProfile - Perfil básico creado:`, newProfile);
           setAuthState(prev => ({
             ...prev,

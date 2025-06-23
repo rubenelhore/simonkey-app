@@ -771,6 +771,797 @@ export const fixUserSubscription = async () => {
   }
 };
 
+/**
+ * Función específica para arreglar el problema del profesor que no puede ver sus cuadernos
+ */
+export const fixTeacherNotebooksIssue = async () => {
+  console.log('🔧 === ARREGLANDO PROBLEMA DE PROFESOR ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { db } = await import('../services/firebase');
+    const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+    const { UserSubscriptionType } = await import('../types/interfaces');
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Usuario:', user.uid);
+    console.log('📧 Email:', user.email);
+    
+    // 1. Verificar si ya existe en schoolTeachers
+    const teacherQuery = query(
+      collection(db, 'schoolTeachers'),
+      where('id', '==', user.uid)
+    );
+    const teacherSnapshot = await getDocs(teacherQuery);
+    
+    if (teacherSnapshot.empty) {
+      console.log('🔄 Creando registro en schoolTeachers...');
+      
+      // Crear registro en schoolTeachers usando el ID del usuario como ID del documento
+      // Esto debería funcionar porque las reglas permiten create si request.auth.uid == teacherId
+      await setDoc(doc(db, 'schoolTeachers', user.uid), {
+        id: user.uid,
+        nombre: user.displayName || 'Profesor',
+        email: user.email,
+        password: '1234',
+        subscription: UserSubscriptionType.SCHOOL,
+        idAdmin: '', // Se asignará después por un admin
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Registro creado en schoolTeachers');
+      console.log('🎉 PASO 1 COMPLETADO - Recarga la página para ver si se resuelve el problema');
+      
+      // Intentar crear materia y cuaderno si es posible
+      try {
+        console.log('🔄 Intentando crear materia y cuaderno de prueba...');
+        
+        const { addDoc } = await import('firebase/firestore');
+        
+        // Crear materia de prueba
+        const subjectData = {
+          nombre: 'Materia de Prueba',
+          idProfesor: user.uid,
+          idMateria: `materia_${user.uid}_${Date.now()}`,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        const subjectRef = await addDoc(collection(db, 'schoolSubjects'), subjectData);
+        console.log('✅ Materia creada:', subjectRef.id);
+        
+        // Crear cuaderno de prueba
+        const notebookData = {
+          title: 'Cuaderno de Prueba',
+          description: 'Cuaderno creado automáticamente para pruebas',
+          idMateria: subjectData.idMateria,
+          color: '#6147FF',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        const notebookRef = await addDoc(collection(db, 'schoolNotebooks'), notebookData);
+        console.log('✅ Cuaderno creado:', notebookRef.id);
+        
+        console.log('🎉 PROBLEMA COMPLETAMENTE SOLUCIONADO - Recarga la página para ver los cambios');
+        
+      } catch (additionalError) {
+        console.log('⚠️ No se pudieron crear materia y cuaderno:', additionalError);
+        console.log('💡 El registro en schoolTeachers se creó correctamente');
+        console.log('💡 Contacta al administrador para asignar materias y cuadernos');
+      }
+      
+    } else {
+      console.log('✅ Usuario ya existe en schoolTeachers');
+      console.log('💡 El problema podría estar en la asignación de materias o cuadernos');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error arreglando problema:', error);
+    
+    // Si todo falla, mostrar instrucciones manuales
+    console.log('💡 SOLUCIÓN MANUAL:');
+    console.log('1. Contacta al administrador del sistema');
+    console.log('2. Pídele que ejecute la función de migración desde el panel de administración');
+    console.log('3. O solicita que te asigne manualmente a una materia con cuadernos');
+  }
+};
+
+/**
+ * Función de prueba simple para verificar el estado del profesor
+ */
+export const testTeacherStatus = async () => {
+  console.log('🔍 === VERIFICANDO ESTADO DEL PROFESOR ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { db } = await import('../services/firebase');
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Usuario:', user.uid);
+    console.log('📧 Email:', user.email);
+    
+    // Verificar si existe en schoolTeachers
+    const teacherQuery = query(
+      collection(db, 'schoolTeachers'),
+      where('id', '==', user.uid)
+    );
+    const teacherSnapshot = await getDocs(teacherQuery);
+    
+    if (teacherSnapshot.empty) {
+      console.log('❌ Usuario NO existe en schoolTeachers');
+      console.log('💡 Ejecuta: window.fixTeacherNotebooksIssue()');
+    } else {
+      console.log('✅ Usuario SÍ existe en schoolTeachers');
+      const teacherData = teacherSnapshot.docs[0].data();
+      console.log('📋 Datos:', teacherData);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error verificando estado:', error);
+  }
+};
+
+/**
+ * Función muy simple para verificar el estado del profesor sin acceder a Firestore
+ */
+export const checkTeacherStatusSimple = async () => {
+  console.log('🔍 === VERIFICACIÓN SIMPLE DEL PROFESOR ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Usuario:', user.uid);
+    console.log('📧 Email:', user.email);
+    console.log('👤 Display Name:', user.displayName);
+    
+    // Verificar si el usuario tiene los datos básicos necesarios
+    if (user.email && user.displayName) {
+      console.log('✅ Usuario tiene datos básicos correctos');
+      console.log('💡 El usuario debería estar funcionando correctamente');
+      console.log('💡 Si no ves cuadernos, es porque:');
+      console.log('   - No tienes materias asignadas');
+      console.log('   - Las materias no tienen cuadernos');
+      console.log('   - Necesitas que un administrador complete la configuración');
+    } else {
+      console.log('⚠️ Usuario falta datos básicos');
+    }
+    
+    console.log('🎯 RECOMENDACIÓN: Recarga la página para ver si aparecen los cuadernos');
+    
+  } catch (error) {
+    console.error('❌ Error en verificación simple:', error);
+  }
+};
+
+/**
+ * Verificar cuadernos escolares específicamente
+ */
+export const checkTeacherNotebooks = async () => {
+  console.log('🔍 === VERIFICACIÓN DE CUADERNOS ESCOLARES ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { getFirestore, collection, query, where, getDocs } = await import('firebase/firestore');
+    
+    const auth = getAuth();
+    const db = getFirestore();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Usuario:', user.uid);
+    console.log('📧 Email:', user.email);
+    
+    // 1. Verificar si el profesor existe en schoolTeachers
+    console.log('\n📋 1. Verificando registro en schoolTeachers...');
+    try {
+      const teacherQuery = query(
+        collection(db, 'schoolTeachers'),
+        where('id', '==', user.uid)
+      );
+      const teacherSnapshot = await getDocs(teacherQuery);
+      
+      if (teacherSnapshot.empty) {
+        console.log('❌ No se encontró registro en schoolTeachers');
+        console.log('💡 Esto puede explicar por qué no ves cuadernos');
+      } else {
+        console.log('✅ Registro encontrado en schoolTeachers');
+        const teacherData = teacherSnapshot.docs[0].data();
+        console.log('📋 Datos del profesor:', teacherData);
+      }
+    } catch (error) {
+      console.log('⚠️ Error al verificar schoolTeachers:', error);
+    }
+    
+    // 2. Verificar materias asignadas al profesor
+    console.log('\n📚 2. Verificando materias asignadas...');
+    try {
+      const subjectQuery = query(
+        collection(db, 'schoolSubjects'),
+        where('idProfesor', '==', user.uid)
+      );
+      const subjectSnapshot = await getDocs(subjectQuery);
+      
+      if (subjectSnapshot.empty) {
+        console.log('❌ No se encontraron materias asignadas');
+        console.log('💡 Este es el problema: no tienes materias asignadas');
+      } else {
+        console.log(`✅ Se encontraron ${subjectSnapshot.size} materias asignadas:`);
+        subjectSnapshot.forEach(doc => {
+          const data = doc.data();
+          console.log(`   - ${data.nombre} (ID: ${doc.id})`);
+        });
+      }
+    } catch (error) {
+      console.log('⚠️ Error al verificar materias:', error);
+    }
+    
+    // 3. Verificar cuadernos escolares
+    console.log('\n📖 3. Verificando cuadernos escolares...');
+    try {
+      const notebookQuery = query(collection(db, 'schoolNotebooks'));
+      const notebookSnapshot = await getDocs(notebookQuery);
+      
+      if (notebookSnapshot.empty) {
+        console.log('❌ No hay cuadernos escolares en el sistema');
+      } else {
+        console.log(`✅ Hay ${notebookSnapshot.size} cuadernos escolares en el sistema:`);
+        notebookSnapshot.forEach(doc => {
+          const data = doc.data();
+          console.log(`   - ${data.title} (Materia: ${data.idMateria})`);
+        });
+      }
+    } catch (error) {
+      console.log('⚠️ Error al verificar cuadernos:', error);
+    }
+    
+    // 4. Verificar cuadernos específicos del profesor
+    console.log('\n🎯 4. Verificando cuadernos específicos del profesor...');
+    try {
+      // Primero obtener las materias del profesor
+      const subjectQuery = query(
+        collection(db, 'schoolSubjects'),
+        where('idProfesor', '==', user.uid)
+      );
+      const subjectSnapshot = await getDocs(subjectQuery);
+      
+      if (!subjectSnapshot.empty) {
+        const subjectIds = subjectSnapshot.docs.map(doc => doc.id);
+        console.log('📚 IDs de materias del profesor:', subjectIds);
+        
+        // Buscar cuadernos de esas materias
+        for (const subjectId of subjectIds) {
+          const notebookQuery = query(
+            collection(db, 'schoolNotebooks'),
+            where('idMateria', '==', subjectId)
+          );
+          const notebookSnapshot = await getDocs(notebookQuery);
+          
+          if (notebookSnapshot.empty) {
+            console.log(`❌ No hay cuadernos para la materia ${subjectId}`);
+          } else {
+            console.log(`✅ Cuadernos para materia ${subjectId}:`);
+            notebookSnapshot.forEach(doc => {
+              const data = doc.data();
+              console.log(`   - ${data.title} (ID: ${doc.id})`);
+            });
+          }
+        }
+      } else {
+        console.log('❌ No hay materias asignadas, por eso no hay cuadernos');
+      }
+    } catch (error) {
+      console.log('⚠️ Error al verificar cuadernos específicos:', error);
+    }
+    
+    console.log('\n🎯 RESUMEN:');
+    console.log('💡 Si no ves cuadernos, es porque:');
+    console.log('   1. No tienes materias asignadas, O');
+    console.log('   2. Tus materias no tienen cuadernos creados');
+    console.log('💡 Contacta al administrador para completar la configuración');
+    
+  } catch (error) {
+    console.error('❌ Error en verificación de cuadernos:', error);
+  }
+};
+
+/**
+ * Verificar el estado de autenticación y tipo de usuario
+ */
+export const checkCurrentUserStatus = async () => {
+  console.log('🔍 === VERIFICACIÓN DE USUARIO ACTUAL ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+    
+    const auth = getAuth();
+    const db = getFirestore();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      console.log('💡 Necesitas iniciar sesión');
+      return;
+    }
+    
+    console.log('👤 Usuario:', user.uid);
+    console.log('📧 Email:', user.email);
+    console.log('👤 Display Name:', user.displayName);
+    console.log('🔐 Email verificado:', user.emailVerified);
+    
+    // Verificar perfil de usuario
+    console.log('\n📋 Verificando perfil de usuario...');
+    try {
+      const userDoc = doc(db, 'users', user.uid);
+      const userSnapshot = await getDoc(userDoc);
+      
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.data();
+        console.log('✅ Perfil de usuario encontrado');
+        console.log('📋 Datos del perfil:', userData);
+        
+        // Verificar tipo de suscripción
+        if (userData.subscription) {
+          console.log('💳 Tipo de suscripción:', userData.subscription);
+          
+          if (userData.subscription === 'school') {
+            console.log('✅ Usuario escolar confirmado');
+            
+            if (userData.schoolRole) {
+              console.log('👨‍🏫 Rol escolar:', userData.schoolRole);
+              
+              if (userData.schoolRole === 'teacher') {
+                console.log('✅ Es un profesor');
+                console.log('💡 Debería poder ver cuadernos escolares');
+              } else {
+                console.log('⚠️ No es profesor, es:', userData.schoolRole);
+              }
+            } else {
+              console.log('⚠️ No tiene rol escolar definido');
+            }
+          } else {
+            console.log('⚠️ No es usuario escolar, es:', userData.subscription);
+          }
+        } else {
+          console.log('⚠️ No tiene tipo de suscripción definido');
+        }
+        
+      } else {
+        console.log('❌ No se encontró perfil de usuario');
+        console.log('💡 El usuario no está registrado en la base de datos');
+      }
+      
+    } catch (error) {
+      console.log('⚠️ Error al verificar perfil:', error);
+    }
+    
+    console.log('\n🎯 RECOMENDACIONES:');
+    console.log('1. Si no eres profesor, inicia sesión con la cuenta correcta');
+    console.log('2. Si eres profesor pero no ves cuadernos, contacta al administrador');
+    console.log('3. Si tienes problemas de permisos, puede ser un problema de configuración');
+    
+  } catch (error) {
+    console.error('❌ Error en verificación:', error);
+  }
+};
+
+/**
+ * Función para super admin: diagnosticar y limpiar cuentas duplicadas por email
+ */
+export const superAdminDiagnoseAndCleanAccounts = async (targetEmail: string) => {
+  console.log('🔍 === DIAGNÓSTICO Y LIMPIEZA DE CUENTAS (SUPER ADMIN) ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { getFirestore, collection, query, where, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+    
+    const auth = getAuth();
+    const db = getFirestore();
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Super Admin actual:', currentUser.uid);
+    console.log('📧 Email objetivo:', targetEmail);
+    
+    // Verificar que el usuario actual es super admin
+    console.log('\n🔐 Verificando permisos de super admin...');
+    try {
+      const adminDoc = doc(db, 'users', currentUser.uid);
+      const adminSnapshot = await getDoc(adminDoc);
+      
+      if (!adminSnapshot.exists()) {
+        console.log('❌ No se encontró perfil de usuario');
+        return;
+      }
+      
+      const adminData = adminSnapshot.data();
+      if ((adminData.subscription || '').toLowerCase() !== 'super_admin') {
+        console.log('❌ No tienes permisos de super admin');
+        console.log('💡 Tu suscripción es:', adminData.subscription);
+        return;
+      }
+      
+      console.log('✅ Permisos de super admin confirmados');
+      
+    } catch (error) {
+      console.log('⚠️ Error al verificar permisos:', error);
+      return;
+    }
+    
+    // Buscar todas las cuentas con el email objetivo
+    console.log('\n🔍 Buscando cuentas con el email objetivo...');
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('email', '==', targetEmail)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      if (usersSnapshot.empty) {
+        console.log('❌ No se encontraron cuentas con este email');
+        return;
+      }
+      
+      console.log(`⚠️ Se encontraron ${usersSnapshot.size} cuentas con el email ${targetEmail}:`);
+      
+      const accounts: any[] = [];
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        accounts.push({
+          id: doc.id,
+          ...data
+        });
+      });
+      
+      // Mostrar todas las cuentas
+      accounts.forEach((account, index) => {
+        console.log(`\n📋 Cuenta ${index + 1}:`);
+        console.log(`   ID: ${account.id}`);
+        console.log(`   Email: ${account.email}`);
+        console.log(`   Nombre: ${account.nombre || account.displayName || 'N/A'}`);
+        console.log(`   Suscripción: ${account.subscription || 'N/A'}`);
+        console.log(`   Rol escolar: ${account.schoolRole || 'N/A'}`);
+        
+        // Manejar createdAt de forma segura
+        let createdAtStr = 'N/A';
+        if (account.createdAt) {
+          try {
+            if (typeof account.createdAt.toDate === 'function') {
+              createdAtStr = account.createdAt.toDate().toString();
+            } else if (account.createdAt instanceof Date) {
+              createdAtStr = account.createdAt.toString();
+            } else {
+              createdAtStr = account.createdAt.toString();
+            }
+          } catch (error) {
+            createdAtStr = 'Error al parsear fecha';
+          }
+        }
+        console.log(`   Creado: ${createdAtStr}`);
+      });
+      
+      // Analizar tipos de cuenta
+      const freeAccounts: any[] = accounts.filter(a => 
+        (a.subscription || '').toLowerCase() === 'free'
+      );
+      const schoolAccounts: any[] = accounts.filter(a => 
+        (a.subscription || '').toLowerCase() === 'school'
+      );
+      const teacherAccounts: any[] = accounts.filter(a => 
+        (a.schoolRole || '').toLowerCase() === 'teacher'
+      );
+      
+      console.log('\n📊 RESUMEN:');
+      console.log(`   Cuentas totales: ${accounts.length}`);
+      console.log(`   Cuentas free: ${freeAccounts.length}`);
+      console.log(`   Cuentas school: ${schoolAccounts.length}`);
+      console.log(`   Cuentas teacher: ${teacherAccounts.length}`);
+      
+      // Identificar la cuenta correcta
+      const correctAccount = accounts.find(a => 
+        (a.subscription || '').toLowerCase() === 'school' && 
+        (a.schoolRole || '').toLowerCase() === 'teacher'
+      );
+      
+      if (correctAccount) {
+        console.log('\n✅ CUENTA CORRECTA ENCONTRADA:');
+        console.log(`   ID: ${correctAccount.id}`);
+        console.log(`   Email: ${correctAccount.email}`);
+        console.log(`   Nombre: ${correctAccount.nombre}`);
+        console.log(`   Suscripción: ${correctAccount.subscription}`);
+        console.log(`   Rol: ${correctAccount.schoolRole}`);
+      } else {
+        console.log('\n❌ No se encontró una cuenta correcta de profesor');
+        console.log('💡 Necesitas crear una cuenta con subscription: "school" y schoolRole: "teacher"');
+      }
+      
+      // Limpiar cuentas free duplicadas si hay más de una
+      if (freeAccounts.length > 1) {
+        console.log('\n🧹 LIMPIEZA DE CUENTAS FREE DUPLICADAS');
+        console.log(`⚠️ Se encontraron ${freeAccounts.length} cuentas free`);
+        
+        // Ordenar por fecha de creación (más antigua primero)
+        freeAccounts.sort((a, b) => {
+          const getDate = (account: any) => {
+            if (!account.createdAt) return new Date(0);
+            try {
+              if (typeof account.createdAt.toDate === 'function') {
+                return account.createdAt.toDate();
+              } else if (account.createdAt instanceof Date) {
+                return account.createdAt;
+              } else {
+                return new Date(account.createdAt);
+              }
+            } catch (error) {
+              return new Date(0);
+            }
+          };
+          
+          const dateA = getDate(a);
+          const dateB = getDate(b);
+          return dateA.getTime() - dateB.getTime();
+        });
+        
+        console.log('\n📋 Cuentas free ordenadas por fecha de creación:');
+        freeAccounts.forEach((account, index) => {
+          let createdAtStr = 'N/A';
+          if (account.createdAt) {
+            try {
+              if (typeof account.createdAt.toDate === 'function') {
+                createdAtStr = account.createdAt.toDate().toString();
+              } else if (account.createdAt instanceof Date) {
+                createdAtStr = account.createdAt.toString();
+              } else {
+                createdAtStr = account.createdAt.toString();
+              }
+            } catch (error) {
+              createdAtStr = 'Error al parsear fecha';
+            }
+          }
+          console.log(`${index + 1}. ID: ${account.id} - Creado: ${createdAtStr}`);
+        });
+        
+        // Mantener la más antigua, eliminar las demás
+        const accountToKeep = freeAccounts[0];
+        const accountsToDelete = freeAccounts.slice(1);
+        
+        console.log('\n💾 Manteniendo cuenta:', accountToKeep.id);
+        console.log('🗑️ Eliminando cuentas:', accountsToDelete.map(a => a.id));
+        
+        // Confirmar antes de eliminar
+        const confirmDelete = confirm(
+          `¿Eliminar ${accountsToDelete.length} cuentas free duplicadas?\n\n` +
+          `Mantendremos: ${accountToKeep.id}\n` +
+          `Eliminaremos: ${accountsToDelete.map(a => a.id).join(', ')}`
+        );
+        
+        if (confirmDelete) {
+          console.log('\n🗑️ Eliminando cuentas duplicadas...');
+          let deletedCount = 0;
+          
+          for (const account of accountsToDelete) {
+            try {
+              await deleteDoc(doc(db, 'users', account.id));
+              console.log(`✅ Eliminada cuenta: ${account.id}`);
+              deletedCount++;
+            } catch (error) {
+              console.log(`❌ Error al eliminar ${account.id}:`, error);
+            }
+          }
+          
+          console.log(`\n🎉 Limpieza completada: ${deletedCount} cuentas eliminadas`);
+        } else {
+          console.log('❌ Operación cancelada por el usuario');
+        }
+      } else if (freeAccounts.length === 1) {
+        console.log('\n✅ Solo hay una cuenta free, no hay duplicados');
+      } else {
+        console.log('\n✅ No hay cuentas free');
+      }
+      
+      console.log('\n🎯 RECOMENDACIONES FINALES:');
+      if (correctAccount) {
+        console.log('✅ El usuario tiene una cuenta correcta de profesor');
+        console.log('💡 Debería poder acceder a los cuadernos escolares');
+      } else {
+        console.log('❌ El usuario no tiene cuenta correcta de profesor');
+        console.log('💡 Necesitas crear una cuenta con subscription: "school" y schoolRole: "teacher"');
+      }
+      
+    } catch (error) {
+      console.log('⚠️ Error al buscar cuentas:', error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error en diagnóstico:', error);
+  }
+};
+
+/**
+ * Función para super admin: limpiar cuentas duplicadas con el mismo ID
+ */
+export const superAdminCleanDuplicateIDs = async (targetEmail: string) => {
+  console.log('🧹 === LIMPIEZA DE CUENTAS DUPLICADAS CON MISMO ID ===');
+  
+  try {
+    const { getAuth } = await import('firebase/auth');
+    const { getFirestore, collection, query, where, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+    
+    const auth = getAuth();
+    const db = getFirestore();
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('👤 Super Admin actual:', currentUser.uid);
+    console.log('📧 Email objetivo:', targetEmail);
+    
+    // Verificar permisos de super admin
+    console.log('\n🔐 Verificando permisos de super admin...');
+    try {
+      const adminDoc = doc(db, 'users', currentUser.uid);
+      const adminSnapshot = await getDoc(adminDoc);
+      
+      if (!adminSnapshot.exists()) {
+        console.log('❌ No se encontró perfil de usuario');
+        return;
+      }
+      
+      const adminData = adminSnapshot.data();
+      if ((adminData.subscription || '').toLowerCase() !== 'super_admin') {
+        console.log('❌ No tienes permisos de super admin');
+        console.log('💡 Tu suscripción es:', adminData.subscription);
+        return;
+      }
+      
+      console.log('✅ Permisos de super admin confirmados');
+      
+    } catch (error) {
+      console.log('⚠️ Error al verificar permisos:', error);
+      return;
+    }
+    
+    // Buscar todas las cuentas con el email objetivo
+    console.log('\n🔍 Buscando cuentas con el email objetivo...');
+    try {
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('email', '==', targetEmail)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      if (usersSnapshot.empty) {
+        console.log('❌ No se encontraron cuentas con este email');
+        return;
+      }
+      
+      console.log(`⚠️ Se encontraron ${usersSnapshot.size} cuentas con el email ${targetEmail}`);
+      
+      // Agrupar por ID para identificar duplicados
+      const accountsByID: { [key: string]: any[] } = {};
+      
+      usersSnapshot.forEach(doc => {
+        const data = doc.data();
+        const id = data.id || doc.id;
+        
+        if (!accountsByID[id]) {
+          accountsByID[id] = [];
+        }
+        
+        accountsByID[id].push({
+          docId: doc.id, // ID del documento en Firestore
+          data: data
+        });
+      });
+      
+      console.log('\n📋 Cuentas agrupadas por ID:');
+      Object.keys(accountsByID).forEach(id => {
+        const accounts = accountsByID[id];
+        console.log(`\n   ID: ${id} - ${accounts.length} documentos`);
+        accounts.forEach((account, index) => {
+          console.log(`     ${index + 1}. Doc ID: ${account.docId} - Email: ${account.data.email} - Suscripción: ${account.data.subscription}`);
+        });
+      });
+      
+      // Identificar cuentas con múltiples documentos
+      const duplicateIDs = Object.keys(accountsByID).filter(id => accountsByID[id].length > 1);
+      
+      if (duplicateIDs.length === 0) {
+        console.log('\n✅ No hay cuentas con múltiples documentos');
+        return;
+      }
+      
+      console.log(`\n⚠️ Se encontraron ${duplicateIDs.length} IDs con múltiples documentos:`);
+      duplicateIDs.forEach(id => {
+        console.log(`   - ${id}: ${accountsByID[id].length} documentos`);
+      });
+      
+      // Para cada ID duplicado, mantener solo el primer documento
+      for (const duplicateID of duplicateIDs) {
+        const accounts = accountsByID[duplicateID];
+        const accountToKeep = accounts[0];
+        const accountsToDelete = accounts.slice(1);
+        
+        console.log(`\n🧹 Limpiando duplicados para ID: ${duplicateID}`);
+        console.log(`   💾 Manteniendo: ${accountToKeep.docId}`);
+        console.log(`   🗑️ Eliminando: ${accountsToDelete.length} documentos`);
+        
+        // Confirmar antes de eliminar
+        const confirmDelete = confirm(
+          `¿Eliminar ${accountsToDelete.length} documentos duplicados para el ID ${duplicateID}?\n\n` +
+          `Mantendremos: ${accountToKeep.docId}\n` +
+          `Eliminaremos: ${accountsToDelete.map(a => a.docId).join(', ')}`
+        );
+        
+        if (confirmDelete) {
+          console.log('\n🗑️ Eliminando documentos duplicados...');
+          let deletedCount = 0;
+          
+          for (const account of accountsToDelete) {
+            try {
+              await deleteDoc(doc(db, 'users', account.docId));
+              console.log(`✅ Eliminado documento: ${account.docId}`);
+              deletedCount++;
+            } catch (error) {
+              console.log(`❌ Error al eliminar ${account.docId}:`, error);
+            }
+          }
+          
+          console.log(`🎉 Limpieza completada para ${duplicateID}: ${deletedCount} documentos eliminados`);
+        } else {
+          console.log('❌ Operación cancelada por el usuario');
+        }
+      }
+      
+      console.log('\n🎯 LIMPIEZA COMPLETADA');
+      console.log('💡 Ahora deberías tener solo un documento por ID');
+      console.log('💡 El profesor puede intentar acceder a los cuadernos escolares');
+      
+    } catch (error) {
+      console.log('⚠️ Error al limpiar cuentas:', error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error en limpieza:', error);
+  }
+};
+
 // Hacer las funciones disponibles globalmente
 if (typeof window !== 'undefined') {
   (window as any).quickFix = quickFix;
@@ -784,6 +1575,13 @@ if (typeof window !== 'undefined') {
   (window as any).diagnoseSchoolNotebookDetailAccess = diagnoseSchoolNotebookDetailAccess;
   (window as any).createTestSchoolConceptManual = createTestSchoolConceptManual;
   (window as any).fixUserSubscription = fixUserSubscription;
+  (window as any).fixTeacherNotebooksIssue = fixTeacherNotebooksIssue;
+  (window as any).testTeacherStatus = testTeacherStatus;
+  (window as any).checkTeacherStatusSimple = checkTeacherStatusSimple;
+  (window as any).checkTeacherNotebooks = checkTeacherNotebooks;
+  (window as any).checkCurrentUserStatus = checkCurrentUserStatus;
+  (window as any).superAdminDiagnoseAndCleanAccounts = superAdminDiagnoseAndCleanAccounts;
+  (window as any).superAdminCleanDuplicateIDs = superAdminCleanDuplicateIDs;
   console.log('🔧 Función quickFix() disponible en la consola');
   console.log('🔧 Función fixSchoolUserProfileHierarchy() disponible en la consola para corregir el perfil escolar');
   console.log('🔧 Función diagnoseSchoolHierarchy() disponible en la consola para diagnosticar jerarquía');
@@ -795,5 +1593,12 @@ if (typeof window !== 'undefined') {
   console.log('🔧 Función diagnoseSchoolNotebookDetailAccess() disponible en la consola para diagnosticar acceso a SchoolNotebookDetail');
   console.log('🔧 Función createTestSchoolConceptManual() disponible en la consola para crear un concepto escolar manual de prueba');
   console.log('🔧 Función fixUserSubscription() disponible en la consola para diagnosticar y arreglar el tipo de suscripción');
+  console.log('🔧 Función fixTeacherNotebooksIssue() disponible en la consola');
+  console.log('🔧 Función testTeacherStatus() disponible en la consola para verificar estado del profesor');
+  console.log('🔧 Función checkTeacherStatusSimple() disponible en la consola para verificación simple');
+  console.log('🔧 Función checkTeacherNotebooks() disponible en la consola para verificar cuadernos escolares específicamente');
+  console.log('🔧 Función checkCurrentUserStatus() disponible en la consola para verificar el usuario actual');
+  console.log('🔧 Función superAdminDiagnoseAndCleanAccounts() disponible en la consola para diagnosticar y limpiar cuentas duplicadas');
+  console.log('�� Función superAdminCleanDuplicateIDs() disponible en la consola para limpiar cuentas duplicadas con el mismo ID');
   console.log('💡 Ejecuta: window.quickFix() para solucionar problemas de autenticación');
 } 
