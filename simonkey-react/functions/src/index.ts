@@ -1696,7 +1696,7 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
   const userId = user.uid;
   const email = user.email;
   
-  logger.info("👤 Nuevo usuario creado en Firebase Auth, generando perfil en Firestore", { 
+  logger.info("👤 Nuevo usuario creado en Firebase Auth, verificando si necesita perfil en Firestore", { 
     userId, 
     email 
   });
@@ -1711,34 +1711,82 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
       return null;
     }
 
-    // Determinar tipo de usuario y configuración
-    let userType = 'FREE';
-    let maxNotebooks = 3;
-    let maxConceptsPerNotebook = 10;
-    let schoolRole = null;
-
-    // Verificar si es un usuario escolar
+    // VERIFICACIÓN CRÍTICA: Buscar si ya existe un usuario escolar con el mismo email
     if (email) {
-      // Buscar en colecciones escolares
+      logger.info("🔍 Verificando si existe usuario escolar con el mismo email", { email });
+      
+      // Buscar en colección users por email
+      const existingUsersQuery = db.collection("users").where("email", "==", email);
+      const existingUsersSnapshot = await existingUsersQuery.get();
+      
+      if (!existingUsersSnapshot.empty) {
+        const existingUser = existingUsersSnapshot.docs[0];
+        const existingUserData = existingUser.data();
+        
+        logger.warn("⚠️ Usuario existente encontrado con el mismo email", { 
+          existingUserId: existingUser.id,
+          newUserId: userId,
+          email,
+          existingUserType: existingUserData.subscription
+        });
+        
+        // Si el usuario existente es escolar, NO crear nuevo perfil
+        if (existingUserData.subscription === 'SCHOOL') {
+          logger.info("🚫 Usuario escolar existente detectado, NO creando perfil duplicado", { 
+            existingUserId: existingUser.id,
+            newUserId: userId,
+            email 
+          });
+          
+          // En su lugar, actualizar el usuario existente con el nuevo UID de Google Auth
+          await db.collection("users").doc(existingUser.id).update({
+            googleAuthUid: userId,
+            googleAuthEmail: email,
+            googleAuthDisplayName: user.displayName,
+            googleAuthPhotoURL: user.photoURL,
+            linkedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          
+          logger.info("✅ Usuario escolar existente vinculado con nuevo UID de Google Auth", { 
+            existingUserId: existingUser.id,
+            newUserId: userId 
+          });
+          
+          return null;
+        }
+      }
+      
+      // Buscar en colecciones escolares específicas
       const teachersQuery = db.collection("schoolTeachers").where("email", "==", email);
       const teachersSnapshot = await teachersQuery.get();
       
       const studentsQuery = db.collection("schoolStudents").where("email", "==", email);
       const studentsSnapshot = await studentsQuery.get();
 
-      if (!teachersSnapshot.empty) {
-        userType = 'SCHOOL';
-        schoolRole = 'TEACHER';
-        maxNotebooks = 999;
-        maxConceptsPerNotebook = 999;
-        logger.info("👨‍🏫 Usuario identificado como profesor escolar", { userId, email });
-      } else if (!studentsSnapshot.empty) {
-        userType = 'SCHOOL';
-        schoolRole = 'STUDENT';
-        maxNotebooks = 0;
-        maxConceptsPerNotebook = 0;
-        logger.info("👨‍🎓 Usuario identificado como estudiante escolar", { userId, email });
-      } else if (email === 'ruben.elhore@gmail.com') {
+      if (!teachersSnapshot.empty || !studentsSnapshot.empty) {
+        logger.info("👨‍🎓 Usuario escolar detectado en colecciones escolares", { 
+          email,
+          isTeacher: !teachersSnapshot.empty,
+          isStudent: !studentsSnapshot.empty
+        });
+        
+        // Para usuarios escolares, NO crear perfil automáticamente
+        // El frontend se encargará de la vinculación
+        logger.info("🚫 Usuario escolar detectado, NO creando perfil automático", { email });
+        return null;
+      }
+    }
+
+    // Determinar tipo de usuario y configuración
+    let userType = 'FREE';
+    let maxNotebooks = 3;
+    let maxConceptsPerNotebook = 10;
+    let schoolRole = null;
+
+    // Verificar si es un usuario escolar (solo para casos no detectados anteriormente)
+    if (email) {
+      if (email === 'ruben.elhore@gmail.com') {
         userType = 'SUPER_ADMIN';
         maxNotebooks = 999;
         maxConceptsPerNotebook = 999;

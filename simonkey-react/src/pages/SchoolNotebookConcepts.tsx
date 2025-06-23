@@ -1,7 +1,7 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
 import '../styles/ConceptDetail.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import TextToSpeech from '../components/TextToSpeech';
@@ -77,6 +77,12 @@ const SchoolNotebookConcepts: React.FC = () => {
     return savedPreference ? JSON.parse(savedPreference) : true;
   });
 
+  // Estado para el índice global en todo el cuaderno
+  const [globalIndex, setGlobalIndex] = useState<number>(0);
+
+  // Estado para todos los conceptos del cuaderno
+  const [allConcepts, setAllConcepts] = useState<{ conceptoId: string, localIndex: number, concepto: any }[]>([]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!notebookId || !conceptoId || index === undefined) {
@@ -111,9 +117,6 @@ const SchoolNotebookConcepts: React.FC = () => {
         
         const conceptos = conceptoSnap.data().conceptos;
         const idx = parseInt(index);
-        
-        // IMPORTANTE: Actualizar el total de conceptos aquí
-        setTotalConcepts(conceptos.length);
         
         if (idx < 0 || idx >= conceptos.length) {
           setError("Índice de concepto fuera de rango");
@@ -172,15 +175,71 @@ const SchoolNotebookConcepts: React.FC = () => {
             }
           }
         }
-      } catch (err) {
-        console.error("Error fetching concept:", err);
-        setError("Error al cargar el concepto");
+
+        // Precargar conceptos cercanos
+        preloadNearbyConcepts(idx);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        setError("Error al cargar los datos del concepto");
+      } finally {
         setLoading(false);
       }
     };
     
     fetchData();
   }, [notebookId, conceptoId, index, autoReadEnabled]);
+
+  // Listener en tiempo real para detectar cambios en TODOS los documentos de conceptos del cuaderno
+  useEffect(() => {
+    if (!notebookId) return;
+
+    console.log('🔍 Iniciando listener para TODOS los conceptos del cuaderno:', notebookId);
+    
+    // Crear query para todos los documentos de conceptos del cuaderno
+    const conceptosQuery = query(
+      collection(db, 'schoolConcepts'),
+      where('cuadernoId', '==', notebookId)
+    );
+    
+    const unsubscribe = onSnapshot(conceptosQuery, (querySnapshot) => {
+      let totalConceptos = 0;
+      let conceptosArray: { conceptoId: string, localIndex: number, concepto: any }[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.conceptos && Array.isArray(data.conceptos)) {
+          totalConceptos += data.conceptos.length;
+          data.conceptos.forEach((concepto: any, idx: number) => {
+            conceptosArray.push({ conceptoId: doc.id, localIndex: idx, concepto });
+          });
+        }
+      });
+      
+      // Ordenar por conceptoId y localIndex para navegación consistente
+      conceptosArray.sort((a, b) => {
+        if (a.conceptoId === b.conceptoId) return a.localIndex - b.localIndex;
+        return a.conceptoId.localeCompare(b.conceptoId);
+      });
+      setAllConcepts(conceptosArray);
+      setTotalConcepts(totalConceptos);
+    }, (error) => {
+      console.error("Error en listener de conceptos escolares:", error);
+    });
+
+    return () => {
+      console.log('🔍 Desconectando listener para cuaderno:', notebookId);
+      unsubscribe();
+    };
+  }, [notebookId]);
+
+  // Sincronizar el globalIndex con la URL
+  useEffect(() => {
+    if (!allConcepts.length || !conceptoId || index === undefined) return;
+    const idx = allConcepts.findIndex(
+      c => c.conceptoId === conceptoId && c.localIndex === parseInt(index)
+    );
+    if (idx !== -1) setGlobalIndex(idx);
+  }, [allConcepts, conceptoId, index]);
 
   useEffect(() => {
     if (cuaderno && cuaderno.color) {
@@ -206,9 +265,9 @@ const SchoolNotebookConcepts: React.FC = () => {
         return;
       }
       
-      if (event.key === 'ArrowRight' && currentIndex < totalConcepts - 1) {
+      if (event.key === 'ArrowRight' && globalIndex < totalConcepts - 1) {
         navigateToNextConcept();
-      } else if (event.key === 'ArrowLeft' && currentIndex > 0) {
+      } else if (event.key === 'ArrowLeft' && globalIndex > 0) {
         navigateToPreviousConcept();
       }
     };
@@ -218,7 +277,7 @@ const SchoolNotebookConcepts: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentIndex, totalConcepts, conceptoId, notebookId]);
+  }, [globalIndex, totalConcepts, conceptoId, notebookId]);
 
   // Añade este efecto para persistir la preferencia de autolectura
   useEffect(() => {
@@ -381,14 +440,24 @@ const SchoolNotebookConcepts: React.FC = () => {
   };
 
   const navigateToNextConcept = () => {
-    if (currentIndex < totalConcepts - 1) {
-      navigate(`/school/notebooks/${notebookId}/concepto/${conceptoId}/${currentIndex + 1}`);
+    if (globalIndex < totalConcepts - 1) {
+      const nextGlobalIndex = globalIndex + 1;
+      setGlobalIndex(nextGlobalIndex);
+      const next = allConcepts[nextGlobalIndex];
+      if (next) {
+        navigate(`/school/notebooks/${notebookId}/concepto/${next.conceptoId}/${next.localIndex}`);
+      }
     }
   };
 
   const navigateToPreviousConcept = () => {
-    if (currentIndex > 0) {
-      navigate(`/school/notebooks/${notebookId}/concepto/${conceptoId}/${currentIndex - 1}`);
+    if (globalIndex > 0) {
+      const prevGlobalIndex = globalIndex - 1;
+      setGlobalIndex(prevGlobalIndex);
+      const prev = allConcepts[prevGlobalIndex];
+      if (prev) {
+        navigate(`/school/notebooks/${notebookId}/concepto/${prev.conceptoId}/${prev.localIndex}`);
+      }
     }
   };
 
@@ -511,7 +580,7 @@ const SchoolNotebookConcepts: React.FC = () => {
         <div className="concept-navigation">
           <button 
             onClick={navigateToPreviousConcept}
-            disabled={currentIndex === 0 || isNavigating}
+            disabled={globalIndex === 0 || isNavigating}
             className={`concept-nav-button previous ${isNavigating ? 'navigating' : ''}`}
             aria-label="Concepto anterior"
             title="Concepto anterior"
@@ -519,11 +588,11 @@ const SchoolNotebookConcepts: React.FC = () => {
             {isNavigating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-chevron-left"></i>}
           </button>
           <div className="concept-pagination">
-            {currentIndex + 1} / {totalConcepts}
+            {`${globalIndex + 1} / ${totalConcepts}`}
           </div>
           <button 
             onClick={navigateToNextConcept}
-            disabled={currentIndex === totalConcepts - 1 || isNavigating}
+            disabled={globalIndex === totalConcepts - 1 || isNavigating}
             className={`concept-nav-button next ${isNavigating ? 'navigating' : ''}`}
             aria-label="Siguiente concepto"
             title="Siguiente concepto"

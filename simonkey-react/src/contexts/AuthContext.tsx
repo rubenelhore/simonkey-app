@@ -36,6 +36,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 let globalAuthListenerSetup = false;
 let globalAuthUnsubscribe: (() => void) | null = null;
 
+// Función de diagnóstico global
+const diagnoseAuthState = () => {
+  console.log('🔍 === DIAGNÓSTICO DE AUTENTICACIÓN ===');
+  console.log('🔐 Global Auth Listener Setup:', globalAuthListenerSetup);
+  console.log('🔐 Global Auth Unsubscribe:', globalAuthUnsubscribe ? 'Configurado' : 'No configurado');
+  console.log('👤 Usuario actual de Firebase Auth:', auth.currentUser);
+  console.log('📧 Email del usuario actual:', auth.currentUser?.email);
+  console.log('🆔 UID del usuario actual:', auth.currentUser?.uid);
+  console.log('✅ Email verificado:', auth.currentUser?.emailVerified);
+  console.log('=====================================');
+};
+
+// Exponer la función globalmente para diagnóstico
+if (typeof window !== 'undefined') {
+  (window as any).diagnoseAuthState = diagnoseAuthState;
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -48,6 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated: false,
     isEmailVerified: false
   });
+
+  console.log('🔍 AuthProvider - Estado inicial:', authState);
 
   const authListenerRef = useRef<(() => void) | null>(null);
   const isInitializedRef = useRef(false);
@@ -135,9 +154,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadUserProfile = async (user: User) => {
     try {
       console.log(`🔍 loadUserProfile - Iniciando carga para: ${user.email} (${user.uid})`);
-      const profile = await getUserProfile(user.uid);
       
-      console.log(`🔍 loadUserProfile - Perfil obtenido:`, profile);
+      // Primero intentar obtener el perfil con el UID de Google Auth
+      let profile = await getUserProfile(user.uid);
+      console.log(`🔍 loadUserProfile - Perfil obtenido con UID de Google Auth:`, profile);
+      
+      // Si no se encuentra el perfil, verificar si hay un usuario vinculado
+      if (!profile) {
+        console.log('⚠️ Perfil no encontrado con UID de Google Auth, verificando si hay usuario vinculado...');
+        
+        // Buscar si existe un usuario con el mismo email que tenga este UID de Google Auth vinculado
+        try {
+          const { checkUserExistsByEmail } = await import('../services/userService');
+          
+          if (user.email) {
+            const existingUserCheck = await checkUserExistsByEmail(user.email);
+            
+            if (existingUserCheck.exists && existingUserCheck.userData) {
+              console.log('🔍 Usuario existente encontrado con el mismo email:', existingUserCheck.userId);
+              console.log('🔍 Datos del usuario existente:', existingUserCheck.userData);
+              
+              // Verificar si el usuario existente tiene este UID de Google Auth vinculado
+              if (existingUserCheck.userData.googleAuthUid === user.uid && existingUserCheck.userId) {
+                console.log('✅ Usuario vinculado encontrado, usando ID del usuario existente:', existingUserCheck.userId);
+                profile = await getUserProfile(existingUserCheck.userId);
+                console.log(`🔍 loadUserProfile - Perfil obtenido con ID de usuario existente:`, profile);
+              } else {
+                console.log('⚠️ Usuario existente no tiene este UID de Google Auth vinculado o no tiene ID válido');
+              }
+            }
+          } else {
+            console.log('⚠️ No hay email disponible para verificar usuario vinculado');
+          }
+        } catch (linkError) {
+          console.log('⚠️ Error verificando usuario vinculado:', linkError);
+        }
+      }
       
       // Si no se encuentra el perfil, verificar si es un usuario huérfano
       if (!profile) {
@@ -290,31 +342,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ]);
   };
 
-  // Efecto para manejar cambios de autenticación - GLOBAL Y ÚNICO
+  // Efecto para manejar cambios de autenticación - SIMPLIFICADO
   useEffect(() => {
-    // Solo configurar el listener si no existe uno previo GLOBALMENTE
-    if (globalAuthListenerSetup) {
-      console.log('🔐 Listener de autenticación GLOBAL ya configurado, saltando...');
-      return;
-    }
-
-    console.log('🔐 Configurando listener de autenticación GLOBAL');
-    globalAuthListenerSetup = true;
+    console.log('🔐 Configurando listener de autenticación SIMPLIFICADO');
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔄 Estado de autenticación cambió:', user ? `Usuario logueado: ${user.email}` : 'No hay usuario');
       
       if (user) {
-        // Mantener el estado de carga mientras se obtiene el perfil
+        console.log('👤 Usuario encontrado:', user.email);
+        
+        // Establecer estado de carga
         setAuthState(prev => ({
           ...prev,
+          user,
           loading: true,
+          isAuthenticated: true,
         }));
-
-        console.log('👤 Usuario encontrado:', user.email);
         
         try {
           console.log('🔍 Iniciando carga de perfil y verificación...');
+          
+          // Cargar perfil y verificación en paralelo
           const [profile, verificationResult] = await Promise.all([
             loadUserProfile(user),
             updateVerificationState(user)
@@ -322,37 +371,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           console.log('✅ Carga completa. Perfil:', profile, 'Verificación:', verificationResult);
 
-          // Actualizar todo el estado de una vez
+          // Actualizar estado final
           setAuthState(prev => ({
             ...prev,
-            user,
             userProfile: profile,
-            isAuthenticated: true,
             isEmailVerified: verificationResult,
             emailVerificationState: {
-              ...prev.emailVerificationState, // Mantener el conteo si ya existe
+              ...prev.emailVerificationState,
               isEmailVerified: verificationResult,
             },
-            loading: false, // Ahora sí, la carga ha terminado
+            loading: false,
           }));
           
         } catch (error) {
           console.error('❌ Error cargando información de usuario:', error);
-          // Si hay un error, terminar la carga y dejar al usuario sin perfil
+          
+          // En caso de error, mantener el usuario pero sin perfil
           setAuthState(prev => ({
             ...prev,
-            user, // Mantener el usuario de Auth
-            isAuthenticated: true,
             userProfile: null,
             loading: false,
           }));
         }
       } else {
         console.log('❌ No hay usuario autenticado');
+        
+        // Resetear estado cuando no hay usuario
         setAuthState({
           user: null,
           userProfile: null,
-          loading: false, // La carga termina, no hay usuario
+          loading: false,
           emailVerificationState: {
             isEmailVerified: false,
             verificationCount: 0
@@ -363,19 +411,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
-    // Guardar la función de limpieza globalmente
-    globalAuthUnsubscribe = unsubscribe;
-
     // Cleanup function
     return () => {
-      console.log('🔐 Limpiando listener de autenticación GLOBAL');
-      if (globalAuthUnsubscribe) {
-        globalAuthUnsubscribe();
-        globalAuthUnsubscribe = null;
-        globalAuthListenerSetup = false;
-      }
+      console.log('🔐 Limpiando listener de autenticación');
+      unsubscribe();
     };
   }, []); // Sin dependencias para que solo se ejecute una vez
+
+  // Función de emergencia para forzar el estado
+  const forceAuthState = () => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      console.log('🚨 Forzando estado de autenticación para:', currentUser.email);
+      setAuthState(prev => ({
+        ...prev,
+        user: currentUser,
+        isAuthenticated: true,
+        loading: false,
+      }));
+    }
+  };
+
+  // Exponer función de emergencia globalmente
+  if (typeof window !== 'undefined') {
+    (window as any).forceAuthState = forceAuthState;
+  }
 
   const contextValue: AuthContextType = {
     // Estado
@@ -407,4 +467,4 @@ export const useAuth = (): AuthContextType => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};

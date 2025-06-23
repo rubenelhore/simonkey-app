@@ -47,12 +47,20 @@ service cloud.firestore {
       allow read: if isSchoolUser(); // Profesores pueden ver a otros profesores
       allow create: if isSchoolUser() && request.auth.uid == teacherId; // Usuarios escolares pueden auto-registrarse
       allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar registros existentes
+      
+      // NUEVO - Permitir búsquedas por email para vinculación de cuentas
+      allow list: if isSignedIn() && request.query.limit <= 10 && 
+        (request.query.filters[0].fieldPath == 'email' && request.query.filters[0].op == '==');
     }
 
     match /schoolStudents/{studentId} {
       allow read: if isTeacher(); // Profesores pueden ver a sus estudiantes
       allow create: if isSchoolUser() && request.auth.uid == studentId; // Usuarios escolares pueden auto-registrarse
       allow write, delete: if isSuperAdmin(); // Solo admins pueden modificar registros existentes
+      
+      // NUEVO - Permitir búsquedas por email para vinculación de cuentas
+      allow list: if isSignedIn() && request.query.limit <= 10 && 
+        (request.query.filters[0].fieldPath == 'email' && request.query.filters[0].op == '==');
     }
 
     // NUEVO - Reglas para schoolAdmins

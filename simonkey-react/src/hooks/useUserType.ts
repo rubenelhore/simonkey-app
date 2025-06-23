@@ -59,10 +59,12 @@ export const useUserType = () => {
   console.log('  - subscription:', subscription);
   console.log('  - isSuperAdmin:', isSuperAdmin);
 
-  // Determinar si es usuario escolar
-  const isSchoolUser = subscription === 'school';
-  const isSchoolTeacher = isSchoolUser && schoolRole === SchoolRole.TEACHER;
-  const isSchoolStudent = isSchoolUser && schoolRole === SchoolRole.STUDENT;
+  // Normalizar subscription a minúsculas para evitar bugs por mayúsculas/minúsculas
+  const normalizedSubscription = typeof subscription === 'string' ? subscription.toLowerCase() : subscription;
+  const normalizedSchoolRole = typeof schoolRole === 'string' ? schoolRole.toLowerCase() : schoolRole;
+  const isSchoolUser = normalizedSubscription === UserSubscriptionType.SCHOOL;
+  const isSchoolTeacher = isSchoolUser && normalizedSchoolRole === SchoolRole.TEACHER;
+  const isSchoolStudent = isSchoolUser && normalizedSchoolRole === SchoolRole.STUDENT;
   
   // Log de los roles calculados
   console.log('useUserType - Roles calculados:');

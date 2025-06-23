@@ -318,7 +318,7 @@ export async function diagnoseSchoolNotebookDetailPermissions() {
     console.log('📋 Perfil del usuario:', userData);
     
     // 2. Verificar si cumple con isSchoolUser()
-    const isSchoolUser = userData.subscription === 'school';
+    const isSchoolUser = userData.subscription === UserSubscriptionType.SCHOOL;
     console.log('🔍 Verificación isSchoolUser():', isSchoolUser);
     
     // 3. Intentar acceder a un documento específico de schoolNotebooks
@@ -741,7 +741,7 @@ export const fixUserSubscription = async () => {
     });
 
     // Verificar si necesita corrección
-    if (userData.subscription === 'school' && userData.subscriptionType !== 'SCHOOL') {
+    if (userData.subscription === UserSubscriptionType.SCHOOL && userData.subscriptionType !== 'SCHOOL') {
       console.log('🔧 Corrigiendo tipo de suscripción...');
       await updateDoc(doc(db, 'users', user.uid), {
         subscriptionType: 'SCHOOL'

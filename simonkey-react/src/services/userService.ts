@@ -105,6 +105,33 @@ export const determineUserSubscription = (email: string): UserSubscriptionType =
 };
 
 /**
+ * Verifica si un email corresponde a un usuario escolar existente
+ */
+export const checkIfEmailIsSchoolUser = async (email: string): Promise<boolean> => {
+  try {
+    console.log('🔍 Verificando si email corresponde a usuario escolar:', email);
+    const existingUserCheck = await checkUserExistsByEmail(email);
+    
+    if (existingUserCheck.exists) {
+      console.log('✅ Usuario existente encontrado:', existingUserCheck.userType);
+      
+      if (existingUserCheck.userType === 'SCHOOL' || 
+          existingUserCheck.userType === 'SCHOOL_TEACHER' || 
+          existingUserCheck.userType === 'SCHOOL_STUDENT') {
+        console.log('👨‍🎓 Email corresponde a usuario escolar');
+        return true;
+      }
+    }
+    
+    console.log('❌ Email no corresponde a usuario escolar');
+    return false;
+  } catch (error) {
+    console.error('❌ Error verificando si email es usuario escolar:', error);
+    return false;
+  }
+};
+
+/**
  * Obtiene los límites de suscripción para un tipo de usuario
  */
 export const getSubscriptionLimits = (subscriptionType: UserSubscriptionType): SubscriptionLimits => {
@@ -137,7 +164,17 @@ export const createUserProfile = async (
   try {
     console.log('🚀 Creando perfil de usuario:', { userId, userData });
     
-    const subscriptionType = determineUserSubscription(userData.email);
+    // Verificar si el email corresponde a un usuario escolar existente
+    const isSchoolUser = await checkIfEmailIsSchoolUser(userData.email);
+    
+    let subscriptionType: UserSubscriptionType;
+    if (isSchoolUser) {
+      console.log('👨‍🎓 Usuario escolar detectado, asignando tipo SCHOOL');
+      subscriptionType = UserSubscriptionType.SCHOOL;
+    } else {
+      subscriptionType = determineUserSubscription(userData.email);
+    }
+    
     console.log('📋 Tipo de suscripción determinado:', subscriptionType);
     
     const limits = getSubscriptionLimits(subscriptionType);
@@ -488,7 +525,7 @@ export const deleteAllUserData = async (
   let completedOperations = 0;
 
   try {
-    console.log('� Iniciando eliminación batch OPTIMIZADA para usuario:', userId);
+    console.log('👑 Iniciando eliminación batch OPTIMIZADA para usuario:', userId);
     
     // 1. ELIMINAR NOTEBOOKS Y CONCEPTOS RELACIONADOS (BATCH)
     console.log('📚 Eliminando notebooks y conceptos con batch...');
@@ -553,7 +590,7 @@ export const deleteAllUserData = async (
     if (!result3.success) {
       totalErrors.push(...result3.errors);
     }
-    console.log(`� Eliminadas ${result3.totalOperations} actividades en ${result3.executionTime}ms`);
+    console.log(`📈 Eliminadas ${result3.totalOperations} actividades en ${result3.executionTime}ms`);
 
     // 4. ELIMINAR CONCEPTOS DE REPASO (BATCH)
     console.log('🔄 Eliminando conceptos de repaso con batch...');
@@ -586,7 +623,7 @@ export const deleteAllUserData = async (
     console.log(`📊 Eliminadas ${result5.totalOperations} estadísticas en ${result5.executionTime}ms`);
 
     // 6. ELIMINAR SUBCOLECCIONES DEL USUARIO (BATCH PARALELO)
-    console.log('�️ Eliminando subcolecciones con batch paralelo...');
+    console.log('🗂️ Eliminando subcolecciones con batch paralelo...');
     onProgress?.('Eliminando subcolecciones del usuario', 0, 100);
     
     const subcollections = [
@@ -734,5 +771,240 @@ export const deleteUserCompletely = async (userId: string): Promise<void> => {
   } catch (error) {
     console.error('❌ Error eliminando usuario completamente:', error);
     throw error;
+  }
+};
+
+/**
+ * Verifica si ya existe un usuario con el mismo email en Firestore
+ */
+export const checkUserExistsByEmail = async (email: string): Promise<{ exists: boolean; userId?: string; userData?: any; userType?: string }> => {
+  try {
+    console.log('🔍 Verificando si existe usuario con email:', email);
+    
+    if (!email) {
+      console.log('❌ Email vacío, no se puede verificar');
+      return { exists: false };
+    }
+    
+    // PRIMERO: Buscar en colecciones escolares (prioridad alta)
+    console.log('🔍 Buscando en colección schoolStudents...');
+    try {
+      const studentsQuery = query(collection(db, 'schoolStudents'), where('email', '==', email));
+      const studentsSnapshot = await getDocs(studentsQuery);
+      console.log('🔍 Resultado búsqueda en schoolStudents:', studentsSnapshot.size, 'documentos encontrados');
+      
+      if (!studentsSnapshot.empty) {
+        const studentDoc = studentsSnapshot.docs[0];
+        const studentData = studentDoc.data();
+        console.log('✅ Estudiante escolar encontrado con email:', email, 'ID:', studentDoc.id);
+        console.log('✅ Datos completos del estudiante:', studentData);
+        return {
+          exists: true,
+          userId: studentDoc.id,
+          userData: studentData,
+          userType: 'SCHOOL_STUDENT'
+        };
+      }
+    } catch (studentsError) {
+      console.error('❌ Error buscando en colección schoolStudents:', studentsError);
+      console.log('⚠️ Posible problema de permisos en schoolStudents');
+    }
+    
+    console.log('🔍 Buscando en colección schoolTeachers...');
+    try {
+      const teachersQuery = query(collection(db, 'schoolTeachers'), where('email', '==', email));
+      const teachersSnapshot = await getDocs(teachersQuery);
+      console.log('🔍 Resultado búsqueda en schoolTeachers:', teachersSnapshot.size, 'documentos encontrados');
+      
+      if (!teachersSnapshot.empty) {
+        const teacherDoc = teachersSnapshot.docs[0];
+        const teacherData = teacherDoc.data();
+        console.log('✅ Profesor escolar encontrado con email:', email, 'ID:', teacherDoc.id);
+        console.log('✅ Datos completos del profesor:', teacherData);
+        return {
+          exists: true,
+          userId: teacherDoc.id,
+          userData: teacherData,
+          userType: 'SCHOOL_TEACHER'
+        };
+      }
+    } catch (teachersError) {
+      console.error('❌ Error buscando en colección schoolTeachers:', teachersError);
+      console.log('⚠️ Posible problema de permisos en schoolTeachers');
+    }
+    
+    // SEGUNDO: Buscar en la colección users por email
+    console.log('🔍 Buscando en colección users...');
+    try {
+      const usersQuery = query(collection(db, 'users'), where('email', '==', email));
+      const usersSnapshot = await getDocs(usersQuery);
+      console.log('🔍 Resultado búsqueda en users:', usersSnapshot.size, 'documentos encontrados');
+      
+      if (!usersSnapshot.empty) {
+        const userDoc = usersSnapshot.docs[0];
+        const userData = userDoc.data();
+        console.log('✅ Usuario encontrado en users con email:', email, 'ID:', userDoc.id, 'Tipo:', userData.subscription);
+        console.log('✅ Datos completos del usuario:', userData);
+        return {
+          exists: true,
+          userId: userDoc.id,
+          userData: userData,
+          userType: userData.subscription || 'FREE'
+        };
+      }
+    } catch (usersError) {
+      console.error('❌ Error buscando en colección users:', usersError);
+    }
+    
+    console.log('❌ No se encontró usuario con email:', email);
+    return { exists: false };
+    
+  } catch (error) {
+    console.error('❌ Error verificando usuario por email:', error);
+    return { exists: false };
+  }
+};
+
+/**
+ * Maneja el caso de un usuario existente con el mismo email
+ */
+export const handleExistingUserWithSameEmail = async (
+  googleUser: any,
+  existingUserCheck: { exists: boolean; userId?: string; userData?: any; userType?: string }
+): Promise<{ shouldContinue: boolean; message?: string; useExistingUserId?: string }> => {
+  try {
+    console.log('🔄 Manejando usuario existente con el mismo email...');
+    console.log('📧 Email del usuario de Google:', googleUser.email);
+    console.log('🆔 UID del usuario de Google:', googleUser.uid);
+    console.log('🔍 Usuario existente encontrado:', existingUserCheck);
+    
+    if (!existingUserCheck.exists || !existingUserCheck.userId || !existingUserCheck.userData) {
+      console.log('✅ No hay usuario existente, continuando con creación normal');
+      return { shouldContinue: true };
+    }
+    
+    // Si el usuario existente es un usuario escolar (creado desde superAdmin)
+    if (existingUserCheck.userType === 'SCHOOL' || 
+        existingUserCheck.userType === 'SCHOOL_TEACHER' || 
+        existingUserCheck.userType === 'SCHOOL_STUDENT') {
+      
+      console.log('👨‍🎓 Usuario escolar existente detectado, vinculando con Google Auth');
+      
+      // Verificar si ya existe un perfil en la colección users con el ID del usuario existente
+      const existingUserDoc = await getDoc(doc(db, 'users', existingUserCheck.userId));
+      
+      if (!existingUserDoc.exists()) {
+        console.log('⚠️ No existe perfil en users, creando con datos del usuario escolar...');
+        
+        // Crear el perfil en la colección users usando el ID del usuario existente
+        const userData = {
+          email: googleUser.email || '',
+          username: existingUserCheck.userData.nombre || googleUser.displayName || '',
+          nombre: existingUserCheck.userData.nombre || googleUser.displayName || '',
+          displayName: existingUserCheck.userData.nombre || googleUser.displayName || '',
+          birthdate: existingUserCheck.userData.birthdate || ''
+        };
+        
+        // Usar el ID del usuario existente en lugar del UID de Google Auth
+        await createUserProfile(existingUserCheck.userId, userData);
+        console.log('✅ Perfil creado en users con ID del usuario escolar');
+      } else {
+        console.log('✅ Perfil ya existe en users con ID del usuario escolar');
+      }
+      
+      // Actualizar con información de Google Auth
+      await updateDoc(doc(db, 'users', existingUserCheck.userId), {
+        googleAuthUid: googleUser.uid,
+        googleAuthEmail: googleUser.email,
+        googleAuthDisplayName: googleUser.displayName,
+        googleAuthPhotoURL: googleUser.photoURL,
+        linkedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Usuario escolar vinculado exitosamente con Google Auth');
+      return { 
+        shouldContinue: true, 
+        message: "Cuenta vinculada exitosamente con tu cuenta escolar existente.",
+        useExistingUserId: existingUserCheck.userId
+      };
+    }
+    
+    // Si es un usuario regular, verificar si ya tiene Google Auth vinculado
+    if (existingUserCheck.userData.googleAuthUid) {
+      console.log('⚠️ Usuario ya tiene Google Auth vinculado');
+      
+      // Si el UID vinculado es diferente al actual, hay un conflicto
+      if (existingUserCheck.userData.googleAuthUid !== googleUser.uid) {
+        console.log('⚠️ Conflicto: UID vinculado diferente al actual');
+        return { 
+          shouldContinue: false, 
+          message: "Ya existe una cuenta con este email vinculada a otra cuenta de Google. Por favor, inicia sesión con tu cuenta existente." 
+        };
+      } else {
+        console.log('✅ UID vinculado coincide, continuando...');
+        return { 
+          shouldContinue: true, 
+          message: "Cuenta ya vinculada correctamente." 
+        };
+      }
+    }
+    
+    // Si no tiene Google Auth vinculado, vincularlo
+    console.log('🔗 Vinculando cuenta de Google con usuario existente...');
+    const linked = await linkGoogleAccountToExistingUser(googleUser, existingUserCheck.userId, existingUserCheck.userData);
+    
+    if (linked) {
+      console.log('✅ Cuenta vinculada exitosamente');
+      return { 
+        shouldContinue: true, 
+        message: "Cuenta vinculada exitosamente con tu cuenta existente." 
+      };
+    } else {
+      console.log('❌ Error vinculando cuenta');
+      return { 
+        shouldContinue: false, 
+        message: "Error vinculando tu cuenta de Google con la cuenta existente. Por favor, contacta soporte." 
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ Error manejando usuario existente:', error);
+    return { 
+      shouldContinue: false, 
+      message: "Error procesando tu cuenta. Por favor, intenta nuevamente." 
+    };
+  }
+};
+
+/**
+ * Vincula una cuenta de Google Auth con un usuario existente en Firestore
+ */
+export const linkGoogleAccountToExistingUser = async (
+  googleUser: any,
+  existingUserId: string,
+  existingUserData: any
+): Promise<boolean> => {
+  try {
+    console.log('🔗 Vinculando cuenta de Google con usuario existente:', existingUserId);
+    
+    // Actualizar el documento existente con la información de Google Auth
+    const updateData = {
+      googleAuthUid: googleUser.uid,
+      googleAuthEmail: googleUser.email,
+      googleAuthDisplayName: googleUser.displayName,
+      googleAuthPhotoURL: googleUser.photoURL,
+      linkedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    
+    await updateDoc(doc(db, 'users', existingUserId), updateData);
+    
+    console.log('✅ Cuenta de Google vinculada exitosamente con usuario existente');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error vinculando cuenta de Google:', error);
+    return false;
   }
 }; 

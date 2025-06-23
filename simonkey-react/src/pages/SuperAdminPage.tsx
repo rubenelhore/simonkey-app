@@ -17,6 +17,8 @@ import { deleteUserWithConfirmation, syncSchoolUsers, migrateUsers } from '../se
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
 import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
+import DuplicateAccountsDiagnostic from '../components/DuplicateAccountsDiagnostic';
+import SchoolStudentDiagnostic from '../components/SchoolStudentDiagnostic';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import '../styles/SuperAdminPage.css';
 
@@ -393,6 +395,20 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-search"></i>
             Verificación de Vinculación
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'duplicateAccounts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('duplicateAccounts')}
+          >
+            <i className="fas fa-search"></i>
+            Diagnóstico de Cuentas Duplicadas
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'schoolStudent' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schoolStudent')}
+          >
+            <i className="fas fa-user-graduate"></i>
+            Diagnóstico de Estudiantes
+          </button>
         </nav>
 
         <div className="tab-content">
@@ -752,6 +768,33 @@ const SuperAdminPage: React.FC = () => {
                 </div>
               </div>
               <SchoolLinkingVerification />
+            </div>
+          )}
+
+          {/* Tab de Diagnóstico de Cuentas Duplicadas */}
+          {activeTab === 'duplicateAccounts' && (
+            <div className="duplicate-accounts-tab">
+              <div className="tab-header">
+                <h2>🔍 Diagnóstico de Cuentas Duplicadas</h2>
+                <p className="tab-description">
+                  Detecta y limpia cuentas duplicadas que se crean cuando un usuario intenta 
+                  iniciar sesión con Google Auth usando un email que ya existe en el sistema.
+                </p>
+              </div>
+              <DuplicateAccountsDiagnostic />
+            </div>
+          )}
+
+          {/* Tab de Diagnóstico de Estudiantes */}
+          {activeTab === 'schoolStudent' && (
+            <div className="school-student-tab">
+              <div className="tab-header">
+                <h2>🔍 Diagnóstico de Estudiantes</h2>
+                <p className="tab-description">
+                  Detecta y gestiona problemas específicos relacionados con los estudiantes.
+                </p>
+              </div>
+              <SchoolStudentDiagnostic />
             </div>
           )}
         </div>

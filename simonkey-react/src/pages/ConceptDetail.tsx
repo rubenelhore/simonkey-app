@@ -1,44 +1,13 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
 import '../styles/ConceptDetail.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import TextToSpeech from '../components/TextToSpeech';
 import '../styles/TextToSpeech.css';
 import { loadVoiceSettings } from '../hooks/voiceService';
 import { Concept } from '../types/interfaces';
-
-
-// Añade esta función debajo de tus imports:
-
-const triggerAutoRead = (delay = 1000) => {
-  setTimeout(() => {
-    // Cancelar cualquier síntesis en curso primero
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    
-    // Intentar encontrar el botón en diferentes selectores
-    const selectors = [
-      '.concept-definition .text-to-speech-button',
-      '.notes-text .text-to-speech-button',
-      '.text-to-speech-button'
-    ];
-    
-    for (const selector of selectors) {
-      const button = document.querySelector(selector);
-      if (button instanceof HTMLButtonElement) {
-        console.log(`Auto-reproducción activada (selector: ${selector})`);
-        button.click();
-        return true;
-      }
-    }
-    
-    console.warn("No se encontró ningún botón de reproducción");
-    return false;
-  }, delay);
-};
 
 const ConceptDetail: React.FC = () => {
   const { notebookId, conceptoId, index } = useParams<{ 
@@ -60,9 +29,11 @@ const ConceptDetail: React.FC = () => {
   const [isEditingNotes, setIsEditingNotes] = useState<boolean>(false);
   const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
   
-  // Navegación entre conceptos
+  // Navegación entre conceptos - SISTEMA GLOBAL
   const [totalConcepts, setTotalConcepts] = useState<number>(0);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [globalIndex, setGlobalIndex] = useState<number>(0);
+  const [allConcepts, setAllConcepts] = useState<{ conceptoId: string, localIndex: number, concepto: any }[]>([]);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
 
   // Añade este estado
@@ -172,15 +143,86 @@ const ConceptDetail: React.FC = () => {
             }
           }
         }
-      } catch (err) {
-        console.error("Error fetching concept:", err);
-        setError("Error al cargar el concepto");
+
+        // Precargar conceptos cercanos
+        preloadNearbyConcepts(idx);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        setError("Error al cargar los datos del concepto");
+      } finally {
         setLoading(false);
       }
     };
     
     fetchData();
   }, [notebookId, conceptoId, index, autoReadEnabled]);
+
+  // Nuevo useEffect para actualizar totalConcepts cuando cambien los parámetros
+  useEffect(() => {
+    const updateTotalConcepts = async () => {
+      if (!conceptoId) return;
+      
+      try {
+        const conceptoRef = doc(db, 'conceptos', conceptoId);
+        const conceptoSnap = await getDoc(conceptoRef);
+        
+        if (conceptoSnap.exists()) {
+          const conceptos = conceptoSnap.data().conceptos;
+          setTotalConcepts(conceptos.length);
+        }
+      } catch (error) {
+        console.error("Error actualizando total de conceptos:", error);
+      }
+    };
+
+    updateTotalConcepts();
+  }, [conceptoId]);
+
+  // Listener en tiempo real para detectar cambios en TODOS los documentos de conceptos del cuaderno
+  useEffect(() => {
+    if (!notebookId) return;
+
+    console.log('🔍 Iniciando listener para TODOS los conceptos del cuaderno:', notebookId);
+    
+    // Crear query para todos los documentos de conceptos del cuaderno
+    const conceptosQuery = query(
+      collection(db, 'conceptos'),
+      where('cuadernoId', '==', notebookId)
+    );
+    
+    const unsubscribe = onSnapshot(conceptosQuery, (querySnapshot) => {
+      let totalConceptos = 0;
+      const conceptosArray: { conceptoId: string, localIndex: number, concepto: any }[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.conceptos && Array.isArray(data.conceptos)) {
+          // Agregar cada concepto con su información de documento
+          data.conceptos.forEach((concepto: any, localIndex: number) => {
+            conceptosArray.push({
+              conceptoId: doc.id,
+              localIndex: localIndex,
+              concepto: concepto
+            });
+          });
+          totalConceptos += data.conceptos.length;
+        }
+      });
+      
+      console.log('📊 Listener detectó cambio - Total conceptos en cuaderno:', totalConceptos, 'Anterior:', totalConcepts);
+      console.log('📋 Array de conceptos globales:', conceptosArray);
+      
+      setTotalConcepts(totalConceptos);
+      setAllConcepts(conceptosArray);
+    }, (error) => {
+      console.error("Error en listener de conceptos:", error);
+    });
+
+    return () => {
+      console.log('🔍 Desconectando listener para cuaderno:', notebookId);
+      unsubscribe();
+    };
+  }, [notebookId]);
 
   useEffect(() => {
     if (cuaderno && cuaderno.color) {
@@ -206,9 +248,9 @@ const ConceptDetail: React.FC = () => {
         return;
       }
       
-      if (event.key === 'ArrowRight' && currentIndex < totalConcepts - 1) {
+      if (event.key === 'ArrowRight' && globalIndex < totalConcepts - 1) {
         navigateToNextConcept();
-      } else if (event.key === 'ArrowLeft' && currentIndex > 0) {
+      } else if (event.key === 'ArrowLeft' && globalIndex > 0) {
         navigateToPreviousConcept();
       }
     };
@@ -218,7 +260,21 @@ const ConceptDetail: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentIndex, totalConcepts, conceptoId, notebookId]);
+  }, [globalIndex, totalConcepts, conceptoId, notebookId]);
+
+  // Sincronizar el globalIndex con la URL
+  useEffect(() => {
+    if (!allConcepts.length || !conceptoId || index === undefined) return;
+    
+    const idx = allConcepts.findIndex(
+      item => item.conceptoId === conceptoId && item.localIndex === parseInt(index)
+    );
+    
+    if (idx !== -1) {
+      console.log('🔄 Sincronizando globalIndex:', idx, 'para concepto:', conceptoId, 'índice local:', index);
+      setGlobalIndex(idx);
+    }
+  }, [allConcepts, conceptoId, index]);
 
   // Añade este efecto para persistir la preferencia de autolectura
   useEffect(() => {
@@ -413,20 +469,28 @@ const ConceptDetail: React.FC = () => {
 
   // Funciones de navegación entre conceptos
   const navigateToNextConcept = () => {
-    if (currentIndex < totalConcepts - 1) {
+    if (globalIndex < totalConcepts - 1) {
       setIsNavigating(true);
-      const nextIndex = currentIndex + 1;
-      navigate(`/notebooks/${notebookId}/concepto/${conceptoId}/${nextIndex}`);
-      loadConceptAtIndex(nextIndex);
+      const nextGlobalIndex = globalIndex + 1;
+      setGlobalIndex(nextGlobalIndex);
+      const next = allConcepts[nextGlobalIndex];
+      
+      console.log('➡️ Navegando al siguiente concepto global:', nextGlobalIndex, 'Documento:', next.conceptoId, 'Índice local:', next.localIndex);
+      
+      navigate(`/notebooks/${notebookId}/concepto/${next.conceptoId}/${next.localIndex}`);
     }
   };
 
   const navigateToPreviousConcept = () => {
-    if (currentIndex > 0) {
+    if (globalIndex > 0) {
       setIsNavigating(true);
-      const prevIndex = currentIndex - 1;
-      navigate(`/notebooks/${notebookId}/concepto/${conceptoId}/${prevIndex}`);
-      loadConceptAtIndex(prevIndex);
+      const prevGlobalIndex = globalIndex - 1;
+      setGlobalIndex(prevGlobalIndex);
+      const prev = allConcepts[prevGlobalIndex];
+      
+      console.log('⬅️ Navegando al concepto anterior global:', prevGlobalIndex, 'Documento:', prev.conceptoId, 'Índice local:', prev.localIndex);
+      
+      navigate(`/notebooks/${notebookId}/concepto/${prev.conceptoId}/${prev.localIndex}`);
     }
   };
 
@@ -453,6 +517,14 @@ const ConceptDetail: React.FC = () => {
           `/notebooks/${notebookId}/concepto/${conceptoId}/${idx}`
         );
         
+        // IMPORTANTE: Actualizar totalConcepts incluso cuando usamos conceptos precargados
+        const conceptoRef = doc(db, 'conceptos', conceptoId as string);
+        const conceptoSnap = await getDoc(conceptoRef);
+        if (conceptoSnap.exists()) {
+          const conceptos = conceptoSnap.data().conceptos;
+          // ELIMINADO: setTotalConcepts(conceptos.length); // Esta línea sobrescribía el total correcto
+        }
+        
         // Autoread si está habilitado
         handleAutoRead();
         
@@ -467,8 +539,7 @@ const ConceptDetail: React.FC = () => {
       if (conceptoSnap.exists()) {
         const conceptos = conceptoSnap.data().conceptos;
         
-        // IMPORTANTE: Actualizar el total de conceptos aquí
-        setTotalConcepts(conceptos.length);
+        // ELIMINADO: setTotalConcepts(conceptos.length); // Esta línea sobrescribía el total correcto
         
         if (idx >= 0 && idx < conceptos.length) {
           const conceptoData = conceptos[idx];
@@ -531,6 +602,34 @@ const ConceptDetail: React.FC = () => {
     }
   };
 
+  const triggerAutoRead = (delay = 1000) => {
+    setTimeout(() => {
+      // Cancelar cualquier síntesis en curso primero
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      
+      // Intentar encontrar el botón en diferentes selectores
+      const selectors = [
+        '.concept-definition .text-to-speech-button',
+        '.notes-text .text-to-speech-button',
+        '.text-to-speech-button'
+      ];
+      
+      for (const selector of selectors) {
+        const button = document.querySelector(selector);
+        if (button instanceof HTMLButtonElement) {
+          console.log(`Auto-reproducción activada (selector: ${selector})`);
+          button.click();
+          return true;
+        }
+      }
+      
+      console.warn("No se encontró ningún botón de reproducción");
+      return false;
+    }, delay);
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -575,7 +674,7 @@ const ConceptDetail: React.FC = () => {
         <div className="concept-navigation">
           <button 
             onClick={navigateToPreviousConcept}
-            disabled={currentIndex === 0 || isNavigating}
+            disabled={globalIndex === 0 || isNavigating}
             className={`concept-nav-button previous ${isNavigating ? 'navigating' : ''}`}
             aria-label="Concepto anterior"
             title="Concepto anterior"
@@ -583,11 +682,11 @@ const ConceptDetail: React.FC = () => {
             {isNavigating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-chevron-left"></i>}
           </button>
           <div className="concept-pagination">
-            {currentIndex + 1} / {totalConcepts}
+            {`${globalIndex + 1} / ${totalConcepts}`}
           </div>
           <button 
             onClick={navigateToNextConcept}
-            disabled={currentIndex === totalConcepts - 1 || isNavigating}
+            disabled={globalIndex === totalConcepts - 1 || isNavigating}
             className={`concept-nav-button next ${isNavigating ? 'navigating' : ''}`}
             aria-label="Siguiente concepto"
             title="Siguiente concepto"

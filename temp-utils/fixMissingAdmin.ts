@@ -1,6 +1,4 @@
-import {
-  db
-} from '../services/firebase';
+import { db } from '../simonkey-react/src/services/firebase';
 import {
   collection, getDocs, query, where, doc, getDoc, updateDoc, setDoc, serverTimestamp
 } from 'firebase/firestore';
@@ -38,13 +36,13 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
     }
     // 3. Verificar salones asignados al profesor
     const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', teacherId)
     );
     const classroomSnapshot = await getDocs(classroomQuery);
     if (classroomSnapshot.empty) {
       // Buscar todos los salones para ver qué IDs de profesor existen
-      const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
+      const allClassroomsQuery = query(collection(db, 'schoolSubjects'));
       const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
       allClassroomsSnapshot.forEach(doc => {
         const classroomData = doc.data();
@@ -80,7 +78,7 @@ export const diagnoseSchoolDataStructure = async (teacherId: string) => {
     }
 
     // Verificar si hay salones con idProfesor diferente al actual
-    const allClassrooms = await getDocs(collection(db, 'schoolClassrooms'));
+    const allClassrooms = await getDocs(collection(db, 'schoolSubjects'));
     const classroomsWithDifferentTeacher = allClassrooms.docs.filter(doc => {
       const data = doc.data();
       return data.idProfesor && data.idProfesor !== teacherId;
@@ -147,7 +145,7 @@ export const fixSpecificInconsistencies = async (teacherId: string) => {
       const adminData = doc.data();
     });
     // 3. Buscar classrooms con idProfesor incorrecto
-    const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
+    const allClassroomsQuery = query(collection(db, 'schoolSubjects'));
     const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
     const classroomsToFix = allClassroomsSnapshot.docs.filter(doc => {
       const data = doc.data();
@@ -207,7 +205,7 @@ export const createMissingAdmin = async (adminId: string, adminName: string, ins
 // Función para corregir idProfesor en classrooms
 export const fixClassroomTeacherId = async (classroomId: string, correctTeacherId: string) => {
   try {
-    await updateDoc(doc(db, 'schoolClassrooms', classroomId), {
+    await updateDoc(doc(db, 'schoolSubjects', classroomId), {
       idProfesor: correctTeacherId,
       updatedAt: serverTimestamp()
     });
@@ -267,7 +265,7 @@ export const autoFixAllInconsistencies = async (teacherId: string) => {
     }
 
     // 4. Corregir classrooms,
-    const allClassroomsQuery = query(collection(db, 'schoolClassrooms'));
+    const allClassroomsQuery = query(collection(db, 'schoolSubjects'));
     const allClassroomsSnapshot = await getDocs(allClassroomsQuery);
     for (const classroomDoc of allClassroomsSnapshot.docs) {
       const classroomData = classroomDoc.data();
@@ -322,7 +320,7 @@ export const fixSpecificTeacherCase = async () => {
     const allAdminsSnapshot = await getDocs(allAdminsQuery);
     // 2. Buscar classrooms con idProfesor incorrecto,
     const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', incorrectTeacherId)
     );
     const classroomSnapshot = await getDocs(classroomQuery);
@@ -344,7 +342,7 @@ export const fixSpecificTeacherCase = async () => {
     // 5. Corregir classrooms
     if (!classroomSnapshot.empty) {
       for (const classroomDoc of classroomSnapshot.docs) {
-        await updateDoc(doc(db, 'schoolClassrooms', classroomDoc.id), {
+        await updateDoc(doc(db, 'schoolSubjects', classroomDoc.id), {
           idProfesor: teacherId,
           updatedAt: serverTimestamp()
         });
@@ -412,7 +410,7 @@ export const fixClassroomIdSalon = async (teacherId: string) => {
   try {
     // 1. Obtener todos los classrooms del profesor,
     const classroomQuery = query(
-      collection(db, 'schoolClassrooms'),
+      collection(db, 'schoolSubjects'),
       where('idProfesor', '==', teacherId)
     );
     const classroomSnapshot = await getDocs(classroomQuery);
@@ -427,7 +425,7 @@ export const fixClassroomIdSalon = async (teacherId: string) => {
       
       // Si idSalon es undefined, establecerlo como el ID del documento
       if (!classroomData.idSalon) {
-        await updateDoc(doc(db, 'schoolClassrooms', classroomId), {
+        await updateDoc(doc(db, 'schoolSubjects', classroomId), {
           idSalon: classroomId,
           updatedAt: serverTimestamp()
         });
