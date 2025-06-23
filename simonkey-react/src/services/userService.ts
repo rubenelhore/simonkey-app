@@ -896,13 +896,13 @@ export const handleExistingUserWithSameEmail = async (
       
       console.log('👨‍🎓 Usuario escolar existente detectado, vinculando con Google Auth');
       
-      // Verificar si ya existe un perfil en la colección users con el ID del usuario existente
-      const existingUserDoc = await getDoc(doc(db, 'users', existingUserCheck.userId));
+      // Verificar si ya existe un perfil en la colección users con el UID de Google Auth
+      const googleUserDoc = await getDoc(doc(db, 'users', googleUser.uid));
       
-      if (!existingUserDoc.exists()) {
-        console.log('⚠️ No existe perfil en users, creando con datos del usuario escolar...');
+      if (!googleUserDoc.exists()) {
+        console.log('⚠️ No existe perfil en users con UID de Google Auth, creando...');
         
-        // Crear el perfil en la colección users usando el ID del usuario existente
+        // Crear el perfil en la colección users usando el UID de Google Auth (NO el ID del usuario escolar)
         const userData = {
           email: googleUser.email || '',
           username: existingUserCheck.userData.nombre || googleUser.displayName || '',
@@ -911,19 +911,20 @@ export const handleExistingUserWithSameEmail = async (
           birthdate: existingUserCheck.userData.birthdate || ''
         };
         
-        // Usar el ID del usuario existente en lugar del UID de Google Auth
-        await createUserProfile(existingUserCheck.userId, userData);
-        console.log('✅ Perfil creado en users con ID del usuario escolar');
+        // Usar el UID de Google Auth, NO el ID del usuario escolar
+        await createUserProfile(googleUser.uid, userData);
+        console.log('✅ Perfil creado en users con UID de Google Auth');
       } else {
-        console.log('✅ Perfil ya existe en users con ID del usuario escolar');
+        console.log('✅ Perfil ya existe en users con UID de Google Auth');
       }
       
-      // Actualizar con información de Google Auth
-      await updateDoc(doc(db, 'users', existingUserCheck.userId), {
+      // Actualizar con información de Google Auth y vincular con el usuario escolar
+      await updateDoc(doc(db, 'users', googleUser.uid), {
         googleAuthUid: googleUser.uid,
         googleAuthEmail: googleUser.email,
         googleAuthDisplayName: googleUser.displayName,
         googleAuthPhotoURL: googleUser.photoURL,
+        linkedSchoolUserId: existingUserCheck.userId, // Vincular con el ID del usuario escolar
         linkedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -932,7 +933,7 @@ export const handleExistingUserWithSameEmail = async (
       return { 
         shouldContinue: true, 
         message: "Cuenta vinculada exitosamente con tu cuenta escolar existente.",
-        useExistingUserId: existingUserCheck.userId
+        useExistingUserId: googleUser.uid // Usar el UID de Google Auth, no el ID del usuario escolar
       };
     }
     

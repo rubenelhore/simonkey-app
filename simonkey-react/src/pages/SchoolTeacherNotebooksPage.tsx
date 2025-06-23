@@ -37,14 +37,15 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
 
   // Función temporal para migrar usuario a schoolTeachers si no existe
   const migrateUserToSchoolTeachers = async () => {
-    if (!user || !userProfile) return;
-    
-    let idAdmin = ''; // Mover la declaración fuera del try
-    
+    if (!user || !userProfile) {
+      console.log('❌ No hay usuario o perfil disponible');
+      return;
+    }
+
     try {
-      console.log('🔄 Verificando si usuario existe en schoolTeachers...');
+      console.log('🔄 Migrando usuario a profesor escolar...');
       
-      // Primero verificar si ya existe en schoolTeachers
+      // Verificar si ya existe en schoolTeachers
       const teacherQuery = query(
         collection(db, 'schoolTeachers'),
         where('id', '==', user.uid)
@@ -52,80 +53,49 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
       const teacherSnapshot = await getDocs(teacherQuery);
       
       if (!teacherSnapshot.empty) {
-        console.log('✅ Usuario ya existe en schoolTeachers');
+        console.log('✅ Usuario ya existe en schoolTeachers, no es necesario migrar');
         return;
       }
+
+      // Buscar un admin disponible o crear uno temporal
+      let idAdmin = '';
+      const adminsSnapshot = await getDocs(collection(db, 'schoolAdmins'));
       
-      console.log('🔄 Usuario no existe en schoolTeachers, migrando...');
-      
-      // Buscar un admin disponible para vincular
-      const adminQuery = query(collection(db, 'schoolAdmins'));
-      const adminSnapshot = await getDocs(adminQuery);
-      
-      if (!adminSnapshot.empty) {
-        idAdmin = adminSnapshot.docs[0].id;
-        console.log('👨‍💼 Vinculando a admin:', idAdmin);
+      if (!adminsSnapshot.empty) {
+        // Usar el primer admin disponible
+        idAdmin = adminsSnapshot.docs[0].id;
+        console.log('✅ Usando admin existente:', idAdmin);
       } else {
-        console.log('⚠️ No hay admins disponibles, creando uno...');
-        // Crear un admin por defecto si no existe ninguno
+        // Crear un admin temporal si no existe ninguno
+        console.log('⚠️ No hay admins disponibles, creando uno temporal...');
         const adminData = {
-          nombre: 'Admin por Defecto',
-          email: 'admin@default.edu',
+          nombre: 'Admin Temporal',
+          email: 'admin@temporal.com',
           password: '1234',
           subscription: UserSubscriptionType.SCHOOL,
-          idInstitucion: '', // Se vinculará después
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          idInstitucion: '',
+          createdAt: serverTimestamp()
         };
         
         const adminRef = await addDoc(collection(db, 'schoolAdmins'), adminData);
         idAdmin = adminRef.id;
-        console.log('✅ Admin creado:', idAdmin);
+        console.log('✅ Admin temporal creado:', idAdmin);
       }
       
-      // Crear el registro en schoolTeachers usando el ID del usuario como ID del documento
-      // Esto debería funcionar porque las reglas permiten create si request.auth.uid == teacherId
-      await setDoc(doc(db, 'schoolTeachers', user.uid), {
-        id: user.uid,
-        nombre: userProfile.nombre || userProfile.displayName || userProfile.username || 'Profesor',
-        email: userProfile.email,
-        password: '1234', // Password por defecto
+      // SOLO actualizar el documento existente en users, NO crear uno nuevo en schoolTeachers
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
         subscription: UserSubscriptionType.SCHOOL,
-        idAdmin: idAdmin,
-        createdAt: userProfile.createdAt || serverTimestamp(),
+        schoolRole: SchoolRole.TEACHER,
+        maxNotebooks: 999,
+        maxConceptsPerNotebook: 999,
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ Usuario migrado exitosamente a schoolTeachers');
+      console.log('✅ Usuario actualizado exitosamente como profesor escolar');
       
     } catch (error) {
-      console.error('❌ Error migrando usuario a schoolTeachers:', error);
-      // Si falla, intentar usar la Cloud Function como respaldo
-      try {
-        console.log('🔄 Intentando migración con Cloud Function...');
-        const { httpsCallable } = await import('firebase/functions');
-        const functions = getFunctions();
-        const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
-        
-        const result = await createSchoolUser({
-          userData: {
-            email: user.email || '',
-            nombre: userProfile.nombre || userProfile.displayName || userProfile.username || 'Profesor',
-            password: '1234',
-            role: 'teacher',
-            additionalData: {
-              id: user.uid,
-              idAdmin: idAdmin || '',
-              createdAt: userProfile.createdAt,
-              updatedAt: serverTimestamp()
-            }
-          }
-        });
-        
-        console.log('✅ Usuario migrado exitosamente con Cloud Function:', result);
-      } catch (cloudError) {
-        console.error('❌ Error también con Cloud Function:', cloudError);
-      }
+      console.error('❌ Error migrando usuario a profesor escolar:', error);
     }
   };
 

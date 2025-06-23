@@ -22,6 +22,8 @@ import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
 import DuplicateAccountsDiagnostic from '../components/DuplicateAccountsDiagnostic';
 import SchoolStudentDiagnostic from '../components/SchoolStudentDiagnostic';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
+import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
+import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -432,6 +434,70 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
+  const handleCleanDuplicateTeachers = async () => {
+    try {
+      setSyncLoading(true);
+      const results = await cleanDuplicateSchoolTeachers();
+      const message = `🧹 Limpieza completada:\n\n✅ Documentos eliminados: ${results.removed}\n❌ Errores: ${results.errors.length}`;
+      
+      if (results.errors.length > 0) {
+        const errorDetails = results.errors.map(e => `- ${e.id}: ${e.error}`).join('\n');
+        alert(`${message}\n\nDetalles de errores:\n${errorDetails}`);
+      } else {
+        alert(message);
+      }
+      
+      showNotification(`Limpieza completada: ${results.removed} documentos eliminados`, 'success');
+    } catch (error: any) {
+      console.error('❌ Error limpiando documentos duplicados:', error);
+      alert(`Error limpiando documentos duplicados: ${error.message}`);
+      showNotification('Error en la limpieza', 'error');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleCheckCollectionsStatus = async () => {
+    try {
+      await checkCollectionsStatus();
+      alert('✅ Verificación completada. Revisa la consola para ver los detalles.');
+    } catch (error: any) {
+      console.error('❌ Error verificando estado de colecciones:', error);
+      alert(`Error verificando estado: ${error.message}`);
+    }
+  };
+
+  const handleFixRubenelhoreDuplicate = async () => {
+    try {
+      setSyncLoading(true);
+      const result = await fixRubenelhoreDuplicate();
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+        showNotification('Corrección completada exitosamente', 'success');
+      } else {
+        alert(`❌ ${result.message}`);
+        showNotification('Error en la corrección', 'error');
+      }
+    } catch (error: any) {
+      console.error('❌ Error corrigiendo duplicado de rubenelhore:', error);
+      alert(`Error: ${error.message}`);
+      showNotification('Error en la corrección', 'error');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleCheckRubenelhoreStatus = async () => {
+    try {
+      await checkRubenelhoreStatus();
+      alert('✅ Verificación completada. Revisa la consola para ver los detalles.');
+    } catch (error: any) {
+      console.error('❌ Error verificando estado de rubenelhore:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -781,6 +847,66 @@ const SuperAdminPage: React.FC = () => {
                   >
                     <i className="fas fa-search"></i>
                     Verificar Estado
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🧹 Limpiar Documentos Duplicados</h3>
+                    <p>Elimina documentos duplicados en schoolTeachers</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-clean"
+                    onClick={handleCleanDuplicateTeachers}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-broom"></i>
+                    Limpiar Duplicados
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>📊 Verificar Estado de Colecciones</h3>
+                    <p>Muestra el estado de users y schoolTeachers</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-status"
+                    onClick={handleCheckCollectionsStatus}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-chart-bar"></i>
+                    Verificar Estado
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔧 Corregir Duplicado Rubenelhore</h3>
+                    <p>Elimina el documento duplicado específico de rubenelhore23@gmail.com</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-fix"
+                    onClick={handleFixRubenelhoreDuplicate}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-wrench"></i>
+                    Corregir Duplicado
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔍 Verificar Estado Rubenelhore</h3>
+                    <p>Muestra el estado específico de rubenelhore23@gmail.com</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-check-specific"
+                    onClick={handleCheckRubenelhoreStatus}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-search"></i>
+                    Verificar Rubenelhore
                   </button>
                 </div>
               </div>
