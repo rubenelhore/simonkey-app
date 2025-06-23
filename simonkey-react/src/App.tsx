@@ -326,25 +326,13 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? (
-                  <>
-                    {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                      setHasCompletedOnboarding(true);
-                      localStorage.setItem('hasCompletedOnboarding', 'true');
-                    }} />}
-                    <Notebooks />
-                  </>
-                ) : (
-                  <SchoolUserGuard>
-                    <>
-                      {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                        setHasCompletedOnboarding(true);
-                        localStorage.setItem('hasCompletedOnboarding', 'true');
-                      }} />}
-                      <Notebooks />
-                    </>
-                  </SchoolUserGuard>
-                )}
+                <>
+                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                    setHasCompletedOnboarding(true);
+                    localStorage.setItem('hasCompletedOnboarding', 'true');
+                  }} />}
+                  <Notebooks />
+                </>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -354,7 +342,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <NotebookDetail /> : <SchoolUserGuard><NotebookDetail /></SchoolUserGuard>}
+                <NotebookDetail />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -364,7 +352,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <ConceptDetail /> : <SchoolUserGuard><ConceptDetail /></SchoolUserGuard>}
+                <ConceptDetail />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -374,7 +362,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <ExplainConceptPage /> : <SchoolUserGuard><ExplainConceptPage /></SchoolUserGuard>}
+                <ExplainConceptPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -387,7 +375,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <VoiceSettingsPage /> : <SchoolUserGuard><VoiceSettingsPage /></SchoolUserGuard>}
+                <VoiceSettingsPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -399,7 +387,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <StudyModePage /> : <SchoolUserGuard><StudyModePage /></SchoolUserGuard>}
+                <StudyModePage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -411,7 +399,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <ProgressPage /> : <SchoolUserGuard><ProgressPage /></SchoolUserGuard>}
+                <ProgressPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -423,7 +411,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <ProfilePage /> : <SchoolUserGuard><ProfilePage /></SchoolUserGuard>}
+                <ProfilePage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -435,7 +423,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                {isSuperAdmin ? <QuizModePage /> : <SchoolUserGuard><QuizModePage /></SchoolUserGuard>}
+                <QuizModePage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
