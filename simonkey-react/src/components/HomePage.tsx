@@ -13,15 +13,15 @@ import SimonkeyCarousel from './SimonkeyCarousel';
 const HomePage: React.FC = () => {
   const location = useLocation();
   const images = [
-    { id: 1, src: '/img/image1.jpg', alt: 'Image 1' },
-    { id: 2, src: '/img/image2.jpg', alt: 'Image 2' },
-    { id: 3, src: '/img/image3.jpg', alt: 'Image 3' },
-    { id: 4, src: '/img/image4.jpg', alt: 'Image 4' },
-    { id: 5, src: '/img/image5.jpg', alt: 'Image 5' },
-    { id: 6, src: '/img/image6.jpg', alt: 'Image 6' },
-    { id: 7, src: '/img/image7.jpg', alt: 'Image 7' },
-    { id: 8, src: '/img/image8.jpg', alt: 'Image 8' },
-    { id: 9, src: '/img/image9.jpg', alt: 'Image 9' }
+    { id: 1, src: '/img/image1.png', alt: 'Image 1' },
+    { id: 2, src: '/img/image2.png', alt: 'Image 2' },
+    { id: 3, src: '/img/image3.png', alt: 'Image 3' },
+    { id: 4, src: '/img/image4.png', alt: 'Image 4' },
+    { id: 5, src: '/img/image5.png', alt: 'Image 5' },
+    { id: 6, src: '/img/image6.png', alt: 'Image 6' },
+    { id: 7, src: '/img/image7.png', alt: 'Image 7' },
+    { id: 8, src: '/img/image8.png', alt: 'Image 8' },
+    { id: 9, src: '/img/image9.png', alt: 'Image 9' }
   ];
 
   useEffect(() => {
