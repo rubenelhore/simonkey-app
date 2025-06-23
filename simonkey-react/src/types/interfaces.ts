@@ -291,6 +291,7 @@ export interface UserProfile {
   // Campos específicos para usuarios escolares
   schoolRole?: SchoolRole;
   schoolName?: string;
+  idNotebook?: string; // ID del cuaderno asignado al estudiante
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;
   maxConceptsPerNotebook?: number;

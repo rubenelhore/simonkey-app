@@ -11,7 +11,10 @@ import {
   addDoc,
   serverTimestamp,
   onSnapshot,
-  query
+  query,
+  getDoc,
+  setDoc,
+  where
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
@@ -24,6 +27,10 @@ import SchoolStudentDiagnostic from '../components/SchoolStudentDiagnostic';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
+import { migrateAllExistingSchoolUsers, checkUserSyncStatus } from '../utils/migrateExistingSchoolUsers';
+import { runCompleteReplicaTest } from '../utils/testReplicaSystem';
+// Importar funciones de adminUtils para que estén disponibles globalmente
+import '../utils/adminUtils';
 import '../styles/SuperAdminPage.css';
 
 interface User {
@@ -242,12 +249,44 @@ const SuperAdminPage: React.FC = () => {
   const updateUserSubscription = async (userId: string, subscription: UserSubscriptionType) => {
     try {
       console.log(`🔄 Actualizando suscripción del usuario ${userId} a ${subscription}`);
+      
+      // Obtener los datos actuales del usuario
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      const userData = userDoc.data();
+      const previousSubscription = userData.subscription;
+      
+      // Si se cambia de SCHOOL a otro tipo, limpiar réplicas
+      if (previousSubscription === UserSubscriptionType.SCHOOL && subscription !== UserSubscriptionType.SCHOOL) {
+        console.log(`🔄 Cambiando de SCHOOL a ${subscription}, limpiando réplicas...`);
+        await cleanupUserReplicas(userId);
+      }
+      
+      // Actualizar la suscripción en la colección users
       await updateDoc(doc(db, 'users', userId), {
         subscription,
         updatedAt: serverTimestamp()
       });
-      console.log(`✅ Suscripción actualizada exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
-      showNotification(`Suscripción actualizada a ${subscription}`, 'success');
+      
+      // Si se cambia a SCHOOL, verificar si ya tiene un rol asignado y crear réplica
+      if (subscription === UserSubscriptionType.SCHOOL && userData.schoolRole) {
+        console.log(`🏫 Usuario cambiado a SCHOOL con rol ${userData.schoolRole}, creando réplica...`);
+        
+        if (userData.schoolRole === SchoolRole.TEACHER) {
+          await createTeacherReplica(userId, userData);
+        } else if (userData.schoolRole === SchoolRole.STUDENT) {
+          await createStudentReplica(userId, userData);
+        }
+        
+        console.log(`✅ Suscripción actualizada a ${subscription} y réplica creada`);
+        showNotification(`Suscripción actualizada a ${subscription} y réplica creada`, 'success');
+      } else {
+        console.log(`✅ Suscripción actualizada exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
+        showNotification(`Suscripción actualizada a ${subscription}`, 'success');
+      }
     } catch (error) {
       console.error('Error updating user:', error);
       showNotification('Error al actualizar la suscripción del usuario', 'error');
@@ -257,21 +296,163 @@ const SuperAdminPage: React.FC = () => {
   const updateUserSchoolRole = async (userId: string, schoolRole: SchoolRole) => {
     try {
       console.log(`🔄 Actualizando rol escolar del usuario ${userId} a ${schoolRole}`);
+      
+      // Obtener los datos actuales del usuario
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      const userData = userDoc.data();
+      const previousRole = userData.schoolRole;
+      
+      // Limpiar réplicas anteriores si el rol cambió
+      if (previousRole && previousRole !== schoolRole) {
+        console.log(`🔄 Rol cambiando de ${previousRole} a ${schoolRole}, limpiando réplicas anteriores...`);
+        await cleanupUserReplicas(userId);
+      }
+      
+      // Actualizar el rol en la colección users
       await updateDoc(doc(db, 'users', userId), {
         schoolRole,
         updatedAt: serverTimestamp()
       });
+      
+      // Crear réplica automática en schoolTeachers o schoolStudents según el rol
+      if (schoolRole === SchoolRole.TEACHER) {
+        await createTeacherReplica(userId, userData);
+      } else if (schoolRole === SchoolRole.STUDENT) {
+        await createStudentReplica(userId, userData);
+      }
+      
       console.log(`✅ Rol escolar actualizado exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
-      showNotification(`Rol escolar actualizado a ${schoolRole}`, 'success');
+      showNotification(`Rol escolar actualizado a ${schoolRole} y réplica creada`, 'success');
     } catch (error) {
       console.error('Error updating user school role:', error);
       showNotification('Error al actualizar el rol escolar del usuario', 'error');
     }
   };
 
+  // Función para crear réplica de profesor
+  const createTeacherReplica = async (userId: string, userData: any) => {
+    try {
+      console.log(`👨‍🏫 Creando réplica de profesor para ${userData.nombre || userData.displayName}`);
+      
+      // Verificar si ya existe en schoolTeachers
+      const teacherQuery = query(collection(db, 'schoolTeachers'), where('id', '==', userId));
+      const teacherSnapshot = await getDocs(teacherQuery);
+      
+      if (!teacherSnapshot.empty) {
+        console.log('✅ Usuario ya existe en schoolTeachers, actualizando...');
+        await updateDoc(doc(db, 'schoolTeachers', userId), {
+          nombre: userData.nombre || userData.displayName || userData.username || 'Profesor',
+          email: userData.email,
+          password: '1234', // Password por defecto
+          subscription: UserSubscriptionType.SCHOOL,
+          updatedAt: serverTimestamp()
+        });
+        return;
+      }
+      
+      // Crear nuevo registro en schoolTeachers
+      await setDoc(doc(db, 'schoolTeachers', userId), {
+        id: userId,
+        nombre: userData.nombre || userData.displayName || userData.username || 'Profesor',
+        email: userData.email,
+        password: '1234', // Password por defecto
+        subscription: UserSubscriptionType.SCHOOL,
+        idAdmin: '', // Se vinculará después
+        createdAt: userData.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Réplica de profesor creada exitosamente');
+    } catch (error) {
+      console.error('Error creando réplica de profesor:', error);
+      throw error;
+    }
+  };
+
+  // Función para crear réplica de estudiante
+  const createStudentReplica = async (userId: string, userData: any) => {
+    try {
+      console.log(`👨‍🎓 Creando réplica de estudiante para ${userData.nombre || userData.displayName}`);
+      
+      // Verificar si ya existe en schoolStudents
+      const studentQuery = query(collection(db, 'schoolStudents'), where('id', '==', userId));
+      const studentSnapshot = await getDocs(studentQuery);
+      
+      if (!studentSnapshot.empty) {
+        console.log('✅ Usuario ya existe en schoolStudents, actualizando...');
+        await updateDoc(doc(db, 'schoolStudents', userId), {
+          nombre: userData.nombre || userData.displayName || userData.username || 'Estudiante',
+          email: userData.email,
+          password: '1234', // Password por defecto
+          subscription: UserSubscriptionType.SCHOOL,
+          updatedAt: serverTimestamp()
+        });
+        return;
+      }
+      
+      // Crear nuevo registro en schoolStudents
+      await setDoc(doc(db, 'schoolStudents', userId), {
+        id: userId,
+        nombre: userData.nombre || userData.displayName || userData.username || 'Estudiante',
+        email: userData.email,
+        password: '1234', // Password por defecto
+        subscription: UserSubscriptionType.SCHOOL,
+        idAdmin: '', // Se vinculará después
+        idTeacher: '', // Se vinculará después
+        idNotebook: '', // Se vinculará después
+        createdAt: userData.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Réplica de estudiante creada exitosamente');
+    } catch (error) {
+      console.error('Error creando réplica de estudiante:', error);
+      throw error;
+    }
+  };
+
+  // Función para limpiar réplicas cuando se elimina un usuario
+  const cleanupUserReplicas = async (userId: string) => {
+    try {
+      console.log(`🧹 Limpiando réplicas del usuario ${userId}`);
+      
+      // Verificar si existe en schoolTeachers y eliminarlo
+      const teacherQuery = query(collection(db, 'schoolTeachers'), where('id', '==', userId));
+      const teacherSnapshot = await getDocs(teacherQuery);
+      
+      if (!teacherSnapshot.empty) {
+        console.log('🗑️ Eliminando réplica de schoolTeachers...');
+        await deleteDoc(doc(db, 'schoolTeachers', userId));
+        console.log('✅ Réplica de schoolTeachers eliminada');
+      }
+      
+      // Verificar si existe en schoolStudents y eliminarlo
+      const studentQuery = query(collection(db, 'schoolStudents'), where('id', '==', userId));
+      const studentSnapshot = await getDocs(studentQuery);
+      
+      if (!studentSnapshot.empty) {
+        console.log('🗑️ Eliminando réplica de schoolStudents...');
+        await deleteDoc(doc(db, 'schoolStudents', userId));
+        console.log('✅ Réplica de schoolStudents eliminada');
+      }
+      
+      console.log('✅ Limpieza de réplicas completada');
+    } catch (error) {
+      console.error('Error limpiando réplicas del usuario:', error);
+      // No lanzar error para no interrumpir el proceso de eliminación
+    }
+  };
+
   const deleteUser = async (userId: string, userName: string) => {
     try {
       console.log('🗑️ SuperAdmin eliminando usuario con Firebase Function:', userId);
+      
+      // Limpiar réplicas antes de eliminar el usuario
+      await cleanupUserReplicas(userId);
       
       // Usar la nueva función con Firebase Functions
       await deleteUserWithConfirmation(
@@ -493,8 +674,86 @@ const SuperAdminPage: React.FC = () => {
       await checkRubenelhoreStatus();
       alert('✅ Verificación completada. Revisa la consola para ver los detalles.');
     } catch (error: any) {
-      console.error('❌ Error verificando estado de rubenelhore:', error);
-      alert(`Error: ${error.message}`);
+      console.error('❌ Error verificando estado de Rubenelhore:', error);
+      alert(`Error verificando estado: ${error.message}`);
+    }
+  };
+
+  // Nuevas funciones para migración automática de réplicas
+  const handleMigrateAllExistingSchoolUsers = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres migrar TODOS los usuarios escolares existentes? Esto creará réplicas en schoolTeachers y schoolStudents para usuarios que ya tienen roles pero no tienen réplicas.')) {
+      return;
+    }
+    
+    setSyncLoading(true);
+    try {
+      console.log('🚀 Iniciando migración completa de usuarios escolares existentes...');
+      const results = await migrateAllExistingSchoolUsers();
+      
+      const totalSuccess = results.teachers.success + results.students.success;
+      const totalErrors = results.teachers.errors.length + results.students.errors.length;
+      
+      console.log('🎉 Migración completada:', results);
+      alert(`Migración completada:\n\n👨‍🏫 Profesores: ${results.teachers.success} exitosos, ${results.teachers.errors.length} errores\n👨‍🎓 Estudiantes: ${results.students.success} exitosos, ${results.students.errors.length} errores\n\nTotal: ${totalSuccess} exitosos, ${totalErrors} errores`);
+      loadData();
+    } catch (error: any) {
+      console.error('❌ Error en migración:', error);
+      alert(`Error en migración: ${error.message}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleCheckUserSyncStatus = async () => {
+    const userId = prompt('Ingresa el ID del usuario a verificar:');
+    if (!userId) return;
+    
+    try {
+      const status = await checkUserSyncStatus(userId);
+      
+      let message = `📊 Estado de sincronización para usuario ${userId}:\n\n`;
+      message += `👤 Existe en users: ${status.existsInUsers ? '✅ Sí' : '❌ No'}\n`;
+      message += `👨‍🏫 Existe en schoolTeachers: ${status.existsInTeachers ? '✅ Sí' : '❌ No'}\n`;
+      message += `👨‍🎓 Existe en schoolStudents: ${status.existsInStudents ? '✅ Sí' : '❌ No'}\n\n`;
+      
+      if (status.userData) {
+        message += `📋 Datos del usuario:\n`;
+        message += `- Email: ${status.userData.email}\n`;
+        message += `- Nombre: ${status.userData.nombre || status.userData.displayName}\n`;
+        message += `- Subscription: ${status.userData.subscription}\n`;
+        message += `- SchoolRole: ${status.userData.schoolRole || 'No asignado'}\n`;
+      }
+      
+      alert(message);
+    } catch (error: any) {
+      console.error('❌ Error verificando estado de usuario:', error);
+      alert(`Error verificando estado: ${error.message}`);
+    }
+  };
+
+  // Función para probar el sistema de réplicas
+  const handleTestReplicaSystem = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres ejecutar una prueba completa del sistema de réplicas? Esto creará un usuario de prueba temporal.')) {
+      return;
+    }
+    
+    setSyncLoading(true);
+    try {
+      console.log('🧪 Iniciando prueba del sistema de réplicas...');
+      const result = await runCompleteReplicaTest();
+      
+      if (result.success) {
+        alert(`🎉 ${result.message}\n\nEl sistema de réplicas está funcionando correctamente.`);
+      } else {
+        alert(`❌ ${result.message}\n\nHay un problema con el sistema de réplicas.`);
+      }
+      
+      loadData();
+    } catch (error: any) {
+      console.error('❌ Error en prueba del sistema de réplicas:', error);
+      alert(`Error en prueba: ${error.message}`);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -907,6 +1166,51 @@ const SuperAdminPage: React.FC = () => {
                   >
                     <i className="fas fa-search"></i>
                     Verificar Rubenelhore
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔄 Migración Automática de Réplicas</h3>
+                    <p>Migra usuarios existentes con roles pero sin réplicas en schoolTeachers/schoolStudents</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-migrate-all"
+                    onClick={handleMigrateAllExistingSchoolUsers}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-sync-alt"></i>
+                    Migrar Todos los Usuarios Escolares
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🔍 Verificar Estado de Usuario</h3>
+                    <p>Verifica el estado de sincronización de un usuario específico</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-check-user"
+                    onClick={handleCheckUserSyncStatus}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-user-check"></i>
+                    Verificar Estado de Usuario
+                  </button>
+                </div>
+
+                <div className="sync-card">
+                  <div className="sync-card-header">
+                    <h3>🧪 Probar Sistema de Réplicas</h3>
+                    <p>Ejecuta una prueba completa del sistema automático de réplicas</p>
+                  </div>
+                  <button 
+                    className="sync-button sync-test-replica"
+                    onClick={handleTestReplicaSystem}
+                    disabled={syncLoading}
+                  >
+                    <i className="fas fa-vial"></i>
+                    Probar Sistema de Réplicas
                   </button>
                 </div>
               </div>

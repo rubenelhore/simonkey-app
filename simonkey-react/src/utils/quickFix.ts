@@ -1059,19 +1059,18 @@ export const checkTeacherNotebooks = async () => {
         
         // Buscar cuadernos de esas materias
         for (const subjectId of subjectIds) {
-          const notebookQuery = query(
+          const notebooksQuery = query(
             collection(db, 'schoolNotebooks'),
             where('idMateria', '==', subjectId)
           );
-          const notebookSnapshot = await getDocs(notebookQuery);
+          const notebooksSnapshot = await getDocs(notebooksQuery);
           
-          if (notebookSnapshot.empty) {
+          if (notebooksSnapshot.empty) {
             console.log(`❌ No hay cuadernos para la materia ${subjectId}`);
           } else {
-            console.log(`✅ Cuadernos para materia ${subjectId}:`);
-            notebookSnapshot.forEach(doc => {
-              const data = doc.data();
-              console.log(`   - ${data.title} (ID: ${doc.id})`);
+            console.log(`📚 Cuadernos para materia ${subjectId}:`);
+            notebooksSnapshot.docs.forEach((notebook: any) => {
+              console.log(`   - ${notebook.id}: ${notebook.data().title}`);
             });
           }
         }
@@ -1562,6 +1561,244 @@ export const superAdminCleanDuplicateIDs = async (targetEmail: string) => {
   }
 };
 
+// Función alternativa para arreglar el problema sin acceder a schoolStudents
+export const fixStudentNotebooksAlternative = async () => {
+  try {
+    console.log('🔧 Iniciando arreglo alternativo de cuadernos del estudiante...');
+    
+    const user = auth.currentUser;
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+
+    console.log('👤 Usuario actual:', user.email);
+    console.log('🆔 User ID:', user.uid);
+
+    // 1. Verificar que el usuario en 'users' tenga schoolRole correcto
+    const userQuery = query(
+      collection(db, 'users'),
+      where('id', '==', user.uid)
+    );
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (userSnapshot.empty) {
+      console.log('❌ No se encontró el usuario en la colección users');
+      return;
+    }
+
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+    console.log('👤 Usuario encontrado:', userData.nombre);
+    console.log('🎓 schoolRole actual:', userData.schoolRole);
+
+    // 2. Actualizar schoolRole si no es 'student'
+    if (userData.schoolRole !== 'student') {
+      console.log('🔧 Actualizando schoolRole a student...');
+      await updateDoc(userDoc.ref, {
+        schoolRole: 'student',
+        subscription: 'school'
+      });
+      console.log('✅ schoolRole actualizado');
+    }
+
+    // 3. Buscar materias donde el estudiante esté asignado
+    const subjectsQuery = query(
+      collection(db, 'schoolSubjects'),
+      where('idEstudiante', '==', user.uid)
+    );
+    const subjectsSnapshot = await getDocs(subjectsQuery);
+    
+    if (subjectsSnapshot.empty) {
+      console.log('❌ No se encontraron materias asignadas al estudiante');
+      console.log('💡 Necesitas que un administrador te asigne a una materia');
+      return;
+    }
+
+    const subjectDoc = subjectsSnapshot.docs[0];
+    const subjectData = subjectDoc.data();
+    console.log('🏫 Materia encontrada:', subjectData.nombre || subjectDoc.id);
+
+    // 4. Buscar cuadernos de esa materia
+    const notebooksQuery = query(
+      collection(db, 'schoolNotebooks'),
+      where('idMateria', '==', subjectDoc.id)
+    );
+    const notebooksSnapshot = await getDocs(notebooksQuery);
+    
+    console.log('📚 Cuadernos encontrados:', notebooksSnapshot.size);
+    const notebooks = notebooksSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    notebooks.forEach((notebook: any) => {
+      console.log('   -', notebook.id, ':', notebook.title);
+    });
+
+    if (notebooks.length === 0) {
+      console.log('❌ No se encontraron cuadernos para la materia');
+      console.log('💡 Necesitas que un profesor cree cuadernos para esta materia');
+      return;
+    }
+
+    // 5. Crear o actualizar el documento del estudiante en schoolStudents
+    const studentData = {
+      id: user.uid,
+      nombre: userData.nombre || userData.displayName || userData.username,
+      email: user.email,
+      password: '1234',
+      subscription: 'school',
+      idCuadernos: notebooks.map(n => n.id),
+      idNotebook: notebooks[0].id, // Usar el primer cuaderno como principal
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    console.log('🔧 Creando/actualizando documento del estudiante...');
+    await setDoc(doc(db, 'schoolStudents', user.uid), studentData, { merge: true });
+    console.log('✅ Documento del estudiante actualizado');
+
+    console.log('✅ Arreglo alternativo completado');
+    console.log('💡 Recarga la página para ver los cambios');
+
+  } catch (error) {
+    console.error('❌ Error en arreglo alternativo:', error);
+  }
+};
+
+// Función para que el superadmin arregle el problema de cuadernos de un estudiante específico
+export const superAdminFixStudentNotebooks = async (studentEmail: string) => {
+  try {
+    console.log('🔧 SuperAdmin: Iniciando arreglo de cuadernos para estudiante:', studentEmail);
+    
+    // 1. Buscar el estudiante por email en schoolStudents
+    const studentQuery = query(
+      collection(db, 'schoolStudents'),
+      where('email', '==', studentEmail)
+    );
+    const studentSnapshot = await getDocs(studentQuery);
+    
+    if (studentSnapshot.empty) {
+      console.log('❌ No se encontró el estudiante en schoolStudents con email:', studentEmail);
+      return;
+    }
+
+    const studentDoc = studentSnapshot.docs[0];
+    const studentData = studentDoc.data();
+    console.log('👨‍🎓 Estudiante encontrado:', studentData.nombre);
+    console.log('🆔 Student ID:', studentData.id);
+    console.log('📚 idCuadernos:', studentData.idCuadernos);
+
+    if (!studentData.idCuadernos || studentData.idCuadernos.length === 0) {
+      console.log('❌ El estudiante no tiene cuadernos asignados');
+      return;
+    }
+
+    // 2. Verificar que los cuadernos existen
+    const notebooksQuery = query(
+      collection(db, 'schoolNotebooks'),
+      where('__name__', 'in', studentData.idCuadernos)
+    );
+    const notebooksSnapshot = await getDocs(notebooksQuery);
+    
+    console.log('📚 Cuadernos encontrados:', notebooksSnapshot.size);
+    notebooksSnapshot.docs.forEach(doc => {
+      console.log('   -', doc.id, ':', doc.data().title);
+    });
+
+    // 3. Actualizar el campo idNotebook si está vacío
+    if (!studentData.idNotebook && studentData.idCuadernos.length > 0) {
+      console.log('🔧 Actualizando idNotebook con el primer cuaderno...');
+      await updateDoc(studentDoc.ref, {
+        idNotebook: studentData.idCuadernos[0]
+      });
+      console.log('✅ idNotebook actualizado');
+    }
+
+    // 4. Verificar que el usuario en 'users' tenga schoolRole correcto
+    const userQuery = query(
+      collection(db, 'users'),
+      where('id', '==', studentData.id)
+    );
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (!userSnapshot.empty) {
+      const userDoc = userSnapshot.docs[0];
+      const userData = userDoc.data();
+      
+      if (userData.schoolRole !== 'student') {
+        console.log('🔧 Actualizando schoolRole en users...');
+        await updateDoc(userDoc.ref, {
+          schoolRole: 'student',
+          subscription: 'school'
+        });
+        console.log('✅ schoolRole actualizado');
+      }
+    } else {
+      console.log('⚠️ No se encontró el usuario en la colección users');
+    }
+
+    console.log('✅ Arreglo de cuadernos del estudiante completado');
+    console.log('💡 El estudiante puede recargar la página para ver los cambios');
+
+  } catch (error) {
+    console.error('❌ Error arreglando cuadernos del estudiante:', error);
+  }
+};
+
+// Función simple que solo actualiza el perfil del usuario sin acceder a colecciones restringidas
+export const fixStudentProfileSimple = async () => {
+  try {
+    console.log('🔧 Iniciando arreglo simple del perfil del estudiante...');
+    
+    const user = auth.currentUser;
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+
+    console.log('👤 Usuario actual:', user.email);
+    console.log('🆔 User ID:', user.uid);
+
+    // Solo actualizar el perfil en 'users' que sí tiene permisos
+    const userQuery = query(
+      collection(db, 'users'),
+      where('id', '==', user.uid)
+    );
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (userSnapshot.empty) {
+      console.log('❌ No se encontró el usuario en la colección users');
+      return;
+    }
+
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+    console.log('👤 Usuario encontrado:', userData.nombre);
+    console.log('🎓 schoolRole actual:', userData.schoolRole);
+
+    // Actualizar schoolRole si no es 'student'
+    if (userData.schoolRole !== 'student') {
+      console.log('🔧 Actualizando schoolRole a student...');
+      await updateDoc(userDoc.ref, {
+        schoolRole: 'student',
+        subscription: 'school'
+      });
+      console.log('✅ schoolRole actualizado');
+    } else {
+      console.log('✅ schoolRole ya está correcto');
+    }
+
+    console.log('✅ Arreglo simple completado');
+    console.log('💡 Ahora el sistema debería reconocerte como estudiante');
+    console.log('💡 Si aún no ves cuadernos, contacta al administrador');
+
+  } catch (error) {
+    console.error('❌ Error en arreglo simple:', error);
+  }
+};
+
 // Hacer las funciones disponibles globalmente
 if (typeof window !== 'undefined') {
   (window as any).quickFix = quickFix;
@@ -1582,6 +1819,9 @@ if (typeof window !== 'undefined') {
   (window as any).checkCurrentUserStatus = checkCurrentUserStatus;
   (window as any).superAdminDiagnoseAndCleanAccounts = superAdminDiagnoseAndCleanAccounts;
   (window as any).superAdminCleanDuplicateIDs = superAdminCleanDuplicateIDs;
+  (window as any).fixStudentNotebooksAlternative = fixStudentNotebooksAlternative;
+  (window as any).superAdminFixStudentNotebooks = superAdminFixStudentNotebooks;
+  (window as any).fixStudentProfileSimple = fixStudentProfileSimple;
   console.log('🔧 Función quickFix() disponible en la consola');
   console.log('🔧 Función fixSchoolUserProfileHierarchy() disponible en la consola para corregir el perfil escolar');
   console.log('🔧 Función diagnoseSchoolHierarchy() disponible en la consola para diagnosticar jerarquía');
@@ -1599,6 +1839,9 @@ if (typeof window !== 'undefined') {
   console.log('🔧 Función checkTeacherNotebooks() disponible en la consola para verificar cuadernos escolares específicamente');
   console.log('🔧 Función checkCurrentUserStatus() disponible en la consola para verificar el usuario actual');
   console.log('🔧 Función superAdminDiagnoseAndCleanAccounts() disponible en la consola para diagnosticar y limpiar cuentas duplicadas');
-  console.log('�� Función superAdminCleanDuplicateIDs() disponible en la consola para limpiar cuentas duplicadas con el mismo ID');
+  console.log('🔧 Función superAdminCleanDuplicateIDs() disponible en la consola para limpiar cuentas duplicadas con el mismo ID');
+  console.log('🔧 Función fixStudentNotebooksAlternative() disponible en la consola para arreglar el problema de carga de cuadernos del estudiante');
+  console.log('�� Función superAdminFixStudentNotebooks() disponible en la consola para arreglar el problema de cuadernos del estudiante');
+  console.log('🔧 Función fixStudentProfileSimple() disponible en la consola para arreglar el perfil del estudiante');
   console.log('💡 Ejecuta: window.quickFix() para solucionar problemas de autenticación');
 } 

@@ -121,9 +121,87 @@ export const checkAndFixCurrentUser = async (): Promise<boolean> => {
   }
 };
 
+// Función global para actualizar el perfil del usuario con idNotebook
+export const updateUserProfileWithNotebook = async (userId: string, notebookId: string) => {
+  try {
+    console.log('🔧 Actualizando perfil del usuario...');
+    
+    const { doc, updateDoc } = await import('../services/firebase');
+    const { db } = await import('../services/firebase');
+    
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      idNotebook: notebookId
+    });
+    
+    console.log('✅ Perfil del usuario actualizado con idNotebook:', notebookId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error actualizando perfil:', error);
+    return false;
+  }
+};
+
+// Función global para completar el proceso de asignación de notebooks
+export const completeNotebookAssignment = async (studentEmail: string) => {
+  try {
+    console.log('🔍 Buscando estudiante:', studentEmail);
+    
+    const { query, collection, where, getDocs, updateDoc, doc } = await import('../services/firebase');
+    const { db } = await import('../services/firebase');
+    
+    // Buscar el estudiante en schoolStudents
+    const studentQuery = query(
+      collection(db, 'schoolStudents'),
+      where('email', '==', studentEmail)
+    );
+    const studentSnapshot = await getDocs(studentQuery);
+    
+    if (studentSnapshot.empty) {
+      console.log('❌ No se encontró el estudiante en schoolStudents');
+      return false;
+    }
+
+    const studentData = studentSnapshot.docs[0].data();
+    console.log('👨‍🎓 Estudiante encontrado:', studentData.nombre);
+    console.log('📚 idNotebook:', studentData.idNotebook);
+
+    if (!studentData.idNotebook) {
+      console.log('❌ El estudiante no tiene idNotebook asignado');
+      return false;
+    }
+
+    // Actualizar el perfil del usuario en users
+    const userRef = doc(db, 'users', studentData.id);
+    await updateDoc(userRef, {
+      idNotebook: studentData.idNotebook
+    });
+    
+    console.log('✅ Perfil del usuario actualizado con idNotebook:', studentData.idNotebook);
+    console.log('💡 El estudiante puede recargar la página para ver los notebooks');
+    return true;
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    return false;
+  }
+};
+
 // Exponer funciones globalmente para uso en consola
 if (typeof window !== 'undefined') {
   (window as any).updateAsSuperAdmin = updateCurrentUserAsSuperAdmin;
   (window as any).createMissingAdmin = createMissingAdmin;
   (window as any).checkAndFixCurrentUser = checkAndFixCurrentUser;
+  (window as any).updateUserProfileWithNotebook = updateUserProfileWithNotebook;
+  (window as any).completeNotebookAssignment = completeNotebookAssignment;
+  
+  // Función específica para el estudiante actual
+  (window as any).fixCurrentStudentNotebook = async () => {
+    return await completeNotebookAssignment('0161875@up.edu.mx');
+  };
+  
+  // Función para actualizar directamente el usuario específico
+  (window as any).fixUserNotebookDirect = async () => {
+    return await updateUserProfileWithNotebook('u1fRjwpdmOPFTtlEUsMGiWnqwST2', '1vKFhWs3IX2AbDDt853l');
+  };
 } 
