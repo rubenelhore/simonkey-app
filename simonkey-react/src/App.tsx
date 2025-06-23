@@ -56,6 +56,7 @@ import AuthUnlocker from './components/AuthUnlocker';
 // import AuthDiagnostic from './components/AuthDiagnostic';
 import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
+import SuperAdminRoute from './pages/SuperAdminRoute';
 
 // Definir el tipo para el usuario
 interface User {
@@ -469,26 +470,7 @@ const AppContent: React.FC = () => {
         {/* Ruta para el panel de control del súper admin */}
         <Route
           path="/super-admin"
-          element={
-            (() => {
-              const { isSuperAdmin, loading: userTypeLoading } = useUserType();
-              if (isAuthenticated && !userTypeLoading) {
-                if (isSuperAdmin) {
-                  return <SuperAdminPage />;
-                } else {
-                  if (auth.currentUser?.email?.includes('@school.simonkey.com') || auth.currentUser?.email?.includes('@up.edu.mx')) {
-                    return <Navigate to="/school/teacher" replace />;
-                  } else {
-                    return <Navigate to="/notebooks" replace />;
-                  }
-                }
-              } else if (!isAuthenticated) {
-                return <Navigate to="/login" replace />;
-              } else {
-                return null; // o un loader si prefieres
-              }
-            })()
-          }
+          element={<SuperAdminRoute />}
         />
         <Route
           path="/school/notebooks/:id"
