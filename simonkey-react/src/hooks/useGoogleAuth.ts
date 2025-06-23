@@ -34,19 +34,8 @@ export const useGoogleAuth = () => {
       const existingUserCheck = await checkUserExistsByEmail(user.email || '');
       console.log('🔍 Resultado de verificación de usuario existente:', existingUserCheck);
       
-      if (!existingUserCheck.exists) {
-        // Usuario no existe, mostrar error y cerrar sesión
-        console.log('❌ El correo no está registrado, cerrando sesión y mostrando mensaje.');
-        await signOut(auth);
-        setError('Esta cuenta de Google no ha sido registrada. Por favor, regístrate primero.');
-        localStorage.removeItem('user');
-        setIsLoading(false);
-        window.location.replace('/signup');
-        return;
-      }
-      
-      // Si es login (isSignup = false), NO crear perfiles, solo verificar que existe
-      if (!isSignup) {
+      // Si es login (isSignup = false) y el usuario existe, verificar perfil
+      if (!isSignup && existingUserCheck.exists) {
         console.log('🔍 Modo LOGIN: Verificando que el usuario existe sin crear perfiles...');
         
         // Verificar que el usuario existe en Firestore
@@ -76,8 +65,8 @@ export const useGoogleAuth = () => {
         return;
       }
       
-      // Si es registro (isSignup = true), continuar con la lógica existente
-      console.log('🔍 Modo REGISTRO: Continuando con lógica de registro...');
+      // Si es registro (isSignup = true) o login con usuario nuevo, continuar con la lógica existente
+      console.log('🔍 Modo REGISTRO o LOGIN con usuario nuevo: Continuando con lógica de registro...');
       
       let userIdToUse = user.uid; // Por defecto usar el UID de Google Auth
       let shouldCreateProfile = true; // Por defecto crear perfil

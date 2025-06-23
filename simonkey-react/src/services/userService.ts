@@ -159,7 +159,7 @@ export const createUserProfile = async (
     nombre: string;
     displayName: string;
     birthdate: string;
-    password?: string; // Campo opcional para contraseña
+    password?: string; // Campo opcional para contraseña, nunca requerido
   }
 ): Promise<void> => {
   try {
@@ -198,7 +198,7 @@ export const createUserProfile = async (
       weekStartDate: serverTimestamp() as any,
     };
 
-    // Agregar contraseña si se proporciona
+    // Solo agregar password si está presente
     if (userData.password) {
       userProfile.password = userData.password;
     }
