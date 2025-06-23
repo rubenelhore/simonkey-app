@@ -53,7 +53,7 @@ import AuthCleaner from './components/AuthCleaner';
 // Importar AuthUnlocker
 import AuthUnlocker from './components/AuthUnlocker';
 // Importar AuthDiagnostic
-import AuthDiagnostic from './components/AuthDiagnostic';
+// import AuthDiagnostic from './components/AuthDiagnostic';
 import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 
@@ -518,7 +518,7 @@ const AppContent: React.FC = () => {
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
-      <AuthDiagnostic />
+      {/* <AuthDiagnostic /> */}
     </UserContext.Provider>
   );
 };
