@@ -284,6 +284,7 @@ export interface UserProfile {
   nombre: string;
   displayName: string;
   birthdate: string;
+  password?: string; // Campo opcional para almacenar contraseña
   createdAt: Timestamp;
   subscription: UserSubscriptionType;
   notebookCount: number;

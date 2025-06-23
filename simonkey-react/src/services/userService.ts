@@ -159,6 +159,7 @@ export const createUserProfile = async (
     nombre: string;
     displayName: string;
     birthdate: string;
+    password?: string; // Campo opcional para contraseña
   }
 ): Promise<void> => {
   try {
@@ -196,6 +197,11 @@ export const createUserProfile = async (
       conceptsCreatedThisWeek: 0,
       weekStartDate: serverTimestamp() as any,
     };
+
+    // Agregar contraseña si se proporciona
+    if (userData.password) {
+      userProfile.password = userData.password;
+    }
 
     // Si es usuario escolar, establecer rol por defecto como estudiante
     if (subscriptionType === UserSubscriptionType.SCHOOL) {

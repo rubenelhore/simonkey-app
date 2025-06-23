@@ -121,7 +121,8 @@ const SignupPage: React.FC = () => {
         username,
         nombre: username,
         displayName: username,
-        birthdate
+        birthdate,
+        password
       });
       
       // Actualizar el perfil del usuario en Auth
