@@ -1,9 +1,10 @@
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { UserSubscriptionType, SchoolRole, UserProfile, SubscriptionLimits } from '../types/interfaces';
+import { UserSubscriptionType, SchoolRole, UserProfile, SubscriptionLimits, GoogleUser, ExistingUserCheck } from '../types/interfaces';
 import { collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { deleteBatch, deleteCollectionBatch, BatchResult } from './batchService';
+import { logger } from '../utils/logger';
 
 /**
  * Configuración de límites por tipo de suscripción
@@ -91,16 +92,16 @@ const SCHOOL_ROLE_PERMISSIONS: Record<SchoolRole, Partial<SubscriptionLimits['pe
  * Determina el tipo de suscripción basado en el email del usuario
  */
 export const determineUserSubscription = (email: string): UserSubscriptionType => {
-  console.log('🔍 Determinando tipo de suscripción para email:', email);
+  logger.debug('Determinando tipo de suscripción para email:', email);
   
   // Super admin
   if (email === 'ruben.elhore@gmail.com') {
-    console.log('👑 Usuario identificado como super admin');
+    logger.info('Usuario identificado como super admin');
     return UserSubscriptionType.SUPER_ADMIN;
   }
   
   // Por defecto, todos los usuarios nuevos son FREE
-  console.log('👤 Usuario asignado como FREE por defecto');
+  logger.debug('Usuario asignado como FREE por defecto');
   return UserSubscriptionType.FREE;
 };
 
@@ -109,24 +110,24 @@ export const determineUserSubscription = (email: string): UserSubscriptionType =
  */
 export const checkIfEmailIsSchoolUser = async (email: string): Promise<boolean> => {
   try {
-    console.log('🔍 Verificando si email corresponde a usuario escolar:', email);
+    logger.debug('Verificando si email corresponde a usuario escolar:', email);
     const existingUserCheck = await checkUserExistsByEmail(email);
     
     if (existingUserCheck.exists) {
-      console.log('✅ Usuario existente encontrado:', existingUserCheck.userType);
+      logger.debug('Usuario existente encontrado:', existingUserCheck.userType);
       
       if (existingUserCheck.userType === 'SCHOOL' || 
           existingUserCheck.userType === 'SCHOOL_TEACHER' || 
           existingUserCheck.userType === 'SCHOOL_STUDENT') {
-        console.log('👨‍🎓 Email corresponde a usuario escolar');
+        logger.info('Email corresponde a usuario escolar');
         return true;
       }
     }
     
-    console.log('❌ Email no corresponde a usuario escolar');
+    logger.debug('Email no corresponde a usuario escolar');
     return false;
   } catch (error) {
-    console.error('❌ Error verificando si email es usuario escolar:', error);
+    logger.error('Error verificando si email es usuario escolar:', error);
     return false;
   }
 };
@@ -135,9 +136,9 @@ export const checkIfEmailIsSchoolUser = async (email: string): Promise<boolean> 
  * Obtiene los límites de suscripción para un tipo de usuario
  */
 export const getSubscriptionLimits = (subscriptionType: UserSubscriptionType): SubscriptionLimits => {
-  console.log('📊 Obteniendo límites para tipo de suscripción:', subscriptionType);
+  logger.debug('Obteniendo límites para tipo de suscripción:', subscriptionType);
   const limits = SUBSCRIPTION_LIMITS[subscriptionType];
-  console.log('📋 Límites obtenidos:', limits);
+  logger.debug('Límites obtenidos:', limits);
   return limits;
 };
 
@@ -163,23 +164,23 @@ export const createUserProfile = async (
   }
 ): Promise<void> => {
   try {
-    console.log('🚀 Creando perfil de usuario:', { userId, userData });
+    logger.debug('Creando perfil de usuario:', { userId, userData });
     
     // Verificar si el email corresponde a un usuario escolar existente
     const isSchoolUser = await checkIfEmailIsSchoolUser(userData.email);
     
     let subscriptionType: UserSubscriptionType;
     if (isSchoolUser) {
-      console.log('👨‍🎓 Usuario escolar detectado, asignando tipo SCHOOL');
+      logger.info('Usuario escolar detectado, asignando tipo SCHOOL');
       subscriptionType = UserSubscriptionType.SCHOOL;
     } else {
       subscriptionType = determineUserSubscription(userData.email);
     }
     
-    console.log('📋 Tipo de suscripción determinado:', subscriptionType);
+    logger.debug('Tipo de suscripción determinado:', subscriptionType);
     
     const limits = getSubscriptionLimits(subscriptionType);
-    console.log('📊 Límites obtenidos:', limits);
+    logger.debug('Límites obtenidos:', limits);
     
     const userProfile: Partial<UserProfile> = {
       id: userId,
@@ -208,12 +209,12 @@ export const createUserProfile = async (
       userProfile.schoolRole = SchoolRole.STUDENT;
     }
 
-    console.log('📝 Perfil a guardar:', userProfile);
+    logger.debug('Perfil a guardar:', userProfile);
     
     await setDoc(doc(db, 'users', userId), userProfile);
-    console.log(`✅ Perfil de usuario creado exitosamente con tipo: ${subscriptionType}`);
+    logger.info(`Perfil de usuario creado exitosamente con tipo: ${subscriptionType}`);
   } catch (error) {
-    console.error('❌ Error al crear perfil de usuario:', error);
+    logger.error('Error al crear perfil de usuario:', error);
     throw error;
   }
 };
@@ -223,13 +224,13 @@ export const createUserProfile = async (
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    console.log('🔍 Buscando perfil de usuario con ID:', userId);
+    logger.debug('Buscando perfil de usuario con ID:', userId);
     const userDoc = await getDoc(doc(db, 'users', userId));
     
     if (userDoc.exists()) {
       const userData = userDoc.data() as UserProfile;
-      console.log('✅ Perfil de usuario encontrado:', userData);
-      console.log('📋 Detalles del perfil:', {
+      logger.debug('Perfil de usuario encontrado:', userData);
+      logger.debug('Detalles del perfil:', {
         id: userData.id,
         email: userData.email,
         subscription: userData.subscription,
@@ -237,14 +238,14 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
         notebookCount: userData.notebookCount,
         maxNotebooks: userData.maxNotebooks
       });
-      console.log('📋 Perfil completo JSON:', JSON.stringify(userData, null, 2));
+      logger.debug('Perfil completo JSON:', JSON.stringify(userData, null, 2));
       return userData;
     }
     
-    console.log('❌ Documento de usuario no encontrado en Firestore');
+    logger.warn('Documento de usuario no encontrado en Firestore');
     return null;
   } catch (error) {
-    console.error('❌ Error al obtener perfil de usuario:', error);
+    logger.error('❌ Error al obtener perfil de usuario:', error);
     return null;
   }
 };
@@ -272,9 +273,9 @@ export const updateUserSubscription = async (
     }
 
     await updateDoc(doc(db, 'users', userId), updateData);
-    console.log(`Suscripción actualizada a: ${newSubscription}`);
+    logger.debug(`Suscripción actualizada a: ${newSubscription}`);
   } catch (error) {
-    console.error('Error al actualizar suscripción:', error);
+    logger.error('Error al actualizar suscripción:', error);
     throw error;
   }
 };
@@ -329,7 +330,7 @@ export const canCreateNotebook = async (userId: string): Promise<{ canCreate: bo
 
     return { canCreate: true };
   } catch (error) {
-    console.error('Error al verificar si puede crear cuaderno:', error);
+    logger.error('Error al verificar si puede crear cuaderno:', error);
     return { canCreate: false, reason: 'Error interno' };
   }
 };
@@ -387,7 +388,7 @@ export const canAddConcepts = async (
 
     return { canAdd: true };
   } catch (error) {
-    console.error('Error al verificar si puede agregar conceptos:', error);
+    logger.error('Error al verificar si puede agregar conceptos:', error);
     return { canAdd: false, reason: 'Error interno' };
   }
 };
@@ -397,16 +398,16 @@ export const canAddConcepts = async (
  */
 export const incrementNotebookCount = async (userId: string): Promise<void> => {
   try {
-    console.log('📈 Incrementando contador de cuadernos para usuario:', userId);
+    logger.debug('Incrementando contador de cuadernos para usuario:', userId);
     
     const userProfile = await getUserProfile(userId);
     if (!userProfile) {
-      console.log('❌ No se pudo obtener el perfil del usuario para incrementar contador');
+      logger.warn('No se pudo obtener el perfil del usuario para incrementar contador');
       return;
     }
 
     const currentCount = userProfile.notebookCount || 0;
-    console.log('📊 Contador actual de cuadernos:', currentCount);
+    logger.debug('Contador actual de cuadernos:', currentCount);
 
     const updateData: any = {
       notebookCount: currentCount + 1,
@@ -416,15 +417,15 @@ export const incrementNotebookCount = async (userId: string): Promise<void> => {
     if (userProfile.subscription === UserSubscriptionType.PRO) {
       const currentWeeklyCount = userProfile.notebooksCreatedThisWeek || 0;
       updateData.notebooksCreatedThisWeek = currentWeeklyCount + 1;
-      console.log('📅 Incrementando contador semanal PRO:', currentWeeklyCount + 1);
+      logger.debug('Incrementando contador semanal PRO:', currentWeeklyCount + 1);
     }
 
-    console.log('📝 Datos a actualizar:', updateData);
+    logger.debug('Datos a actualizar:', updateData);
     
     await updateDoc(doc(db, 'users', userId), updateData);
-    console.log('✅ Contador de cuadernos incrementado exitosamente');
+    logger.debug('Contador de cuadernos incrementado exitosamente');
   } catch (error) {
-    console.error('❌ Error al incrementar contador de cuadernos:', error);
+    logger.error('Error al incrementar contador de cuadernos:', error);
   }
 };
 
@@ -447,7 +448,7 @@ export const incrementConceptCount = async (userId: string): Promise<void> => {
       await updateDoc(doc(db, 'users', userId), updateData);
     }
   } catch (error) {
-    console.error('Error al incrementar contador de conceptos:', error);
+    logger.error('Error al incrementar contador de conceptos:', error);
   }
 };
 
@@ -456,11 +457,11 @@ export const incrementConceptCount = async (userId: string): Promise<void> => {
  */
 export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    console.log('🔍 Verificando y corrigiendo perfil de usuario:', userId);
+    logger.debug('🔍 Verificando y corrigiendo perfil de usuario:', userId);
     
     const userProfile = await getUserProfile(userId);
     if (!userProfile) {
-      console.log('❌ Usuario no encontrado');
+      logger.debug('❌ Usuario no encontrado');
       return null;
     }
 
@@ -471,7 +472,7 @@ export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfi
                     !userProfile.maxNotebooks;
 
     if (needsFix) {
-      console.log('⚠️ Perfil incompleto detectado, corrigiendo...');
+      logger.debug('⚠️ Perfil incompleto detectado, corrigiendo...');
       
       const subscriptionType = determineUserSubscription(userProfile.email);
       const limits = getSubscriptionLimits(subscriptionType);
@@ -487,28 +488,31 @@ export const verifyAndFixUserProfile = async (userId: string): Promise<UserProfi
         updatedAt: serverTimestamp(),
       };
 
-      console.log('📝 Datos de corrección:', updateData);
+      logger.debug('📝 Datos de corrección:', updateData);
       
       await updateDoc(doc(db, 'users', userId), updateData);
       
       // Retornar el perfil corregido
-      const correctedProfile = {
+      const correctedProfile: UserProfile = {
         ...userProfile,
-        ...updateData,
         subscription: subscriptionType,
         notebookCount: userProfile.notebookCount || 0,
         maxNotebooks: limits.maxNotebooks,
         maxConceptsPerNotebook: limits.maxConceptsPerNotebook,
+        notebooksCreatedThisWeek: userProfile.notebooksCreatedThisWeek || 0,
+        conceptsCreatedThisWeek: userProfile.conceptsCreatedThisWeek || 0,
+        weekStartDate: userProfile.weekStartDate,
+        updatedAt: userProfile.updatedAt
       };
       
-      console.log('✅ Perfil corregido exitosamente');
+      logger.debug('✅ Perfil corregido exitosamente');
       return correctedProfile;
     }
 
-    console.log('✅ Perfil ya está completo');
+    logger.debug('✅ Perfil ya está completo');
     return userProfile;
   } catch (error) {
-    console.error('❌ Error verificando/corrigiendo perfil:', error);
+    logger.error('❌ Error verificando/corrigiendo perfil:', error);
     return null;
   }
 };
@@ -531,10 +535,10 @@ export const deleteAllUserData = async (
   let completedOperations = 0;
 
   try {
-    console.log('👑 Iniciando eliminación batch OPTIMIZADA para usuario:', userId);
+    logger.debug('👑 Iniciando eliminación batch OPTIMIZADA para usuario:', userId);
     
     // 1. ELIMINAR NOTEBOOKS Y CONCEPTOS RELACIONADOS (BATCH)
-    console.log('📚 Eliminando notebooks y conceptos con batch...');
+    logger.debug('📚 Eliminando notebooks y conceptos con batch...');
     onProgress?.('Eliminando notebooks y conceptos', 0, 100);
     
     const notebooksQuery = query(collection(db, 'notebooks'), where('userId', '==', userId));
@@ -550,7 +554,7 @@ export const deleteAllUserData = async (
       // Agregar conceptos de cada notebook
       const conceptsQuery = query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookDoc.id));
       const conceptsSnapshot = await getDocs(conceptsQuery);
-             conceptsSnapshot.docs.forEach((conceptDoc: any) => {
+             conceptsSnapshot.docs.forEach((conceptDoc) => {
          allDocRefs.push(conceptDoc.ref);
        });
     }
@@ -565,11 +569,11 @@ export const deleteAllUserData = async (
       if (!result1.success) {
         totalErrors.push(...result1.errors);
       }
-      console.log(`📚 Eliminados ${result1.totalOperations} notebooks y conceptos en ${result1.executionTime}ms`);
+      logger.debug(`📚 Eliminados ${result1.totalOperations} notebooks y conceptos en ${result1.executionTime}ms`);
     }
 
     // 2. ELIMINAR SESIONES DE ESTUDIO (BATCH)
-    console.log('📊 Eliminando sesiones de estudio con batch...');
+    logger.debug('📊 Eliminando sesiones de estudio con batch...');
     onProgress?.('Eliminando sesiones de estudio', 0, 100);
     
     const studySessionsQuery = query(collection(db, 'studySessions'), where('userId', '==', userId));
@@ -581,10 +585,10 @@ export const deleteAllUserData = async (
     if (!result2.success) {
       totalErrors.push(...result2.errors);
     }
-    console.log(`📊 Eliminadas ${result2.totalOperations} sesiones en ${result2.executionTime}ms`);
+    logger.debug(`📊 Eliminadas ${result2.totalOperations} sesiones en ${result2.executionTime}ms`);
 
     // 3. ELIMINAR ACTIVIDADES DE USUARIO (BATCH)
-    console.log('📈 Eliminando actividades con batch...');
+    logger.debug('📈 Eliminando actividades con batch...');
     onProgress?.('Eliminando actividades de usuario', 0, 100);
     
     const userActivitiesQuery = query(collection(db, 'userActivities'), where('userId', '==', userId));
@@ -596,10 +600,10 @@ export const deleteAllUserData = async (
     if (!result3.success) {
       totalErrors.push(...result3.errors);
     }
-    console.log(`📈 Eliminadas ${result3.totalOperations} actividades en ${result3.executionTime}ms`);
+    logger.debug(`📈 Eliminadas ${result3.totalOperations} actividades en ${result3.executionTime}ms`);
 
     // 4. ELIMINAR CONCEPTOS DE REPASO (BATCH)
-    console.log('🔄 Eliminando conceptos de repaso con batch...');
+    logger.debug('🔄 Eliminando conceptos de repaso con batch...');
     onProgress?.('Eliminando conceptos de repaso', 0, 100);
     
     const reviewConceptsQuery = query(collection(db, 'reviewConcepts'), where('userId', '==', userId));
@@ -611,10 +615,10 @@ export const deleteAllUserData = async (
     if (!result4.success) {
       totalErrors.push(...result4.errors);
     }
-    console.log(`🔄 Eliminados ${result4.totalOperations} conceptos de repaso en ${result4.executionTime}ms`);
+    logger.debug(`🔄 Eliminados ${result4.totalOperations} conceptos de repaso en ${result4.executionTime}ms`);
 
     // 5. ELIMINAR ESTADÍSTICAS DE CONCEPTOS (BATCH)
-    console.log('📊 Eliminando estadísticas de conceptos con batch...');
+    logger.debug('📊 Eliminando estadísticas de conceptos con batch...');
     onProgress?.('Eliminando estadísticas de conceptos', 0, 100);
     
     const conceptStatsQuery = query(collection(db, 'conceptStats'), where('userId', '==', userId));
@@ -626,10 +630,10 @@ export const deleteAllUserData = async (
     if (!result5.success) {
       totalErrors.push(...result5.errors);
     }
-    console.log(`📊 Eliminadas ${result5.totalOperations} estadísticas en ${result5.executionTime}ms`);
+    logger.debug(`📊 Eliminadas ${result5.totalOperations} estadísticas en ${result5.executionTime}ms`);
 
     // 6. ELIMINAR SUBCOLECCIONES DEL USUARIO (BATCH PARALELO)
-    console.log('🗂️ Eliminando subcolecciones con batch paralelo...');
+    logger.debug('🗂️ Eliminando subcolecciones con batch paralelo...');
     onProgress?.('Eliminando subcolecciones del usuario', 0, 100);
     
     const subcollections = [
@@ -659,13 +663,13 @@ export const deleteAllUserData = async (
       if (!result.success) {
         totalErrors.push(...result.errors);
       }
-      console.log(`🗂️ ${subcollections[index]}: ${result.totalOperations} docs en ${result.executionTime}ms`);
+      logger.debug(`🗂️ ${subcollections[index]}: ${result.totalOperations} docs en ${result.executionTime}ms`);
     });
     
-    console.log(`🗂️ Total subcolecciones: ${subcollectionOps} documentos eliminados`);
+    logger.debug(`🗂️ Total subcolecciones: ${subcollectionOps} documentos eliminados`);
 
     // 7. ELIMINAR DOCUMENTOS PRINCIPALES (BATCH)
-    console.log('👤 Eliminando documentos principales...');
+    logger.debug('👤 Eliminando documentos principales...');
     onProgress?.('Eliminando documentos principales', 0, 100);
     
     const mainDocRefs = [doc(db, 'users', userId)];
@@ -678,7 +682,7 @@ export const deleteAllUserData = async (
         mainDocRefs.push(usuarioDocRef);
       }
     } catch (error) {
-      console.log('⚠️ No se encontró documento de usuario en español');
+      logger.debug('⚠️ No se encontró documento de usuario en español');
     }
     
     const result7 = await deleteBatch(mainDocRefs, (completed, total) => {
@@ -689,24 +693,24 @@ export const deleteAllUserData = async (
     if (!result7.success) {
       totalErrors.push(...result7.errors);
     }
-    console.log(`👤 Eliminados ${result7.totalOperations} documentos principales en ${result7.executionTime}ms`);
+    logger.debug(`👤 Eliminados ${result7.totalOperations} documentos principales en ${result7.executionTime}ms`);
 
     // 8. INTENTAR ELIMINAR CUENTA DE FIREBASE AUTH
-    console.log('🔐 Procesando eliminación de Firebase Auth...');
+    logger.debug('🔐 Procesando eliminación de Firebase Auth...');
     onProgress?.('Eliminando cuenta de Firebase Auth', 0, 100);
     
     try {
       const currentUser = auth.currentUser;
       if (currentUser && currentUser.uid === userId) {
         await deleteUser(currentUser);
-        console.log('✅ Cuenta de Firebase Auth eliminada exitosamente');
+        logger.debug('✅ Cuenta de Firebase Auth eliminada exitosamente');
       } else {
-        console.log('⚠️ No se puede eliminar la cuenta de Firebase Auth (usuario no es el actual)');
+        logger.debug('⚠️ No se puede eliminar la cuenta de Firebase Auth (usuario no es el actual)');
       }
-    } catch (authError: any) {
-      const authErrorMsg = `Error eliminando Auth: ${authError.message}`;
-      console.log(`⚠️ ${authErrorMsg}`);
-      console.log('ℹ️ La cuenta de Firebase Auth puede requerir re-autenticación reciente');
+    } catch (authError) {
+      const authErrorMsg = `Error eliminando Auth: ${authError instanceof Error ? authError.message : 'Unknown error'}`;
+      logger.debug(`⚠️ ${authErrorMsg}`);
+      logger.debug('ℹ️ La cuenta de Firebase Auth puede requerir re-autenticación reciente');
       totalErrors.push(authErrorMsg);
     }
 
@@ -720,11 +724,11 @@ export const deleteAllUserData = async (
     };
 
     if (result.success) {
-      console.log(`🎯 ✅ Eliminación BATCH COMPLETA: ${totalOperations} operaciones en ${totalTime}ms`);
-      console.log(`⚡ Rendimiento: ~${Math.round(totalOperations / (totalTime / 1000))} ops/segundo`);
+      logger.debug(`🎯 ✅ Eliminación BATCH COMPLETA: ${totalOperations} operaciones en ${totalTime}ms`);
+      logger.debug(`⚡ Rendimiento: ~${Math.round(totalOperations / (totalTime / 1000))} ops/segundo`);
     } else {
-      console.log(`⚠️ Eliminación completada con ${totalErrors.length} errores en ${totalTime}ms`);
-      totalErrors.forEach(error => console.error('❌', error));
+      logger.debug(`⚠️ Eliminación completada con ${totalErrors.length} errores en ${totalTime}ms`);
+      totalErrors.forEach(error => logger.error('❌', error));
     }
 
     onProgress?.('Eliminación completada', 100, 100);
@@ -732,7 +736,7 @@ export const deleteAllUserData = async (
     
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    console.error('❌ Error crítico durante eliminación batch:', error);
+    logger.error('❌ Error crítico durante eliminación batch:', error);
     
     const errorResult: BatchResult = {
       success: false,
@@ -753,7 +757,7 @@ export const deleteAllUserData = async (
  */
 export const deleteUserCompletely = async (userId: string): Promise<void> => {
   try {
-    console.log('👑 SuperAdmin eliminando usuario completamente:', userId);
+    logger.debug('👑 SuperAdmin eliminando usuario completamente:', userId);
     
     // 1. Eliminar todos los datos de Firestore
     await deleteAllUserData(userId);
@@ -768,14 +772,14 @@ export const deleteUserCompletely = async (userId: string): Promise<void> => {
       };
       
       await setDoc(doc(db, 'userDeletions', userId), deletionRecord);
-      console.log('📝 Registro de eliminación creado para procesamiento del servidor');
+      logger.debug('📝 Registro de eliminación creado para procesamiento del servidor');
     } catch (error) {
-      console.log('⚠️ No se pudo crear el registro de eliminación:', error);
+      logger.debug('⚠️ No se pudo crear el registro de eliminación:', error);
     }
     
-    console.log('✅ Usuario eliminado completamente por SuperAdmin');
+    logger.debug('✅ Usuario eliminado completamente por SuperAdmin');
   } catch (error) {
-    console.error('❌ Error eliminando usuario completamente:', error);
+    logger.error('❌ Error eliminando usuario completamente:', error);
     throw error;
   }
 };
@@ -783,90 +787,90 @@ export const deleteUserCompletely = async (userId: string): Promise<void> => {
 /**
  * Verifica si ya existe un usuario con el mismo email en Firestore
  */
-export const checkUserExistsByEmail = async (email: string): Promise<{ exists: boolean; userId?: string; userData?: any; userType?: string }> => {
+export const checkUserExistsByEmail = async (email: string): Promise<ExistingUserCheck> => {
   try {
-    console.log('🔍 Verificando si existe usuario con email:', email);
+    logger.debug('🔍 Verificando si existe usuario con email:', email);
     
     if (!email) {
-      console.log('❌ Email vacío, no se puede verificar');
+      logger.debug('❌ Email vacío, no se puede verificar');
       return { exists: false };
     }
     
     // PRIMERO: Buscar en colecciones escolares (prioridad alta)
-    console.log('🔍 Buscando en colección schoolStudents...');
+    logger.debug('🔍 Buscando en colección schoolStudents...');
     try {
       const studentsQuery = query(collection(db, 'schoolStudents'), where('email', '==', email));
       const studentsSnapshot = await getDocs(studentsQuery);
-      console.log('🔍 Resultado búsqueda en schoolStudents:', studentsSnapshot.size, 'documentos encontrados');
+      logger.debug(`🔍 Resultado búsqueda en schoolStudents: ${studentsSnapshot.size} documentos encontrados`);
       
       if (!studentsSnapshot.empty) {
         const studentDoc = studentsSnapshot.docs[0];
         const studentData = studentDoc.data();
-        console.log('✅ Estudiante escolar encontrado con email:', email, 'ID:', studentDoc.id);
-        console.log('✅ Datos completos del estudiante:', studentData);
+        logger.debug(`✅ Estudiante escolar encontrado con email: ${email} ID: ${studentDoc.id}`);
+        logger.debug('✅ Datos completos del estudiante:', studentData);
         return {
           exists: true,
           userId: studentDoc.id,
-          userData: studentData,
+          userData: studentData as UserProfile,
           userType: 'SCHOOL_STUDENT'
         };
       }
     } catch (studentsError) {
-      console.error('❌ Error buscando en colección schoolStudents:', studentsError);
-      console.log('⚠️ Posible problema de permisos en schoolStudents');
+      logger.error('❌ Error buscando en colección schoolStudents:', studentsError);
+      logger.debug('⚠️ Posible problema de permisos en schoolStudents');
     }
     
-    console.log('🔍 Buscando en colección schoolTeachers...');
+    logger.debug('🔍 Buscando en colección schoolTeachers...');
     try {
       const teachersQuery = query(collection(db, 'schoolTeachers'), where('email', '==', email));
       const teachersSnapshot = await getDocs(teachersQuery);
-      console.log('🔍 Resultado búsqueda en schoolTeachers:', teachersSnapshot.size, 'documentos encontrados');
+      logger.debug(`🔍 Resultado búsqueda en schoolTeachers: ${teachersSnapshot.size} documentos encontrados`);
       
       if (!teachersSnapshot.empty) {
         const teacherDoc = teachersSnapshot.docs[0];
         const teacherData = teacherDoc.data();
-        console.log('✅ Profesor escolar encontrado con email:', email, 'ID:', teacherDoc.id);
-        console.log('✅ Datos completos del profesor:', teacherData);
+        logger.debug(`✅ Profesor escolar encontrado con email: ${email} ID: ${teacherDoc.id}`);
+        logger.debug('✅ Datos completos del profesor:', teacherData);
         return {
           exists: true,
           userId: teacherDoc.id,
-          userData: teacherData,
+          userData: teacherData as UserProfile,
           userType: 'SCHOOL_TEACHER'
         };
       }
     } catch (teachersError) {
-      console.error('❌ Error buscando en colección schoolTeachers:', teachersError);
-      console.log('⚠️ Posible problema de permisos en schoolTeachers');
+      logger.error('❌ Error buscando en colección schoolTeachers:', teachersError);
+      logger.debug('⚠️ Posible problema de permisos en schoolTeachers');
     }
     
     // SEGUNDO: Buscar en la colección users por email
-    console.log('🔍 Buscando en colección users...');
+    logger.debug('🔍 Buscando en colección users...');
     try {
       const usersQuery = query(collection(db, 'users'), where('email', '==', email));
       const usersSnapshot = await getDocs(usersQuery);
-      console.log('🔍 Resultado búsqueda en users:', usersSnapshot.size, 'documentos encontrados');
+      logger.debug(`🔍 Resultado búsqueda en users: ${usersSnapshot.size} documentos encontrados`);
       
       if (!usersSnapshot.empty) {
         const userDoc = usersSnapshot.docs[0];
         const userData = userDoc.data();
-        console.log('✅ Usuario encontrado en users con email:', email, 'ID:', userDoc.id, 'Tipo:', userData.subscription);
-        console.log('✅ Datos completos del usuario:', userData);
+        logger.debug(`✅ Usuario encontrado en users con email: ${email} ID: ${userDoc.id} Tipo: ${userData.subscription}`);
+        logger.debug('✅ Datos completos del usuario:', userData);
         return {
           exists: true,
           userId: userDoc.id,
-          userData: userData,
+          userData: userData as UserProfile,
           userType: userData.subscription || 'FREE'
         };
       }
     } catch (usersError) {
-      console.error('❌ Error buscando en colección users:', usersError);
+      logger.error('❌ Error buscando en colección users:', usersError);
     }
     
-    console.log('❌ No se encontró usuario con email:', email);
+    logger.debug('❌ No se encontró usuario con email:', email);
     return { exists: false };
     
   } catch (error) {
-    console.error('❌ Error verificando usuario por email:', error);
+    logger.error('❌ Error verificando usuario por email:', error);
     return { exists: false };
   }
 };
@@ -875,17 +879,17 @@ export const checkUserExistsByEmail = async (email: string): Promise<{ exists: b
  * Maneja el caso de un usuario existente con el mismo email
  */
 export const handleExistingUserWithSameEmail = async (
-  googleUser: any,
-  existingUserCheck: { exists: boolean; userId?: string; userData?: any; userType?: string }
+  googleUser: GoogleUser,
+  existingUserCheck: ExistingUserCheck
 ): Promise<{ shouldContinue: boolean; message?: string; useExistingUserId?: string }> => {
   try {
-    console.log('🔄 Manejando usuario existente con el mismo email...');
-    console.log('📧 Email del usuario de Google:', googleUser.email);
-    console.log('🆔 UID del usuario de Google:', googleUser.uid);
-    console.log('🔍 Usuario existente encontrado:', existingUserCheck);
+    logger.debug('🔄 Manejando usuario existente con el mismo email...');
+    logger.debug('📧 Email del usuario de Google:', googleUser.email);
+    logger.debug('🆔 UID del usuario de Google:', googleUser.uid);
+    logger.debug('🔍 Usuario existente encontrado:', existingUserCheck);
     
     if (!existingUserCheck.exists || !existingUserCheck.userId || !existingUserCheck.userData) {
-      console.log('✅ No hay usuario existente, continuando con creación normal');
+      logger.debug('✅ No hay usuario existente, continuando con creación normal');
       return { shouldContinue: true };
     }
     
@@ -894,13 +898,13 @@ export const handleExistingUserWithSameEmail = async (
         existingUserCheck.userType === 'SCHOOL_TEACHER' || 
         existingUserCheck.userType === 'SCHOOL_STUDENT') {
       
-      console.log('👨‍🎓 Usuario escolar existente detectado, vinculando con Google Auth');
+      logger.debug('👨‍🎓 Usuario escolar existente detectado, vinculando con Google Auth');
       
       // Verificar si ya existe un perfil en la colección users con el UID de Google Auth
       const googleUserDoc = await getDoc(doc(db, 'users', googleUser.uid));
       
       if (!googleUserDoc.exists()) {
-        console.log('⚠️ No existe perfil en users con UID de Google Auth, creando...');
+        logger.debug('⚠️ No existe perfil en users con UID de Google Auth, creando...');
         
         // Crear el perfil en la colección users usando el UID de Google Auth (NO el ID del usuario escolar)
         const userData = {
@@ -913,9 +917,9 @@ export const handleExistingUserWithSameEmail = async (
         
         // Usar el UID de Google Auth, NO el ID del usuario escolar
         await createUserProfile(googleUser.uid, userData);
-        console.log('✅ Perfil creado en users con UID de Google Auth');
+        logger.debug('✅ Perfil creado en users con UID de Google Auth');
       } else {
-        console.log('✅ Perfil ya existe en users con UID de Google Auth');
+        logger.debug('✅ Perfil ya existe en users con UID de Google Auth');
       }
       
       // Actualizar con información de Google Auth y vincular con el usuario escolar
@@ -929,7 +933,7 @@ export const handleExistingUserWithSameEmail = async (
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ Usuario escolar vinculado exitosamente con Google Auth');
+      logger.debug('✅ Usuario escolar vinculado exitosamente con Google Auth');
       return { 
         shouldContinue: true, 
         message: "Cuenta vinculada exitosamente con tu cuenta escolar existente.",
@@ -939,17 +943,17 @@ export const handleExistingUserWithSameEmail = async (
     
     // Si es un usuario regular, verificar si ya tiene Google Auth vinculado
     if (existingUserCheck.userData.googleAuthUid) {
-      console.log('⚠️ Usuario ya tiene Google Auth vinculado');
+      logger.debug('⚠️ Usuario ya tiene Google Auth vinculado');
       
       // Si el UID vinculado es diferente al actual, hay un conflicto
       if (existingUserCheck.userData.googleAuthUid !== googleUser.uid) {
-        console.log('⚠️ Conflicto: UID vinculado diferente al actual');
+        logger.debug('⚠️ Conflicto: UID vinculado diferente al actual');
         return { 
           shouldContinue: false, 
           message: "Ya existe una cuenta con este email vinculada a otra cuenta de Google. Por favor, inicia sesión con tu cuenta existente." 
         };
       } else {
-        console.log('✅ UID vinculado coincide, continuando...');
+        logger.debug('✅ UID vinculado coincide, continuando...');
         return { 
           shouldContinue: true, 
           message: "Cuenta ya vinculada correctamente." 
@@ -958,17 +962,17 @@ export const handleExistingUserWithSameEmail = async (
     }
     
     // Si no tiene Google Auth vinculado, vincularlo
-    console.log('🔗 Vinculando cuenta de Google con usuario existente...');
+    logger.debug('🔗 Vinculando cuenta de Google con usuario existente...');
     const linked = await linkGoogleAccountToExistingUser(googleUser, existingUserCheck.userId, existingUserCheck.userData);
     
     if (linked) {
-      console.log('✅ Cuenta vinculada exitosamente');
+      logger.debug('✅ Cuenta vinculada exitosamente');
       return { 
         shouldContinue: true, 
         message: "Cuenta vinculada exitosamente con tu cuenta existente." 
       };
     } else {
-      console.log('❌ Error vinculando cuenta');
+      logger.debug('❌ Error vinculando cuenta');
       return { 
         shouldContinue: false, 
         message: "Error vinculando tu cuenta de Google con la cuenta existente. Por favor, contacta soporte." 
@@ -976,7 +980,7 @@ export const handleExistingUserWithSameEmail = async (
     }
     
   } catch (error) {
-    console.error('❌ Error manejando usuario existente:', error);
+    logger.error('❌ Error manejando usuario existente:', error);
     return { 
       shouldContinue: false, 
       message: "Error procesando tu cuenta. Por favor, intenta nuevamente." 
@@ -988,12 +992,12 @@ export const handleExistingUserWithSameEmail = async (
  * Vincula una cuenta de Google Auth con un usuario existente en Firestore
  */
 export const linkGoogleAccountToExistingUser = async (
-  googleUser: any,
+  googleUser: GoogleUser,
   existingUserId: string,
-  existingUserData: any
+  existingUserData: UserProfile
 ): Promise<boolean> => {
   try {
-    console.log('🔗 Vinculando cuenta de Google con usuario existente:', existingUserId);
+    logger.debug('🔗 Vinculando cuenta de Google con usuario existente:', existingUserId);
     
     // Actualizar el documento existente con la información de Google Auth
     const updateData = {
@@ -1007,11 +1011,11 @@ export const linkGoogleAccountToExistingUser = async (
     
     await updateDoc(doc(db, 'users', existingUserId), updateData);
     
-    console.log('✅ Cuenta de Google vinculada exitosamente con usuario existente');
+    logger.debug('✅ Cuenta de Google vinculada exitosamente con usuario existente');
     return true;
     
   } catch (error) {
-    console.error('❌ Error vinculando cuenta de Google:', error);
+    logger.error('❌ Error vinculando cuenta de Google:', error);
     return false;
   }
 }; 

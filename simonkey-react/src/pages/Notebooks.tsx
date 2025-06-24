@@ -14,10 +14,12 @@ import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 
 const Notebooks: React.FC = () => {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
+  const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData();
   const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
   const [newNotebookName, setNewNotebookName] = useState('');
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
@@ -72,7 +74,7 @@ const Notebooks: React.FC = () => {
     tipoAprendizaje: 'Visual', // Valor por defecto
     intereses: ['tecnología']
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingAction, setIsLoadingAction] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const personalizationRef = useRef<HTMLDivElement>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -269,7 +271,7 @@ const Notebooks: React.FC = () => {
   const handleSavePersonalization = async () => {
     if (!user?.uid) return;
     
-    setIsLoading(true);
+    setIsLoadingAction(true);
     
     try {
       // Filtrar intereses vacíos
@@ -286,7 +288,7 @@ const Notebooks: React.FC = () => {
       await setDoc(doc(db, 'users', user.uid), userDataToSave, { merge: true });
       
       setSuccessMessage('¡Datos guardados correctamente!');
-      setIsLoading(false);
+      setIsLoadingAction(false);
       
       // Opcional: cerrar modal después de un tiempo
       setTimeout(() => {
@@ -295,7 +297,7 @@ const Notebooks: React.FC = () => {
       }, 2000);
     } catch (error) {
       console.error("Error saving user data:", error);
-      setIsLoading(false);
+      setIsLoadingAction(false);
     }
   };
 
@@ -308,7 +310,18 @@ const Notebooks: React.FC = () => {
     setIsUpgradeModalOpen(false);
   };
 
-  if (notebooksLoading) {
+  // Determine which notebooks to use based on user type
+  const effectiveNotebooks = isSchoolStudent ? 
+    (schoolNotebooks || []).map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || user?.uid || '',
+      conceptCount: notebook.conceptCount || 0
+    })) : 
+    (notebooks || []);
+
+  const isLoading = isSchoolStudent ? schoolNotebooksLoading : notebooksLoading;
+
+  if (isLoading) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -317,7 +330,7 @@ const Notebooks: React.FC = () => {
     );
   }
 
-  if (notebooksError) {
+  if (!isSchoolStudent && notebooksError) {
     console.error('Error loading notebooks:', notebooksError);
     return (
       <div className="error-container">
@@ -340,9 +353,9 @@ const Notebooks: React.FC = () => {
           <StreakTracker />
         </div>
         <div className="notebooks-list-section">
-          <h2>Mis cuadernos</h2>
+          <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
           <NotebookList 
-            notebooks={(notebooks || []).map(notebook => ({
+            notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,
               title: notebook.title,
               color: notebook.color,
@@ -359,11 +372,12 @@ const Notebooks: React.FC = () => {
                   new Date()),
               conceptCount: notebook.conceptCount || 0
             }))} 
-            onDeleteNotebook={handleDelete} 
-            onEditNotebook={handleEdit}
-            onColorChange={handleColorChange}
-            onCreateNotebook={handleCreate}
-            showCreateButton={true}
+            onDeleteNotebook={isSchoolStudent ? undefined : handleDelete} 
+            onEditNotebook={isSchoolStudent ? undefined : handleEdit}
+            onColorChange={isSchoolStudent ? undefined : handleColorChange}
+            onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
+            showCreateButton={!isSchoolStudent}
+            isSchoolTeacher={false} // School students should navigate to regular routes, not school routes
           />
         </div>
       </main>
@@ -456,9 +470,9 @@ const Notebooks: React.FC = () => {
                 type="button"
                 className="save-button"
                 onClick={handleSavePersonalization}
-                disabled={isLoading}
+                disabled={isLoadingAction}
               >
-                {isLoading ? 'Guardando...' : 'Guardar'}
+                {isLoadingAction ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

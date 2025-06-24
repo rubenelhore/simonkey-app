@@ -12,10 +12,14 @@ import { useStudyService } from '../hooks/useStudyService';
 import { Concept, ResponseQuality, StudyMode, Notebook, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import Confetti from 'react-confetti';
+import { useUserType } from '../hooks/useUserType';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSchoolStudent, subscription } = useUserType();
+  const { schoolNotebooks } = useSchoolStudentData();
   
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
@@ -66,8 +70,8 @@ const StudyModePage = () => {
   const [showFreeStudyIntro, setShowFreeStudyIntro] = useState<boolean>(false);
   const [pendingStudyMode, setPendingStudyMode] = useState<StudyMode | null>(null);
   
-  // Usar nuestro hook de servicio personalizado
-  const studyService = useStudyService();
+  // Usar nuestro hook de servicio personalizado con el tipo de suscripción
+  const studyService = useStudyService(subscription);
   
   // Timer para tracking de tiempo de estudio
   const [sessionTimer, setSessionTimer] = useState<number | null>(null);
@@ -115,23 +119,38 @@ const StudyModePage = () => {
       try {
         setLoading(true);
         
-        // Obtener cuadernos del usuario
-        const notebooksQuery = query(
-          collection(db, 'notebooks'),
-          where('userId', '==', auth.currentUser.uid)
-        );
+        let notebooksData: Notebook[] = [];
         
-        const notebooksSnapshot = await getDocs(notebooksQuery);
-        const notebooksData = notebooksSnapshot.docs.map(doc => ({
-          id: doc.id,
-          title: doc.data().title,
-          color: doc.data().color || '#6147FF'
-        }));
+        if (isSchoolStudent && schoolNotebooks) {
+          // Use school notebooks for school students
+          notebooksData = schoolNotebooks.map(notebook => ({
+            id: notebook.id,
+            title: notebook.title,
+            color: notebook.color || '#6147FF'
+          }));
+        } else if (!isSchoolStudent) {
+          // Regular notebooks for other users
+          const notebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', auth.currentUser.uid)
+          );
+          
+          const notebooksSnapshot = await getDocs(notebooksQuery);
+          notebooksData = notebooksSnapshot.docs.map(doc => ({
+            id: doc.id,
+            title: doc.data().title,
+            color: doc.data().color || '#6147FF'
+          }));
+        }
         
         setNotebooks(notebooksData);
         
         // Restaurar último cuaderno usado
-        const lastNotebookId = localStorage.getItem('lastStudyNotebookId');
+        const lastNotebookKey = isSchoolStudent ? 
+          `student_${auth.currentUser.uid}_lastStudyNotebookId` : 
+          'lastStudyNotebookId';
+        const lastNotebookId = localStorage.getItem(lastNotebookKey);
+        
         if (lastNotebookId && notebooksData.length > 0) {
           const lastNotebook = notebooksData.find(n => n.id === lastNotebookId);
           if (lastNotebook) {
@@ -151,7 +170,7 @@ const StudyModePage = () => {
     };
     
     fetchNotebooks();
-  }, [navigate]);
+  }, [navigate, isSchoolStudent, schoolNotebooks]);
   
   // Cuando se selecciona un cuaderno, cargar estadísticas de estudio
   useEffect(() => {
@@ -182,7 +201,10 @@ const StudyModePage = () => {
     
     if (selectedNotebook) {
       loadNotebookStats();
-      localStorage.setItem('lastStudyNotebookId', selectedNotebook.id);
+      const lastNotebookKey = isSchoolStudent ? 
+        `student_${auth.currentUser?.uid}_lastStudyNotebookId` : 
+        'lastStudyNotebookId';
+      localStorage.setItem(lastNotebookKey, selectedNotebook.id);
     }
   }, [selectedNotebook]);
   
@@ -314,9 +336,12 @@ const StudyModePage = () => {
     setLoading(true);
     
     try {
+      // Use appropriate user key for school students
+      const userKey = isSchoolStudent ? `student_${auth.currentUser!.uid}` : auth.currentUser!.uid;
+      
       // Crear nueva sesión en Firestore
       const session = await studyService.createStudySession(
-        auth.currentUser!.uid, 
+        userKey, 
         selectedNotebook!.id,
         sessionMode
       );
@@ -329,7 +354,7 @@ const StudyModePage = () => {
       if (sessionMode === StudyMode.SMART) {
         // CORRECCIÓN: Obtener SOLO conceptos listos para repaso inteligente según SM-3
         concepts = await studyService.getReviewableConcepts(
-          auth.currentUser!.uid, 
+          userKey, 
           selectedNotebook!.id
         );
         
@@ -343,7 +368,7 @@ const StudyModePage = () => {
       } else {
         // ESTUDIO LIBRE: obtener TODOS los conceptos del cuaderno
         concepts = await studyService.getAllConceptsFromNotebook(
-          auth.currentUser!.uid, 
+          userKey, 
           selectedNotebook!.id
         );
         
@@ -409,9 +434,12 @@ const StudyModePage = () => {
     });
     
     try {
+      // Use appropriate user key for school students
+      const userKey = isSchoolStudent ? `student_${auth.currentUser.uid}` : auth.currentUser.uid;
+      
       // Actualizar respuesta usando SM-3
       await studyService.updateConceptResponse(
-        auth.currentUser.uid,
+        userKey,
         conceptId,
         quality
       );
@@ -1126,6 +1154,7 @@ const StudyModePage = () => {
                       <StudyDashboard
                         notebook={selectedNotebook}
                         userId={auth.currentUser?.uid || ''}
+                        userSubscription={subscription}
                         onRefresh={refreshDashboardData}
                         onStartSession={startStudySession}
                       />

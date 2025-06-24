@@ -24,7 +24,8 @@ import {
   LearningData, 
   StudyLimits,
   StudyDashboardData,
-  ResponseQuality
+  ResponseQuality,
+  UserSubscriptionType
 } from '../types/interfaces';
 import { 
   updateLearningData, 
@@ -68,8 +69,9 @@ interface StudyStats {
  * Hook personalizado que implementa la lógica del Spaced Repetition System
  * basado en el algoritmo SM-3 (SuperMemo 3) para optimizar el aprendizaje
  */
-export const useStudyService = () => {
+export const useStudyService = (userSubscription?: UserSubscriptionType) => {
   const [error, setError] = useState<string | null>(null);
+  const isSchoolStudent = userSubscription === UserSubscriptionType.SCHOOL;
   
   /**
    * Registra actividad de estudio del usuario
@@ -750,14 +752,18 @@ export const useStudyService = () => {
    * Obtener conceptos por IDs
    */
   const getConceptsByIds = useCallback(
-    async (conceptIds: string[], userId: string, notebookId: string): Promise<Concept[]> => {
+    async (conceptIds: string[], userId: string, notebookId: string, userSubscription?: UserSubscriptionType): Promise<Concept[]> => {
       try {
         console.log('🔍 Buscando conceptos con IDs:', conceptIds);
         console.log('📚 Buscando en cuaderno:', notebookId);
         
+        // Use the isSchoolStudent from hook initialization or the passed parameter
+        const isStudent = userSubscription ? userSubscription === UserSubscriptionType.SCHOOL : isSchoolStudent;
+        const collectionName = isStudent ? 'schoolConcepts' : 'conceptos';
+        
         // Buscar todos los documentos de conceptos del cuaderno
         const conceptsQuery = query(
-          collection(db, 'conceptos'),
+          collection(db, collectionName),
           where('cuadernoId', '==', notebookId)
         );
         
@@ -902,8 +908,11 @@ export const useStudyService = () => {
   const getAllConceptsFromNotebook = useCallback(
     async (userId: string, notebookId: string): Promise<Concept[]> => {
       try {
+        // Use the isSchoolStudent from hook initialization
+        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        
         const conceptsQuery = query(
-          collection(db, 'conceptos'),
+          collection(db, collectionName),
           where('cuadernoId', '==', notebookId)
         );
         

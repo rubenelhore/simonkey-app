@@ -1,12 +1,14 @@
 // src/pages/ProgressPage.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/ProgressPage.css';
 import { Concept } from '../types/interfaces';
+import { useUserType } from '../hooks/useUserType';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 
 
 // Define interfaces for your types
@@ -62,6 +64,8 @@ const ProgressPage = () => {
   const [, setNotebookData] = useState<NotebookDataPoint[]>([]);
   const [conceptsByNotebook, setConceptsByNotebook] = useState<ConceptsByNotebookItem[]>([]);
   const navigate = useNavigate();
+  const { isSchoolStudent } = useUserType();
+  const { schoolNotebooks } = useSchoolStudentData();
 
   // Colors for charts
   const COLORS = ['#6147FF', '#FF6B6B', '#4CAF50', '#FFC107', '#03A9F4', '#9C27B0'];
@@ -77,18 +81,30 @@ const ProgressPage = () => {
         setLoading(true);
         setError(null);
         
-        // Get user's notebooks
-        const notebooksQuery = query(
-          collection(db, 'notebooks'),
-          where('userId', '==', auth.currentUser.uid)
-        );
+        // Get user's notebooks - handle both regular and school students
+        let notebooks: NotebookType[] = [];
         
-        const notebooksSnapshot = await getDocs(notebooksQuery);
-        const notebooks = notebooksSnapshot.docs.map(doc => ({
-          id: doc.id,
-          title: doc.data().title,
-          color: doc.data().color || '#6147FF'
-        })) as NotebookType[];
+        if (isSchoolStudent && schoolNotebooks) {
+          // Use school notebooks for school students
+          notebooks = schoolNotebooks.map(notebook => ({
+            id: notebook.id,
+            title: notebook.title,
+            color: notebook.color || '#6147FF'
+          }));
+        } else {
+          // Regular notebooks for other users
+          const notebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', auth.currentUser.uid)
+          );
+          
+          const notebooksSnapshot = await getDocs(notebooksQuery);
+          notebooks = notebooksSnapshot.docs.map(doc => ({
+            id: doc.id,
+            title: doc.data().title,
+            color: doc.data().color || '#6147FF'
+          })) as NotebookType[];
+        }
         
         // Get concepts by notebook
         let totalConcepts = 0;
@@ -96,26 +112,47 @@ const ProgressPage = () => {
         let conceptsDistribution: ConceptsByNotebookItem[] = [];
         
         for (const notebook of notebooks) {
+          // Use appropriate collection based on user type
+          const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
           const conceptsQuery = query(
-            collection(db, 'conceptos'),
+            collection(db, collectionName),
             where('cuadernoId', '==', notebook.id)
           );
           
           const conceptsSnapshot = await getDocs(conceptsQuery);
           let notebookConceptsCount = 0;
+          let notebookMasteredCount = 0;
           
-          conceptsSnapshot.docs.forEach(doc => {
-            const conceptos = doc.data().conceptos as Concept[] || [];
+          for (const conceptDoc of conceptsSnapshot.docs) {
+            const conceptos = conceptDoc.data().conceptos as Concept[] || [];
             notebookConceptsCount += conceptos.length;
             
-            conceptos.forEach((concepto: Concept) => {
-              if (concepto.dominado) {
-                masteredConcepts++;
+            // For school students, check learning data separately
+            if (isSchoolStudent) {
+              // School students track progress individually
+              for (const concepto of conceptos) {
+                // Check if concept is mastered in user's learning data
+                const learningDataDoc = await getDoc(
+                  doc(db, 'users', auth.currentUser!.uid, 'learningData', concepto.id)
+                );
+                if (learningDataDoc.exists() && learningDataDoc.data()?.repetitions >= 3) {
+                  notebookMasteredCount++;
+                }
               }
-            });
-          });
+            } else {
+              // Regular users use the dominado field
+              conceptos.forEach((concepto: Concept) => {
+                if (concepto.dominado) {
+                  masteredConcepts++;
+                }
+              });
+            }
+          }
           
           totalConcepts += notebookConceptsCount;
+          if (isSchoolStudent) {
+            masteredConcepts += notebookMasteredCount;
+          }
           
           if (notebookConceptsCount > 0) {
             conceptsDistribution.push({
@@ -152,7 +189,7 @@ const ProgressPage = () => {
     };
     
     fetchProgressData();
-  }, [selectedPeriod, navigate]);
+  }, [selectedPeriod, navigate, isSchoolStudent, schoolNotebooks]);
 
   // Generate activity data for the chart (simulated)
   const generateActivityData = (period: 'week' | 'month') => {

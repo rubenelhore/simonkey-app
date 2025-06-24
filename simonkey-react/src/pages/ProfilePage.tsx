@@ -13,7 +13,7 @@ import '../styles/ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
   const { user, userProfile, loading: authLoading } = useAuth();
-  const { schoolRole, isSchoolUser, isSuperAdmin } = useUserType();
+  const { schoolRole, isSchoolUser, isSchoolStudent, isSuperAdmin } = useUserType();
 
   if (authLoading) {
     return (
@@ -46,13 +46,18 @@ const ProfilePage: React.FC = () => {
           <p><strong>Email:</strong> {user.email}</p>
           <p><strong>Nombre:</strong> {userProfile.nombre}</p>
           <p><strong>Usuario:</strong> {userProfile.username}</p>
-          {isSchoolUser && <p><strong>Rol Escolar:</strong> {schoolRole}</p>}
+          {isSchoolUser && (
+            <>
+              <p><strong>Rol Escolar:</strong> {schoolRole}</p>
+              {userProfile.schoolName && <p><strong>Escuela:</strong> {userProfile.schoolName}</p>}
+            </>
+          )}
           <UserTypeBadge subscription={userProfile.subscription} schoolRole={userProfile.schoolRole} />
         </div>
         
-        <CloudFunctionsTester />
+        {!isSchoolStudent && <CloudFunctionsTester />}
         
-        <UserDataManagement />
+        {!isSchoolStudent && <UserDataManagement />}
 
         {isSuperAdmin && (
           <div className="super-admin-section card">

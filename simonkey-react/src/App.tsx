@@ -13,7 +13,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import Notebooks from './pages/Notebooks';
-import NotebookDetail from './pages/NotebookDetail';
+import NotebookDetailWrapper from './pages/NotebookDetailWrapper';
 import ConceptDetail from './pages/ConceptDetail';
 import ExplainConceptPage from './pages/ExplainConceptPage';
 import SharedNotebook from './pages/SharedNotebook';
@@ -226,25 +226,21 @@ const AppContent: React.FC = () => {
       if (isAuthenticated) {
         const currentPath = window.location.pathname;
         
-        // USUARIOS ESCOLARES: Redirigir desde login/signup a su módulo específico
-        if ((isSchoolTeacher || isSchoolStudent) && ['/login', '/signup'].includes(currentPath)) {
-          if (isSchoolTeacher) {
-            console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
-            navigate('/school/teacher', { replace: true });
-          } else if (isSchoolStudent) {
-            console.log('🎓 App - Redirigiendo estudiante escolar desde login a /school/student');
-            navigate('/school/student', { replace: true });
-          }
+        // USUARIOS ESCOLARES: Ahora tienen acceso completo como usuarios PRO
+        // Solo redirigir profesores a su página específica
+        if (isSchoolTeacher && ['/login', '/signup'].includes(currentPath)) {
+          console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
+          navigate('/school/teacher', { replace: true });
           return;
         }
         
-        // USUARIOS NORMALES: Si está en login/signup y verificado, redirigir a notebooks
-        if (!isSchoolTeacher && !isSchoolStudent && isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
+        // TODOS LOS USUARIOS (incluidos schoolStudents): Si está en login/signup y verificado, redirigir a notebooks
+        if (isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
           navigate('/notebooks', { replace: true });
         }
       }
     }
-  }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, isSchoolStudent, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, navigate]);
 
   if (loading || userTypeLoading) {
     return (
@@ -285,7 +281,8 @@ const AppContent: React.FC = () => {
     );
   }
   
-  const showMobileNav = isAuthenticated && !location.pathname.startsWith('/school');
+  // Show mobile navigation for all authenticated users (including school students) except when on school teacher pages
+  const showMobileNav = isAuthenticated && !(isSchoolTeacher && location.pathname.startsWith('/school/teacher'));
 
   return (
     <UserContext.Provider value={{ user: user ? {
@@ -301,10 +298,9 @@ const AppContent: React.FC = () => {
           path="/" 
           element={(() => {
             if (isAuthenticated && isEmailVerified) {
-              // Redirigir usuarios escolares a su módulo específico
+              // Solo profesores escolares van a su módulo específico
               if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
-              if (isSchoolStudent) return <Navigate to="/school/student" replace />;
-              // Usuarios normales van a notebooks
+              // TODOS los demás usuarios (incluidos schoolStudents) van a notebooks
               return <Navigate to="/notebooks" replace />;
             }
             // Usuarios no autenticados ven la página de inicio
@@ -342,7 +338,7 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <NotebookDetail />
+                <NotebookDetailWrapper />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -442,17 +438,10 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/login" replace />
           }
         />
+        {/* La ruta /school/student ya no es necesaria - los estudiantes usan las rutas normales */}
         <Route
           path="/school/student"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolStudentStudyPage />
-                </SchoolUserGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
+          element={<Navigate to="/notebooks" replace />}
         />
         
         {/* Ruta para el panel de control del súper admin */}

@@ -31,11 +31,11 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       console.log('   - userProfile.schoolRole:', userProfile?.schoolRole);
       console.log('   - location.pathname:', location.pathname);
 
-      // USUARIOS ESCOLARES: Redirigir según su rol
-      if (isSchoolUser && userProfile?.schoolRole) {
-        console.log('🔍 EmailVerificationGuard - Usuario escolar detectado con rol:', userProfile.schoolRole);
+      // USUARIOS ESCOLARES: Solo profesores tienen rutas restringidas
+      if (isSchoolTeacher) {
+        console.log('🔍 EmailVerificationGuard - Profesor escolar detectado');
         
-        // Definir rutas válidas para cada rol
+        // Definir rutas válidas para profesores
         const validTeacherRoutes = [
           '/school/teacher',
           '/school/notebooks',
@@ -44,42 +44,22 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
           '/school/students'
         ];
         
-        const validStudentRoutes = [
-          '/school/student',
-          '/school/study',
-          '/school/notebooks/',
-          '/school/notebooks'
-        ];
+        // Verificar si la ruta actual es válida para profesores
+        const isValidRoute = validTeacherRoutes.some(route => 
+          location.pathname === route || location.pathname.startsWith(route + '/')
+        );
         
-        if (isSchoolTeacher) {
-          // Verificar si la ruta actual es válida para profesores
-          const isValidRoute = validTeacherRoutes.some(route => 
-            location.pathname === route || location.pathname.startsWith(route + '/')
-          );
-          
-          if (!isValidRoute) {
-            console.log('🏫 EmailVerificationGuard - Ruta no válida para profesor, redirigiendo a /school/teacher');
-            console.log('🏫 From:', location.pathname, 'To: /school/teacher');
-            navigate('/school/teacher', { replace: true });
-            return;
-          }
+        if (!isValidRoute) {
+          console.log('🏫 EmailVerificationGuard - Ruta no válida para profesor, redirigiendo a /school/teacher');
+          console.log('🏫 From:', location.pathname, 'To: /school/teacher');
+          navigate('/school/teacher', { replace: true });
+          return;
         }
-        
-        if (isSchoolStudent) {
-          // Verificar si la ruta actual es válida para estudiantes
-          const isValidRoute = validStudentRoutes.some(route => 
-            location.pathname === route || location.pathname.startsWith(route + '/')
-          );
-          
-          if (!isValidRoute) {
-            console.log('🎓 EmailVerificationGuard - Ruta no válida para estudiante, redirigiendo a /school/student');
-            console.log('🎓 From:', location.pathname, 'To: /school/student');
-            navigate('/school/student', { replace: true });
-            return;
-          }
-        }
-        
-        console.log('✅ EmailVerificationGuard - Usuario escolar ya está en la ruta correcta');
+      }
+      
+      // Los estudiantes escolares ya no tienen restricciones de rutas
+      if (isSchoolStudent) {
+        console.log('✅ EmailVerificationGuard - Estudiante escolar puede acceder a todas las rutas');
       }
 
       // USUARIOS NORMALES: Verificar email

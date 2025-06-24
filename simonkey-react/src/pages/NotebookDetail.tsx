@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
 import { Concept } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
+import { useUserType } from '../hooks/useUserType';
 
 import { 
   doc, 
@@ -57,6 +58,12 @@ const NotebookDetail = () => {
   
   // Usar el hook de estudio
   const studyService = useStudyService();
+  
+  // Usar el hook para detectar el tipo de usuario
+  const { isSchoolStudent } = useUserType();
+  
+  // Log para debug
+  console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,7 +78,9 @@ const NotebookDetail = () => {
       
       try {
         // Fetch notebook details
-        const docRef = doc(db, 'notebooks', id);
+        // Use schoolNotebooks collection for school students
+        const notebooksCollection = isSchoolStudent ? 'schoolNotebooks' : 'notebooks';
+        const docRef = doc(db, notebooksCollection, id);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -84,8 +93,10 @@ const NotebookDetail = () => {
         }
         
         // Fetch concept documents for this notebook
+        // Use schoolConcepts collection for school students
+        const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
         const q = query(
-          collection(db, 'conceptos'),
+          collection(db, conceptsCollection),
           where('cuadernoId', '==', id)
         );
         
@@ -102,7 +113,7 @@ const NotebookDetail = () => {
     };
     
     fetchData();
-  }, [id, navigate]);
+  }, [id, navigate, isSchoolStudent]);
 
   // Añadir al inicio del componente, después de cargar los datos del cuaderno
   useEffect(() => {
@@ -193,6 +204,12 @@ const NotebookDetail = () => {
   const generarConceptos = async () => {
     if (!id || !auth.currentUser || archivos.length === 0) {
       alert("Por favor selecciona al menos un archivo");
+      return;
+    }
+    
+    // Prevent school students from adding concepts
+    if (isSchoolStudent) {
+      alert('Como estudiante escolar, no puedes añadir conceptos.');
       return;
     }
 
@@ -295,6 +312,12 @@ const NotebookDetail = () => {
       return;
     }
 
+    // Prevent school students from adding concepts
+    if (isSchoolStudent) {
+      alert('Como estudiante escolar, no puedes añadir conceptos.');
+      return;
+    }
+
     if (!nuevoConcepto.término || !nuevoConcepto.definición) {
       alert("Por favor completa todos los campos obligatorios");
       return;
@@ -383,6 +406,12 @@ const NotebookDetail = () => {
 
   // Abrir modal con pestaña específica
   const openModalWithTab = (tab: 'upload' | 'manual') => {
+    // Prevent school students from opening the add concepts modal
+    if (isSchoolStudent) {
+      alert('Como estudiante escolar, no puedes añadir conceptos.');
+      return;
+    }
+    
     setActiveTab(tab);
     setIsModalOpen(true);
   };
@@ -419,12 +448,19 @@ const NotebookDetail = () => {
             {conceptosDocs.length === 0 ? (
               <div className="empty-state">
                 <p>Aún no hay conceptos en este cuaderno.</p>
-                <button
-                  className="add-first-concept-button"
-                  onClick={() => openModalWithTab("upload")}
-                >
-                  Añadir mi primer concepto
-                </button>
+                {!isSchoolStudent ? (
+                  <button
+                    className="add-first-concept-button"
+                    onClick={() => openModalWithTab("upload")}
+                  >
+                    Añadir mi primer concepto
+                  </button>
+                ) : (
+                  <p className="school-student-info">
+                    <i className="fas fa-info-circle"></i>
+                    Como estudiante escolar, tu profesor añadirá los conceptos a este cuaderno.
+                  </p>
+                )}
               </div>
             ) : (
               <>
@@ -441,16 +477,18 @@ const NotebookDetail = () => {
                     ))
                   )}
                   
-                  {/* Tarjeta para añadir nuevos conceptos */}
-                  <div 
-                    className="add-concept-card" 
-                    onClick={() => openModalWithTab('upload')}
-                  >
-                    <div className="add-icon">
-                      <i className="fas fa-plus-circle"></i>
+                  {/* Tarjeta para añadir nuevos conceptos - Solo para usuarios no escolares */}
+                  {!isSchoolStudent && (
+                    <div 
+                      className="add-concept-card" 
+                      onClick={() => openModalWithTab('upload')}
+                    >
+                      <div className="add-icon">
+                        <i className="fas fa-plus-circle"></i>
+                      </div>
+                      <h4>Añadir nuevos conceptos</h4>
                     </div>
-                    <h4>Añadir nuevos conceptos</h4>
-                  </div>
+                  )}
                 </div>
               </>
             )}
@@ -458,8 +496,8 @@ const NotebookDetail = () => {
         </section>
       </main>
 
-      {/* Modal */}
-      {isModalOpen && ReactDOM.createPortal(
+      {/* Modal - Solo visible para usuarios no escolares */}
+      {isModalOpen && !isSchoolStudent && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsModalOpen(false);
@@ -575,13 +613,15 @@ const NotebookDetail = () => {
         document.body
       )}
       
-      {/* Botón flotante para añadir conceptos (visible en móvil) */}
-      <button 
-        className="floating-add-button"
-        onClick={() => openModalWithTab('upload')}
-      >
-        <i className="fas fa-plus"></i>
-      </button>
+      {/* Botón flotante para añadir conceptos (visible en móvil) - Solo para usuarios no escolares */}
+      {!isSchoolStudent && (
+        <button 
+          className="floating-add-button"
+          onClick={() => openModalWithTab('upload')}
+        >
+          <i className="fas fa-plus"></i>
+        </button>
+      )}
     </div>
   );
 };

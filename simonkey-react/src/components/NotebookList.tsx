@@ -107,7 +107,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             id={notebook.id}
             title={notebook.title}
             color={notebook.color}
-            onDelete={onDeleteNotebook || (() => {})}
+            onDelete={onDeleteNotebook}
             onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle, '') : undefined}
             onColorChange={onColorChange}
             showActions={openActionsId === notebook.id}

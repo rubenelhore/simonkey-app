@@ -608,7 +608,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
                     new Date()),
                 conceptCount: notebook.conceptCount || 0
               }))} 
-              onDeleteNotebook={handleDelete} 
+              onDeleteNotebook={undefined} 
               onEditNotebook={handleEdit}
               onColorChange={handleColorChange}
               onCreateNotebook={handleCreate}

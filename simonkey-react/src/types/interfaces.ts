@@ -298,6 +298,34 @@ export interface UserProfile {
   notebooksCreatedThisWeek?: number;
   conceptsCreatedThisWeek?: number;
   weekStartDate?: any; // Cambiar a any para compatibilidad con serverTimestamp
+  // Campos para autenticación con Google
+  googleAuthUid?: string;
+  googleAuthEmail?: string;
+  googleAuthDisplayName?: string;
+  googleAuthPhotoURL?: string;
+  linkedSchoolUserId?: string;
+  linkedAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+/**
+ * Usuario de Google Auth
+ */
+export interface GoogleUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+/**
+ * Resultado de verificación de usuario existente
+ */
+export interface ExistingUserCheck {
+  exists: boolean;
+  userId?: string;
+  userData?: UserProfile;
+  userType?: string;
 }
 
 /**

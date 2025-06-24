@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StudyDashboardData, Notebook, StudyMode, LearningData } from '../types/interfaces';
+import { StudyDashboardData, Notebook, StudyMode, LearningData, UserSubscriptionType } from '../types/interfaces';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useStudyService } from '../hooks/useStudyService';
@@ -37,6 +37,7 @@ const getLearningDataForNotebook = async (userId: string, notebookId: string): P
 interface StudyDashboardProps {
   notebook: Notebook | null;
   userId: string;
+  userSubscription?: UserSubscriptionType;
   onRefresh?: () => void;
   onStartSession?: (mode: StudyMode) => void;
 }
@@ -44,6 +45,7 @@ interface StudyDashboardProps {
 const StudyDashboard: React.FC<StudyDashboardProps> = ({ 
   notebook, 
   userId, 
+  userSubscription,
   onRefresh,
   onStartSession
 }) => {
@@ -52,7 +54,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [studyLimits, setStudyLimits] = useState<any>(null);
 
-  const studyService = useStudyService();
+  const studyService = useStudyService(userSubscription);
 
   // Efecto para cargar datos cuando cambie el cuaderno o usuario
   useEffect(() => {

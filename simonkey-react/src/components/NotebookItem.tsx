@@ -7,7 +7,7 @@ interface NotebookItemProps {
   id: string;
   title: string;
   color?: string; // Nuevo prop para el color
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void; // Made optional for school students
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
   showActions: boolean; // Nuevo prop para controlar si las acciones están visibles
@@ -26,7 +26,9 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
     e.stopPropagation();
     if (window.confirm("¿Estás seguro de que deseas eliminar este cuaderno?")) {
       await deleteNotebook(id);
-      onDelete(id);
+      if (onDelete) {
+        onDelete(id);
+      }
     }
   };
 
@@ -107,15 +109,21 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
           <button onClick={handleView} className="action-view" title="Ver cuaderno">
             <i className="fas fa-eye"></i>
           </button>
-          <button onClick={handleColorClick} className="action-color" title="Cambiar color">
-            <i className="fas fa-palette"></i>
-          </button>
-          <button onClick={handleEditClick} className="action-edit" title="Editar nombre">
-            <i className="fas fa-pencil-alt"></i>
-          </button>
-          <button onClick={handleDelete} className="action-delete" title="Eliminar cuaderno">
-            <i className="fas fa-trash"></i>
-          </button>
+          {onColorChange && (
+            <button onClick={handleColorClick} className="action-color" title="Cambiar color">
+              <i className="fas fa-palette"></i>
+            </button>
+          )}
+          {onEdit && (
+            <button onClick={handleEditClick} className="action-edit" title="Editar nombre">
+              <i className="fas fa-pencil-alt"></i>
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={handleDelete} className="action-delete" title="Eliminar cuaderno">
+              <i className="fas fa-trash"></i>
+            </button>
+          )}
         </div>
       )}
       {showColorPicker && (
