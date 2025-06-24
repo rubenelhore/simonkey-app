@@ -90,6 +90,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  outline: none !important;
 }
 
 .back-button i {
@@ -100,6 +101,22 @@
 .back-button:hover {
   background-color: rgba(255, 255, 255, 0.85);
   transform: translateX(-2px);
+}
+
+.back-button:focus {
+  outline: 2px solid var(--notebook-color) !important;
+  outline-offset: 2px !important;
+}
+
+.back-button:focus-visible {
+  outline: 2px solid var(--notebook-color) !important;
+  outline-offset: 2px !important;
+}
+
+/* Asegurar que cualquier pseudo-elemento también use el color correcto */
+.back-button:focus::after,
+.back-button:focus-visible::after {
+  border-color: var(--notebook-color) !important;
 }
 
 /* Botón de compartir */
