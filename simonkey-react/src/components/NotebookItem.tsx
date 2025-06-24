@@ -86,7 +86,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
       <div 
         className="notebook-card-content" 
         onClick={handleCardClick}
-        style={{ cursor: 'pointer', borderColor: notebookColor }}
+        style={{ '--notebook-color': notebookColor } as React.CSSProperties}
       >
         {isEditing ? (
           <input 
@@ -98,7 +98,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
             autoFocus
           />
         ) : (
-          <h3 style={{ color: notebookColor }}>{editableTitle}</h3>
+          <h3>{editableTitle}</h3>
         )}
       </div>
       {showActions && (
