@@ -9,6 +9,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -16,9 +17,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Inicializar Firebase Admin
 admin.initializeApp();
 
-// Por ahora usar la instancia por defecto
-// TODO: Configurar para usar simonkey-general cuando se actualice firebase-admin
-const getDb = () => admin.firestore();
+// Usar la base de datos simonkey-general
+const getDb = () => {
+  // En firebase-admin 12.x, usar getFirestore con el nombre de la base de datos
+  return getFirestore('simonkey-general');
+};
 
 // Configuración de límites por tipo de suscripción
 const SUBSCRIPTION_LIMITS = {
@@ -2287,13 +2290,13 @@ export const generateConceptsFromFile = onCall(
 
       // Prompt optimizado para extraer conceptos educativos
       const prompt = `
-Eres un experto educador especializado en crear tarjetas de estudio efectivas. Tu tarea es analizar el documento y extraer los conceptos más importantes para el aprendizaje.
+Eres un experto generador de tarjetas de estudio efectivas. Tu tarea es analizar el documento y extraer los conceptos importantes.
 
 ## OBJETIVO
 Crear conceptos de estudio que sean:
 - **Específicos y memorizables**: Cada concepto debe ser una unidad de información clara
 - **Educativamente valiosos**: Información que realmente importa para el aprendizaje
-- **Bien estructurados**: Con definición clara y ejemplos relevantes
+- **Bien estructurados**: Con definición clara
 
 ## ESTRATEGIA DE EXTRACCIÓN
 
@@ -2301,30 +2304,23 @@ Crear conceptos de estudio que sean:
 - **Preguntas y respuestas**: Si hay Q&A, cada par es un concepto potencial
 - **Datos y estadísticas**: Números importantes, rankings, cantidades
 - **Definiciones**: Términos que se explican o definen
-- **Hechos sorprendentes**: Información contraintuitiva o poco conocida
 - **Procesos y mecanismos**: Cómo funciona algo, pasos, procedimientos
 
 ### 2. EVITA:
-- Información demasiado general u obvia
 - Metadatos técnicos del documento
 - Información redundante o repetitiva
-- Conceptos demasiado amplios o vagos
 
 ### 3. ESTRUCTURA IDEAL DE CONCEPTO:
 - **Término**: Nombre simple y directo del concepto (máx 50 chars)
 - **Definición**: Explicación clara y concisa (máx 200 chars)
-- **Ejemplos**: Casos concretos del documento (1-2 ejemplos)
-- **Importancia**: Por qué es relevante aprenderlo (máx 150 chars)
 
 ## EJEMPLOS DE BUENOS CONCEPTOS:
 
-Para el texto: "¿Cuál es el país con más pirámides en el mundo?: Sudán tiene más pirámides que Egipto, con más de 200 estructuras antiguas."
+Para el texto: "¿Cuál es el país con más pirámides en el mundo? Sudán tiene más pirámides que Egipto, con más de 200 estructuras antiguas."
 
 **Concepto:**
 - término: "Sudán"
 - definicion: "Posee más pirámides que Egipto, con más de 200 estructuras antiguas"
-- ejemplos: ["Más de 200 pirámides", "Más que Egipto"]
-- importancia: "Contrarresta la creencia común de que Egipto tiene más pirámides"
 
 ## INSTRUCCIONES ESPECÍFICAS:
 
@@ -2340,7 +2336,6 @@ Para el texto: "¿Cuál es el país con más pirámides en el mundo?: Sudán tie
 - **Solo el nombre del concepto**: "Sudán", "Hígado", "Chino Mandarín"
 - **NO incluir descripciones**: Evita "Sudán: Más pirámides" o "Hígado: regeneración"
 - **NO incluir dos puntos (:)** en el término
-- **Mantén el término simple y directo**
 
 ## FORMATO DE RESPUESTA:
 Responde ÚNICAMENTE con este JSON válido:
@@ -2361,8 +2356,6 @@ Responde ÚNICAMENTE con este JSON válido:
 - Asegúrate de que el JSON sea válido
 - Si el contenido es escaso, extrae al menos 1 concepto básico
 - FOCALÍZATE EN CONTENIDO EDUCATIVO REAL, NO METADATOS
-- Cada concepto debe ser útil para estudiar y recordar
-- **EL TÉRMINO DEBE SER SIMPLE: solo el nombre, sin descripciones ni dos puntos**
 `;
 
       let result;

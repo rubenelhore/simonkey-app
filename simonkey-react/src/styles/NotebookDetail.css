@@ -205,7 +205,7 @@
 
 /* Botón guardar cuaderno */
 .save-notebook-button {
-  background-color: var(--primary-color);
+  background-color: var(--notebook-color);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -341,7 +341,7 @@
 .concept-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: var(--notebook-color);
 }
 
 .concept-card h4 {
@@ -363,7 +363,7 @@
   left: 0;
   width: 100%;
   height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(90deg, var(--notebook-color), var(--notebook-color));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s ease;
@@ -400,7 +400,7 @@
 .add-concept-card:hover {
   background: rgba(243, 244, 246, 1);
   transform: translateY(-4px);
-  border-color: #3b82f6;
+  border-color: var(--notebook-color);
 }
 
 .add-icon {
@@ -411,7 +411,7 @@
 }
 
 .add-concept-card:hover .add-icon {
-  color: #3b82f6;
+  color: var(--notebook-color);
 }
 
 .add-concept-card h4 {
@@ -648,7 +648,7 @@
 
 .tab-button.active {
   background-image: none !important;
-  background-color: #4F46E5 !important;
+  background-color: var(--notebook-color) !important;
   color: white !important;
   border-bottom-color: transparent !important;
 }
@@ -682,7 +682,7 @@
 }
 
 .file-input:hover {
-  border-color: var(--primary-color);
+  border-color: var(--notebook-color);
   background-color: #f9f9f9;
 }
 
@@ -718,7 +718,7 @@
 
 .generate-button {
   padding: 0.75rem 1.5rem;
-  background-color: var(--primary-color);
+  background-color: var(--notebook-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -729,7 +729,7 @@
 }
 
 .generate-button:hover:not(:disabled) {
-  background-color: var(--primary-dark, #0056b3);
+  filter: brightness(0.9);
 }
 
 .generate-button:disabled {
@@ -766,9 +766,9 @@
 
 .form-group input:focus,
 .form-group textarea:focus {
-  border-color: var(--primary-color);
+  border-color: var(--notebook-color);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
 .form-group textarea {
@@ -777,7 +777,7 @@
 }
 
 .add-concept-button {
-  background-color: var(--primary-color);
+  background-color: var(--notebook-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -791,7 +791,7 @@
 }
 
 .add-concept-button:hover:not(:disabled) {
-  background-color: var(--primary-dark, #0056b3);
+  filter: brightness(0.9);
 }
 
 .add-concept-button:disabled {

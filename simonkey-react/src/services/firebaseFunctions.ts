@@ -6,7 +6,8 @@ import { getApp } from 'firebase/app';
 const app = getApp();
 
 // Inicializar Firebase Functions con la app existente
-const functions = getFunctions(app);
+// Especificar la región para funciones v2
+const functions = getFunctions(app, 'us-central1');
 
 // Tipos para las funciones
 interface DeleteUserDataRequest {
