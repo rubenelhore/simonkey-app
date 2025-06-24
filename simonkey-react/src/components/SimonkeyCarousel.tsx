@@ -30,6 +30,7 @@ const SimonkeyCarousel: React.FC<SimonkeyCarouselProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
   
   // Número máximo de posiciones de desplazamiento
   const maxIndex = 2;
@@ -63,6 +64,11 @@ const SimonkeyCarousel: React.FC<SimonkeyCarouselProps> = ({
       setCurrentIndex(Math.min(index, maxIndex));
       setTimeout(() => setIsTransitioning(false), 500);
     }
+  };
+
+  // Manejar el flip de una tarjeta (solo una a la vez)
+  const handleFlip = (index: number) => {
+    setFlippedIndex(prev => prev === index ? null : index);
   };
 
   // Efecto para auto-reproducción
@@ -105,19 +111,34 @@ const SimonkeyCarousel: React.FC<SimonkeyCarouselProps> = ({
               width: `${(images.length / slidesToShow) * 100}%`
             }}
           >
-            {images.map((image) => (
+            {images.map((image, idx) => (
               <div 
                 key={image.id} 
                 className="simonkey-carousel-slide"
                 style={{ width: `${100 / images.length * slidesToShow}%` }}
               >
-                <div className="simonkey-carousel-slide-inner">
-                  <img src={image.src} alt={image.alt} className="simonkey-carousel-image" />
-                  {showCaption && image.caption && (
-                    <div className="simonkey-carousel-caption">
-                      <p>{image.caption}</p>
+                <div
+                  className={`simonkey-carousel-slide-inner flip-card${flippedIndex === idx ? ' flipped' : ''}`}
+                  onClick={() => handleFlip(idx)}
+                  style={{ cursor: 'pointer' }}
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleFlip(idx); }}
+                  aria-label="Voltear tarjeta"
+                  role="button"
+                >
+                  <div className="flip-card-front">
+                    <img src={image.src} alt={image.alt} className="simonkey-carousel-image" />
+                    {showCaption && image.caption && (
+                      <div className="simonkey-carousel-caption">
+                        <p>{image.caption}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flip-card-back">
+                    <div className="simonkey-carousel-back-content">
+                      <span style={{fontSize: '1.2rem', color: '#888'}}>Aquí va info</span>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
