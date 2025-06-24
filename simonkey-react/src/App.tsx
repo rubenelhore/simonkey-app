@@ -120,7 +120,7 @@ const HomePageContent: React.FC = () => {
     <div>
       <Header />
       <Hero />
-      <SimonkeyCarousel images={images} />
+      <SimonkeyCarousel images={images} autoPlayInterval={9000} />
       <div id="features">
         <Features />
       </div>
