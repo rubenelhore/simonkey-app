@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+
+// Importar Firebase primero para asegurar que se inicializa correctamente
+import './services/firebase';
+
 import './firebase/config.ts';
 import './hooks/useUser.ts';
 

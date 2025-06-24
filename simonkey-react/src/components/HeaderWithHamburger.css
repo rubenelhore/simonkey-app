@@ -6,7 +6,7 @@
 .header-with-hamburger {
   background: #6147FF;
   color: white;
-  padding: 0 2rem;
+  padding: 0 1rem;
   position: sticky;
   top: 0;
   z-index: 1200;
@@ -17,6 +17,9 @@
   align-items: center;
   transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s cubic-bezier(0.4,0,0.2,1);
   opacity: 1 !important;
+  width: 100%;
+  left: 0;
+  right: 0;
 }
 
 .header-with-hamburger.header-hidden {
@@ -29,10 +32,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   gap: 1rem;
+  /* Debug: ver el área real del header-content */
+  /* background: rgba(255, 0, 0, 0.1); */
+}
+
+/* Media query para pantallas grandes */
+@media (min-width: 1400px) {
+  .header-with-hamburger {
+    padding: 0 3rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .header-with-hamburger {
+    padding: 0 5rem;
+  }
+}
+
+@media (min-width: 1900px) {
+  .header-with-hamburger {
+    padding: 0 8rem;
+  }
 }
 
 .logo2-title-group {

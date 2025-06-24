@@ -966,10 +966,10 @@ export const checkTeacherNotebooks = async () => {
   
   try {
     const { getAuth } = await import('firebase/auth');
-    const { getFirestore, collection, query, where, getDocs } = await import('firebase/firestore');
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const { db } = await import('../services/firebase');
     
     const auth = getAuth();
-    const db = getFirestore();
     const user = auth.currentUser;
     
     if (!user) {
@@ -1100,10 +1100,10 @@ export const checkCurrentUserStatus = async () => {
   
   try {
     const { getAuth } = await import('firebase/auth');
-    const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+    const { doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('../services/firebase');
     
     const auth = getAuth();
-    const db = getFirestore();
     const user = auth.currentUser;
     
     if (!user) {
@@ -1181,10 +1181,10 @@ export const superAdminDiagnoseAndCleanAccounts = async (targetEmail: string) =>
   
   try {
     const { getAuth } = await import('firebase/auth');
-    const { getFirestore, collection, query, where, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+    const { collection, query, where, getDocs, deleteDoc, doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('../services/firebase');
     
     const auth = getAuth();
-    const db = getFirestore();
     const currentUser = auth.currentUser;
     
     if (!currentUser) {
@@ -1417,10 +1417,10 @@ export const superAdminCleanDuplicateIDs = async (targetEmail: string) => {
   
   try {
     const { getAuth } = await import('firebase/auth');
-    const { getFirestore, collection, query, where, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+    const { collection, query, where, getDocs, deleteDoc, doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('../services/firebase');
     
     const auth = getAuth();
-    const db = getFirestore();
     const currentUser = auth.currentUser;
     
     if (!currentUser) {

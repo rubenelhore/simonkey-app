@@ -16,6 +16,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Inicializar Firebase Admin
 admin.initializeApp();
 
+// Por ahora usar la instancia por defecto
+// TODO: Configurar para usar simonkey-general cuando se actualice firebase-admin
+const getDb = () => admin.firestore();
+
 // Configuración de límites por tipo de suscripción
 const SUBSCRIPTION_LIMITS = {
   FREE: {
@@ -150,7 +154,7 @@ export const deleteUserData = onCall(
     const errors: string[] = [];
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       const auth = admin.auth();
 
       // 1. ELIMINAR NOTEBOOKS Y CONCEPTOS (operación optimizada)
@@ -407,7 +411,7 @@ export const checkUserDeletionStatus = onCall(
     }
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       const auth = admin.auth();
 
       // Verificar si existe en Firestore
@@ -466,7 +470,7 @@ export const calculateUserStats = onCall(
     logger.info("📊 Calculando estadísticas para usuario", { userId });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       // 1. Contar notebooks
       const notebooksQuery = db.collection("notebooks").where("userId", "==", userId);
@@ -629,7 +633,7 @@ export const cleanupOldData = onCall(
     logger.info("🧹 Iniciando limpieza de datos antiguos", { userId, daysToKeep });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
@@ -729,7 +733,7 @@ export const exportUserData = onCall(
     logger.info("📤 Exportando datos de usuario", { userId });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       const exportData: {
         user: any;
@@ -870,7 +874,7 @@ export const syncSchoolUsers = onCall(
     logger.info("🔄 Iniciando sincronización de usuarios escolares", { type, userId });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       const results = {
         teachers: { success: 0, errors: [] as Array<{ id: string; email: string; error: string }> },
@@ -1155,7 +1159,7 @@ export const createSchoolUser = onCall(
     logger.info("🔄 Creando usuario escolar", { userData });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       // Validar datos requeridos
       if (!userData.email || !userData.nombre || !userData.role) {
@@ -1258,7 +1262,7 @@ export const fixOrphanUsers = onCall(
     logger.info("🔧 Arreglando usuarios huérfanos", { userId });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       const auth = admin.auth();
       
       const results = {
@@ -1502,7 +1506,7 @@ export const migrateUsers = onCall(
     logger.info("🔄 Iniciando migración de usuarios existentes...");
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       let updatedCount = 0;
       let errorCount = 0;
@@ -1597,7 +1601,7 @@ export const onUserDeletionCreated = functions.firestore
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       const auth = admin.auth();
 
       // Verificar que el documento tiene la información necesaria
@@ -1702,7 +1706,7 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
   });
 
   try {
-    const db = admin.firestore();
+    const db = getDb();
 
     // Verificar si ya existe el perfil (por seguridad)
     const userDoc = await db.collection("users").doc(userId).get();
@@ -1908,7 +1912,7 @@ export const onUserProfileCreated = functions.firestore
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
 
       // Crear configuraciones predeterminadas del usuario
       const defaultSettings = {
@@ -2024,7 +2028,7 @@ export const onNotebookDeleted = functions.firestore
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       let deletedItems = {
         concepts: 0,
         studySessions: 0,
@@ -2202,7 +2206,7 @@ export const generateConceptsFromFile = onCall(
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       // Verificar límites de uso
       const userDoc = await db.collection("users").doc(userId).get();
@@ -2579,7 +2583,7 @@ export const explainConcept = onCall(
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       // Verificar límites de uso
       const userDoc = await db.collection("users").doc(userId).get();
@@ -2726,7 +2730,7 @@ export const generateContent = onCall(
     });
 
     try {
-      const db = admin.firestore();
+      const db = getDb();
       
       // Verificar límites de uso
       const userDoc = await db.collection("users").doc(userId).get();

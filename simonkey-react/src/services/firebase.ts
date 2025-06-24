@@ -3,6 +3,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { 
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentSingleTabManager,
@@ -40,12 +41,8 @@ const app = initializeApp(firebaseConfig);
 // Exportar servicios de Firebase
 export const auth = getAuth(app);
 
-// Nueva forma de inicializar Firestore con persistencia single-tab
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentSingleTabManager({})  // Pass an empty object as config
-  })
-});
+// Obtener Firestore con la base de datos específica
+export const db = getFirestore(app, 'simonkey-general');
 
 export const storage = getStorage(app);
 

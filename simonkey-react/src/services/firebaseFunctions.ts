@@ -1,20 +1,11 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { initializeApp } from 'firebase/app';
+import { getApp } from 'firebase/app';
 
-// Configuración de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyC26QZw7297E_YOoF5OqR2Ck6x_bw5_Hic",
-  authDomain: "simonkey-5c78f.firebaseapp.com",
-  projectId: "simonkey-5c78f",
-  storageBucket: "simonkey-5c78f.firebasestorage.app",
-  messagingSenderId: "235501879490",
-  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b"
-};
+// Obtener la instancia de Firebase ya inicializada desde firebase.ts
+// Esto asegura que usamos la misma configuración y la base de datos correcta
+const app = getApp();
 
-// Inicializar Firebase
-const app = initializeApp(firebaseConfig);
-
-// Inicializar Firebase Functions
+// Inicializar Firebase Functions con la app existente
 const functions = getFunctions(app);
 
 // Tipos para las funciones
