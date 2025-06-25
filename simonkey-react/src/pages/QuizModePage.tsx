@@ -23,8 +23,10 @@ import {
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
+  console.log('[QuizModePage] Component rendering at', new Date().toISOString());
   const navigate = useNavigate();
   const location = useLocation();
+  console.log('[QuizModePage] Location state:', location.state);
   
   // Estado principal
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -33,6 +35,8 @@ const QuizModePage: React.FC = () => {
   const [quizAvailable, setQuizAvailable] = useState<boolean>(true);
   const [quizLimitMessage, setQuizLimitMessage] = useState<string>('');
   const [autoStartAttempted, setAutoStartAttempted] = useState<boolean>(false);
+  const [notebooksLoaded, setNotebooksLoaded] = useState<boolean>(false);
+  const [isAutoStarting, setIsAutoStarting] = useState<boolean>(false);
   
   // Estado de la sesión de quiz
   const [quizSession, setQuizSession] = useState<QuizSession | null>(null);
@@ -105,6 +109,7 @@ const QuizModePage: React.FC = () => {
 
   // Cargar cuadernos al montar el componente
   useEffect(() => {
+    console.log('[QuizModePage] useEffect - fetchNotebooks');
     fetchNotebooks();
   }, []);
 
@@ -114,10 +119,18 @@ const QuizModePage: React.FC = () => {
       hasLocationState: !!location.state, 
       notebookId: location.state?.notebookId, 
       notebooksLength: notebooks.length,
+      notebooksLoaded,
       autoStartAttempted
     });
     
-    if (location.state && location.state.notebookId && notebooks.length > 0 && !autoStartAttempted) {
+    // Si no hay estado de navegación, redirigir a study
+    if (notebooksLoaded && !location.state?.notebookId) {
+      console.log('No hay notebook seleccionado, redirigiendo a /study');
+      navigate('/study');
+      return;
+    }
+    
+    if (location.state && location.state.notebookId && notebooksLoaded && !autoStartAttempted) {
       const notebook = notebooks.find(n => n.id === location.state.notebookId);
       console.log('Buscando cuaderno:', location.state.notebookId, 'Encontrado:', !!notebook);
       
@@ -125,23 +138,30 @@ const QuizModePage: React.FC = () => {
         console.log('Cuaderno encontrado, iniciando quiz automáticamente:', notebook.title);
         setSelectedNotebook(notebook);
         setAutoStartAttempted(true);
+        setIsAutoStarting(true);
         
         // Si viene del dashboard, asumir que está disponible (ya fue verificado)
         const startQuizAutomatically = async () => {
           try {
             console.log('Iniciando sesión automáticamente desde dashboard...');
             // Pasar el notebook directamente para evitar problemas de timing
-            await startQuizSessionWithNotebook(notebook, true);
+            await startQuizSessionWithNotebook(notebook, true, location.state?.skipIntro || false);
             console.log('Sesión iniciada exitosamente');
           } catch (error) {
             console.error('Error al iniciar sesión automáticamente:', error);
+            setIsAutoStarting(false);
+            // Si hay error, redirigir a study
+            navigate('/study');
           }
         };
         
         startQuizAutomatically();
+      } else {
+        console.log('Notebook no encontrado, redirigiendo a /study');
+        navigate('/study');
       }
     }
-  }, [location.state, notebooks]);
+  }, [location.state, notebooks, notebooksLoaded, navigate]);
 
   // Verificar disponibilidad del quiz (máximo 1 por semana POR CUADERNO)
   const checkQuizAvailabilitySync = async (notebookId: string): Promise<boolean> => {
@@ -217,7 +237,9 @@ const QuizModePage: React.FC = () => {
 
   // Cargar cuadernos del usuario
   const fetchNotebooks = async () => {
+    console.log('[QuizModePage] fetchNotebooks called');
     if (!auth.currentUser) {
+      console.log('[QuizModePage] No current user, navigating to login');
       navigate('/login');
       return;
     }
@@ -240,6 +262,7 @@ const QuizModePage: React.FC = () => {
       });
       
       setNotebooks(notebooksData);
+      setNotebooksLoaded(true);
     } catch (error) {
       console.error('Error fetching notebooks:', error);
     } finally {
@@ -334,27 +357,15 @@ const QuizModePage: React.FC = () => {
     }
   }, []);
 
-  // Iniciar sesión de quiz
-  const startQuizSession = async (skipAvailabilityCheck: boolean = false) => {
-    console.log('startQuizSession llamado:', { 
-      selectedNotebook: !!selectedNotebook, 
-      quizAvailable, 
-      skipAvailabilityCheck 
-    });
-    
-    if (!selectedNotebook) {
-      console.error('No hay cuaderno seleccionado');
-      return;
-    }
-    
-    return startQuizSessionWithNotebook(selectedNotebook, skipAvailabilityCheck);
-  };
+  // Función eliminada - ya no se necesita selección manual de notebooks
+  // El quiz siempre viene con un notebook pre-seleccionado desde StudyModePage
 
-  const startQuizSessionWithNotebook = async (notebook: Notebook, skipAvailabilityCheck: boolean = false) => {
+  const startQuizSessionWithNotebook = async (notebook: Notebook, skipAvailabilityCheck: boolean = false, skipIntro: boolean = false) => {
     console.log('startQuizSessionWithNotebook llamado:', { 
       notebook: notebook.title, 
       quizAvailable, 
-      skipAvailabilityCheck 
+      skipAvailabilityCheck,
+      skipIntro
     });
     
     // Si se salta la verificación de disponibilidad, asumir que está disponible
@@ -372,13 +383,26 @@ const QuizModePage: React.FC = () => {
       }
     }
 
-    // Mostrar pantalla de introducción
-    setShowQuizIntro(true);
+    // Si skipIntro es true, iniciar directamente el quiz
+    if (skipIntro) {
+      console.log('Saltando introducción, iniciando quiz directamente');
+      // Establecer el notebook seleccionado
+      setSelectedNotebook(notebook);
+      // Iniciar el quiz directamente pasando el notebook
+      beginQuizSession(notebook);
+    } else {
+      // Mostrar pantalla de introducción
+      setShowQuizIntro(true);
+    }
   };
 
   // Función para iniciar el quiz después de la introducción
-  const beginQuizSession = async () => {
-    if (!selectedNotebook) return;
+  const beginQuizSession = async (notebookToUse?: Notebook) => {
+    const notebook = notebookToUse || selectedNotebook;
+    if (!notebook) {
+      console.error('No hay cuaderno disponible para iniciar el quiz');
+      return;
+    }
     
     setShowQuizIntro(false);
     
@@ -388,7 +412,7 @@ const QuizModePage: React.FC = () => {
       
       console.log('Generando preguntas...');
       // Generar preguntas
-      const quizQuestions = await generateQuizQuestions(selectedNotebook.id);
+      const quizQuestions = await generateQuizQuestions(notebook.id);
       console.log('Preguntas generadas:', quizQuestions.length);
       
       if (quizQuestions.length === 0) {
@@ -404,8 +428,8 @@ const QuizModePage: React.FC = () => {
       const session: QuizSession = {
         id: `quiz-${Date.now()}`,
         userId: auth.currentUser!.uid,
-        notebookId: selectedNotebook.id,
-        notebookTitle: selectedNotebook.title,
+        notebookId: notebook.id,
+        notebookTitle: notebook.title,
         questions: quizQuestions,
         responses: [],
         startTime: new Date(),
@@ -423,6 +447,8 @@ const QuizModePage: React.FC = () => {
       setScore(0);
       setSessionActive(true);
       setSessionComplete(false);
+      setIsAutoStarting(false); // Quiz iniciado, ocultar loading
+      console.log('Quiz session initialized - sessionActive:', true, 'sessionComplete:', false);
       
       // Iniciar timer
       start();
@@ -432,6 +458,7 @@ const QuizModePage: React.FC = () => {
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
       setLoading(false);
+      setIsAutoStarting(false); // Error al iniciar, ocultar loading
     }
   };
 
@@ -772,12 +799,9 @@ const QuizModePage: React.FC = () => {
     return new Date(now.setDate(diff));
   };
 
-  // Seleccionar un cuaderno
-  const handleSelectNotebook = (notebook: Notebook) => {
-    setSelectedNotebook(notebook);
-  };
+  // Función eliminada - ya no se necesita selección manual
 
-  // Renderizar selección de cuaderno
+  // Renderizar selección de cuaderno (función obsoleta)
   const renderNotebookSelection = () => (
     <div className="quiz-notebook-selection">
       <div className="quiz-header">
@@ -817,7 +841,7 @@ const QuizModePage: React.FC = () => {
                 <div
                   key={notebook.id || index}
                   className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-                  onClick={() => handleSelectNotebook(notebook)}
+                  onClick={() => setSelectedNotebook(notebook)}
                   style={{ borderColor: notebook.color }}
                 >
                   <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
@@ -922,7 +946,7 @@ const QuizModePage: React.FC = () => {
             </button>
             <button
               className="action-button primary"
-              onClick={beginQuizSession}
+              onClick={() => beginQuizSession()}
             >
               <i className="fas fa-play"></i>
               Iniciar Quiz
@@ -1087,6 +1111,16 @@ const QuizModePage: React.FC = () => {
     );
   };
 
+  // Log de estado en el render
+  console.log('[QuizModePage] Render states:', {
+    loading,
+    isAutoStarting,
+    sessionActive,
+    sessionComplete,
+    notebooksLoaded,
+    selectedNotebook: selectedNotebook?.title
+  });
+
   return (
     <div className="quiz-mode-container">
       {/* Pantalla de introducción al Quiz */}
@@ -1123,9 +1157,23 @@ const QuizModePage: React.FC = () => {
       </header>
       
       <main className="quiz-mode-main">
-        {!sessionActive && !sessionComplete && renderNotebookSelection()}
-        {sessionActive && renderCurrentQuestion()}
-        {sessionComplete && renderQuizResults()}
+        {loading || isAutoStarting ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Iniciando quiz...</p>
+          </div>
+        ) : (
+          <>
+            {sessionActive && renderCurrentQuestion()}
+            {sessionComplete && renderQuizResults()}
+            {!sessionActive && !sessionComplete && (
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Preparando quiz...</p>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   );

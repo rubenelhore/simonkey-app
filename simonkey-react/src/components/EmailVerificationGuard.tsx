@@ -127,6 +127,7 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
   }
 
   // Usuario autenticado y verificado (o en página de verificación)
+  console.log('✅ EmailVerificationGuard - Renderizando children para ruta:', location.pathname);
   return <>{children}</>;
 };
 

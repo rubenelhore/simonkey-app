@@ -327,7 +327,8 @@ const StudyModePage = () => {
       navigate('/quiz', { 
         state: { 
           notebookId: selectedNotebook!.id,
-          notebookTitle: selectedNotebook!.title 
+          notebookTitle: selectedNotebook!.title,
+          skipIntro: true // Indicar que ya se mostró la introducción
         } 
       });
       return;

@@ -694,38 +694,50 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
       try {
         console.log('🔍 getReviewableConcepts llamado para:', { userId, notebookId });
         
+        // 1. Obtener TODOS los conceptos del cuaderno primero
+        const allNotebookConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+        console.log('📚 Total de conceptos en el cuaderno:', allNotebookConcepts.length);
+        
+        // 2. Obtener datos de aprendizaje existentes
         const learningData = await getLearningDataForNotebook(userId, notebookId);
         console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
         
-        const readyForReview = getConceptsReadyForReview(learningData);
-        console.log('✅ Conceptos listos para repaso:', readyForReview.length);
-        console.log('🎯 IDs de conceptos listos:', readyForReview.map(data => data.conceptId));
+        // 3. Crear un Set con los IDs de conceptos que ya tienen datos de aprendizaje
+        const conceptsWithLearningData = new Set(learningData.map(data => data.conceptId));
         
-        if (readyForReview.length === 0) {
-          console.log('❌ No hay conceptos listos para repaso');
-          return [];
+        // 4. Identificar conceptos nuevos (sin datos de aprendizaje)
+        const newConcepts = allNotebookConcepts.filter(concept => 
+          !conceptsWithLearningData.has(concept.id)
+        );
+        console.log('🆕 Conceptos nuevos sin datos de aprendizaje:', newConcepts.length);
+        
+        // 5. Obtener conceptos con datos de aprendizaje listos para repaso
+        const readyForReview = getConceptsReadyForReview(learningData);
+        console.log('✅ Conceptos con datos de aprendizaje listos para repaso:', readyForReview.length);
+        
+        // 6. Si hay conceptos listos para repaso, obtenerlos
+        let conceptsForReview: Concept[] = [];
+        if (readyForReview.length > 0) {
+          const conceptIds = readyForReview.map(data => data.conceptId);
+          conceptsForReview = await getConceptsByIds(conceptIds, userId, notebookId);
+          conceptsForReview = conceptsForReview.filter(concept => concept.id && concept.término);
         }
         
-        // Obtener los conceptos correspondientes
-        const conceptIds = readyForReview.map(data => data.conceptId);
-        console.log('🔍 Buscando conceptos con IDs:', conceptIds);
+        // 7. Combinar conceptos nuevos + conceptos listos para repaso
+        const allReviewableConcepts = [...newConcepts, ...conceptsForReview];
         
-        const concepts = await getConceptsByIds(conceptIds, userId, notebookId);
-        console.log('✅ Conceptos encontrados para estudio:', concepts.length);
-        console.log('🎯 Conceptos para estudio:', concepts.map(c => ({ id: c.id, término: c.término })));
+        console.log('🎯 Total de conceptos disponibles para estudio inteligente:', allReviewableConcepts.length);
+        console.log('📋 Desglose:', {
+          conceptosNuevos: newConcepts.length,
+          conceptosParaRepaso: conceptsForReview.length,
+          total: allReviewableConcepts.length
+        });
         
-        // Filtrar conceptos que realmente existen en el cuaderno
-        const validConcepts = concepts.filter(concept => concept.id && concept.término);
-        console.log('✅ Conceptos válidos para estudio:', validConcepts.length);
-        
-        if (validConcepts.length === 0) {
-          console.log('⚠️ No se encontraron conceptos válidos. Limpiando datos de aprendizaje obsoletos...');
-          
-          // Limpiar datos de aprendizaje para conceptos que ya no existen
-          const allNotebookConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+        // Limpiar datos de aprendizaje obsoletos si es necesario
+        if (readyForReview.length > 0 && conceptsForReview.length === 0) {
+          console.log('⚠️ Limpiando datos de aprendizaje obsoletos...');
           const validConceptIds = new Set(allNotebookConcepts.map(c => c.id));
           
-          // Eliminar datos de aprendizaje para conceptos que ya no existen
           for (const learningItem of readyForReview) {
             if (!validConceptIds.has(learningItem.conceptId)) {
               console.log('🗑️ Eliminando datos de aprendizaje para concepto obsoleto:', learningItem.conceptId);
@@ -739,7 +751,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
           }
         }
         
-        return validConcepts;
+        return allReviewableConcepts;
       } catch (err) {
         console.error('Error getting reviewable concepts:', err);
         return [];
@@ -831,28 +843,41 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
       try {
         console.log('🔍 getReviewableConceptsCount llamado para:', { userId, notebookId });
         
+        // 1. Obtener TODOS los conceptos del cuaderno usando la misma función que getReviewableConcepts
+        const allNotebookConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+        console.log('📚 Total de conceptos en el cuaderno:', allNotebookConcepts.length);
+        
+        // 2. Obtener datos de aprendizaje existentes
         const learningData = await getLearningDataForNotebook(userId, notebookId);
         console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
-        console.log('📋 Datos de aprendizaje:', learningData.map(data => ({
-          conceptId: data.conceptId,
-          nextReviewDate: data.nextReviewDate?.toISOString()
-        })));
         
+        // 3. Crear un Set con los IDs de conceptos que ya tienen datos de aprendizaje
+        const conceptsWithLearningData = new Set(learningData.map(data => data.conceptId));
+        
+        // 4. Identificar conceptos nuevos (sin datos de aprendizaje)
+        const newConceptIds = allNotebookConcepts
+          .filter(concept => !conceptsWithLearningData.has(concept.id))
+          .map(concept => concept.id);
+        
+        console.log('🆕 Conceptos nuevos sin datos de aprendizaje:', newConceptIds.length);
+        
+        // 5. Obtener conceptos con datos de aprendizaje listos para repaso
         const readyForReview = getConceptsReadyForReview(learningData);
-        console.log('✅ Conceptos listos para repaso:', readyForReview.length);
-        console.log('🎯 IDs de conceptos listos:', readyForReview.map(data => data.conceptId));
+        console.log('✅ Conceptos con datos de aprendizaje listos para repaso:', readyForReview.length);
         
-        // Verificar que los conceptos realmente existen en el cuaderno
-        if (readyForReview.length > 0) {
-          const conceptIds = readyForReview.map(data => data.conceptId);
-          const validConcepts = await getConceptsByIds(conceptIds, userId, notebookId);
-          const actualValidConcepts = validConcepts.filter(concept => concept.id && concept.término);
-          
-          console.log('✅ Conceptos válidos para repaso:', actualValidConcepts.length);
-          return actualValidConcepts.length;
-        }
+        // 6. El total de conceptos disponibles para estudio inteligente es:
+        // - Conceptos nuevos (disponibles inmediatamente)
+        // - Conceptos con nextReviewDate <= hoy
+        const totalReviewable = newConceptIds.length + readyForReview.length;
         
-        return readyForReview.length;
+        console.log('🎯 Total de conceptos disponibles para estudio inteligente:', totalReviewable);
+        console.log('📋 Desglose:', {
+          conceptosNuevos: newConceptIds.length,
+          conceptosParaRepaso: readyForReview.length,
+          total: totalReviewable
+        });
+        
+        return totalReviewable;
       } catch (err) {
         console.error('Error getting reviewable concepts count:', err);
         return 0;

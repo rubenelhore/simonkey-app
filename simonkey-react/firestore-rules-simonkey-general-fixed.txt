@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // REGLAS TEMPORALES PARA SOLUCIONAR PROBLEMAS DE AUTENTICACIÓN
+    // ¡IMPORTANTE! Estas reglas son más permisivas para permitir la creación inicial de usuarios
+    // Reemplazar con las reglas completas una vez que los usuarios estén creados
+    
+    // Permitir a usuarios autenticados leer y escribir sus propios datos
+    match /users/{userId} {
+      // Permitir lectura si es el propietario, está autenticado, o es una Cloud Function
+      allow read: if request.auth != null || 
+                    request.auth.uid == userId ||
+                    request.auth.token.firebase != null;
+      
+      // Permitir creación si está autenticado y el ID coincide
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Permitir actualización si es el propietario
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // No permitir eliminación (solo super admin en reglas completas)
+      allow delete: if false;
+      
+      // Subcolecciones del usuario
+      match /{subcollection}/{document} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Permitir a Cloud Functions actualizar el uso de Gemini
+      match /geminiUsage/{date} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // ========== AGREGADO: Study Sessions ==========
+    match /studySessions/{sessionId} {
+      // Permitir crear sesiones a usuarios autenticados
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Permitir leer y actualizar propias sesiones
+      allow read, update: if request.auth != null && 
+                            resource.data.userId == request.auth.uid;
+      
+      // No permitir eliminar sesiones
+      allow delete: if false;
+    }
+    
+    // ========== AGREGADO: User Stats ==========
+    match /userStats/{userId} {
+      // Permitir lectura y escritura de propias estadísticas
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ========== AGREGADO: Quiz Results ==========
+    match /quizResults/{resultId} {
+      // Permitir crear resultados de quiz
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Permitir leer propios resultados
+      allow read: if request.auth != null && 
+                    resource.data.userId == request.auth.uid;
+      
+      // No permitir actualizar o eliminar resultados
+      allow update, delete: if false;
+    }
+    
+    // Permitir lectura de configuraciones del sistema
+    match /systemSettings/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    match /subscriptionLimits/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    match /schoolRolePermissions/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    // Notebooks - permitir acceso básico
+    match /notebooks/{notebookId} {
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.uid || 
+                     resource.data.shareId != null);
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              resource.data.userId == request.auth.uid;
+    }
+    
+    // Conceptos - permitir acceso básico y Cloud Functions
+    match /conceptos/{conceptId} {
+      // Permitir lectura a usuarios autenticados (se filtra por query)
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                      request.resource.data.usuarioId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              resource.data.usuarioId == request.auth.uid;
+    }
+    
+    // Colecciones escolares - acceso temporal
+    match /schoolStudents/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    match /schoolTeachers/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    match /schoolNotebooks/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    match /schoolConcepts/{document} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+    
+    // Denegar todo lo demás
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

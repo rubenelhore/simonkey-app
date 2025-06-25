@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Función auxiliar para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Función auxiliar para verificar si el usuario es el dueño del documento
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Reglas para sesiones de estudio
+    match /studySessions/{sessionId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isOwner(resource.data.userId);
+      allow delete: if false; // No permitir eliminar sesiones
+    }
+    
+    // Reglas para conceptos
+    match /conceptos/{conceptoId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(resource.data.usuarioId);
+    }
+    
+    // Reglas para usuarios
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      
+      // Subcolecciones del usuario
+      match /notebooks/{notebookId} {
+        allow read, write: if isOwner(userId);
+        
+        // Conceptos dentro de notebooks
+        match /concepts/{conceptId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      // Límites de notebook
+      match /notebookLimits/{notebookId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Datos de aprendizaje
+      match /learningData/{conceptId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Estadísticas de quiz
+      match /quizStats/{notebookId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Sesiones de estudio del usuario
+      match /studySessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Reglas para notebooks
+    match /notebooks/{notebookId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.sharedWith.hasAny([request.auth.uid]));
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+    
+    // Reglas para resultados de quiz
+    match /quizResults/{resultId} {
+      allow create: if isAuthenticated();
+      allow read: if isOwner(resource.data.userId);
+      allow update, delete: if false; // No permitir modificar resultados
+    }
+    
+    // Reglas para estadísticas de usuario
+    match /userStats/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+    
+    // Reglas para cuadernos escolares (si aplica)
+    match /schoolNotebooks/{notebookId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Solo administradores pueden escribir
+    }
+    
+    // Reglas para conceptos escolares
+    match /schoolConcepts/{conceptId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Solo administradores pueden escribir
+    }
+    
+    // Regla general para documentos no especificados
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
