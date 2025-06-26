@@ -1,7 +1,7 @@
 // src/components/NotebookItem.tsx
 import { useNavigate } from 'react-router-dom';
 import { deleteNotebook } from '../services/notebookService';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface NotebookItemProps {
   id: string;
@@ -21,6 +21,12 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
   const [editableTitle, setEditableTitle] = useState(title);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [notebookColor, setNotebookColor] = useState(color || '#6147FF'); // Color predeterminado
+  const [hasError, setHasError] = useState(false); // Estado para manejar errores
+  const [isButtonClick, setIsButtonClick] = useState(false); // Estado para prevenir onBlur cuando se hace clic en botón
+
+  useEffect(() => {
+    setEditableTitle(title);
+  }, [title]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,28 +47,130 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
   };
 
   const handleCardClick = () => {
+    // Si hay error, no permitir abrir las acciones
+    if (hasError) {
+      return;
+    }
     onToggleActions(id);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log('Editando cuaderno:', title, 'editableTitle:', editableTitle);
+    setEditableTitle(title);
     setIsEditing(true);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditableTitle(e.target.value);
+    const newValue = e.target.value;
+    console.log('Cambiando título a:', newValue);
+    setEditableTitle(newValue);
+    setHasError(false); // Resetear error cuando el usuario cambia el texto
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    if (onEdit) {
-      onEdit(id, editableTitle);  // Este callback ahora actualizará Firestore
+  const handleSave = async () => {
+    console.log('=== INICIO handleSave ===');
+    
+    // Si se hizo clic en el botón, no ejecutar handleSave
+    if (isButtonClick) {
+      console.log('Clic en botón detectado, saltando handleSave');
+      return;
     }
+    
+    // Si hay error, no permitir guardar
+    if (hasError) {
+      console.log('Error activo, no permitiendo guardar');
+      return;
+    }
+    
+    if (onEdit) {
+      try {
+        console.log('Llamando a onEdit desde handleSave...');
+        await onEdit(id, editableTitle);
+        console.log('onEdit completado exitosamente desde handleSave');
+        setIsEditing(false);
+        setHasError(false);
+      } catch (error) {
+        console.log('=== ERROR CAPTURADO EN handleSave ===');
+        // Si hay error, mostrar error visual y no cerrar edición
+        console.error("Error al guardar desde handleSave:", error);
+        console.error("Tipo de error:", typeof error);
+        console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
+        setHasError(true);
+        
+        // Mostrar alert solo si es un error de nombre duplicado
+        if (error instanceof Error && error.message.includes("Ya existe un cuaderno con ese nombre")) {
+          console.log("Mostrando alert de nombre duplicado desde handleSave");
+          alert(error.message);
+        } else {
+          console.log('Mensaje de error no coincide:', error instanceof Error ? error.message : 'No es Error');
+        }
+        
+        // NO cerrar el modo de edición
+      }
+    } else {
+      setIsEditing(false);
+    }
+    console.log('=== FIN handleSave ===');
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleValidateAndSave = async () => {
+    console.log('=== INICIO handleValidateAndSave ===');
+    
+    // Marcar que se hizo clic en el botón
+    setIsButtonClick(true);
+    
+    // Si hay error, no permitir guardar
+    if (hasError) {
+      console.log('Error activo, no permitiendo guardar desde handleValidateAndSave');
+      setIsButtonClick(false); // Resetear el flag
+      return;
+    }
+    
+    console.log('Intentando guardar con valor:', editableTitle);
+    console.log('ID del cuaderno:', id);
+    if (onEdit) {
+      try {
+        console.log('Llamando a onEdit...');
+        await onEdit(id, editableTitle);
+        console.log('onEdit completado exitosamente');
+        setIsEditing(false);
+        setHasError(false);
+      } catch (error) {
+        console.log('=== ERROR CAPTURADO EN NOTEBOOKITEM ===');
+        // Si hay error, mostrar error visual y no cerrar edición
+        console.error("Error al guardar:", error);
+        console.error("Tipo de error:", typeof error);
+        console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
+        setHasError(true);
+        
+        // Mostrar alert si es un error de nombre duplicado
+        if (error instanceof Error && error.message.includes('Ya existe un cuaderno con ese nombre')) {
+          console.log('Error de nombre duplicado detectado en handleValidateAndSave');
+          // No mostrar alert aquí, ya se muestra en handleSave
+        } else {
+          console.log('Error no es de nombre duplicado, mostrando alert genérico');
+          alert('Error al guardar el nombre del cuaderno.');
+        }
+        
+        // NO cerrar el modo de edición
+      }
+    } else {
+      console.log('No hay función onEdit disponible');
+      setIsEditing(false);
+    }
+    
+    // Resetear el flag después de un pequeño delay
+    setTimeout(() => {
+      setIsButtonClick(false);
+    }, 100);
+    
+    console.log('=== FIN handleValidateAndSave ===');
+  };
+
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      handleSave();
+      await handleSave();
     }
   };
 
@@ -89,14 +197,54 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
         style={{ '--notebook-color': notebookColor } as React.CSSProperties}
       >
         {isEditing ? (
-          <input 
-            type="text"
-            value={editableTitle}
-            onChange={handleTitleChange}
-            onKeyDown={handleKeyDown}
-            onBlur={handleSave}
-            autoFocus
-          />
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <div style={{ flex: 1 }}>
+              <input 
+                type="text"
+                value={editableTitle}
+                onChange={handleTitleChange}
+                onKeyDown={handleKeyDown}
+                onBlur={handleSave}
+                autoFocus
+                style={{ 
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: hasError ? '2px solid #ff6b6b' : '2px solid #e0e0e0',
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  background: '#ffffff',
+                  color: hasError ? '#ff6b6b' : '#333333',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+              />
+            </div>
+            <button 
+              onClick={handleValidateAndSave}
+              disabled={hasError}
+              style={{
+                background: hasError ? 'rgba(255, 107, 107, 0.3)' : 'linear-gradient(90deg, #6147FF 60%, #9C27B0 100%)',
+                border: 'none',
+                color: 'white',
+                cursor: hasError ? 'not-allowed' : 'pointer',
+                marginLeft: '16px',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '38px',
+                width: '38px',
+                borderRadius: '50%',
+                boxShadow: hasError ? 'none' : '0 2px 8px rgba(97,71,255,0.15)',
+                transition: 'background 0.2s, box-shadow 0.2s',
+                opacity: hasError ? 0.5 : 1
+              }}
+            >
+              <i className="fas fa-arrow-right"></i>
+            </button>
+          </div>
         ) : (
           <h3>{editableTitle}</h3>
         )}
@@ -106,21 +254,45 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
           className="notebook-card-actions"
           style={{ backgroundColor: notebookColor }}
         >
-          <button onClick={handleView} className="action-view" title="Ver cuaderno">
+          <button 
+            onClick={handleView} 
+            className="action-view" 
+            title="Ver cuaderno"
+            disabled={hasError}
+            style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+          >
             <i className="fas fa-eye"></i>
           </button>
           {onColorChange && (
-            <button onClick={handleColorClick} className="action-color" title="Cambiar color">
+            <button 
+              onClick={handleColorClick} 
+              className="action-color" 
+              title="Cambiar color"
+              disabled={hasError}
+              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+            >
               <i className="fas fa-palette"></i>
             </button>
           )}
           {onEdit && (
-            <button onClick={handleEditClick} className="action-edit" title="Editar nombre">
+            <button 
+              onClick={handleEditClick} 
+              className="action-edit" 
+              title="Editar nombre"
+              disabled={hasError}
+              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+            >
               <i className="fas fa-pencil-alt"></i>
             </button>
           )}
           {onDelete && (
-            <button onClick={handleDelete} className="action-delete" title="Eliminar cuaderno">
+            <button 
+              onClick={handleDelete} 
+              className="action-delete" 
+              title="Eliminar cuaderno"
+              disabled={hasError}
+              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+            >
               <i className="fas fa-trash"></i>
             </button>
           )}

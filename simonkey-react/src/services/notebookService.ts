@@ -86,9 +86,31 @@ export const deleteNotebook = async (notebookId: string) => {
 };
 
 // Update a notebook
-export const updateNotebook = async (id: string, newTitle: string) => {
+export const updateNotebook = async (id: string, newTitle: string, userId: string) => {
+  console.log('updateNotebook llamado con:', { id, newTitle, userId });
+  
+  // Verificar si ya existe un cuaderno con el mismo nombre (excluyendo el actual)
+  const existingNotebooks = await getNotebooks(userId);
+  console.log('Notebooks existentes:', existingNotebooks.map(n => ({ id: n.id, title: n.title })));
+  
+  const normalizedTitle = newTitle.trim().toLowerCase();
+  console.log('Título normalizado:', normalizedTitle);
+  
+  const existingNotebook = existingNotebooks.find(notebook => 
+    notebook.id !== id && notebook.title.trim().toLowerCase() === normalizedTitle
+  );
+
+  console.log('Notebook duplicado encontrado:', existingNotebook);
+
+  if (existingNotebook) {
+    console.log('Lanzando error de nombre duplicado');
+    throw new Error('Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.');
+  }
+
+  console.log('No hay duplicados, actualizando en Firestore...');
   const notebookRef = doc(db, "notebooks", id);
   await updateDoc(notebookRef, { title: newTitle });
+  console.log('Notebook actualizado exitosamente');
 };
 
 // Update notebook color

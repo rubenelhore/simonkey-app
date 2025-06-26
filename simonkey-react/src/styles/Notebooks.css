@@ -1497,5 +1497,4 @@ body .logo2-title-group h1 * {
 body.modal-open .notebooks-hamburger-btn {
   pointer-events: none;
   opacity: 0.5;
-  cursor: not-allowed;
 }

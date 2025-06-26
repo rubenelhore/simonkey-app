@@ -138,12 +138,28 @@ const Notebooks: React.FC = () => {
   };
 
   const handleEdit = async (id: string, newTitle: string) => {
+    console.log('handleEdit llamado con:', { id, newTitle, userId: user?.uid });
+    if (!user?.uid) return;
+    
     try {
-      await updateNotebook(id, newTitle);
+      console.log('Llamando a updateNotebook...');
+      await updateNotebook(id, newTitle, user.uid);
       console.log("Título actualizado en Firestore");
       // Actualiza el estado local si es necesario
     } catch (error) {
       console.error("Error actualizando el título:", error);
+      console.error("Tipo de error:", typeof error);
+      console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
+      
+      // Si es un error de nombre duplicado, solo lanzar la excepción
+      if (error instanceof Error && error.message.includes('Ya existe un cuaderno con ese nombre')) {
+        console.log('Error de nombre duplicado detectado, lanzando excepción');
+        // No mostrar alert, el error se muestra visualmente en el input
+        throw error;
+      } else {
+        console.log('Error no es de nombre duplicado, mostrando alert genérico');
+        throw error;
+      }
     }
   };
 

@@ -23,7 +23,7 @@ interface Notebook {
 interface NotebookListProps {
   notebooks: Notebook[];
   onDeleteNotebook?: (id: string) => void;
-  onEditNotebook?: (id: string, title: string, description: string) => void;
+  onEditNotebook?: (id: string, title: string) => void;
   showCreateButton?: boolean;
   onCreateNotebook?: () => void;
   isSchoolTeacher?: boolean;
@@ -154,7 +154,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             title={notebook.title}
             color={notebook.color}
             onDelete={onDeleteNotebook}
-            onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle, '') : undefined}
+            onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
             onColorChange={onColorChange}
             showActions={openActionsId === notebook.id}
             onToggleActions={handleToggleActions}
