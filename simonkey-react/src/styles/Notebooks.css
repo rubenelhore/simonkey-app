@@ -112,18 +112,18 @@
   min-height: calc(100vh - 70px - 60px);
   width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0.5rem 2rem; /* Reducido de 1.5cm a 0.5rem para subir el contenido */
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 250px 1fr;
-  gap: 2rem;
+  gap: 1rem; /* Reducido de 2rem a 1rem */
 }
 
 /* Left column that contains create-section and tools-menu */
 .left-column {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0.5rem; /* Reducido de 2rem a 0.5rem */
 }
 
 /* Keep the tools menu in the same left column */
@@ -345,32 +345,23 @@
   font-weight: 500;
 }
 
-/* Estilos específicos para cada botón */
-.side-menu-button.personalization-button:hover {
-  background-color: rgba(97, 71, 255, 0.1);
-  color: var(--primary-color);
+/* Estilos para botones de ayuda y submenu - iguales al botón de personalización */
+.side-menu-button.help-button:hover {
+  background-color: #f8f9fa;
+  color: var(--primary-color, #4F46E5);
 }
 
-.side-menu-button.personalization-button:hover i {
-  color: var(--primary-color);
+.side-menu-button.help-button:hover i {
+  color: var(--primary-color, #4F46E5);
 }
 
-.side-menu-button.voice-settings-button:hover {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+.side-menu-button.submenu-button:hover {
+  background-color: #f8f9fa;
+  color: var(--primary-color, #4F46E5);
 }
 
-.side-menu-button.voice-settings-button:hover i {
-  color: #3b82f6;
-}
-
-.side-menu-button.logout-button:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-
-.side-menu-button.logout-button:hover i {
-  color: #ef4444;
+.side-menu-button.submenu-button:hover i {
+  color: var(--primary-color, #4F46E5);
 }
 
 /* Responsive para pantallas pequeñas */
@@ -516,6 +507,27 @@ button[type="submit"]:hover {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.75rem;
+  position: relative;
+}
+
+/* Posición fija para el botón de crear cuaderno */
+.create-notebook-card {
+  background: white; /* Cambiar a fondo blanco */
+  border: 2px solid #e5e7eb; /* Borde sólido en lugar de punteado */
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px; /* Reduced height */
+  border-radius: 20px; /* Increased from 16px for more curved borders */
+  position: relative;
+  overflow: hidden;
+  width: 250px; /* Changed to 250px */
+  justify-self: start; /* Alinear a la izquierda */
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Sombra sutil para efecto de botón */
 }
 
 .notebook-card {
@@ -732,30 +744,83 @@ button[type="submit"]:hover {
   background-color: var(--card-background);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .streak-tracker h2 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
   color: var(--primary-color);
+  text-align: center;
 }
 
 .streak-counter {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
 }
 
 .streak-fire {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   margin-right: 0.5rem;
 }
 
 .streak-days {
-  font-size: 1.1rem;
+  font-size: 1rem;
+}
+
+/* Estilos para DaysWithIntelligentStudy */
+.days-intelligent-study-tracker {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #9C27B0;
+}
+
+.days-intelligent-study-tracker h2 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #9C27B0;
+  text-align: center;
+}
+
+.days-intelligent-study-counter {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.days-intelligent-study-icon {
+  font-size: 1.2rem;
+  margin-right: 0.5rem;
+}
+
+.days-intelligent-study-days {
+  font-size: 1rem;
+  color: #9C27B0;
+}
+
+.days-intelligent-study-subtitle {
+  font-size: 0.75rem;
+  color: var(--light-text);
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
+/* Estados de carga para los nuevos componentes */
+.days-intelligent-study-loading {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--light-text);
 }
 
 .streak-calendar {
@@ -799,8 +864,9 @@ button[type="submit"]:hover {
 
 /* Responsive para móvil */
 @media (max-width: 768px) {
-  .streak-tracker {
-    padding: 1rem;
+  .streak-tracker,
+  .days-intelligent-study-tracker {
+    padding: 0.75rem;
   }
   
   .streak-calendar {
@@ -868,11 +934,11 @@ button[type="submit"]:hover {
 
 /* Pie del modal */
 .modal-footer {
-  padding: 16px 20px;
+  padding: 0.75rem 1rem 1rem; /* Reduced padding */
   display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid #eee;
-  background-color: #f9f9f9;
+  gap: 20px; /* Increased gap between buttons */
+  justify-content: space-between; /* Separate buttons */
+  align-items: flex-start; /* Align to top */
 }
 
 /* Botón de cierre */
@@ -1063,42 +1129,32 @@ select.form-control {
 }
 
 /* Estilos para la tarjeta de crear nuevo cuaderno */
-.create-notebook-card {
-  background: linear-gradient(135deg, #fafbfc 0%, #f3f4f6 100%);
-  border: 2px dashed #e5e7eb;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 160px;
-  border-radius: 16px;
-  position: relative;
-  overflow: hidden;
-}
-
 .create-notebook-card:hover {
   border-color: var(--primary-color);
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8efff 100%);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(97, 71, 255, 0.15);
+  background: #f8f9fa; /* Fondo gris muy claro en hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.15);
   border-style: solid;
 }
 
 .create-notebook-content {
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* Changed to horizontal */
   align-items: center;
-  gap: 8px;
-  text-align: center;
+  justify-content: flex-start; /* Align to the left */
+  gap: 8px; /* Reduced gap between icon and text */
+  text-align: left; /* Changed to left align */
+  width: 100%;
+  padding: 0 16px;
 }
 
 .create-notebook-icon {
-  font-size: 2.5rem;
-  font-weight: 300;
+  font-size: 0.9rem; /* Same size as text */
+  font-weight: 500; /* Same weight as text */
   color: var(--primary-color);
   line-height: 1;
   transition: var(--transition);
+  flex-shrink: 0; /* Prevent icon from shrinking */
 }
 
 .create-notebook-card:hover .create-notebook-icon {
@@ -1111,6 +1167,9 @@ select.form-control {
   font-weight: 500;
   color: var(--light-text);
   transition: var(--transition);
+  flex: 1; /* Take remaining space */
+  text-align: left; /* Linear alignment instead of justified */
+  white-space: nowrap; /* Keep text on a single line */
 }
 
 .create-notebook-card:hover .create-notebook-text {
@@ -1119,10 +1178,10 @@ select.form-control {
 
 /* Modal para crear nuevo cuaderno */
 .create-notebook-modal {
-  max-width: 400px;
+  max-width: 320px; /* Reduced from 400px */
   width: 90%;
   background: white;
-  border-radius: 12px;
+  border-radius: 35px; /* Much more curved corners */
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease-out;
 }
@@ -1139,33 +1198,43 @@ select.form-control {
 }
 
 .create-notebook-modal .modal-header {
-  padding: 1.5rem 1.5rem 1rem;
-  border-bottom: 1px solid #eee;
+  padding: 0.25rem 0.5rem 0.25rem; /* Further reduced padding */
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  border-radius: 15px 15px 0 0; /* Slightly curved top corners */
+  margin-top: -0.25rem; /* Move entire header up */
+  border: none; /* Completely remove any border */
 }
 
 .create-notebook-modal .modal-header h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem; /* Increased from 1.25rem */
   font-weight: 600;
   color: white;
+  text-align: center;
 }
 
 .create-notebook-modal .modal-body {
-  padding: 1.5rem;
+  padding: 0.5rem; /* Further reduced padding */
 }
 
 .create-notebook-modal .form-group {
   margin-bottom: 0;
+  margin-top: 0.5rem; /* Move input field down */
 }
 
 .create-notebook-modal .form-control {
   width: 100%;
-  padding: 12px 16px;
+  padding: 16px 20px; /* Increased padding from 12px 16px */
   border: 2px solid #e9ecef;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 1.1rem; /* Increased from 1rem */
   transition: var(--transition);
   font-family: 'Poppins', sans-serif;
+  text-align: center; /* Center the placeholder text */
 }
 
 .create-notebook-modal .form-control:focus {
@@ -1175,47 +1244,69 @@ select.form-control {
 }
 
 .create-notebook-modal .modal-footer {
-  padding: 1rem 1.5rem 1.5rem;
+  padding: 0.25rem 0.5rem 0.375rem; /* Further reduced padding */
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+  gap: 20px; /* Increased gap between buttons */
+  justify-content: space-between; /* Separate buttons */
+  align-items: flex-start; /* Align to top */
+  border-radius: 0 0 15px 15px; /* Curved bottom corners */
 }
 
 .cancel-button {
-  padding: 10px 20px;
+  padding: 14px 24px; /* Increased padding from 10px 20px */
   border: 1px solid #dee2e6;
   background: white;
   color: var(--light-text);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem; /* Increased from 0.9rem */
   font-weight: 500;
   transition: var(--transition);
   font-family: 'Poppins', sans-serif;
+  width: 60%; /* Make cancel button longer */
+  text-align: center;
+  height: 52px; /* Increased height from 44px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0; /* Remove any margin */
+  margin-top: -5px; /* Move button up */
 }
 
 .cancel-button:hover {
-  background: #f8f9fa;
-  border-color: #adb5bd;
+  background: #dc3545 !important; /* Red background on hover with !important */
+  border-color: #dc3545 !important;
+  color: white !important; /* White text on red background */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 }
 
 .create-button {
-  padding: 10px 24px;
+  padding: 14px 24px; /* Increased padding from 10px 20px */
   border: none;
-  background: var(--primary-color);
+  background: #4ade80; /* Light green background */
   color: white;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem; /* Increased from 0.9rem */
   font-weight: 500;
   transition: var(--transition);
   font-family: 'Poppins', sans-serif;
+  width: 35%; /* Make create button smaller */
+  text-align: center;
+  height: 52px; /* Increased height from 44px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0; /* Remove any margin */
 }
 
 .create-button:hover:not(:disabled) {
-  background: var(--primary-light);
+  background: #22c55e; /* More vivid green on hover */
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }
 
 .create-button:disabled {
@@ -1225,14 +1316,41 @@ select.form-control {
   box-shadow: none;
 }
 
+/* Estilos para mensajes de error */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 2px 4px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 2px;
+  color: #dc2626;
+  font-size: 0.6rem;
+  line-height: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.error-icon {
+  font-size: 0.5rem;
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex: 1;
+}
+
 /* Responsive para la tarjeta de crear */
 @media (max-width: 768px) {
   .create-notebook-card {
-    min-height: 100px;
+    min-height: 50px;
+    width: 180px; /* Reduced width for mobile */
   }
   
   .create-notebook-icon {
-    font-size: 2rem;
+    font-size: 0.85rem; /* Same size as mobile text */
   }
   
   .create-notebook-text {
@@ -1240,7 +1358,8 @@ select.form-control {
   }
   
   .create-notebook-modal {
-    width: 95%;
+    width: 90%; /* Reduced from 95% */
+    max-width: 280px; /* Smaller max-width for mobile */
     margin: 20px;
   }
 }
@@ -1346,4 +1465,37 @@ body .logo2-title-group h1 span,
 body .logo2-title-group h1 * {
   color: white !important;
   opacity: 1 !important;
+}
+
+.create-notebook-modal .close-button {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 2rem; /* Larger size */
+  cursor: pointer;
+  color: white; /* White color */
+  padding: 0;
+  width: 40px; /* Larger width */
+  height: 40px; /* Larger height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+  font-weight: 300; /* Lighter weight for better appearance */
+}
+
+.create-notebook-modal .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle white background on hover */
+  color: white;
+}
+
+/* Deshabilitar botón hamburguesa cuando el modal está abierto */
+body.modal-open .notebooks-hamburger-btn {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
 }

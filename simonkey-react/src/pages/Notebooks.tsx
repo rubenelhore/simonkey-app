@@ -9,6 +9,7 @@ import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import StreakTracker from '../components/StreakTracker';
+import DaysWithIntelligentStudy from '../components/DaysWithIntelligentStudy';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
@@ -351,6 +352,7 @@ const Notebooks: React.FC = () => {
         <div className="left-column">
           {/* Nuevo componente de racha */}
           <StreakTracker />
+          <DaysWithIntelligentStudy />
         </div>
         <div className="notebooks-list-section">
           <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>

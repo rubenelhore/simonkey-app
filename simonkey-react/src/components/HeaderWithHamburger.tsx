@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -27,9 +27,17 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { isSuperAdmin, subscription } = useUserType();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isHelpSubmenuOpen, setIsHelpSubmenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const isFreeUser = subscription === 'free';
+
+  // Detectar si estamos en la página de configuración de voz
+  const isVoiceSettingsPage = location.pathname === '/settings/voice';
+  
+  // Detectar si estamos en la página de perfil
+  const isProfilePage = location.pathname === '/profile';
 
   // Función de depuración para verificar y actualizar superadmin
   const checkAndUpdateSuperAdmin = async () => {
@@ -80,10 +88,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const toggleMenu = () => {
     setMobileMenuOpen(!isMobileMenuOpen);
+    if (isMobileMenuOpen) {
+      setIsHelpSubmenuOpen(false);
+    }
   };
 
   const handleLogout = async () => {
     try {
+      setIsHelpSubmenuOpen(false);
       await signOut(auth);
       navigate('/');
     } catch (error) {
@@ -93,11 +105,36 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleOpenUpgradeModal = () => {
     setMobileMenuOpen(false);
+    setIsHelpSubmenuOpen(false);
     setIsUpgradeModalOpen(true);
   };
 
   const handleCloseUpgradeModal = () => {
     setIsUpgradeModalOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    setIsHelpSubmenuOpen(false);
+    navigate('/profile');
+  };
+
+  const handleVoiceSettingsClick = () => {
+    setIsHelpSubmenuOpen(false);
+    navigate('/settings/voice');
+  };
+
+  const handleSuperAdminClick = () => {
+    setIsHelpSubmenuOpen(false);
+    navigate('/super-admin');
+  };
+
+  const handleCalendarClick = () => {
+    setIsHelpSubmenuOpen(false);
+    navigate('/calendar');
+  };
+
+  const toggleHelpSubmenu = () => {
+    setIsHelpSubmenuOpen(!isHelpSubmenuOpen);
   };
 
   return (
@@ -159,14 +196,42 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         
         <div className="side-menu-content">
           <div className="user-section">
-            <button className="side-menu-button personalization-button" onClick={() => navigate('/profile')}>
+            <button 
+              className={`side-menu-button personalization-button ${isProfilePage ? 'disabled' : ''}`} 
+              onClick={isProfilePage ? undefined : handleProfileClick}
+              disabled={isProfilePage}
+            >
               <i className="fas fa-user-cog"></i> 
               <span>Mi perfil</span>
             </button>
-            <button className="side-menu-button voice-settings-button" onClick={() => navigate('/settings/voice')}>
+            <button 
+              className={`side-menu-button voice-settings-button ${isVoiceSettingsPage ? 'disabled' : ''}`} 
+              onClick={isVoiceSettingsPage ? undefined : handleVoiceSettingsClick}
+              disabled={isVoiceSettingsPage}
+            >
               <i className="fas fa-volume-up"></i> 
               <span>Configuración de voz</span>
             </button>
+            <button className="side-menu-button calendar-button">
+              <i className="fas fa-calendar-alt"></i> 
+              <span>Calendario</span>
+            </button>
+            <button className="side-menu-button help-button" onClick={toggleHelpSubmenu}>
+              <i className="fas fa-question-circle"></i> 
+              <span>Ayuda</span>
+            </button>
+            {isHelpSubmenuOpen && (
+              <div className="help-submenu">
+                <button className="side-menu-button submenu-button">
+                  <i className="fas fa-headset"></i> 
+                  <span>Soporte</span>
+                </button>
+                <button className="side-menu-button submenu-button">
+                  <i className="fas fa-book"></i> 
+                  <span>Guía de usuario</span>
+                </button>
+              </div>
+            )}
             {isFreeUser && (
               <button className="side-menu-button upgrade-pro-button" onClick={handleOpenUpgradeModal}>
                 <i className="fas fa-star"></i>
@@ -174,7 +239,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               </button>
             )}
             {isSuperAdmin && (
-              <button className="side-menu-button super-admin-button" onClick={() => navigate('/super-admin')}>
+              <button className="side-menu-button super-admin-button" onClick={handleSuperAdminClick}>
                 <i className="fas fa-crown"></i> 
                 <span>Súper Admin</span>
               </button>

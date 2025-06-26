@@ -21,51 +21,6 @@ html, body, #root {
   height: auto !important; /* Permitir que crezca según el contenido */
 }
 
-.voice-settings-header {
-  background-color: var(--primary-color, #4F46E5);
-  color: white;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: sticky; /* Mantener el encabezado pegado mientras se desplaza */
-  top: 0;
-  z-index: 10;
-  width: 100%;
-}
-
-.voice-settings-header .header-content {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  position: relative;
-}
-
-.voice-settings-header h1 {
-  flex-grow: 1;
-  text-align: center;
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.voice-settings-header .back-button {
-  background-color: white;
-  color: var(--primary-color, #4F46E5);
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.voice-settings-header .back-button:hover {
-  background-color: rgba(255, 255, 255, 0.9);
-}
-
 .voice-settings-main {
   max-width: 1000px;
   margin: 2rem auto;

@@ -22,7 +22,7 @@ export const copyUserToDefaultDb = async () => {
     
     // Obtener el usuario de simonkey-general
     const app = getApp();
-    const dbGeneral = getFirestore(app, 'simonkey-general');
+    const dbGeneral = getFirestore(app);
     const userDocRef = doc(dbGeneral, 'users', currentUser.uid);
     const userDoc = await getDoc(userDocRef);
     

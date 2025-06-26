@@ -14,7 +14,6 @@ const Footer: React.FC = () => {
   const handleClosePreferences = () => {
     setIsPreferencesModalOpen(false);
   };
-
   return (
     <>
       <footer className="footer">

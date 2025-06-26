@@ -42,7 +42,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Obtener Firestore con la base de datos específica
-export const db = getFirestore(app, 'simonkey-general');
+export const db = getFirestore(app);
 
 export const storage = getStorage(app);
 

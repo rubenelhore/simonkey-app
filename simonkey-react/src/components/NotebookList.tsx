@@ -47,14 +47,18 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string>(''); // Nuevo estado para mensajes de error
 
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newNotebookTitle.trim() || isSubmitting) return;
     
+    // Limpiar mensaje de error anterior
+    setErrorMessage('');
+    
     try {
       setIsSubmitting(true);
-      await createNotebook(user.uid, newNotebookTitle);
+      await createNotebook(user.uid, newNotebookTitle, '#6147FF');
       setNewNotebookTitle(''); // Clear the form
       setShowCreateModal(false); // Close modal
       onCreateNotebook?.(); // Refresh the notebook list
@@ -65,7 +69,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
       let errorMessage = 'Error al crear el cuaderno';
       
       if (error instanceof Error) {
-        if (error.message.includes('Usuario no encontrado')) {
+        if (error.message.includes('Ya existe un cuaderno con ese nombre')) {
+          errorMessage = 'Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.';
+        } else if (error.message.includes('Usuario no encontrado')) {
           errorMessage = 'Error: Tu perfil de usuario no se encuentra. Por favor, cierra sesión y vuelve a iniciar sesión.';
         } else if (error.message.includes('Límite de cuadernos alcanzado')) {
           errorMessage = 'Has alcanzado el límite de cuadernos permitidos en tu plan actual.';
@@ -78,7 +84,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         }
       }
       
-      alert(errorMessage);
+      setErrorMessage(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,6 +96,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     } else if (e.key === 'Escape') {
       setShowCreateModal(false);
       setNewNotebookTitle('');
+      setErrorMessage(''); // Limpiar error al cerrar
     }
   };
 
@@ -97,8 +104,47 @@ const NotebookList: React.FC<NotebookListProps> = ({
     setOpenActionsId(openActionsId === notebookId ? null : notebookId);
   };
 
+  // Función para limpiar error cuando cambia el texto
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewNotebookTitle(e.target.value);
+    if (errorMessage) {
+      setErrorMessage(''); // Limpiar error cuando el usuario empiece a escribir
+    }
+  };
+
+  // Agregar/remover clase modal-open al body cuando el modal se abre/cierra
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup function para remover la clase cuando el componente se desmonte
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showCreateModal]);
+
   return (
     <>
+      {/* Botón de crear cuaderno debajo del título */}
+      {showCreateButton && (
+        <div 
+          className="create-notebook-card"
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            marginBottom: '2rem',
+            marginTop: '1rem'
+          }}
+        >
+          <div className="create-notebook-content">
+            <div className="create-notebook-icon">+</div>
+            <span className="create-notebook-text">Crear nuevo cuaderno</span>
+          </div>
+        </div>
+      )}
+
       <div className="notebook-grid">
         {/* Lista de cuadernos existentes */}
         {notebooks.map(notebook => (
@@ -115,19 +161,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
             isSchoolNotebook={isSchoolTeacher}
           />
         ))}
-        
-        {/* Tarjeta para crear nuevo cuaderno */}
-        {showCreateButton && (
-          <div 
-            className="notebook-item create-notebook-card"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <div className="create-notebook-content">
-              <div className="create-notebook-icon">+</div>
-              <span className="create-notebook-text">Crear nuevo cuaderno</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Modal para crear nuevo cuaderno */}
@@ -141,6 +174,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onClick={() => {
                   setShowCreateModal(false);
                   setNewNotebookTitle('');
+                  setErrorMessage(''); // Limpiar error al cerrar
                 }}
               >
                 ×
@@ -151,7 +185,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 <input
                   type="text"
                   value={newNotebookTitle}
-                  onChange={(e) => setNewNotebookTitle(e.target.value)}
+                  onChange={handleTitleChange}
                   onKeyDown={handleKeyPress}
                   placeholder="Ingresa el nombre del cuaderno"
                   className="form-control"
@@ -159,6 +193,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   required
                   disabled={isSubmitting}
                 />
+                {/* Mensaje de error con símbolo de cuidado */}
+                {errorMessage && (
+                  <div className="error-message">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-text">{errorMessage}</span>
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button
@@ -167,6 +208,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewNotebookTitle('');
+                    setErrorMessage(''); // Limpiar error al cancelar
                   }}
                   disabled={isSubmitting}
                 >
@@ -177,7 +219,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   className="create-button"
                   disabled={isSubmitting || !newNotebookTitle.trim()}
                 >
-                  {isSubmitting ? 'Creando...' : 'Crear'}
+                  {isSubmitting ? 'Creando...' : 'Crear cuaderno'}
                 </button>
               </div>
             </form>

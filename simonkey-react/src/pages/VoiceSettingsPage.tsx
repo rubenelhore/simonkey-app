@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/VoiceSettings.css';
 
 const VoiceSettingsPage: React.FC = () => {
@@ -208,172 +209,166 @@ const VoiceSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="voice-settings-container">
-      <header className="voice-settings-header">
-        <div className="header-content">
-          <button 
-            onClick={() => navigate('/notebooks')}
-            className="back-button"
-          >
-            <i className="fas fa-arrow-left"></i> 
-          </button>
-          <h1>Configuración de Voz</h1>
-        </div>
-      </header>
-      
-      <main className="voice-settings-main">
-        <div className="settings-card">
-          <div className="settings-section">
-            <h2>Voz y Pronunciación</h2>
-            <p className="section-description">Personaliza cómo Simonkey lee tus conceptos y notas.</p>
-            
-            <div className="form-group">
-              <label htmlFor="voice-select">Selecciona una voz:</label>
-              <select 
-                id="voice-select" 
-                value={selectedVoice} 
-                onChange={handleVoiceChange}
-                className="voice-select"
-              >
-                {availableVoices
-                  .filter(voice => voice.lang.includes('es') && voice.name.includes('Google') && !voice.name.includes('Microsoft'))
-                  .map((voice) => (
-                    <option key={voice.name} value={voice.name}>
-                      {voice.lang === 'es-ES' ? 'Simón' : 
-                       voice.lang === 'es-US' ? 'Simona' : 
-                       voice.name} {voice.default ? '(Default)' : ''}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="rate-range">Velocidad: {rate.toFixed(1)}x</label>
-              <input
-                id="rate-range"
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={rate}
-                onChange={handleRateChange}
-                className="range-input"
-              />
-              <div className="range-labels">
-                <span>Lento</span>
-                <span>Normal</span>
-                <span>Rápido</span>
+    <HeaderWithHamburger
+      title="Configuración de Voz"
+      showBackButton={true}
+      onBackClick={() => navigate('/notebooks')}
+    >
+      <div className="voice-settings-container">
+        <main className="voice-settings-main">
+          <div className="settings-card">
+            <div className="settings-section">
+              <h2>Voz y Pronunciación</h2>
+              <p className="section-description">Personaliza cómo Simonkey lee tus conceptos y notas.</p>
+              
+              <div className="form-group">
+                <label htmlFor="voice-select">Selecciona una voz:</label>
+                <select 
+                  id="voice-select" 
+                  value={selectedVoice} 
+                  onChange={handleVoiceChange}
+                  className="voice-select"
+                >
+                  {availableVoices
+                    .filter(voice => voice.lang.includes('es') && voice.name.includes('Google') && !voice.name.includes('Microsoft'))
+                    .map((voice) => (
+                      <option key={voice.name} value={voice.name}>
+                        {voice.lang === 'es-ES' ? 'Simón' : 
+                         voice.lang === 'es-US' ? 'Simona' : 
+                         voice.name} {voice.default ? '(Default)' : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="rate-range">Velocidad: {rate.toFixed(1)}x</label>
+                <input
+                  id="rate-range"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={rate}
+                  onChange={handleRateChange}
+                  className="range-input"
+                />
+                <div className="range-labels">
+                  <span>Lento</span>
+                  <span>Normal</span>
+                  <span>Rápido</span>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="pitch-range">Tono: {pitch.toFixed(1)}</label>
+                <input
+                  id="pitch-range"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={pitch}
+                  onChange={handlePitchChange}
+                  className="range-input"
+                />
+                <div className="range-labels">
+                  <span>Grave</span>
+                  <span>Normal</span>
+                  <span>Agudo</span>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="volume-range">Volumen: {(volume * 100).toFixed(0)}%</label>
+                <input
+                  id="volume-range"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="range-input"
+                />
+                <div className="range-labels">
+                  <span>Bajo</span>
+                  <span>Medio</span>
+                  <span>Alto</span>
+                </div>
+              </div>
+              
+              <div className="form-group checkbox-group">
+                <input
+                  id="auto-read"
+                  type="checkbox"
+                  checked={autoRead}
+                  onChange={handleAutoReadChange}
+                  className="checkbox-input"
+                />
+                <label htmlFor="auto-read">Leer automáticamente al abrir un concepto</label>
               </div>
             </div>
             
-            <div className="form-group">
-              <label htmlFor="pitch-range">Tono: {pitch.toFixed(1)}</label>
-              <input
-                id="pitch-range"
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={pitch}
-                onChange={handlePitchChange}
-                className="range-input"
-              />
-              <div className="range-labels">
-                <span>Grave</span>
-                <span>Normal</span>
-                <span>Agudo</span>
+            <div className="settings-section">
+              <h2>Probar configuración</h2>
+              <p className="section-description">Escucha cómo sonará la voz con la configuración actual.</p>
+              
+              <div className="form-group">
+                <label htmlFor="test-text">Texto de prueba:</label>
+                <textarea
+                  id="test-text"
+                  value={testText}
+                  onChange={(e) => setTestText(e.target.value)}
+                  rows={3}
+                  className="test-text-input"
+                />
               </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="volume-range">Volumen: {(volume * 100).toFixed(0)}%</label>
-              <input
-                id="volume-range"
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={handleVolumeChange}
-                className="range-input"
-              />
-              <div className="range-labels">
-                <span>Bajo</span>
-                <span>Medio</span>
-                <span>Alto</span>
-              </div>
-            </div>
-            
-            <div className="form-group checkbox-group">
-              <input
-                id="auto-read"
-                type="checkbox"
-                checked={autoRead}
-                onChange={handleAutoReadChange}
-                className="checkbox-input"
-              />
-              <label htmlFor="auto-read">Leer automáticamente al abrir un concepto</label>
-            </div>
-          </div>
-          
-          <div className="settings-section">
-            <h2>Probar configuración</h2>
-            <p className="section-description">Escucha cómo sonará la voz con la configuración actual.</p>
-            
-            <div className="form-group">
-              <label htmlFor="test-text">Texto de prueba:</label>
-              <textarea
-                id="test-text"
-                value={testText}
-                onChange={(e) => setTestText(e.target.value)}
-                rows={3}
-                className="test-text-input"
-              />
-            </div>
-            
-            <button 
-              onClick={testVoice}
-              className="test-voice-button"
-            >
-              <i className="fas fa-volume-up"></i> Probar voz
-            </button>
-          </div>
-          
-          <div className="settings-actions">
-            {saveSuccess && (
-              <div className="save-success-message">
-                <i className="fas fa-check-circle"></i> Configuración guardada correctamente
-              </div>
-            )}
-            
-            <div className="action-buttons">
-              <button 
-                onClick={() => navigate('/notebooks')}
-                className="cancel-button"
-              >
-                <i className="fas fa-times"></i> Cancelar
-              </button>
               
               <button 
-                onClick={saveSettings}
-                className="save-button"
-                disabled={isSaving}
+                onClick={testVoice}
+                className="test-voice-button"
               >
-                {isSaving ? (
-                  <>
-                    <div className="spinner-small"></div> Guardando...
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-save"></i> Guardar configuración
-                  </>
-                )}
+                <i className="fas fa-volume-up"></i> Probar voz
               </button>
             </div>
+            
+            <div className="settings-actions">
+              {saveSuccess && (
+                <div className="save-success-message">
+                  <i className="fas fa-check-circle"></i> Configuración guardada correctamente
+                </div>
+              )}
+              
+              <div className="action-buttons">
+                <button 
+                  onClick={() => navigate('/notebooks')}
+                  className="cancel-button"
+                >
+                  <i className="fas fa-times"></i> Cancelar
+                </button>
+                
+                <button 
+                  onClick={saveSettings}
+                  className="save-button"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="spinner-small"></div> Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-save"></i> Guardar configuración
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </HeaderWithHamburger>
   );
 };
 

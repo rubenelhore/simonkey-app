@@ -11,7 +11,7 @@ interface Notebook {
 }
 
 // Create a new notebook
-export const createNotebook = async (userId: string, title: string) => {
+export const createNotebook = async (userId: string, title: string, color: string = '#6147FF') => {
   // Verificar si el usuario puede crear un nuevo cuaderno
   const canCreate = await canCreateNotebook(userId);
   
@@ -19,9 +19,21 @@ export const createNotebook = async (userId: string, title: string) => {
     throw new Error(canCreate.reason || 'No se puede crear el cuaderno');
   }
 
+  // Verificar si ya existe un cuaderno con el mismo nombre
+  const existingNotebooks = await getNotebooks(userId);
+  const normalizedTitle = title.trim().toLowerCase();
+  const existingNotebook = existingNotebooks.find(notebook => 
+    notebook.title.trim().toLowerCase() === normalizedTitle
+  );
+
+  if (existingNotebook) {
+    throw new Error('Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.');
+  }
+
   const notebookData = {
     title,
     userId,
+    color,
     createdAt: serverTimestamp(), // Usar serverTimestamp para mejor consistencia
   };
   

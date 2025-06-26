@@ -61,6 +61,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  position: absolute;
+  left: 4rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .logo-img {
@@ -174,7 +178,10 @@
   cursor: pointer;
   padding: 0;
   z-index: auto;
-  position: static;
+  position: absolute;
+  right: 3rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .notebooks-hamburger-line {
@@ -304,7 +311,8 @@
 }
 
 .side-menu-button:hover {
-  background-color: #f3f4f6;
+  background-color: #f8f9fa;
+  color: var(--primary-color, #4F46E5);
   transform: translateX(4px);
 }
 
@@ -312,31 +320,18 @@
   width: 20px;
   font-size: 1.1rem;
   color: #6b7280;
+  transition: color 0.2s;
+}
+
+.side-menu-button:hover i {
+  color: var(--primary-color, #4F46E5);
 }
 
 .side-menu-button span {
   font-weight: 500;
 }
 
-/* Estilos específicos para cada botón */
-.side-menu-button.personalization-button:hover {
-  background-color: rgba(97, 71, 255, 0.1);
-  color: var(--primary-color);
-}
-
-.side-menu-button.personalization-button:hover i {
-  color: var(--primary-color);
-}
-
-.side-menu-button.voice-settings-button:hover {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-}
-
-.side-menu-button.voice-settings-button:hover i {
-  color: #3b82f6;
-}
-
+/* Excepción para el botón de logout - mantener color rojo */
 .side-menu-button.logout-button:hover {
   background-color: rgba(239, 68, 68, 0.1);
   color: #ef4444;
@@ -344,6 +339,26 @@
 
 .side-menu-button.logout-button:hover i {
   color: #ef4444;
+}
+
+/* Estilos para botón deshabilitado */
+.side-menu-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.side-menu-button.disabled:hover {
+  background-color: transparent;
+  color: #666;
+}
+
+.side-menu-button.disabled i {
+  color: #999;
+}
+
+.side-menu-button.disabled:hover i {
+  color: #999;
 }
 
 /* Modal de personalización */
@@ -595,4 +610,56 @@ body .header-with-hamburger .logo2-title-group h1 span,
 body .header-with-hamburger .logo2-title-group h1 * {
   color: white !important;
   opacity: 1 !important;
+}
+
+/* Estilos para el botón de ayuda */
+.help-button {
+  position: relative;
+}
+
+.help-button i:last-child {
+  transition: transform 0.3s ease;
+}
+
+.help-submenu {
+  margin-left: 1rem;
+  border-left: 2px solid #e5e7eb;
+  padding-left: 0.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.submenu-button {
+  padding: 0.75rem 1rem !important;
+  font-size: 0.9rem !important;
+  margin-left: 0.5rem;
+  border-radius: 6px;
+  background-color: #f9fafb;
+}
+
+.submenu-button:hover {
+  background-color: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.submenu-button i {
+  width: 16px;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* Estilos específicos para el botón de ayuda - copiando el estilo de personalización */
+.side-menu-button.help-button:hover {
+  background-color: rgba(97, 71, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.side-menu-button.help-button:hover i {
+  color: var(--primary-color);
+}
+
+/* Estilos específicos para los botones del submenú de ayuda - copiando el estilo de personalización */
+.side-menu-button.submenu-button:hover {
+  background-color: rgba(97, 71, 255, 0.1);
+  color: var(--primary-color);
 } 

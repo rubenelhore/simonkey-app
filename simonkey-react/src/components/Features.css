@@ -1,6 +1,7 @@
 /* src/components/Features.css */
 .features {
   padding: 120px 0;
+  background-color: #f9fafb;
 }
 
 .features-grid {
@@ -15,6 +16,7 @@
   padding: 30px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: center;
 }
 
 .feature-card:hover {
@@ -23,14 +25,14 @@
 }
 
 .feature-icon {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 60px;
   height: 60px;
   border-radius: 50%;
   background-color: #EEF2FF;
-  margin-bottom: 20px;
+  margin: 0 auto 20px auto;
 }
 
 .feature-icon svg {
@@ -44,6 +46,7 @@
   font-weight: 600;
   margin-bottom: 15px;
   color: var(--dark);
+  text-align: center;
 }
 
 .feature-description {

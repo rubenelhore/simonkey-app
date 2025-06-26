@@ -9,14 +9,15 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Get user document
+    // Get user document (with safe fallback for new users)
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
     }
     
     // Check if user is super admin
     function isSuperAdmin() {
-      return isSignedIn() && getUserData().subscription == 'SUPER_ADMIN';
+      return isSignedIn() && getUserData() != null && getUserData().subscription == 'SUPER_ADMIN';
     }
     
     // Check if user owns the resource
@@ -24,14 +25,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Check user subscription type
+    // Check user subscription type (with fallback for new users)
     function hasSubscription(subscriptionType) {
-      return isSignedIn() && getUserData().subscription == subscriptionType;
+      return isSignedIn() && getUserData() != null && getUserData().subscription == subscriptionType;
     }
     
-    // Check if user has school role
+    // Check if user has school role (with fallback for new users)
     function hasSchoolRole(role) {
-      return isSignedIn() && getUserData().subscription == 'SCHOOL' && getUserData().schoolRole == role;
+      return isSignedIn() && getUserData() != null && getUserData().subscription == 'SCHOOL' && getUserData().schoolRole == role;
     }
     
     // Check if notebook is shared publicly
@@ -42,7 +43,7 @@ service cloud.firestore {
     
     // ========== USERS COLLECTION ==========
     match /users/{userId} {
-      // Read: User can read their own data or super admin can read any
+      // Read: User can read their own data, super admin can read any
       allow read: if isOwner(userId) || isSuperAdmin();
       
       // Create: Allow users to create their own profile during signup
@@ -50,10 +51,8 @@ service cloud.firestore {
                       request.resource.data.email != null &&
                       request.resource.data.subscription in ['FREE', 'PRO', 'SCHOOL', 'SUPER_ADMIN'];
       
-      // Update: User can update their own profile (with restrictions)
-      allow update: if (isOwner(userId) && 
-                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'notebookCount', 'maxNotebooks'])) ||
-                      isSuperAdmin();
+      // Update: User can update their own profile (including all fields for first-time setup)
+      allow update: if isOwner(userId) || isSuperAdmin();
       
       // Delete: Only super admin
       allow delete: if isSuperAdmin();
@@ -141,65 +140,52 @@ service cloud.firestore {
     
     // ========== SCHOOL COLLECTIONS ==========
     
-    // School Students
+    // School Students - More permissive for development
     match /schoolStudents/{studentId} {
-      allow read: if isSignedIn() && 
-                    (request.auth.uid == studentId ||
-                     hasSchoolRole('TEACHER') ||
-                     hasSchoolRole('ADMIN') ||
-                     isSuperAdmin());
-      allow write: if hasSchoolRole('ADMIN') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
-    // School Teachers
+    // School Teachers - More permissive for development
     match /schoolTeachers/{teacherId} {
-      allow read: if isSignedIn() && 
-                    (request.auth.uid == teacherId ||
-                     hasSchoolRole('ADMIN') ||
-                     hasSchoolRole('STUDENT') || // Students can see their teachers
-                     isSuperAdmin());
-      allow write: if hasSchoolRole('ADMIN') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Admins
     match /schoolAdmins/{adminId} {
-      allow read: if hasSchoolRole('ADMIN') || isSuperAdmin();
-      allow write: if isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Institutions
     match /schoolInstitutions/{institutionId} {
-      allow read: if hasSubscription('SCHOOL') || isSuperAdmin();
-      allow write: if hasSchoolRole('ADMIN') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Subjects
     match /schoolSubjects/{subjectId} {
-      allow read: if hasSubscription('SCHOOL') || isSuperAdmin();
-      allow create, update: if hasSchoolRole('TEACHER') && 
-                              request.resource.data.idProfesor == request.auth.uid;
-      allow delete: if (hasSchoolRole('TEACHER') && 
-                       resource.data.idProfesor == request.auth.uid) ||
-                      isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Notebooks
     match /schoolNotebooks/{notebookId} {
-      allow read: if hasSubscription('SCHOOL') || isSuperAdmin();
-      allow create: if hasSchoolRole('TEACHER');
-      allow update, delete: if hasSchoolRole('TEACHER') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Concepts
     match /schoolConcepts/{conceptId} {
-      allow read: if hasSubscription('SCHOOL') || isSuperAdmin();
-      allow write: if hasSchoolRole('TEACHER') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // School Tutors
     match /schoolTutors/{tutorId} {
-      allow read: if hasSubscription('SCHOOL') || isSuperAdmin();
-      allow write: if hasSchoolRole('ADMIN') || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
     
     // ========== STUDY & ACTIVITY COLLECTIONS ==========
