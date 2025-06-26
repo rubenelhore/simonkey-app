@@ -51,7 +51,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>(''); // Nuevo estado para mensajes de error
+  const [searchTerm, setSearchTerm] = useState('');
   const notebookListRef = useRef<HTMLDivElement>(null); // Ref para detectar clics fuera
+
+  // Filtrar cuadernos basado en el término de búsqueda
+  const filteredNotebooks = notebooks.filter(notebook =>
+    notebook.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Efecto para detectar clics fuera de los cuadernos y cerrar acciones
   useEffect(() => {
@@ -163,26 +169,55 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
   return (
     <>
-      {/* Botón de crear cuaderno debajo del título */}
+      {/* Botón de crear cuaderno y buscador */}
       {showCreateButton && (
-        <div 
-          className="create-notebook-card"
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            marginBottom: '2rem',
-            marginTop: '1rem'
-          }}
-        >
-          <div className="create-notebook-content">
-            <div className="create-notebook-icon">+</div>
-            <span className="create-notebook-text">Crear nuevo cuaderno</span>
+        <div className="notebook-actions-container">
+          <div 
+            className="create-notebook-card"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <div className="create-notebook-content">
+              <div className="create-notebook-icon">+</div>
+              <span className="create-notebook-text">Crear nuevo cuaderno</span>
+            </div>
+          </div>
+          
+          <div className="search-container">
+            <div className="search-input-wrapper">
+              <i className="fas fa-search search-icon"></i>
+              <input
+                type="text"
+                placeholder="Buscar cuadernos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+              {searchTerm && (
+                <button
+                  className="clear-search-button"
+                  onClick={() => setSearchTerm('')}
+                  title="Limpiar búsqueda"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </div>
+            {searchTerm && (
+              <div className="search-results-info">
+                {filteredNotebooks.length === 0 ? (
+                  <span>No se encontraron cuadernos</span>
+                ) : (
+                  <span>{filteredNotebooks.length} cuaderno{filteredNotebooks.length !== 1 ? 's' : ''} encontrado{filteredNotebooks.length !== 1 ? 's' : ''}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       <div className="notebook-grid" ref={notebookListRef}>
         {/* Lista de cuadernos existentes */}
-        {notebooks.map(notebook => (
+        {filteredNotebooks.map(notebook => (
           <NotebookItem
             key={notebook.id}
             id={notebook.id}
