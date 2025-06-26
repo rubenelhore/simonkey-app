@@ -1,11 +1,12 @@
 // src/components/NotebookList.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import NotebookItem from './NotebookItem';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
+import '../styles/Notebooks.css';
 
 // Define la interfaz Notebook localmente en lugar de importarla
 interface Notebook {
@@ -48,6 +49,32 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>(''); // Nuevo estado para mensajes de error
+  const notebookListRef = useRef<HTMLDivElement>(null); // Ref para detectar clics fuera
+
+  // Efecto para detectar clics fuera de los cuadernos y cerrar acciones
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Si no hay acciones abiertas, no hacer nada
+      if (!openActionsId) return;
+      
+      // Si el clic fue dentro de la lista de cuadernos, no hacer nada
+      if (notebookListRef.current && notebookListRef.current.contains(event.target as Node)) {
+        return;
+      }
+      
+      // Si el clic fue fuera, cerrar las acciones
+      console.log('Clic fuera de cuadernos detectado, cerrando acciones');
+      setOpenActionsId(null);
+    };
+
+    // Agregar el event listener
+    document.addEventListener('mousedown', handleClickOutside);
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openActionsId]);
 
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +128,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
   };
 
   const handleToggleActions = (notebookId: string) => {
-    setOpenActionsId(openActionsId === notebookId ? null : notebookId);
+    // Si se hace clic en el mismo cuaderno que ya está abierto, cerrarlo
+    if (openActionsId === notebookId) {
+      setOpenActionsId(null);
+    } else {
+      // Si se hace clic en un cuaderno diferente, abrir ese y cerrar el anterior
+      setOpenActionsId(notebookId);
+    }
   };
 
   // Función para limpiar error cuando cambia el texto
@@ -145,7 +178,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         </div>
       )}
 
-      <div className="notebook-grid">
+      <div className="notebook-grid" ref={notebookListRef}>
         {/* Lista de cuadernos existentes */}
         {notebooks.map(notebook => (
           <NotebookItem
