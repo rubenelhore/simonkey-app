@@ -254,13 +254,37 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       
       {isUpgradeModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
+          <div className="upgrade-modal-content">
             <div className="modal-header">
-              <h2>Upgrade a Pro</h2>
+              <h2>🚀 Upgrade a Pro</h2>
               <button className="close-button" onClick={handleCloseUpgradeModal}>×</button>
             </div>
             <div className="modal-body">
-              <p style={{ fontSize: '1.1rem', margin: '2rem 0' }}>Contacta al equipo de Simonkey</p>
+              <div className="upgrade-motivational-section">
+                <h3>💡 Invierte en tu futuro y desarrollo</h3>
+                <p className="motivational-text">
+                  Al hacer el upgrade a Pro, no solo estás desbloqueando funcionalidades avanzadas, 
+                  sino que estás invirtiendo en tu crecimiento personal y profesional. 
+                  Cada concepto que aprendas, cada herramienta que utilices, 
+                  te acerca un paso más a tus metas y objetivos.
+                </p>
+                <p className="motivational-text">
+                  <strong>¡Tu desarrollo es nuestra prioridad!</strong> 
+                  Descubre todo el potencial que Simonkey Pro tiene para ofrecerte.
+                </p>
+              </div>
+              
+              <div className="upgrade-support-section">
+                <h4>📧 ¿Necesitas ayuda para decidir?</h4>
+                <p>Nuestro equipo de soporte está aquí para ayudarte:</p>
+                <div className="support-contact">
+                  <i className="fas fa-envelope"></i>
+                  <span>soporte@simonkey.com</span>
+                </div>
+                <p className="support-note">
+                  Te responderemos en menos de 24 horas con toda la información que necesites.
+                </p>
+              </div>
             </div>
           </div>
         </div>

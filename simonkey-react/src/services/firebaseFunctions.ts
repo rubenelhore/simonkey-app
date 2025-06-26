@@ -114,10 +114,18 @@ export const generateConceptsFromMultipleFiles = async (
   files: Array<{ fileName: string; content: string; isSchoolNotebook: boolean; fileType?: string }>,
   notebookId: string
 ) => {
+  console.log('🔧 generateConceptsFromMultipleFiles iniciado:', {
+    filesCount: files.length,
+    notebookId,
+    firstFileName: files[0]?.fileName
+  });
+  
   const results = [];
   
   for (const file of files) {
     try {
+      console.log('📄 Procesando archivo:', file.fileName);
+      
       const result = await generateConceptsFromFile({
         fileContent: file.content,
         notebookId,
@@ -125,13 +133,16 @@ export const generateConceptsFromMultipleFiles = async (
         isSchoolNotebook: file.isSchoolNotebook,
         fileType: file.fileType || 'file' // Por defecto usar 'file' para procesar con Gemini
       });
+      
+      console.log('✅ Archivo procesado exitosamente:', file.fileName);
       results.push(result);
     } catch (error) {
-      console.error(`Error procesando archivo ${file.fileName}:`, error);
+      console.error(`❌ Error procesando archivo ${file.fileName}:`, error);
       throw error;
     }
   }
   
+  console.log('🎉 generateConceptsFromMultipleFiles completado, resultados:', results.length);
   return results;
 };
 

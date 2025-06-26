@@ -574,23 +574,6 @@ button[type="submit"]:hover {
   height: 6px;
 }
 
-.notebook-card-content::after {
-  content: '→';
-  position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s ease;
-  color: var(--light-text);
-  font-size: 1.25rem;
-}
-
-.notebook-card:hover .notebook-card-content::after {
-  opacity: 0.5;
-  transform: translateX(0);
-}
-
 .notebook-card h3 {
   font-size: 1.25rem;
   font-weight: 600;
@@ -638,44 +621,49 @@ button[type="submit"]:hover {
   }
 }
 
+.notebook-card-actions button {
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.notebook-card-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.1);
+}
+
+.notebook-card-actions button i {
+  font-size: 1.1rem;
+  color: white;
+}
+
 .action-view {
   color: white;
 }
 
 .action-delete {
-  color: var(--danger-color);
+  color: white;
 }
 
 .action-color {
-  color: white; /* Color dorado para el ícono de paleta */
+  color: white;
 }
 
 .action-edit {
-  color: white; /* White color for the edit icon */
+  color: white;
 }
 
-.notebook-card-actions button {
-  padding: 0.625rem;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(10px);
-}
-
-.notebook-card-actions button:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-}
-
-.notebook-card-actions button i {
-  font-size: 0.875rem;
+.action-add-concept {
+  color: white;
 }
 
 /* Estilos para el contenedor del selector de colores */
@@ -1495,6 +1483,141 @@ body .logo2-title-group h1 * {
 
 /* Deshabilitar botón hamburguesa cuando el modal está abierto */
 body.modal-open .notebooks-hamburger-btn {
-  pointer-events: none;
   opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Estilos específicos para el modal de upgrade */
+.upgrade-modal-content {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
+}
+
+.upgrade-modal-content .modal-header {
+  background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+  color: white;
+  border-radius: 16px 16px 0 0;
+  border-bottom: none;
+}
+
+.upgrade-modal-content .modal-header h2 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.upgrade-modal-content .close-button {
+  color: white;
+}
+
+.upgrade-modal-content .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.upgrade-modal-content .modal-body {
+  padding: 2rem;
+}
+
+.upgrade-motivational-section {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.upgrade-motivational-section h3 {
+  color: var(--primary-color);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.motivational-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.motivational-text strong {
+  color: var(--primary-color);
+}
+
+.upgrade-support-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.upgrade-support-section h4 {
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.upgrade-support-section p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.support-contact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: white;
+  border: 2px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-weight: 600;
+  color: var(--primary-color);
+  transition: all 0.2s ease;
+}
+
+.support-contact:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
+}
+
+.support-contact i {
+  font-size: 1.1rem;
+}
+
+.support-note {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+/* Responsive para el modal de upgrade */
+@media (max-width: 768px) {
+  .upgrade-modal-content {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .upgrade-modal-content .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .upgrade-motivational-section h3 {
+    font-size: 1.2rem;
+  }
+  
+  .motivational-text {
+    font-size: 0.95rem;
+  }
 }

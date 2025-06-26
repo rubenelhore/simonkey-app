@@ -29,6 +29,7 @@ interface NotebookListProps {
   onCreateNotebook?: () => void;
   isSchoolTeacher?: boolean;
   onColorChange?: (id: string, color: string) => void;
+  onAddConcept?: (id: string) => void;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -38,7 +39,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
   showCreateButton = false, 
   onCreateNotebook,
   isSchoolTeacher = false,
-  onColorChange
+  onColorChange,
+  onAddConcept
 }) => {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -192,6 +194,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             showActions={openActionsId === notebook.id}
             onToggleActions={handleToggleActions}
             isSchoolNotebook={isSchoolTeacher}
+            onAddConcept={onAddConcept}
           />
         ))}
       </div>

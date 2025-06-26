@@ -160,6 +160,26 @@ html, body, #root {
   font-family: inherit;
 }
 
+.test-text-input[readonly] {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: default;
+  border-color: #e9ecef;
+}
+
+.test-text-display {
+  padding: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #495057;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+}
+
 .test-voice-button {
   background-color: var(--primary-color, #4F46E5);
   color: white;
@@ -220,6 +240,7 @@ html, body, #root {
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
 }
 

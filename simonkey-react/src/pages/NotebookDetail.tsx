@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
 import { Concept } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
@@ -37,6 +37,7 @@ interface ConceptDoc {
 const NotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [cuaderno, setCuaderno] = useState<any>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
@@ -100,13 +101,20 @@ const NotebookDetail = () => {
           where('cuadernoId', '==', id)
         );
         
-        const querySnapshot = await getDocs(q);
-        const conceptosData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ConceptDoc[];
-        
-        setConceptosDocs(conceptosData);
+        try {
+          const querySnapshot = await getDocs(q);
+          const conceptosData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as ConceptDoc[];
+          
+          setConceptosDocs(conceptosData);
+          console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
+        } catch (conceptsError: any) {
+          console.warn('⚠️ Error cargando conceptos (continuando sin conceptos):', conceptsError.message);
+          // No fallar completamente, solo mostrar un warning
+          setConceptosDocs([]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -114,6 +122,15 @@ const NotebookDetail = () => {
     
     fetchData();
   }, [id, navigate, isSchoolStudent]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('openModal') === 'true') {
+      openModalWithTab('upload');
+      // Limpiar el parámetro de la URL para evitar que se vuelva a abrir si el usuario navega
+      navigate(`/notebooks/${id}`, { replace: true });
+    }
+  }, [location.search, id]);
 
   // Añadir al inicio del componente, después de cargar los datos del cuaderno
   useEffect(() => {
@@ -213,30 +230,92 @@ const NotebookDetail = () => {
       return;
     }
 
+    // Debug logging
+    console.log('🔍 Debug generarConceptos:');
+    console.log('- User ID:', auth.currentUser.uid);
+    console.log('- Notebook ID:', id);
+    console.log('- Files count:', archivos.length);
+    console.log('- Is school student:', isSchoolStudent);
+
     setCargando(true);
     setLoadingText("Procesando archivos...");
 
     try {
+      // Verificar que el cuaderno existe y pertenece al usuario
+      const notebookRef = doc(db, 'notebooks', id);
+      const notebookDoc = await getDoc(notebookRef);
+      
+      if (!notebookDoc.exists()) {
+        throw new Error('El cuaderno no existe');
+      }
+      
+      const notebookData = notebookDoc.data();
+      console.log('- Notebook data:', notebookData);
+      console.log('- Notebook owner:', notebookData?.userId);
+      console.log('- Current user:', auth.currentUser.uid);
+      
+      if (notebookData?.userId !== auth.currentUser.uid) {
+        throw new Error('No tienes permisos para modificar este cuaderno');
+      }
+
       // Preparar archivos para el procesamiento (indicar que NO es cuaderno escolar)
       const processedFiles = await prepareFilesForGeneration(archivos, false);
+      console.log('📁 Archivos procesados:', processedFiles.length);
       setLoadingText("Generando conceptos con IA...");
 
       // Generar conceptos usando Cloud Functions
-      const results = await generateConcepts(processedFiles, id);
+      console.log('🚀 Llamando a generateConcepts con:', {
+        filesCount: processedFiles.length,
+        notebookId: id,
+        userId: auth.currentUser.uid
+      });
       
+      let results;
+      try {
+        results = await generateConcepts(processedFiles, id);
+        console.log('✅ generateConcepts completado, resultados:', results);
+        console.log('📊 Tipo de resultados:', typeof results);
+        console.log('📊 Longitud de resultados:', Array.isArray(results) ? results.length : 'No es array');
+      } catch (cloudFunctionError: any) {
+        console.error('❌ Error en Cloud Function:', cloudFunctionError);
+        
+        // Mostrar información detallada del error
+        if (cloudFunctionError.code) {
+          console.error('Código de error:', cloudFunctionError.code);
+        }
+        if (cloudFunctionError.message) {
+          console.error('Mensaje de error:', cloudFunctionError.message);
+        }
+        if (cloudFunctionError.details) {
+          console.error('Detalles del error:', cloudFunctionError.details);
+        }
+        
+        throw new Error(`Error en Cloud Function: ${cloudFunctionError.message || cloudFunctionError}`);
+      }
+
       // Procesar resultados
+      console.log('🔄 Procesando resultados...');
       let totalConcepts = 0;
       let conceptIds: string[] = [];
       
       for (const result of results) {
+        console.log('📋 Procesando resultado:', result);
         const data = result.data as any;
+        console.log('📋 Datos del resultado:', data);
+        
         if (data?.success) {
           totalConcepts += data.conceptCount || 0;
           if (data.conceptIds) {
             conceptIds.push(...data.conceptIds);
           }
+          console.log('✅ Resultado procesado exitosamente');
+        } else {
+          console.log('❌ Resultado no exitoso:', data);
         }
       }
+      
+      console.log('📊 Total de conceptos:', totalConcepts);
+      console.log('📊 IDs de conceptos:', conceptIds);
 
       if (totalConcepts > 0) {
         setLoadingText("Creando datos de aprendizaje...");
@@ -246,17 +325,24 @@ const NotebookDetail = () => {
           await createInitialLearningDataForConcepts(conceptIds, auth.currentUser.uid, id);
         }
 
-        // Recargar los conceptos
-        const q = query(
-          collection(db, 'conceptos'),
-          where('cuadernoId', '==', id)
-        );
-        const querySnapshot = await getDocs(q);
-        const conceptosData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ConceptDoc[];
-        setConceptosDocs(conceptosData);
+        // Intentar recargar los conceptos, pero no fallar si hay error de permisos
+        try {
+          console.log('🔄 Recargando conceptos...');
+          const q = query(
+            collection(db, 'conceptos'),
+            where('cuadernoId', '==', id)
+          );
+          const querySnapshot = await getDocs(q);
+          const conceptosData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as ConceptDoc[];
+          setConceptosDocs(conceptosData);
+          console.log('✅ Conceptos recargados exitosamente');
+        } catch (reloadError: any) {
+          console.warn('⚠️ No se pudieron recargar los conceptos, pero se generaron correctamente:', reloadError.message);
+          // No fallar aquí, los conceptos ya se generaron en la Cloud Function
+        }
 
         alert(`¡Éxito! Se generaron ${totalConcepts} conceptos.`);
         setIsModalOpen(false);
@@ -452,8 +538,9 @@ const NotebookDetail = () => {
                   <button
                     className="add-first-concept-button"
                     onClick={() => openModalWithTab("upload")}
+                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', width: '100%' }}
                   >
-                    Añadir mi primer concepto
+                    Añadir nuevos conceptos
                   </button>
                 ) : (
                   <p className="school-student-info">
@@ -529,8 +616,6 @@ const NotebookDetail = () => {
             <div className="modal-body">
               {activeTab === 'upload' ? (
                 <div className="upload-container">
-
-                  
                   <input
                     type="file"
                     id="pdf-upload"
@@ -539,11 +624,19 @@ const NotebookDetail = () => {
                     onChange={handleFileChange}
                     disabled={cargando}
                     className="file-input"
+                    style={{ display: 'none' }}
                   />
+                  <label htmlFor="pdf-upload" className="file-input-label">
+                    <div className="file-input-content">
+                      <i className="fas fa-cloud-upload-alt"></i>
+                      <p>Haz clic aquí para seleccionar archivos</p>
+                      <span>o arrastra y suelta archivos aquí</span>
+                    </div>
+                  </label>
                   <div className="selected-files">
                     {archivos.length > 0 && (
                       <>
-                        <p><strong>Archivos seleccionados:</strong></p>
+                        <p><strong>{archivos.length === 1 ? 'Archivo seleccionado:' : 'Archivos seleccionados:'}</strong></p>
                         <ul>
                           {archivos.map((file, index) => (
                             <li key={index}>{file.name}</li>

@@ -141,10 +141,11 @@ const VoiceSettingsPage: React.FC = () => {
       
       setSaveSuccess(true);
       
-      // Ocultar mensaje de éxito después de 3 segundos
+      // Mostrar mensaje de éxito por 1 segundo y luego navegar de vuelta
       setTimeout(() => {
         setSaveSuccess(false);
-      }, 3000);
+        navigate('/notebooks');
+      }, 1000);
     } catch (error) {
       console.error("Error saving voice settings:", error);
       alert("La configuración se guardó localmente, pero hubo un error al guardar en la nube. Tus ajustes funcionarán en este dispositivo.");
@@ -316,13 +317,9 @@ const VoiceSettingsPage: React.FC = () => {
               
               <div className="form-group">
                 <label htmlFor="test-text">Texto de prueba:</label>
-                <textarea
-                  id="test-text"
-                  value={testText}
-                  onChange={(e) => setTestText(e.target.value)}
-                  rows={3}
-                  className="test-text-input"
-                />
+                <div className="test-text-display">
+                  {testText}
+                </div>
               </div>
               
               <button 

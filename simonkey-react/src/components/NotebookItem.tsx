@@ -13,9 +13,10 @@ interface NotebookItemProps {
   showActions: boolean; // Nuevo prop para controlar si las acciones están visibles
   onToggleActions: (notebookId: string) => void; // Nueva función para alternar las acciones
   isSchoolNotebook?: boolean; // Nuevo prop
+  onAddConcept?: (id: string) => void; // Nueva función para agregar conceptos
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -225,7 +226,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
               onClick={handleValidateAndSave}
               disabled={hasError}
               style={{
-                background: hasError ? 'rgba(255, 107, 107, 0.3)' : 'linear-gradient(90deg, #6147FF 60%, #9C27B0 100%)',
+                background: hasError ? 'rgba(255, 107, 107, 0.3)' : notebookColor,
                 border: 'none',
                 color: 'white',
                 cursor: hasError ? 'not-allowed' : 'pointer',
@@ -237,7 +238,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
                 height: '38px',
                 width: '38px',
                 borderRadius: '50%',
-                boxShadow: hasError ? 'none' : '0 2px 8px rgba(97,71,255,0.15)',
+                boxShadow: hasError ? 'none' : '0 2px 8px rgba(0, 0, 0, 0.15)',
                 transition: 'background 0.2s, box-shadow 0.2s',
                 opacity: hasError ? 0.5 : 1
               }}
@@ -254,12 +255,34 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
           className="notebook-card-actions"
           style={{ backgroundColor: notebookColor }}
         >
+          {onAddConcept && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddConcept(id);
+              }}
+              className="action-add-concept" 
+              title="Agregar concepto"
+              disabled={hasError}
+              style={{ 
+                backgroundColor: notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+          )}
           <button 
             onClick={handleView} 
             className="action-view" 
             title="Ver cuaderno"
             disabled={hasError}
-            style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+            style={{ 
+              backgroundColor: notebookColor,
+              opacity: hasError ? 0.5 : 1, 
+              cursor: hasError ? 'not-allowed' : 'pointer' 
+            }}
           >
             <i className="fas fa-eye"></i>
           </button>
@@ -269,7 +292,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
               className="action-color" 
               title="Cambiar color"
               disabled={hasError}
-              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+              style={{ 
+                backgroundColor: notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
             >
               <i className="fas fa-palette"></i>
             </button>
@@ -280,7 +307,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
               className="action-edit" 
               title="Editar nombre"
               disabled={hasError}
-              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+              style={{ 
+                backgroundColor: notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
             >
               <i className="fas fa-pencil-alt"></i>
             </button>
@@ -291,7 +322,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete,
               className="action-delete" 
               title="Eliminar cuaderno"
               disabled={hasError}
-              style={{ opacity: hasError ? 0.5 : 1, cursor: hasError ? 'not-allowed' : 'pointer' }}
+              style={{ 
+                backgroundColor: notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
             >
               <i className="fas fa-trash"></i>
             </button>
