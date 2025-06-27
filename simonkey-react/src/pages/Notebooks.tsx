@@ -16,6 +16,7 @@ import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+import CategoryDropdown from '../components/CategoryDropdown';
 
 const Notebooks: React.FC = () => {
   const { user, userProfile, loading: authLoading } = useAuth();
@@ -372,6 +373,7 @@ const Notebooks: React.FC = () => {
           {/* Nuevo componente de racha */}
           <StreakTracker />
           <DaysWithIntelligentStudy />
+          <CategoryDropdown />
         </div>
         <div className="notebooks-list-section">
           <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>

@@ -71,7 +71,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [editDescription, setEditDescription] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const notebookListRef = useRef<HTMLDivElement>(null);
 
   console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
@@ -143,8 +142,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     console.log('🔍 DEBUG - Filtered notebooks:', filteredNotebooks);
     console.log('🔍 DEBUG - Grouped by category:', groupedByCategory);
     console.log('🔍 DEBUG - Uncategorized notebooks:', uncategorizedNotebooks);
-    console.log('🔍 DEBUG - Expanded categories:', Array.from(expandedCategories));
-  }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, expandedCategories]);
+  }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks]);
 
   // Efecto para detectar clics fuera de los cuadernos y cerrar acciones
   useEffect(() => {
@@ -260,15 +258,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
       setSelectedNotebooks([]);
       setShowCategoryModal(false);
       
-      // Expandir automáticamente la nueva categoría
-      console.log('🔍 DEBUG - Expandir categoría:', newCategoryName.trim());
-      setExpandedCategories(prev => {
-        const newSet = new Set<string>();
-        newSet.add(newCategoryName.trim());
-        console.log('🔍 DEBUG - Nuevas categorías expandidas:', Array.from(newSet));
-        return newSet;
-      });
-      
       // Forzar actualización de la lista de cuadernos
       if (onCreateNotebook) {
         console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
@@ -369,25 +358,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
     };
   }, [showCreateModal]);
 
-  // Función para alternar la expansión de una categoría
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      
-      // Si la categoría ya está expandida, la cerramos
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        // Si se está expandiendo una nueva categoría, cerramos todas las demás
-        newSet.clear();
-        newSet.add(category);
-      }
-      
-      console.log('🔍 DEBUG - Toggling category:', category, 'New expanded categories:', Array.from(newSet));
-      return newSet;
-    });
-  };
-
   return (
     <>
       {/* Botón de crear cuaderno, crear categoría, y buscador */}
@@ -425,87 +395,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Módulos de categorías - SIEMPRE mostrar si hay categorías */}
-      {(() => {
-        const hasCategories = Object.keys(groupedByCategory).length > 0;
-        console.log('🔍 DEBUG - Renderizando módulos de categorías:', {
-          hasCategories,
-          categoriesCount: Object.keys(groupedByCategory).length,
-          categories: Object.keys(groupedByCategory),
-          groupedData: groupedByCategory
-        });
-        return hasCategories;
-      })() && (
-        <div className="categories-section">
-          <h3 className="categories-section-title">Categorías</h3>
-          <div className="categories-grid">
-            {Object.entries(groupedByCategory).map(([category, categoryNotebooks]) => {
-              console.log('🔍 DEBUG - Rendering category:', category, 'with', categoryNotebooks.length, 'notebooks');
-              return (
-                <div key={category} className="category-module">
-                  <div 
-                    className="category-module-header"
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <div className="category-module-title">
-                      <span className="category-name">{category}</span>
-                      <span className="category-count">({categoryNotebooks.length} cuaderno{categoryNotebooks.length !== 1 ? 's' : ''})</span>
-                    </div>
-                    <div className={`category-expand-icon ${expandedCategories.has(category) ? 'expanded' : ''}`}>
-                      <i className="fas fa-chevron-down"></i>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Categorías expandidas - debajo de todas las categorías */}
-      {Object.keys(groupedByCategory).length > 0 && Array.from(expandedCategories).length > 0 && (
-        <div className="expanded-categories-section">
-          {Array.from(expandedCategories).map(category => {
-            const categoryNotebooks = groupedByCategory[category] || [];
-            return (
-              <div key={category} className="expanded-category-container">
-                <div className="expanded-category-header">
-                  <h4 className="expanded-category-title">
-                    {category} ({categoryNotebooks.length} cuaderno{categoryNotebooks.length !== 1 ? 's' : ''})
-                  </h4>
-                  <button 
-                    className="close-expanded-category"
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-                <div className="expanded-category-notebooks">
-                  <div className="expanded-notebooks-grid">
-                    {categoryNotebooks.map(notebook => (
-                      <NotebookItem
-                        key={notebook.id}
-                        id={notebook.id}
-                        title={notebook.title}
-                        color={notebook.color}
-                        category={notebook.category}
-                        onDelete={onDeleteNotebook}
-                        onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
-                        onColorChange={onColorChange}
-                        showActions={openActionsId === notebook.id}
-                        onToggleActions={handleToggleActions}
-                        isSchoolNotebook={isSchoolTeacher}
-                        onAddConcept={onAddConcept}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Todos mis cuadernos - SIEMPRE mostrar todos los cuadernos */}
       {filteredNotebooks.length > 0 && (
@@ -551,25 +440,29 @@ const NotebookList: React.FC<NotebookListProps> = ({
             </div>
             <form onSubmit={handleCreateNotebook} className="modal-body">
               <div className="form-group">
+                <label htmlFor="notebookTitle">Nombre del cuaderno</label>
                 <input
+                  id="notebookTitle"
                   type="text"
                   value={newNotebookTitle}
                   onChange={handleTitleChange}
                   onKeyDown={handleKeyPress}
-                  placeholder="Ingresa el nombre del cuaderno"
+                  placeholder="Ej: Matemáticas, Historia, etc."
                   className="form-control"
                   autoFocus
                   required
                   disabled={isSubmitting}
                 />
-                {/* Mensaje de error con símbolo de cuidado */}
-                {errorMessage && (
-                  <div className="error-message">
-                    <span className="error-icon">⚠️</span>
-                    <span className="error-text">{errorMessage}</span>
-                  </div>
-                )}
               </div>
+              
+              {/* Mensaje de error */}
+              {errorMessage && (
+                <div className="error-message">
+                  <span className="error-icon">⚠️</span>
+                  <span className="error-text">{errorMessage}</span>
+                </div>
+              )}
+
               <div className="modal-footer">
                 <button
                   type="button"
