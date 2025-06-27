@@ -7,7 +7,7 @@ import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
 import '../styles/Notebooks.css';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 // Define la interfaz Notebook localmente en lugar de importarla
@@ -33,6 +33,11 @@ interface NotebookListProps {
   isSchoolTeacher?: boolean;
   onColorChange?: (id: string, color: string) => void;
   onAddConcept?: (id: string) => void;
+  selectedCategory?: string | null;
+  showCategoryModal?: boolean;
+  onCloseCategoryModal?: () => void;
+  onClearSelectedCategory?: () => void;
+  onRefreshCategories?: () => void;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -43,7 +48,12 @@ const NotebookList: React.FC<NotebookListProps> = ({
   onCreateNotebook,
   isSchoolTeacher = false,
   onColorChange,
-  onAddConcept
+  onAddConcept,
+  selectedCategory,
+  showCategoryModal = false,
+  onCloseCategoryModal,
+  onClearSelectedCategory,
+  onRefreshCategories
 }) => {
   console.log('🔍 DEBUG - NotebookList renderizando con:', {
     notebooksCount: notebooks?.length || 0,
@@ -60,7 +70,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedNotebooks, setSelectedNotebooks] = useState<string[]>([]);
@@ -71,8 +80,12 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [editDescription, setEditDescription] = useState('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string>('');
   const notebookListRef = useRef<HTMLDivElement>(null);
+  const [showAddNotebookModal, setShowAddNotebookModal] = useState(false);
+  const [categoryToAddNotebook, setCategoryToAddNotebook] = useState<string | null>(null);
+  const [selectedNotebooksToAdd, setSelectedNotebooksToAdd] = useState<string[]>([]);
 
   console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
 
@@ -82,57 +95,28 @@ const NotebookList: React.FC<NotebookListProps> = ({
     (notebook.category && notebook.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Agrupar cuadernos por categoría
-  const groupedByCategory = (() => {
-    console.log('🔍 DEBUG - Antes del agrupamiento - filteredNotebooks:', {
-      count: filteredNotebooks.length,
-      data: filteredNotebooks
-    });
-    
-    const grouped: { [key: string]: Notebook[] } = {};
-    
-    console.log('🔍 DEBUG - Iniciando agrupamiento de cuadernos por categoría');
-    console.log('🔍 DEBUG - Total de cuadernos a procesar:', filteredNotebooks.length);
-    
-    filteredNotebooks.forEach((notebook, index) => {
-      console.log(`🔍 DEBUG - Procesando cuaderno ${index}:`, {
-        id: notebook.id,
-        title: notebook.title,
-        category: notebook.category,
-        hasCategory: !!(notebook.category && notebook.category.trim() !== ''),
-        categoryTrimmed: notebook.category ? notebook.category.trim() : 'undefined'
-      });
-      
-      if (notebook.category && notebook.category.trim() !== '') {
-        const categoryKey = notebook.category.trim();
-        if (!grouped[categoryKey]) {
-          grouped[categoryKey] = [];
-        }
-        grouped[categoryKey].push(notebook);
-        console.log(`✅ DEBUG - Cuaderno ${notebook.id} agregado a categoría "${categoryKey}"`);
-      } else {
-        console.log(`ℹ️ DEBUG - Cuaderno ${notebook.id} no tiene categoría válida`);
-      }
-    });
-    
-    console.log('🔍 DEBUG - Grouped by category:', grouped);
-    console.log('🔍 DEBUG - Categories count:', Object.keys(grouped).length);
-    console.log('🔍 DEBUG - Categories:', Object.keys(grouped));
-    
-    return grouped;
-  })();
+  // Filtrar cuadernos por categoría seleccionada
+  const notebooksBySelectedCategory = selectedCategory 
+    ? filteredNotebooks.filter(notebook => notebook.category === selectedCategory)
+    : filteredNotebooks;
 
-  // Cuadernos sin categoría
-  const uncategorizedNotebooks = (() => {
-    const uncategorized = filteredNotebooks.filter(notebook => 
-      !notebook.category || notebook.category.trim() === ''
-    );
-    
-    console.log('🔍 DEBUG - Uncategorized notebooks:', uncategorized.length);
-    console.log('🔍 DEBUG - Uncategorized notebooks data:', uncategorized);
-    
-    return uncategorized;
-  })();
+  // Agrupar cuadernos por categoría para mostrar en el modal de crear categoría
+  const groupedByCategory = filteredNotebooks.reduce((acc, notebook) => {
+    // Solo agrupar cuadernos que tienen categoría
+    if (notebook.category && notebook.category.trim() !== '') {
+      const category = notebook.category;
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(notebook);
+    }
+    return acc;
+  }, {} as Record<string, Notebook[]>);
+
+  // Cuadernos sin categoría (para el modal de crear categoría)
+  const uncategorizedNotebooks = filteredNotebooks.filter(notebook => 
+    !notebook.category || notebook.category.trim() === ''
+  );
 
   // Obtener cuadernos ya categorizados para mostrar
   const categorizedNotebooks = notebooks.filter(notebook => notebook.category && notebook.category !== '');
@@ -143,8 +127,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
     console.log('🔍 DEBUG - Filtered notebooks:', filteredNotebooks);
     console.log('🔍 DEBUG - Grouped by category:', groupedByCategory);
     console.log('🔍 DEBUG - Uncategorized notebooks:', uncategorizedNotebooks);
-    console.log('🔍 DEBUG - Expanded categories:', Array.from(expandedCategories));
-  }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, expandedCategories]);
+    console.log('🔍 DEBUG - Selected category:', selectedCategory);
+    console.log('🔍 DEBUG - Notebooks by selected category:', notebooksBySelectedCategory);
+  }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, selectedCategory, notebooksBySelectedCategory]);
 
   // Efecto para detectar clics fuera de los cuadernos y cerrar acciones
   useEffect(() => {
@@ -173,42 +158,72 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newNotebookTitle.trim() || isSubmitting) return;
     
-    // Limpiar mensaje de error anterior
+    if (!newNotebookTitle.trim()) {
+      setErrorMessage('Por favor, ingresa un título para el cuaderno.');
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setErrorMessage('');
-    
+
+    if (!user) {
+      setErrorMessage('Debes estar autenticado para crear un cuaderno.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      setIsSubmitting(true);
-      await createNotebook(user.uid, newNotebookTitle, '#6147FF');
-      setNewNotebookTitle(''); // Clear the form
-      setShowCreateModal(false); // Close modal
-      onCreateNotebook?.(); // Refresh the notebook list
-    } catch (error) {
-      console.error("Error creating notebook:", error);
+      const notebook = await createNotebook(user.uid, newNotebookTitle.trim());
+      console.log('✅ Notebook created:', notebook);
       
-      // Mostrar el error al usuario de forma más amigable
-      let errorMessage = 'Error al crear el cuaderno';
+      setNewNotebookTitle('');
+      setShowCreateModal(false);
       
-      if (error instanceof Error) {
-        if (error.message.includes('Ya existe un cuaderno con ese nombre')) {
-          errorMessage = 'Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.';
-        } else if (error.message.includes('Usuario no encontrado')) {
-          errorMessage = 'Error: Tu perfil de usuario no se encuentra. Por favor, cierra sesión y vuelve a iniciar sesión.';
-        } else if (error.message.includes('Límite de cuadernos alcanzado')) {
-          errorMessage = 'Has alcanzado el límite de cuadernos permitidos en tu plan actual.';
-        } else if (error.message.includes('Límite semanal')) {
-          errorMessage = 'Has alcanzado el límite semanal de cuadernos. Inténtalo de nuevo la próxima semana.';
-        } else if (error.message.includes('Error interno')) {
-          errorMessage = 'Error interno del sistema. Por favor, intenta de nuevo en unos momentos.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
+      if (onCreateNotebook) {
+        onCreateNotebook();
       }
-      
-      setErrorMessage(errorMessage);
+    } catch (error) {
+      console.error("❌ Error creating notebook:", error);
+      setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Función para verificar si una categoría ya existe
+  const checkCategoryExists = async (categoryName: string): Promise<boolean> => {
+    try {
+      if (!user) return false;
+      
+      console.log('🔍 DEBUG - Verificando si existe categoría:', categoryName);
+      
+      // Verificar en la colección de categorías
+      const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
+      const categoryDoc = await getDoc(categoryRef);
+      
+      if (categoryDoc.exists()) {
+        console.log('✅ DEBUG - Categoría encontrada en colección de categorías');
+        return true;
+      }
+      
+      // Verificar en los cuadernos existentes
+      const notebooksWithCategory = notebooks.filter(notebook => 
+        notebook.category && notebook.category.trim().toLowerCase() === categoryName.trim().toLowerCase()
+      );
+      
+      if (notebooksWithCategory.length > 0) {
+        console.log('✅ DEBUG - Categoría encontrada en cuadernos existentes');
+        return true;
+      }
+      
+      console.log('❌ DEBUG - Categoría no encontrada, se puede crear');
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Error checking category existence:', error);
+      return false; // En caso de error, permitir crear la categoría
     }
   };
 
@@ -226,6 +241,15 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
     try {
       console.log('🚀 DEBUG - Iniciando creación de categoría:', newCategoryName);
+      
+      // Verificar si la categoría ya existe
+      const categoryExists = await checkCategoryExists(newCategoryName.trim());
+      if (categoryExists) {
+        setErrorMessage(`Ya existe una categoría con el nombre "${newCategoryName.trim()}". Por favor, elige otro nombre.`);
+        setIsSubmitting(false);
+        return;
+      }
+      
       console.log('🚀 DEBUG - Cuadernos seleccionados:', selectedNotebooks);
       console.log('🚀 DEBUG - Total de cuadernos disponibles:', uncategorizedNotebooks.length);
 
@@ -247,6 +271,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
         console.log('ℹ️ DEBUG - No hay cuadernos seleccionados para asignar');
       }
       
+      // Guardar la categoría en la colección de categorías (siempre)
+      await saveCategoryToCollection(newCategoryName.trim());
+      
       // Mostrar mensaje de éxito
       const successMessage = selectedNotebooks.length > 0 
         ? `Categoría "${newCategoryName}" creada exitosamente y ${selectedNotebooks.length} cuaderno(s) asignado(s).`
@@ -258,21 +285,18 @@ const NotebookList: React.FC<NotebookListProps> = ({
       // Limpiar formulario
       setNewCategoryName('');
       setSelectedNotebooks([]);
-      setShowCategoryModal(false);
-      
-      // Expandir automáticamente la nueva categoría
-      console.log('🔍 DEBUG - Expandir categoría:', newCategoryName.trim());
-      setExpandedCategories(prev => {
-        const newSet = new Set<string>();
-        newSet.add(newCategoryName.trim());
-        console.log('🔍 DEBUG - Nuevas categorías expandidas:', Array.from(newSet));
-        return newSet;
-      });
+      handleCloseCategoryModal();
       
       // Forzar actualización de la lista de cuadernos
       if (onCreateNotebook) {
         console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
         onCreateNotebook();
+      }
+      
+      // Forzar actualización de categorías
+      if (onRefreshCategories) {
+        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        onRefreshCategories();
       }
       
     } catch (error) {
@@ -305,6 +329,50 @@ const NotebookList: React.FC<NotebookListProps> = ({
     }
   };
 
+  // Función para guardar una categoría en la colección de categorías
+  const saveCategoryToCollection = async (categoryName: string) => {
+    try {
+      if (!user) return;
+      
+      console.log('🔧 DEBUG - Guardando categoría en colección:', categoryName);
+      
+      // Crear un documento con el nombre de la categoría como ID
+      const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
+      
+      await setDoc(categoryRef, {
+        userId: user.uid,
+        name: categoryName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ DEBUG - Categoría guardada exitosamente en colección');
+      
+    } catch (error) {
+      console.error('❌ Error saving category to collection:', error);
+      // No lanzar error aquí para no interrumpir el flujo principal
+    }
+  };
+
+  // Función para eliminar una categoría de la colección de categorías
+  const deleteCategoryFromCollection = async (categoryName: string) => {
+    try {
+      if (!user) return;
+      
+      console.log('🔧 DEBUG - Eliminando categoría de colección:', categoryName);
+      
+      const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
+      
+      await deleteDoc(categoryRef);
+      
+      console.log('✅ DEBUG - Categoría eliminada exitosamente de colección');
+      
+    } catch (error) {
+      console.error('❌ Error deleting category from collection:', error);
+      // No lanzar error aquí para no interrumpir el flujo principal
+    }
+  };
+
   // Función para manejar la selección de cuadernos
   const handleNotebookSelection = (notebookId: string) => {
     setSelectedNotebooks(prev => {
@@ -330,7 +398,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     if (e.key === 'Enter') {
       handleCreateCategory(e as any);
     } else if (e.key === 'Escape') {
-      setShowCategoryModal(false);
+      handleCloseCategoryModal();
       setNewCategoryName('');
       setSelectedNotebooks([]);
       setErrorMessage('');
@@ -369,28 +437,152 @@ const NotebookList: React.FC<NotebookListProps> = ({
     };
   }, [showCreateModal]);
 
-  // Función para alternar la expansión de una categoría
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
+  // Función para cerrar el modal de categoría
+  const handleCloseCategoryModal = () => {
+    if (onCloseCategoryModal) {
+      onCloseCategoryModal();
+    }
+  };
+
+  const handleDeleteCategory = async (category: string) => {
+    // Mostrar modal de confirmación
+    setCategoryToDelete(category);
+    setShowDeleteCategoryModal(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    const category = categoryToDelete;
+    
+    try {
+      setIsSubmitting(true);
       
-      // Si la categoría ya está expandida, la cerramos
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        // Si se está expandiendo una nueva categoría, cerramos todas las demás
-        newSet.clear();
-        newSet.add(category);
+      // Eliminar la categoría de todos los cuadernos que la tienen
+      const notebooksToUpdate = notebooksBySelectedCategory;
+      
+      for (const notebook of notebooksToUpdate) {
+        try {
+          await updateNotebookCategory(notebook.id, '');
+          console.log(`✅ Categoría eliminada del cuaderno: ${notebook.title}`);
+        } catch (error) {
+          console.error(`❌ Error eliminando categoría del cuaderno ${notebook.title}:`, error);
+        }
       }
       
-      console.log('🔍 DEBUG - Toggling category:', category, 'New expanded categories:', Array.from(newSet));
-      return newSet;
+      // Mostrar mensaje de éxito
+      alert(`Categoría "${category}" eliminada exitosamente de ${notebooksToUpdate.length} cuaderno(s).`);
+      
+      // Eliminar la categoría de la colección de categorías
+      await deleteCategoryFromCollection(category);
+      
+      // Cerrar modal
+      setShowDeleteCategoryModal(false);
+      setCategoryToDelete('');
+      
+      // Limpiar la categoría seleccionada para que desaparezca de la interfaz
+      if (onClearSelectedCategory) {
+        onClearSelectedCategory();
+      }
+      
+      // Forzar actualización de la lista de cuadernos
+      if (onCreateNotebook) {
+        console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
+        onCreateNotebook();
+      }
+      
+      // Forzar actualización de categorías
+      if (onRefreshCategories) {
+        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        onRefreshCategories();
+      }
+      
+    } catch (error) {
+      console.error("❌ Error eliminando categoría:", error);
+      alert('Error al eliminar la categoría. Por favor, intenta de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const cancelDeleteCategory = () => {
+    setShowDeleteCategoryModal(false);
+    setCategoryToDelete('');
+  };
+
+  const handleOpenAddNotebookModal = (category: string) => {
+    setCategoryToAddNotebook(category);
+    setShowAddNotebookModal(true);
+  };
+
+  const handleCloseAddNotebookModal = () => {
+    setShowAddNotebookModal(false);
+    setCategoryToAddNotebook(null);
+  };
+
+  const handleToggleNotebookToAdd = (notebookId: string) => {
+    setSelectedNotebooksToAdd(prev => {
+      if (prev.includes(notebookId)) {
+        return prev.filter(id => id !== notebookId);
+      } else {
+        return [...prev, notebookId];
+      }
     });
+  };
+
+  const handleAddNotebooksToCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (selectedNotebooksToAdd.length === 0) {
+      setErrorMessage('Por favor, selecciona al menos un cuaderno.');
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      if (!categoryToAddNotebook) return;
+      console.log('🚀 DEBUG - Cuadernos seleccionados para agregar:', selectedNotebooksToAdd);
+      
+      for (const notebookId of selectedNotebooksToAdd) {
+        await updateNotebookCategory(notebookId, categoryToAddNotebook);
+      }
+      
+      // Mostrar mensaje de éxito
+      const successMessage = selectedNotebooksToAdd.length > 0 
+        ? `Categoría "${categoryToAddNotebook}" actualizada exitosamente y ${selectedNotebooksToAdd.length} cuaderno(s) asignado(s).`
+        : `Categoría "${categoryToAddNotebook}" actualizada exitosamente.`;
+      
+      console.log('🎉 DEBUG - Mensaje de éxito:', successMessage);
+      alert(successMessage);
+      
+      // Limpiar formulario
+      setSelectedNotebooksToAdd([]);
+      handleCloseAddNotebookModal();
+      
+      // Forzar actualización de la lista de cuadernos
+      if (onCreateNotebook) {
+        console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
+        onCreateNotebook();
+      }
+      
+      // Forzar actualización de categorías
+      if (onRefreshCategories) {
+        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        onRefreshCategories();
+      }
+      
+    } catch (error) {
+      console.error("❌ Error actualizando categoría:", error);
+      setErrorMessage('Error al actualizar la categoría. Por favor, intenta de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <>
-      {/* Botón de crear cuaderno, crear categoría, y buscador */}
+      {/* Botón de crear cuaderno y buscador */}
       <div className="notebook-actions-container">
         <div 
           className="notebook-item create-notebook-card"
@@ -399,16 +591,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
           <div className="create-notebook-content">
             <div className="create-notebook-icon">+</div>
             <span className="create-notebook-text">Crear nuevo cuaderno</span>
-          </div>
-        </div>
-        
-        <div 
-          className="notebook-item create-notebook-card"
-          onClick={() => setShowCategoryModal(true)}
-        >
-          <div className="create-notebook-content">
-            <div className="create-notebook-icon">📁</div>
-            <span className="create-notebook-text">Crear categoría</span>
           </div>
         </div>
         
@@ -426,93 +608,32 @@ const NotebookList: React.FC<NotebookListProps> = ({
         </div>
       </div>
 
-      {/* Módulos de categorías - SIEMPRE mostrar si hay categorías */}
-      {(() => {
-        const hasCategories = Object.keys(groupedByCategory).length > 0;
-        console.log('🔍 DEBUG - Renderizando módulos de categorías:', {
-          hasCategories,
-          categoriesCount: Object.keys(groupedByCategory).length,
-          categories: Object.keys(groupedByCategory),
-          groupedData: groupedByCategory
-        });
-        return hasCategories;
-      })() && (
+      {/* Subsección de categoría seleccionada o todos los cuadernos */}
+      {notebooksBySelectedCategory.length > 0 && (
         <div className="categories-section">
-          <h3 className="categories-section-title">Categorías</h3>
-          <div className="categories-grid">
-            {Object.entries(groupedByCategory).map(([category, categoryNotebooks]) => {
-              console.log('🔍 DEBUG - Rendering category:', category, 'with', categoryNotebooks.length, 'notebooks');
-              return (
-                <div key={category} className="category-module">
-                  <div 
-                    className="category-module-header"
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <div className="category-module-title">
-                      <span className="category-name">{category}</span>
-                      <span className="category-count">({categoryNotebooks.length} cuaderno{categoryNotebooks.length !== 1 ? 's' : ''})</span>
-                    </div>
-                    <div className={`category-expand-icon ${expandedCategories.has(category) ? 'expanded' : ''}`}>
-                      <i className="fas fa-chevron-down"></i>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Categorías expandidas - debajo de todas las categorías */}
-      {Object.keys(groupedByCategory).length > 0 && Array.from(expandedCategories).length > 0 && (
-        <div className="expanded-categories-section">
-          {Array.from(expandedCategories).map(category => {
-            const categoryNotebooks = groupedByCategory[category] || [];
-            return (
-              <div key={category} className="expanded-category-container">
-                <div className="expanded-category-header">
-                  <h4 className="expanded-category-title">
-                    {category} ({categoryNotebooks.length} cuaderno{categoryNotebooks.length !== 1 ? 's' : ''})
-                  </h4>
-                  <button 
-                    className="close-expanded-category"
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-                <div className="expanded-category-notebooks">
-                  <div className="expanded-notebooks-grid">
-                    {categoryNotebooks.map(notebook => (
-                      <NotebookItem
-                        key={notebook.id}
-                        id={notebook.id}
-                        title={notebook.title}
-                        color={notebook.color}
-                        category={notebook.category}
-                        onDelete={onDeleteNotebook}
-                        onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
-                        onColorChange={onColorChange}
-                        showActions={openActionsId === notebook.id}
-                        onToggleActions={handleToggleActions}
-                        isSchoolNotebook={isSchoolTeacher}
-                        onAddConcept={onAddConcept}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Todos mis cuadernos - SIEMPRE mostrar todos los cuadernos */}
-      {filteredNotebooks.length > 0 && (
-        <div className="categories-section">
-          <h3 className="categories-section-title">Todos mis cuadernos</h3>
+          {selectedCategory && (
+            <div className="category-header-with-actions">
+              <h3 className="categories-section-title">
+                {selectedCategory} ({notebooksBySelectedCategory.length} cuaderno{notebooksBySelectedCategory.length !== 1 ? 's' : ''})
+              </h3>
+              <button 
+                className="add-notebook-to-category-button"
+                onClick={() => handleOpenAddNotebookModal(selectedCategory)}
+                title="Agregar cuaderno a esta categoría"
+              >
+                <i className="fas fa-plus"></i>
+              </button>
+              <button 
+                className="delete-category-button"
+                onClick={() => handleDeleteCategory(selectedCategory)}
+                title="Eliminar categoría"
+              >
+                <i className="fas fa-trash"></i>
+              </button>
+            </div>
+          )}
           <div className="notebook-grid" ref={notebookListRef}>
-            {filteredNotebooks.map(notebook => (
+            {notebooksBySelectedCategory.map(notebook => (
               <NotebookItem
                 key={notebook.id}
                 id={notebook.id}
@@ -528,6 +649,32 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onAddConcept={onAddConcept}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mostrar mensaje si no hay cuadernos en la categoría seleccionada */}
+      {selectedCategory && notebooksBySelectedCategory.length === 0 && (
+        <div className="categories-section">
+          <div className="category-header-with-actions">
+            <h3 className="categories-section-title">{selectedCategory}</h3>
+            <button 
+              className="add-notebook-to-category-button"
+              onClick={() => handleOpenAddNotebookModal(selectedCategory)}
+              title="Agregar cuaderno a esta categoría"
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+            <button 
+              className="delete-category-button"
+              onClick={() => handleDeleteCategory(selectedCategory)}
+              title="Eliminar categoría"
+            >
+              <i className="fas fa-trash"></i>
+            </button>
+          </div>
+          <div className="empty-category-message">
+            <p>No hay cuadernos en la categoría "{selectedCategory}"</p>
           </div>
         </div>
       )}
@@ -551,25 +698,29 @@ const NotebookList: React.FC<NotebookListProps> = ({
             </div>
             <form onSubmit={handleCreateNotebook} className="modal-body">
               <div className="form-group">
+                <label htmlFor="notebookTitle">Nombre del cuaderno</label>
                 <input
+                  id="notebookTitle"
                   type="text"
                   value={newNotebookTitle}
                   onChange={handleTitleChange}
                   onKeyDown={handleKeyPress}
-                  placeholder="Ingresa el nombre del cuaderno"
+                  placeholder="Ej: Matemáticas, Historia, etc."
                   className="form-control"
                   autoFocus
                   required
                   disabled={isSubmitting}
                 />
-                {/* Mensaje de error con símbolo de cuidado */}
-                {errorMessage && (
-                  <div className="error-message">
-                    <span className="error-icon">⚠️</span>
-                    <span className="error-text">{errorMessage}</span>
-                  </div>
-                )}
               </div>
+              
+              {/* Mensaje de error */}
+              {errorMessage && (
+                <div className="error-message">
+                  <span className="error-icon">⚠️</span>
+                  <span className="error-text">{errorMessage}</span>
+                </div>
+              )}
+
               <div className="modal-footer">
                 <button
                   type="button"
@@ -598,14 +749,14 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
       {/* Modal para crear nueva categoría */}
       {showCategoryModal && (
-        <div className="modal-overlay" onClick={() => setShowCategoryModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseCategoryModal}>
           <div className="modal-content create-category-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Crear nueva categoría</h3>
               <button 
                 className="close-button" 
                 onClick={() => {
-                  setShowCategoryModal(false);
+                  handleCloseCategoryModal();
                   setNewCategoryName('');
                   setSelectedNotebooks([]);
                   setErrorMessage('');
@@ -684,7 +835,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   type="button"
                   className="cancel-button"
                   onClick={() => {
-                    setShowCategoryModal(false);
+                    handleCloseCategoryModal();
                     setNewCategoryName('');
                     setSelectedNotebooks([]);
                     setErrorMessage('');
@@ -700,6 +851,84 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 >
                   {isSubmitting ? 'Creando...' : 'Crear categoría'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar categoría */}
+      {showDeleteCategoryModal && (
+        <div className="modal-overlay" onClick={cancelDeleteCategory}>
+          <div className="modal-content confirm-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirmar eliminación</h3>
+              <button 
+                className="close-button" 
+                onClick={cancelDeleteCategory}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>¿Estás seguro de que quieres eliminar la categoría "{categoryToDelete}"?</p>
+              <p>Esta acción eliminará la categoría de {notebooksBySelectedCategory.length} cuaderno(s) pero NO eliminará los cuadernos en sí.</p>
+              <p>Los cuadernos quedarán sin categoría.</p>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={cancelDeleteCategory}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="delete-button"
+                onClick={confirmDeleteCategory}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para agregar cuadernos a la categoría */}
+      {showAddNotebookModal && categoryToAddNotebook && (
+        <div className="modal-overlay" onClick={handleCloseAddNotebookModal}>
+          <div className="modal-content create-notebook-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Agregar cuadernos a "{categoryToAddNotebook}"</h3>
+              <button className="close-button" onClick={handleCloseAddNotebookModal}>×</button>
+            </div>
+            <form onSubmit={e => handleAddNotebooksToCategory(e)} className="modal-body">
+              <div className="form-group">
+                <label>Selecciona los cuadernos sin categoría:</label>
+                <div className="notebook-selection-list">
+                  {uncategorizedNotebooks.length === 0 ? (
+                    <div className="empty-category-message">
+                      <p>No hay cuadernos sin categoría.</p>
+                    </div>
+                  ) : (
+                    uncategorizedNotebooks.map(notebook => (
+                      <div key={notebook.id} className={`notebook-selection-item ${selectedNotebooksToAdd.includes(notebook.id) ? 'selected' : ''}`}
+                        onClick={() => handleToggleNotebookToAdd(notebook.id)}>
+                        <input
+                          type="checkbox"
+                          checked={selectedNotebooksToAdd.includes(notebook.id)}
+                          onChange={() => handleToggleNotebookToAdd(notebook.id)}
+                        />
+                        <span className="notebook-title">{notebook.title}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="cancel-button" onClick={handleCloseAddNotebookModal}>Cancelar</button>
+                <button type="submit" className="create-button" disabled={selectedNotebooksToAdd.length === 0}>Agregar</button>
               </div>
             </form>
           </div>
