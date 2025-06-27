@@ -80,6 +80,9 @@ const Notebooks: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const personalizationRef = useRef<HTMLDivElement>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -132,10 +135,14 @@ const Notebooks: React.FC = () => {
 
   const handleCreate = async () => {
     console.log("Notebook created successfully");
+    // Forzar actualización de categorías
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleDelete = (id: string) => {
     console.log(`Notebook with id ${id} deleted successfully`);
+    // Forzar actualización de categorías
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleEdit = async (id: string, newTitle: string) => {
@@ -146,7 +153,8 @@ const Notebooks: React.FC = () => {
       console.log('Llamando a updateNotebook...');
       await updateNotebook(id, newTitle, user.uid);
       console.log("Título actualizado en Firestore");
-      // Actualiza el estado local si es necesario
+      // Forzar actualización de categorías
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error("Error actualizando el título:", error);
       console.error("Tipo de error:", typeof error);
@@ -331,6 +339,18 @@ const Notebooks: React.FC = () => {
     setIsUpgradeModalOpen(false);
   };
 
+  const handleCategorySelect = (category: string | null) => {
+    setSelectedCategory(category);
+  };
+
+  const handleCreateCategory = () => {
+    setShowCategoryModal(true);
+  };
+
+  const handleClearSelectedCategory = () => {
+    setSelectedCategory(null);
+  };
+
   // Determine which notebooks to use based on user type
   const effectiveNotebooks = isSchoolStudent ? 
     (schoolNotebooks || []).map(notebook => ({
@@ -373,7 +393,12 @@ const Notebooks: React.FC = () => {
           {/* Nuevo componente de racha */}
           <StreakTracker />
           <DaysWithIntelligentStudy />
-          <CategoryDropdown />
+          <CategoryDropdown 
+            onCategorySelect={handleCategorySelect}
+            selectedCategory={selectedCategory}
+            onCreateCategory={handleCreateCategory}
+            refreshTrigger={refreshTrigger}
+          />
         </div>
         <div className="notebooks-list-section">
           <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
@@ -403,6 +428,11 @@ const Notebooks: React.FC = () => {
             onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
             showCreateButton={!isSchoolStudent}
             isSchoolTeacher={false} // School students should navigate to regular routes, not school routes
+            selectedCategory={selectedCategory}
+            showCategoryModal={showCategoryModal}
+            onCloseCategoryModal={() => setShowCategoryModal(false)}
+            onClearSelectedCategory={handleClearSelectedCategory}
+            onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
           />
         </div>
       </main>

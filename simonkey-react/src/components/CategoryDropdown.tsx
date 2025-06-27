@@ -10,11 +10,23 @@ interface Notebook {
   color?: string;
 }
 
-const CategoryDropdown: React.FC = () => {
+interface CategoryDropdownProps {
+  onCategorySelect?: (category: string | null) => void;
+  selectedCategory?: string | null;
+  onCreateCategory?: () => void;
+  refreshTrigger?: number;
+}
+
+const CategoryDropdown: React.FC<CategoryDropdownProps> = ({ 
+  onCategorySelect, 
+  selectedCategory,
+  onCreateCategory,
+  refreshTrigger
+}) => {
   const [user] = useAuthState(auth);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   // Función para obtener todos los cuadernos del usuario
   const fetchNotebooks = async (userId: string): Promise<Notebook[]> => {
@@ -45,6 +57,33 @@ const CategoryDropdown: React.FC = () => {
     }
   };
 
+  // Función para obtener todas las categorías del usuario
+  const fetchCategories = async (userId: string): Promise<string[]> => {
+    try {
+      const categoriesQuery = query(
+        collection(db, 'categories'),
+        where('userId', '==', userId)
+      );
+      
+      const categoriesSnapshot = await getDocs(categoriesQuery);
+      const categoriesData: string[] = [];
+      
+      categoriesSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.name) {
+          categoriesData.push(data.name);
+        }
+      });
+      
+      return categoriesData;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // En caso de error de permisos, retornar array vacío para continuar funcionando
+      // Las categorías se seguirán mostrando desde los cuadernos
+      return [];
+    }
+  };
+
   // Agrupar cuadernos por categoría
   const groupedByCategory = notebooks.reduce((acc, notebook) => {
     const category = notebook.category || 'Sin categoría';
@@ -55,26 +94,41 @@ const CategoryDropdown: React.FC = () => {
     return acc;
   }, {} as Record<string, Notebook[]>);
 
-  // Obtener categorías únicas (excluyendo "Sin categoría" si está vacía)
-  const categories = Object.entries(groupedByCategory)
-    .filter(([category, notebooks]) => {
-      // Incluir "Sin categoría" solo si tiene cuadernos
-      if (category === 'Sin categoría') {
-        return notebooks.length > 0;
-      }
-      return true;
+  // Obtener todas las categorías únicas (incluyendo las vacías)
+  const allCategories = new Set<string>();
+  
+  // Agregar todas las categorías de los cuadernos
+  notebooks.forEach(notebook => {
+    if (notebook.category && notebook.category.trim() !== '') {
+      allCategories.add(notebook.category);
+    }
+  });
+
+  // Agregar todas las categorías de la colección de categorías
+  categories.forEach(categoryName => {
+    if (categoryName && categoryName.trim() !== '') {
+      allCategories.add(categoryName);
+    }
+  });
+
+  // Crear la lista de categorías con sus conteos
+  const categoriesList = Array.from(allCategories)
+    .map(categoryName => {
+      const categoryNotebooks = groupedByCategory[categoryName] || [];
+      return {
+        name: categoryName,
+        count: categoryNotebooks.length
+      };
     })
-    .map(([category, notebooks]) => ({
-      name: category,
-      count: notebooks.length,
-      notebooks
-    }))
-    .sort((a, b) => {
-      // "Sin categoría" al final
-      if (a.name === 'Sin categoría') return 1;
-      if (b.name === 'Sin categoría') return -1;
-      return a.name.localeCompare(b.name);
-    });
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filtrar para mostrar solo categorías con cuadernos (excluir "Sin categoría" si no tiene cuadernos)
+  const visibleCategories = categoriesList.filter(category => {
+    if (category.name === 'Sin categoría') {
+      return category.count > 0; // Solo mostrar "Sin categoría" si tiene cuadernos
+    }
+    return true; // Mostrar todas las demás categorías, incluso si tienen 0 cuadernos
+  });
 
   useEffect(() => {
     const loadNotebooks = async () => {
@@ -83,7 +137,9 @@ const CategoryDropdown: React.FC = () => {
       try {
         setLoading(true);
         const notebooksData = await fetchNotebooks(user.uid);
+        const categoriesData = await fetchCategories(user.uid);
         setNotebooks(notebooksData);
+        setCategories(categoriesData);
       } catch (error) {
         console.error("Error loading notebooks:", error);
       } finally {
@@ -92,7 +148,18 @@ const CategoryDropdown: React.FC = () => {
     };
 
     loadNotebooks();
-  }, [user]);
+  }, [user, refreshTrigger]);
+
+  const handleCategoryClick = (category: string) => {
+    if (onCategorySelect) {
+      // Si se hace clic en la categoría ya seleccionada, deseleccionarla
+      if (selectedCategory === category) {
+        onCategorySelect(null);
+      } else {
+        onCategorySelect(category);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -102,48 +169,43 @@ const CategoryDropdown: React.FC = () => {
     );
   }
 
-  // Si no hay categorías, no mostrar el componente
-  if (categories.length === 0) {
-    return null;
-  }
-
   return (
     <div className="category-dropdown-tracker">
-      <div 
-        className="category-dropdown-header"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <div className="category-dropdown-header">
         <h2>Categorías</h2>
-        <div className={`category-dropdown-icon ${isExpanded ? 'expanded' : ''}`}>
-          <i className="fas fa-chevron-down"></i>
-        </div>
+        {onCreateCategory && (
+          <button 
+            className="category-create-button"
+            onClick={onCreateCategory}
+            title="Crear nueva categoría"
+          >
+            <i className="fas fa-plus"></i>
+          </button>
+        )}
       </div>
       
-      {isExpanded && (
-        <div className="category-dropdown-content">
-          {categories.map((category) => (
-            <div key={category.name} className="category-dropdown-item">
-              <div className="category-dropdown-item-header">
-                <span className="category-dropdown-name">{category.name}</span>
-                <span className="category-dropdown-count">({category.count})</span>
+      <div className="category-dropdown-content">
+        {visibleCategories.length === 0 ? (
+          <div className="no-categories-message">
+            <p>Sin categorías creadas</p>
+          </div>
+        ) : (
+          <>
+            {visibleCategories.map((category) => (
+              <div 
+                key={category.name} 
+                className={`category-dropdown-item ${selectedCategory === category.name ? 'selected' : ''}`}
+                onClick={() => handleCategoryClick(category.name)}
+              >
+                <div className="category-dropdown-item-header">
+                  <span className="category-dropdown-name">{category.name}</span>
+                  <span className="category-dropdown-count">({category.count})</span>
+                </div>
               </div>
-              <div className="category-dropdown-notebooks">
-                {category.notebooks.map((notebook) => (
-                  <div 
-                    key={notebook.id} 
-                    className="category-dropdown-notebook"
-                    style={{ borderLeftColor: notebook.color }}
-                  >
-                    <span className="category-dropdown-notebook-title">
-                      {notebook.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 };

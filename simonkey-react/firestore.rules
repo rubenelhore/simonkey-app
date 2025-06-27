@@ -116,6 +116,24 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
     }
     
+    // ========== CATEGORIES COLLECTION ==========
+    match /categories/{categoryId} {
+      // Read: Owner or super admin
+      allow read: if isSignedIn() && 
+                    (resource.data.userId == request.auth.uid || isSuperAdmin());
+      
+      // Create: Authenticated users can create their own categories
+      allow create: if isSignedIn() && 
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.keys().hasAll(['userId', 'name', 'createdAt']);
+      
+      // Update: Owner or super admin
+      allow update: if isOwner(resource.data.userId) || isSuperAdmin();
+      
+      // Delete: Owner or super admin
+      allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
+    }
+    
     // ========== CONCEPTOS COLLECTION ==========
     match /conceptos/{conceptId} {
       // Read: Owner of the notebook or super admin
