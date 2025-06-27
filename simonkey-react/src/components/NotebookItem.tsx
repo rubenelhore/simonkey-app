@@ -7,6 +7,7 @@ interface NotebookItemProps {
   id: string;
   title: string;
   color?: string; // Nuevo prop para el color
+  category?: string; // Nuevo prop para la categoría
   onDelete?: (id: string) => void; // Made optional for school students
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
@@ -16,7 +17,7 @@ interface NotebookItemProps {
   onAddConcept?: (id: string) => void; // Nueva función para agregar conceptos
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);

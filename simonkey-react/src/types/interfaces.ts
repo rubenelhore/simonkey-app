@@ -175,6 +175,7 @@ export interface Notebook {
   id: string;
   title: string;
   color: string;
+  category?: string; // Nueva categoría para agrupar cuadernos
   userId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

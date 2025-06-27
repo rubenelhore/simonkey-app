@@ -8,10 +8,12 @@ interface Notebook {
   title: string;
   userId: string;
   createdAt: Date;
+  color?: string;
+  category?: string;
 }
 
 // Create a new notebook
-export const createNotebook = async (userId: string, title: string, color: string = '#6147FF') => {
+export const createNotebook = async (userId: string, title: string, color: string = '#6147FF', category?: string) => {
   // Verificar si el usuario puede crear un nuevo cuaderno
   const canCreate = await canCreateNotebook(userId);
   
@@ -34,6 +36,7 @@ export const createNotebook = async (userId: string, title: string, color: strin
     title,
     userId,
     color,
+    category: category || '', // Incluir categoría (vacía si no se proporciona)
     createdAt: serverTimestamp(), // Usar serverTimestamp para mejor consistencia
   };
   

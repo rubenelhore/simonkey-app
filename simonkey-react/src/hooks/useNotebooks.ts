@@ -37,6 +37,19 @@ export const useNotebooks = () => {
         })) as Notebook[];
         
         console.log('📚 Cuadernos cargados:', notebooksList.length, 'cuadernos');
+        console.log('🔍 DEBUG - Datos completos de cuadernos:', notebooksList);
+        console.log('🔍 DEBUG - Cuadernos con categoría:', notebooksList.filter(n => n.category && n.category.trim() !== ''));
+        console.log('🔍 DEBUG - Cuadernos sin categoría:', notebooksList.filter(n => !n.category || n.category.trim() === ''));
+        
+        // Log detallado de cada cuaderno con categoría
+        notebooksList.forEach((notebook, index) => {
+          if (notebook.category && notebook.category.trim() !== '') {
+            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): categoría = "${notebook.category}"`);
+          } else {
+            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): sin categoría`);
+          }
+        });
+        
         setNotebooks(notebooksList);
         setLoading(false);
       },

@@ -380,6 +380,7 @@ const Notebooks: React.FC = () => {
               id: notebook.id,
               title: notebook.title,
               color: notebook.color,
+              category: notebook.category,
               userId: notebook.userId || user?.uid || '',
               createdAt: notebook.createdAt instanceof Date ? 
                 notebook.createdAt : 
