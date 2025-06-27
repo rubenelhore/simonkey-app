@@ -1,301 +1,251 @@
 rules_version = '2';
+
+// Reglas para la base de datos principal (default)
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ========== HELPER FUNCTIONS ==========
-    
-    // Check if user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    // Get user document (with safe fallback for new users)
-    function getUserData() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
-    }
-    
-    // Check if user is super admin
+    // Función auxiliar para verificar si el usuario es Super Admin
     function isSuperAdmin() {
-      return isSignedIn() && getUserData() != null && getUserData().subscription == 'SUPER_ADMIN';
+      return request.auth != null && 
+             request.auth.token.email in ['ruben.elhore@gmail.com', 'simon.elhore@gmail.com'];
     }
     
-    // Check if user owns the resource
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    // Función auxiliar para obtener datos del usuario autenticado
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    // Check user subscription type (with fallback for new users)
-    function hasSubscription(subscriptionType) {
-      return isSignedIn() && getUserData() != null && getUserData().subscription == subscriptionType;
+    // Función para verificar si es usuario escolar
+    function isSchoolUser() {
+      return request.auth != null && 
+             getUserData().subscription == 'school';
     }
     
-    // Check if user has school role (with fallback for new users)
-    function hasSchoolRole(role) {
-      return isSignedIn() && getUserData() != null && getUserData().subscription == 'SCHOOL' && getUserData().schoolRole == role;
+    // Función para verificar si es profesor
+    function isTeacher() {
+      return request.auth != null && 
+             getUserData().subscription == 'school' &&
+             getUserData().schoolRole == 'teacher';
     }
     
-    // Check if notebook is shared publicly
-    function isSharedNotebook(notebookId) {
-      return exists(/databases/$(database)/documents/notebooks/$(notebookId)) && 
-             get(/databases/$(database)/documents/notebooks/$(notebookId)).data.shareId != null;
+    // Función para verificar si es estudiante
+    function isStudent() {
+      return request.auth != null && 
+             getUserData().subscription == 'school' &&
+             getUserData().schoolRole == 'student';
     }
     
-    // ========== USERS COLLECTION ==========
+    // ========== USUARIOS ==========
     match /users/{userId} {
-      // Read: User can read their own data, super admin can read any
-      allow read: if isOwner(userId) || isSuperAdmin();
+      // Super Admin puede leer todos los usuarios
+      allow read: if request.auth != null && 
+                    (request.auth.uid == userId || isSuperAdmin());
       
-      // Create: Allow users to create their own profile during signup
-      allow create: if isOwner(userId) && 
-                      request.resource.data.email != null &&
-                      request.resource.data.subscription in ['FREE', 'PRO', 'SCHOOL', 'SUPER_ADMIN'];
+      // Permitir creación si está autenticado y el ID coincide
+      allow create: if request.auth != null && request.auth.uid == userId;
       
-      // Update: User can update their own profile (including all fields for first-time setup)
-      allow update: if isOwner(userId) || isSuperAdmin();
+      // Permitir actualización si es el propietario o Super Admin
+      allow update: if request.auth != null && 
+                      (request.auth.uid == userId || isSuperAdmin());
       
-      // Delete: Only super admin
-      allow delete: if isSuperAdmin();
+      // Permitir eliminación solo a Super Admin
+      allow delete: if request.auth != null && isSuperAdmin();
       
-      // ========== USER SUBCOLLECTIONS ==========
-      
-      // Learning Data
-      match /learningData/{conceptId} {
-        allow read, write: if isOwner(userId);
+      // Subcolecciones del usuario
+      match /{subcollection}/{document} {
+        allow read, write: if request.auth != null && 
+                            (request.auth.uid == userId || isSuperAdmin());
       }
       
-      // Notebook Limits
-      match /notebookLimits/{notebookId} {
-        allow read: if isOwner(userId);
-        allow write: if isOwner(userId) || isSuperAdmin();
-      }
-      
-      // Quiz Results
-      match /quizResults/{resultId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update, delete: if false; // Results are immutable
-      }
-      
-      // Stats
-      match /stats/{statId} {
-        allow read: if isOwner(userId);
-        allow write: if isOwner(userId);
-      }
-      
-      // Settings
-      match /settings/{settingId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      // Limits
-      match /limits/{limitId} {
-        allow read: if isOwner(userId);
-        allow write: if isOwner(userId) || isSuperAdmin();
+      // Permitir a Cloud Functions actualizar el uso de Gemini
+      match /geminiUsage/{date} {
+        allow read: if request.auth != null && 
+                      (request.auth.uid == userId || isSuperAdmin());
+        allow write: if request.auth != null && 
+                       (request.auth.uid == userId || isSuperAdmin() || 
+                        request.auth.token.firebase.sign_in_provider == 'firebase-functions');
       }
     }
     
-    // ========== NOTEBOOKS COLLECTION ==========
-    match /notebooks/{notebookId} {
-      // Read: Owner, super admin, or publicly shared
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
-                    isSuperAdmin() ||
-                    (resource.data.shareId != null); // Public sharing
-      
-      // Create: Authenticated users with proper limits
-      allow create: if isSignedIn() && 
-                      request.resource.data.userId == request.auth.uid &&
-                      request.resource.data.keys().hasAll(['title', 'color', 'userId', 'createdAt']);
-      
-      // Update: Owner or super admin
-      allow update: if (isOwner(resource.data.userId) && 
-                       request.resource.data.userId == resource.data.userId) || // Can't change owner
-                      isSuperAdmin();
-      
-      // Delete: Owner or super admin
-      allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
+    // Para búsqueda de usuarios por email (necesario para checkUserExistsByEmail)
+    match /users/{userId} {
+      allow read: if request.auth != null;
     }
     
-    // ========== CATEGORIES COLLECTION ==========
-    match /categories/{categoryId} {
-      // Read: Owner or super admin
-      allow read: if isSignedIn() && 
-                    (resource.data.userId == request.auth.uid || isSuperAdmin());
-      
-      // Create: Authenticated users can create their own categories
-      allow create: if isSignedIn() && 
-                      request.resource.data.userId == request.auth.uid &&
-                      request.resource.data.keys().hasAll(['userId', 'name', 'createdAt']);
-      
-      // Update: Owner or super admin
-      allow update: if isOwner(resource.data.userId) || isSuperAdmin();
-      
-      // Delete: Owner or super admin
-      allow delete: if isOwner(resource.data.userId) || isSuperAdmin();
-    }
-    
-    // ========== CONCEPTOS COLLECTION ==========
-    match /conceptos/{conceptId} {
-      // Read: Owner of the notebook or super admin
-      allow read: if isSignedIn() && 
-                    (resource.data.usuarioId == request.auth.uid ||
-                     isSuperAdmin() ||
-                     isSharedNotebook(resource.data.cuadernoId));
-      
-      // Create: Owner of the notebook
-      allow create: if isSignedIn() && 
-                      request.resource.data.usuarioId == request.auth.uid &&
-                      exists(/databases/$(database)/documents/notebooks/$(request.resource.data.cuadernoId)) &&
-                      get(/databases/$(database)/documents/notebooks/$(request.resource.data.cuadernoId)).data.userId == request.auth.uid;
-      
-      // Update: Owner only
-      allow update: if isOwner(resource.data.usuarioId) &&
-                      request.resource.data.usuarioId == resource.data.usuarioId; // Can't change owner
-      
-      // Delete: Owner or super admin
-      allow delete: if isOwner(resource.data.usuarioId) || isSuperAdmin();
-    }
-    
-    // ========== SCHOOL COLLECTIONS ==========
-    
-    // School Students - More permissive for development
-    match /schoolStudents/{studentId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Teachers - More permissive for development
-    match /schoolTeachers/{teacherId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Admins
-    match /schoolAdmins/{adminId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Institutions
-    match /schoolInstitutions/{institutionId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Subjects
-    match /schoolSubjects/{subjectId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Notebooks
-    match /schoolNotebooks/{notebookId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Concepts
-    match /schoolConcepts/{conceptId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // School Tutors
-    match /schoolTutors/{tutorId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
-    }
-    
-    // ========== STUDY & ACTIVITY COLLECTIONS ==========
-    
-    // Study Sessions
-    match /studySessions/{sessionId} {
-      allow read: if isOwner(resource.data.userId) || isSuperAdmin();
-      allow create: if isSignedIn() && 
-                      request.resource.data.userId == request.auth.uid;
-      allow update: if isOwner(resource.data.userId);
-      allow delete: if false; // Sessions are immutable
-    }
-    
-    // Review Concepts
-    match /reviewConcepts/{reviewId} {
-      allow read, write: if isOwner(resource.data.userId) || isSuperAdmin();
-    }
-    
-    // Concept Stats
-    match /conceptStats/{statId} {
-      allow read: if isOwner(resource.data.userId) || isSuperAdmin();
-      allow write: if isOwner(resource.data.userId);
-    }
-    
-    // User Activities
-    match /userActivities/{activityId} {
-      allow read: if isOwner(resource.data.userId) || isSuperAdmin();
-      allow create: if isSignedIn() && 
-                      request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false; // Activities are immutable
-    }
-    
-    // ========== SYSTEM COLLECTIONS ==========
-    
-    // System Settings (read-only for all authenticated users)
-    match /systemSettings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-    
-    // Subscription Limits (read-only for all authenticated users)
-    match /subscriptionLimits/{limitId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-    
-    // School Role Permissions (read-only for all authenticated users)
-    match /schoolRolePermissions/{permissionId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-    
-    // User Deletions
-    match /userDeletions/{deletionId} {
-      allow read: if isSuperAdmin();
-      allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() && 
-                      request.resource.data.status in ['pending', 'processing', 'completed', 'failed'];
-      allow delete: if false;
-    }
-    
-    // System Logs
-    match /systemLogs/{logId} {
-      allow read: if isSuperAdmin();
-      allow create: if isSignedIn();
-      allow update, delete: if false; // Logs are immutable
-    }
-    
-    // ========== LEGACY COLLECTIONS ==========
-    
-    // Usuarios (Spanish version - being phased out)
+    // Para búsqueda en colección 'usuarios' si existe
     match /usuarios/{userId} {
-      allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if false; // Read-only, being migrated
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isSuperAdmin();
     }
     
-    // Activity
-    match /activity/{activityId} {
-      allow read: if isSuperAdmin();
-      allow write: if false; // Deprecated
+    // ========== STUDY SESSIONS ==========
+    match /studySessions/{sessionId} {
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      allow read, update: if request.auth != null && 
+                           (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow delete: if request.auth != null && isSuperAdmin();
     }
     
-    // Concepts Individual
-    match /concepts_individual/{conceptId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Deprecated
+    // ========== USER STATS ==========
+    match /userStats/{userId} {
+      allow read, write: if request.auth != null && 
+                          (request.auth.uid == userId || isSuperAdmin());
     }
     
-    // ========== DEFAULT DENY ==========
-    // Deny all other access
+    // ========== QUIZ RESULTS ==========
+    match /quizResults/{resultId} {
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow update, delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== CONFIGURACIONES DEL SISTEMA ==========
+    match /systemSettings/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /subscriptionLimits/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolRolePermissions/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== NOTEBOOKS ==========
+    match /notebooks/{notebookId} {
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.uid || 
+                     resource.data.shareId != null || 
+                     isSuperAdmin());
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+    
+    // ========== CONCEPTOS ==========
+    match /conceptos/{conceptId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                      request.resource.data.usuarioId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              (resource.data.usuarioId == request.auth.uid || isSuperAdmin());
+    }
+    
+    // ========== COLECCIONES ESCOLARES ==========
+    match /schoolStudents/{document} {
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow write: if request.auth != null && (isTeacher() || isSuperAdmin());
+    }
+    
+    match /schoolTeachers/{document} {
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolNotebooks/{document} {
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isTeacher();
+      allow update: if request.auth != null && (isTeacher() || isSuperAdmin());
+      allow delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolConcepts/{document} {
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isTeacher();
+      allow update: if request.auth != null && (isTeacher() || isSuperAdmin());
+      allow delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolSubjects/{document} {
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow write: if request.auth != null && (isTeacher() || isSuperAdmin());
+    }
+    
+    // ========== LINKED ACCOUNTS (para verificación de cuentas vinculadas) ==========
+    match /linkedAccounts/{document} {
+      allow read: if request.auth != null && isSuperAdmin();
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== COLLECTIONS TEMPORALES PARA TESTS ==========
+    match /test/{document} {
+      allow read, write: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== COLECCIONES ESCOLARES ADICIONALES ==========
+    match /schoolInstitutions/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolAdmins/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    match /schoolTutors/{document} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== SESIONES DE ESTUDIO ==========
+    match /studySessions/{sessionId} {
+      allow create: if request.auth != null && 
+                      (request.resource.data.userId == request.auth.uid || 
+                       request.resource.data.userId == 'student_' + request.auth.uid);
+      allow read, update: if request.auth != null && 
+                           (resource.data.userId == request.auth.uid || 
+                            resource.data.userId == 'student_' + request.auth.uid || 
+                            isSuperAdmin());
+      allow delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== LEARNING DATA (Datos de aprendizaje SM-3) ==========
+    match /learningData/{userId}/concepts/{conceptId} {
+      allow read, write: if request.auth != null && 
+                          (userId == request.auth.uid || userId == 'student_' + request.auth.uid || isSuperAdmin());
+    }
+    
+    // ========== LEARNING DATA dentro de users (para estudiantes) ==========
+    match /users/{userId}/learningData/{conceptId} {
+      allow read, write: if request.auth != null && 
+                          (userId == request.auth.uid || userId == 'student_' + request.auth.uid || isSuperAdmin());
+    }
+    
+    // ========== USER ACTIVITIES ==========
+    match /userActivities/{activityId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && 
+                    (resource.data.userId == request.auth.uid || 
+                     resource.data.userId == 'student_' + request.auth.uid || 
+                     isSuperAdmin());
+      allow update, delete: if request.auth != null && isSuperAdmin();
+    }
+    
+    // ========== NOTEBOOK LIMITS ==========
+    match /users/{userId}/notebookLimits/{notebookId} {
+      allow read, write: if request.auth != null && 
+                          (userId == request.auth.uid || userId == 'student_' + request.auth.uid || isSuperAdmin());
+    }
+    
+    // ========== USER STATS ==========
+    match /users/{userId}/stats/{statType} {
+      allow read, write: if request.auth != null && 
+                          (userId == request.auth.uid || userId == 'student_' + request.auth.uid || isSuperAdmin());
+    }
+    
+    // Permitir a Super Admin acceso completo a cualquier colección no especificada
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if request.auth != null && isSuperAdmin();
+      allow write: if request.auth != null && isSuperAdmin();
     }
   }
 }

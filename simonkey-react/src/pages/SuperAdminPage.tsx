@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../hooks/useUserType';
-import { db, auth } from '../services/firebase';
+import { db, auth, app } from '../services/firebase';
 import { 
   collection, 
   getDocs, 
@@ -14,7 +14,9 @@ import {
   query,
   getDoc,
   setDoc,
-  where
+  where,
+  limit,
+  getFirestore
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
@@ -756,6 +758,81 @@ const SuperAdminPage: React.FC = () => {
       setSyncLoading(false);
     }
   };
+
+  // Función de diagnóstico para verificar acceso a la base de datos
+  const diagnosticarBaseDatos = async () => {
+    console.log('🔍 DIAGNÓSTICO DE BASE DE DATOS');
+    console.log('==============================');
+    
+    try {
+      // 1. Verificar configuración de Firestore
+      console.log('1. Configuración de Firestore:');
+      console.log('- db:', db);
+      console.log('- app:', db.app);
+      
+      // 2. Verificar acceso a la colección users
+      console.log('\n2. Verificando acceso a colección users...');
+      const usersQuery = query(collection(db, 'users'), limit(1));
+      const usersSnapshot = await getDocs(usersQuery);
+      console.log('✅ Acceso a users OK:', usersSnapshot.size, 'documentos');
+      
+      // 3. Verificar acceso a schoolTeachers
+      console.log('\n3. Verificando acceso a schoolTeachers...');
+      const teachersQuery = query(collection(db, 'schoolTeachers'), limit(1));
+      const teachersSnapshot = await getDocs(teachersQuery);
+      console.log('✅ Acceso a schoolTeachers OK:', teachersSnapshot.size, 'documentos');
+      
+      // 4. Verificar acceso a schoolStudents
+      console.log('\n4. Verificando acceso a schoolStudents...');
+      const studentsQuery = query(collection(db, 'schoolStudents'), limit(1));
+      const studentsSnapshot = await getDocs(studentsQuery);
+      console.log('✅ Acceso a schoolStudents OK:', studentsSnapshot.size, 'documentos');
+      
+      // 5. Verificar permisos de escritura
+      console.log('\n5. Verificando permisos de escritura...');
+      const testDocRef = doc(collection(db, 'testPermissions'));
+      await setDoc(testDocRef, {
+        test: true,
+        timestamp: serverTimestamp()
+      });
+      console.log('✅ Permisos de escritura OK');
+      
+      // Limpiar documento de prueba
+      await deleteDoc(testDocRef);
+      console.log('✅ Documento de prueba eliminado');
+      
+    } catch (error) {
+      console.log('❌ Error en diagnóstico:', error);
+      
+      // 6. Probar con base de datos por defecto
+      console.log('\n6. Probando con base de datos por defecto...');
+      try {
+        const defaultDb = getFirestore(app); // Sin especificar base de datos
+        console.log('- defaultDb:', defaultDb);
+        
+        const testDocRefDefault = doc(collection(defaultDb, 'testPermissions'));
+        await setDoc(testDocRefDefault, {
+          test: true,
+          timestamp: serverTimestamp()
+        });
+        console.log('✅ Escritura en base de datos por defecto OK');
+        
+        await deleteDoc(testDocRefDefault);
+        console.log('✅ Documento de prueba eliminado de base por defecto');
+        
+      } catch (defaultError) {
+        console.log('❌ Error con base de datos por defecto:', defaultError);
+      }
+    }
+  };
+
+  // Exponer función de diagnóstico en window
+  useEffect(() => {
+    (window as any).diagnosticarBaseDatos = diagnosticarBaseDatos;
+    return () => {
+      delete (window as any).diagnosticarBaseDatos;
+    };
+  }, []);
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {

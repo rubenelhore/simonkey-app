@@ -38,11 +38,14 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
+// Exportar la app para uso en diagnósticos
+export { app };
+
 // Exportar servicios de Firebase
 export const auth = getAuth(app);
 
-// Obtener Firestore con la base de datos específica
-export const db = getFirestore(app);
+// Obtener Firestore con la base de datos específica (misma que Cloud Functions)
+export const db = getFirestore(app, 'simonkey-general');
 
 export const storage = getStorage(app);
 

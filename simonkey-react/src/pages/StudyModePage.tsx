@@ -79,6 +79,15 @@ const StudyModePage = () => {
   // Add this state at the top level
   const [sessionReviewQueue, setSessionReviewQueue] = useState<Concept[]>([]);
   
+  // Debug effect to monitor quiz intro state
+  useEffect(() => {
+    console.log('[QUIZ DEBUG] State changed:', {
+      showQuizIntro,
+      pendingStudyMode,
+      selectedNotebook: selectedNotebook?.title || 'none'
+    });
+  }, [showQuizIntro, pendingStudyMode, selectedNotebook]);
+  
   // Add this state at the top level
   const [uniqueConceptIds, setUniqueConceptIds] = useState<Set<string>>(new Set());
   const [uniqueConceptsCount, setUniqueConceptsCount] = useState<number>(0);
@@ -284,23 +293,42 @@ const StudyModePage = () => {
   
   // Iniciar nueva sesión de estudio
   const startStudySession = async (mode?: StudyMode) => {
+    console.log('[START SESSION] startStudySession called', {
+      mode: mode,
+      selectedNotebook: selectedNotebook?.id,
+      selectedNotebookTitle: selectedNotebook?.title,
+      authUser: auth.currentUser?.uid,
+      currentShowQuizIntro: showQuizIntro
+    });
+    
     if (!auth.currentUser || !selectedNotebook) {
+      console.log('[START SESSION] Missing auth or notebook');
       showFeedback('warning', 'Por favor selecciona un cuaderno para estudiar');
       return;
     }
     
     const sessionMode = mode || studyMode;
+    console.log('[START SESSION] Using session mode:', sessionMode);
     
     // Mostrar pantalla de introducción según el modo
     if (sessionMode === StudyMode.SMART) {
+      console.log('[START SESSION] Setting up SMART study intro');
       setShowSmartStudyIntro(true);
       setPendingStudyMode(sessionMode);
       return;
     } else if (sessionMode === StudyMode.QUIZ) {
+      console.log('[START SESSION] Setting up QUIZ intro screen');
+      console.log('[START SESSION] Current showQuizIntro state:', showQuizIntro);
       setShowQuizIntro(true);
       setPendingStudyMode(sessionMode);
+      console.log('[START SESSION] Set showQuizIntro to true and pendingStudyMode to:', sessionMode);
+      // Force a re-render to ensure state is updated
+      setTimeout(() => {
+        console.log('[START SESSION] After timeout - showQuizIntro should be true');
+      }, 100);
       return;
     } else if (sessionMode === StudyMode.FREE) {
+      console.log('[START SESSION] Setting up FREE study intro');
       setShowFreeStudyIntro(true);
       setPendingStudyMode(sessionMode);
       return;
@@ -324,10 +352,18 @@ const StudyModePage = () => {
     
     // Si el modo seleccionado es QUIZ, redirigir al QuizModePage
     if (sessionMode === StudyMode.QUIZ) {
+      // Verificar que selectedNotebook existe antes de navegar
+      if (!selectedNotebook) {
+        console.error('No hay cuaderno seleccionado para el quiz');
+        showFeedback('warning', 'Por favor selecciona un cuaderno para hacer el quiz');
+        return;
+      }
+      
+      console.log('Navegando a quiz con cuaderno:', selectedNotebook.id, selectedNotebook.title);
       navigate('/quiz', { 
         state: { 
-          notebookId: selectedNotebook!.id,
-          notebookTitle: selectedNotebook!.title,
+          notebookId: selectedNotebook.id,
+          notebookTitle: selectedNotebook.title,
           skipIntro: true // Indicar que ya se mostró la introducción
         } 
       });
@@ -914,6 +950,7 @@ const StudyModePage = () => {
 
   // Renderizar introducción al Quiz
   const renderQuizIntro = () => {
+    console.log('[QUIZ] renderQuizIntro called, returning modal');
     return (
       <div className="study-intro-overlay">
         <div className="study-intro-modal">
@@ -960,7 +997,11 @@ const StudyModePage = () => {
           <div className="intro-actions">
             <button
               className="action-button secondary"
-              onClick={() => setShowQuizIntro(false)}
+              onClick={() => {
+                console.log('[QUIZ] Cancel button clicked, hiding quiz intro');
+                setShowQuizIntro(false);
+                setPendingStudyMode(null);
+              }}
             >
               <i className="fas fa-times"></i>
               Cancelar
@@ -1062,7 +1103,12 @@ const StudyModePage = () => {
       
       {/* Pantallas de introducción */}
       {showSmartStudyIntro && renderSmartStudyIntro()}
-      {showQuizIntro && renderQuizIntro()}
+      {showQuizIntro && (
+        <>
+          {console.log('[QUIZ] Rendering quiz intro screen, showQuizIntro=', showQuizIntro)}
+          {renderQuizIntro()}
+        </>
+      )}
       {showFreeStudyIntro && renderFreeStudyIntro()}
       
       {/* Contenido principal */}

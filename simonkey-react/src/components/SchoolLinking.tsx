@@ -162,7 +162,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
       resumen: {
         ...prev.resumen,
         categoria: prev.categoria,
-        especificoNombre: specificEntity?.nombre || ''
+        especificoNombre: specificEntity?.nombre || specificEntity?.titulo || specificEntity?.title || ''
       }
     }));
   };
@@ -176,7 +176,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
       vincular: linkableId,
       resumen: {
         ...prev.resumen,
-        vincularNombre: linkableEntity?.nombre || ''
+        vincularNombre: linkableEntity?.nombre || linkableEntity?.titulo || linkableEntity?.title || ''
       }
     }));
   };
@@ -344,7 +344,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
               </option>
               {entities[linkingData.categoria]?.map(entity => (
                 <option key={entity.id} value={entity.id}>
-                  {entity.nombre} - {entity.id}
+                  {entity.nombre || entity.titulo || entity.title || 'Sin nombre'} - {entity.id}
                 </option>
               ))}
             </select>
@@ -371,7 +371,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
               </option>
               {linkableEntities.map(entity => (
                 <option key={entity.id} value={entity.id}>
-                  {entity.nombre} - {entity.id}
+                  {entity.nombre || entity.titulo || entity.title || 'Sin nombre'} - {entity.id}
                 </option>
               ))}
             </select>
