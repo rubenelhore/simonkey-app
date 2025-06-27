@@ -674,7 +674,10 @@ const NotebookList: React.FC<NotebookListProps> = ({
             </button>
           </div>
           <div className="empty-category-message">
-            <p>No hay cuadernos en la categoría "{selectedCategory}"</p>
+            <p>No hay cuadernos asignados a la categoría "{selectedCategory}"</p>
+            <p className="empty-category-hint">
+              Usa el botón <strong>+</strong> en la parte superior derecha para asignar cuadernos
+            </p>
           </div>
         </div>
       )}
