@@ -56,6 +56,17 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
 
   const studyService = useStudyService(userSubscription);
 
+  // Debug prop validation
+  useEffect(() => {
+    console.log('[STUDY DASHBOARD] Component rendered with props:', {
+      hasNotebook: !!notebook,
+      notebookTitle: notebook?.title,
+      hasOnStartSession: !!onStartSession,
+      onStartSessionType: typeof onStartSession,
+      userId: userId
+    });
+  }, [notebook, onStartSession]);
+
   // Efecto para cargar datos cuando cambie el cuaderno o usuario
   useEffect(() => {
     if (notebook && userId) {
@@ -120,7 +131,9 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         // Estructura 3: conceptos con filtros
         query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId)),
         // Estructura 4: conceptos con filtros de usuario
-        query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId), where('usuarioId', '==', userId))
+        query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId), where('usuarioId', '==', userId)),
+        // Estructura 5: conceptos escolares (para usuarios escolares)
+        query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', notebookId))
       ];
       
       let conceptDocs = null;
@@ -665,7 +678,9 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   }
 
   return (
-    <div className="study-dashboard">
+    <div className="study-dashboard" onClick={(e) => {
+      console.log('[STUDY DASHBOARD] Dashboard container clicked', e.target);
+    }}>
       {/* Botón de refresh para desarrollo */}
       {process.env.NODE_ENV === 'development' && (
         <div style={{ 
@@ -686,6 +701,30 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             }}
           >
             🔄 Refresh Dashboard
+          </button>
+          
+          <button
+            onClick={() => {
+              console.log('[TEST] Test quiz button clicked');
+              if (onStartSession) {
+                console.log('[TEST] Calling onStartSession(QUIZ)');
+                onStartSession(StudyMode.QUIZ);
+              } else {
+                console.log('[TEST] onStartSession is not defined!');
+              }
+            }}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#22c55e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              marginRight: '8px'
+            }}
+          >
+            🧪 Test Quiz
           </button>
           
           <button
@@ -800,14 +839,40 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         {/* Próximo Quiz */}
         <div 
           className="dashboard-card quiz-card"
-          onClick={() => onStartSession && dashboardData.isQuizAvailable && onStartSession(StudyMode.QUIZ)}
+          onClick={(e) => {
+            console.log('[QUIZ CLICK] Quiz card clicked! Event:', e);
+            console.log('[QUIZ CLICK] Current target:', e.currentTarget);
+            console.log('[QUIZ CLICK] Target:', e.target);
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!onStartSession) {
+              console.log('[QUIZ CLICK] ERROR: onStartSession is null/undefined!');
+              return;
+            }
+            
+            if (!dashboardData.isQuizAvailable) {
+              console.log('[QUIZ CLICK] Quiz not available until:', dashboardData.nextQuizDate);
+              return;
+            }
+            
+            console.log('[QUIZ CLICK] All checks passed, calling onStartSession(QUIZ)');
+            try {
+              onStartSession(StudyMode.QUIZ);
+              console.log('[QUIZ CLICK] onStartSession called successfully');
+            } catch (error) {
+              console.error('[QUIZ CLICK] Error calling onStartSession:', error);
+            }
+          }}
           style={{ 
-            cursor: onStartSession && dashboardData.isQuizAvailable ? 'pointer' : 'default',
-            opacity: dashboardData.isQuizAvailable ? 1 : 0.6
+            cursor: dashboardData.isQuizAvailable ? 'pointer' : 'not-allowed',
+            opacity: dashboardData.isQuizAvailable ? 1 : 0.6,
+            position: 'relative',
+            zIndex: 10
           }}
         >
-          <div className="card-header">
-            <h4>Quiz</h4>
+          <div className="card-header" onClick={() => console.log('[QUIZ CLICK] Header clicked!')}>
+            <h4 onClick={() => console.log('[QUIZ CLICK] H4 clicked!')}>Quiz</h4>
             <span className="max-score">Max: {dashboardData.maxQuizScore}pts</span>
           </div>
           <div className="card-content">
@@ -817,6 +882,35 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
                 : formatDate(dashboardData.nextQuizDate)
               }
             </div>
+            {dashboardData.isQuizAvailable && (
+              <>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                  <i className="fas fa-mouse-pointer"></i> Haz clic para iniciar
+                </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('[QUIZ BUTTON] Native button clicked!');
+                    if (onStartSession) {
+                      onStartSession(StudyMode.QUIZ);
+                    }
+                  }}
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 16px',
+                    backgroundColor: '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  Iniciar Quiz
+                </button>
+              </>
+            )}
           </div>
         </div>
 

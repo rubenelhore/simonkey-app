@@ -21,6 +21,7 @@
     "@google/generative-ai": "^0.24.0",
     "@radix-ui/react-dialog": "^1.1.7",
     "firebase": "^9.23.0",
+    "firebase-admin": "^13.4.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.3.31",
     "react": "^19.1.0",

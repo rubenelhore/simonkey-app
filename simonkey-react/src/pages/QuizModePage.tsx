@@ -20,13 +20,16 @@ import {
   getTimerStateClass,
   getTimerColor
 } from '../utils/quizTimer';
+import { useUserType } from '../hooks/useUserType';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
   console.log('[QuizModePage] Component rendering at', new Date().toISOString());
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSchoolStudent } = useUserType();
   console.log('[QuizModePage] Location state:', location.state);
+  console.log('[QuizModePage] isSchoolStudent:', isSchoolStudent);
   
   // Estado principal
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -111,7 +114,7 @@ const QuizModePage: React.FC = () => {
   useEffect(() => {
     console.log('[QuizModePage] useEffect - fetchNotebooks');
     fetchNotebooks();
-  }, []);
+  }, [isSchoolStudent]); // Re-cargar si cambia el tipo de usuario
 
   // Pre-seleccionar cuaderno si viene de StudyModePage e iniciar quiz automáticamente
   useEffect(() => {
@@ -131,8 +134,9 @@ const QuizModePage: React.FC = () => {
     }
     
     if (location.state && location.state.notebookId && notebooksLoaded && !autoStartAttempted) {
+      console.log('[QuizModePage] Cuadernos disponibles:', notebooks.map(n => ({ id: n.id, title: n.title })));
       const notebook = notebooks.find(n => n.id === location.state.notebookId);
-      console.log('Buscando cuaderno:', location.state.notebookId, 'Encontrado:', !!notebook);
+      console.log('[QuizModePage] Buscando cuaderno:', location.state.notebookId, 'Encontrado:', !!notebook);
       
       if (notebook) {
         console.log('Cuaderno encontrado, iniciando quiz automáticamente:', notebook.title);
@@ -237,7 +241,7 @@ const QuizModePage: React.FC = () => {
 
   // Cargar cuadernos del usuario
   const fetchNotebooks = async () => {
-    console.log('[QuizModePage] fetchNotebooks called');
+    console.log('[QuizModePage] fetchNotebooks called, isSchoolStudent:', isSchoolStudent);
     if (!auth.currentUser) {
       console.log('[QuizModePage] No current user, navigating to login');
       navigate('/login');
@@ -246,20 +250,48 @@ const QuizModePage: React.FC = () => {
 
     try {
       setLoading(true);
-      const notebooksQuery = query(
-        collection(db, 'notebooks'),
-        where('userId', '==', auth.currentUser.uid)
-      );
+      let notebooksData: Notebook[] = [];
       
-      const querySnapshot = await getDocs(notebooksQuery);
-      const notebooksData: Notebook[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        notebooksData.push({
-          id: doc.id,
-          ...doc.data()
-        } as Notebook);
-      });
+      if (isSchoolStudent) {
+        // Para estudiantes escolares, buscar en schoolNotebooks
+        console.log('[QuizModePage] Buscando cuadernos escolares...');
+        
+        // Primero obtener los IDs de cuadernos del estudiante
+        const studentDoc = await getDoc(doc(db, 'schoolStudents', auth.currentUser.uid));
+        if (studentDoc.exists()) {
+          const studentData = studentDoc.data();
+          const notebookIds = studentData.idCuadernos || [];
+          console.log('[QuizModePage] IDs de cuadernos del estudiante:', notebookIds);
+          
+          // Luego obtener cada cuaderno
+          for (const notebookId of notebookIds) {
+            const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+            if (notebookDoc.exists()) {
+              notebooksData.push({
+                id: notebookDoc.id,
+                ...notebookDoc.data()
+              } as Notebook);
+            }
+          }
+          console.log('[QuizModePage] Cuadernos escolares encontrados:', notebooksData.length);
+        }
+      } else {
+        // Para usuarios regulares, buscar en notebooks
+        console.log('[QuizModePage] Buscando cuadernos regulares...');
+        const notebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+        
+        const querySnapshot = await getDocs(notebooksQuery);
+        querySnapshot.forEach((doc) => {
+          notebooksData.push({
+            id: doc.id,
+            ...doc.data()
+          } as Notebook);
+        });
+        console.log('[QuizModePage] Cuadernos regulares encontrados:', notebooksData.length);
+      }
       
       setNotebooks(notebooksData);
       setNotebooksLoaded(true);
@@ -277,9 +309,13 @@ const QuizModePage: React.FC = () => {
         throw new Error('Usuario no autenticado');
       }
 
+      // Determinar la colección de conceptos según el tipo de usuario
+      const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      console.log('[QuizModePage] Buscando conceptos en colección:', conceptsCollection);
+      
       // Obtener conceptos del cuaderno usando una consulta filtrada por cuaderno
       const conceptsQuery = query(
-        collection(db, 'conceptos'),
+        collection(db, conceptsCollection),
         where('cuadernoId', '==', notebookId)
       );
       
@@ -304,6 +340,8 @@ const QuizModePage: React.FC = () => {
           } as Concept);
         });
       }
+      
+      console.log('[QuizModePage] Total conceptos encontrados:', allConcepts.length);
 
       if (allConcepts.length < 4) {
         throw new Error('Se necesitan al menos 4 conceptos para generar el quiz');
@@ -355,7 +393,7 @@ const QuizModePage: React.FC = () => {
       console.error('Error generating quiz questions:', error);
       throw error;
     }
-  }, []);
+  }, [isSchoolStudent]);
 
   // Función eliminada - ya no se necesita selección manual de notebooks
   // El quiz siempre viene con un notebook pre-seleccionado desde StudyModePage

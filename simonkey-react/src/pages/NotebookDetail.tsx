@@ -502,6 +502,114 @@ const NotebookDetail = () => {
     setIsModalOpen(true);
   };
 
+  // Exponer funciones de diagnóstico en window para debugging
+  useEffect(() => {
+    (window as any).diagnosticarConceptos = async () => {
+      console.log('🔍 DIAGNÓSTICO DE CONCEPTOS');
+      console.log('========================');
+      
+      // 1. Verificar estado del componente
+      console.log('1. Estado del componente:');
+      console.log('- conceptosDocs:', conceptosDocs);
+      console.log('- cuaderno:', cuaderno);
+      console.log('- isSchoolStudent:', isSchoolStudent);
+      console.log('- notebookId:', id);
+      
+      // 2. Verificar conceptos en Firestore
+      console.log('\n2. Verificando conceptos en Firestore...');
+      try {
+        // Verificar en la colección normal
+        const q = query(
+          collection(db, 'conceptos'),
+          where('cuadernoId', '==', id)
+        );
+        const querySnapshot = await getDocs(q);
+        const conceptos = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as ConceptDoc[];
+        
+        console.log('Conceptos encontrados en colección "conceptos":', conceptos.length);
+        conceptos.forEach((doc, index) => {
+          console.log(`Documento ${index + 1}:`, {
+            id: doc.id,
+            cuadernoId: doc.cuadernoId,
+            usuarioId: doc.usuarioId,
+            conceptosCount: doc.conceptos?.length || 0,
+            conceptos: doc.conceptos?.slice(0, 3) // Mostrar solo los primeros 3 conceptos
+          });
+        });
+        
+        // Verificar en la colección escolar también
+        const qSchool = query(
+          collection(db, 'schoolConcepts'),
+          where('cuadernoId', '==', id)
+        );
+        const querySnapshotSchool = await getDocs(qSchool);
+        const conceptosSchool = querySnapshotSchool.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as ConceptDoc[];
+        
+        console.log('Conceptos encontrados en colección "schoolConcepts":', conceptosSchool.length);
+        
+        // 3. Verificar documento específico mencionado en logs
+        console.log('\n3. Verificando documento específico...');
+        try {
+          // Verificar el documento más reciente de los logs
+          const docRef = doc(db, 'conceptos', 'C3Yw2kQVEDSVS3KuDwsv');
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            console.log('✅ Documento C3Yw2kQVEDSVS3KuDwsv existe:', docSnap.data());
+          } else {
+            console.log('❌ Documento C3Yw2kQVEDSVS3KuDwsv no existe');
+          }
+          
+          // Verificar también el documento anterior
+          const docRef2 = doc(db, 'conceptos', '5eXXjwmiHKYaocMPpfBL');
+          const docSnap2 = await getDoc(docRef2);
+          if (docSnap2.exists()) {
+            console.log('✅ Documento 5eXXjwmiHKYaocMPpfBL existe:', docSnap2.data());
+          } else {
+            console.log('❌ Documento 5eXXjwmiHKYaocMPpfBL no existe');
+          }
+        } catch (error) {
+          console.log('❌ Error verificando documento específico:', error);
+        }
+        
+        // 4. Forzar recarga
+        console.log('\n4. Forzando recarga de conceptos...');
+        const allConceptos = [...conceptos, ...conceptosSchool];
+        setConceptosDocs(allConceptos);
+        console.log('✅ Estado actualizado con', allConceptos.length, 'documentos');
+        
+        // 5. Verificar permisos
+        console.log('\n5. Verificando permisos...');
+        try {
+          const testQuery = query(collection(db, 'conceptos'), where('cuadernoId', '==', id));
+          await getDocs(testQuery);
+          console.log('✅ Permisos de lectura OK');
+        } catch (error) {
+          console.log('❌ Error de permisos:', error);
+        }
+        
+      } catch (error) {
+        console.log('❌ Error general:', error);
+      }
+    };
+    
+    (window as any).setConceptosDocs = setConceptosDocs;
+    (window as any).conceptosDocs = conceptosDocs;
+    (window as any).cuaderno = cuaderno;
+    
+    return () => {
+      delete (window as any).diagnosticarConceptos;
+      delete (window as any).setConceptosDocs;
+      delete (window as any).conceptosDocs;
+      delete (window as any).cuaderno;
+    };
+  }, [conceptosDocs, cuaderno, id, isSchoolStudent]);
+
   // Muestra spinner de carga mientras se obtienen los datos
   if (!cuaderno) {
     return (

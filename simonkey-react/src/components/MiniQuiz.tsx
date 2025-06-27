@@ -10,6 +10,7 @@ import {
   MiniQuizSession
 } from '../types/interfaces';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import { useUserType } from '../hooks/useUserType';
 import '../styles/MiniQuiz.css';
 
 interface MiniQuizProps {
@@ -26,6 +27,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   onClose 
 }) => {
   const navigate = useNavigate();
+  const { isSchoolStudent } = useUserType();
   
   // Estado del mini quiz
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -143,9 +145,12 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         throw new Error('Usuario no autenticado');
       }
 
-      // Obtener conceptos del cuaderno que están listos para repaso hoy
+      // Obtener conceptos del cuaderno según el tipo de usuario
+      const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      console.log('[MINI QUIZ] Buscando conceptos en colección:', collectionName);
+      
       const conceptsQuery = query(
-        collection(db, 'conceptos'),
+        collection(db, collectionName),
         where('cuadernoId', '==', notebookId)
       );
       

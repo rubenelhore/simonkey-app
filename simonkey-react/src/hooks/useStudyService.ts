@@ -73,6 +73,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
   const [error, setError] = useState<string | null>(null);
   const isSchoolStudent = userSubscription === UserSubscriptionType.SCHOOL;
   
+  console.log('🔍 useStudyService - userSubscription:', userSubscription);
+  console.log('🔍 useStudyService - isSchoolStudent:', isSchoolStudent);
+  
   /**
    * Registra actividad de estudio del usuario
    */
@@ -935,6 +938,10 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
       try {
         // Use the isSchoolStudent from hook initialization
         const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        
+        console.log('🔍 getAllConceptsFromNotebook - isSchoolStudent:', isSchoolStudent);
+        console.log('🔍 getAllConceptsFromNotebook - collectionName:', collectionName);
+        console.log('🔍 getAllConceptsFromNotebook - notebookId:', notebookId);
         
         const conceptsQuery = query(
           collection(db, collectionName),

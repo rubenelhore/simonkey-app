@@ -57,6 +57,8 @@ import AuthUnlocker from './components/AuthUnlocker';
 import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 import SuperAdminRoute from './pages/SuperAdminRoute';
+// Importar utilidad para arreglar perfil de usuario
+import './utils/fixUserProfile';
 
 // Definir el tipo para el usuario
 interface User {
