@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -98,6 +98,31 @@ const CalendarPage: React.FC = () => {
     return null;
   };
 
+  // --- Lógica para eventos de la semana actual ---
+  function getWeekRange(date = new Date()) {
+    const day = date.getDay() || 7; // Lunes = 1, Domingo = 7
+    const monday = new Date(date);
+    monday.setHours(0,0,0,0);
+    monday.setDate(date.getDate() - day + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23,59,59,999);
+    return { start: monday, end: sunday };
+  }
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  // Convertir eventsByDate a lista de eventos con fecha
+  const eventosSemana = useMemo(() => {
+    const eventos: { date: Date, title: string }[] = [];
+    Object.entries(eventsByDate).forEach(([dateStr, titles]) => {
+      const date = new Date(dateStr);
+      if (date >= weekStart && date <= weekEnd) {
+        titles.forEach(title => eventos.push({ date, title }));
+      }
+    });
+    // Ordenar por fecha
+    return eventos.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [eventsByDate, weekStart, weekEnd]);
+
   return (
     <>
       <HeaderWithHamburger title="Calendario" />
@@ -170,7 +195,20 @@ const CalendarPage: React.FC = () => {
             minHeight: 160
           }}>
             <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#6147FF', marginBottom: 16 }}>Acciones para esta semana</h3>
-            <div style={{ color: '#666', fontSize: 17 }}>Aquí aparecerán recordatorios, eventos importantes y sugerencias para tu semana.</div>
+            {eventosSemana.length === 0 ? (
+              <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0' }}>
+                <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 38, display: 'block', marginBottom: 8 }}>🙈💤</span>
+                No hay eventos para esta semana
+              </div>
+            ) : (
+              <ul style={{ color: '#333', fontSize: 18, margin: 0, padding: 0, listStyle: 'none', width: '100%' }}>
+                {eventosSemana.map((ev, idx) => (
+                  <li key={idx} style={{ marginBottom: 10 }}>
+                    <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
