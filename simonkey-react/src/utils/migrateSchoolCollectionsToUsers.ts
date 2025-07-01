@@ -365,7 +365,7 @@ async function migrateSchoolAdmins(dryRun: boolean): Promise<{ count: number; er
     }
 
   } catch (error) {
-    const errorMsg = `Failed to read schoolAdmins collection: ${error.message}`;
+    const errorMsg = `Failed to read schoolAdmins collection: ${error instanceof Error ? error.message : 'Unknown error'}`;
     console.error(`❌ ${errorMsg}`);
     errors.push(errorMsg);
   }
@@ -444,7 +444,7 @@ async function migrateSchoolTutors(dryRun: boolean): Promise<{ count: number; er
         }
 
       } catch (error) {
-        const errorMsg = `Failed to migrate tutor ${tutorDoc.id}: ${error.message}`;
+        const errorMsg = `Failed to migrate tutor ${tutorDoc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error(`  ❌ ${errorMsg}`);
         errors.push(errorMsg);
       }
@@ -455,7 +455,7 @@ async function migrateSchoolTutors(dryRun: boolean): Promise<{ count: number; er
     }
 
   } catch (error) {
-    const errorMsg = `Failed to read schoolTutors collection: ${error.message}`;
+    const errorMsg = `Failed to read schoolTutors collection: ${error instanceof Error ? error.message : 'Unknown error'}`;
     console.error(`❌ ${errorMsg}`);
     errors.push(errorMsg);
   }

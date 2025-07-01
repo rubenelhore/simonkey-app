@@ -14,6 +14,7 @@ import '../styles/StudyModePage.css';
 import Confetti from 'react-confetti';
 import { useUserType } from '../hooks/useUserType';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -374,7 +375,8 @@ const StudyModePage = () => {
     
     try {
       // Use appropriate user key for school students
-      const userKey = isSchoolStudent ? `student_${auth.currentUser!.uid}` : auth.currentUser!.uid;
+      const effectiveUserData = await getEffectiveUserId();
+      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser!.uid;
       
       // Crear nueva sesión en Firestore
       const session = await studyService.createStudySession(
@@ -472,7 +474,8 @@ const StudyModePage = () => {
     
     try {
       // Use appropriate user key for school students
-      const userKey = isSchoolStudent ? `student_${auth.currentUser.uid}` : auth.currentUser.uid;
+      const effectiveUserData = await getEffectiveUserId();
+      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
       // Actualizar respuesta usando SM-3
       await studyService.updateConceptResponse(
@@ -627,7 +630,9 @@ const StudyModePage = () => {
       // IMPORTANTE: Actualizar límites de estudio libre al COMPLETAR la sesión
       if (studyMode === StudyMode.FREE && selectedNotebook) {
         console.log('🔄 Actualizando límites de estudio libre al completar sesión...');
-        await studyService.updateFreeStudyUsage(auth.currentUser.uid, selectedNotebook.id);
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        await studyService.updateFreeStudyUsage(userKey, selectedNotebook.id);
       }
       
       // IMPORTANTE: Para estudio inteligente, NO actualizar límites aquí
@@ -683,7 +688,9 @@ const StudyModePage = () => {
       if (passed) {
         // Si pasó el Mini Quiz, validar el estudio inteligente
         console.log('✅ Mini Quiz aprobado. Validando estudio inteligente...');
-        await studyService.updateSmartStudyUsage(auth.currentUser.uid, selectedNotebook.id);
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id);
         setStudySessionValidated(true);
         
         // Marcar la sesión como validada en Firestore
@@ -691,7 +698,7 @@ const StudyModePage = () => {
         
         // Registrar actividad exitosa
         await studyService.logStudyActivity(
-          auth.currentUser.uid,
+          userKey,
           'smart_study_validated',
           `Estudio inteligente validado con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
         );
@@ -707,7 +714,7 @@ const StudyModePage = () => {
         
         // Registrar actividad fallida
         await studyService.logStudyActivity(
-          auth.currentUser.uid,
+          userKey,
           'smart_study_failed_validation',
           `Estudio inteligente falló validación con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
         );

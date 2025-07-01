@@ -84,6 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       },
       isAuthenticated: false,
       isEmailVerified: false,
+      effectiveUserId: null,
       signOut: async () => {
         console.log('🔧 Maintenance mode: signOut disabled');
       },
@@ -239,8 +240,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // NO crear un perfil nuevo si ya existe un usuario escolar con el mismo email
         if (linkedSchoolUserId) {
           console.log('❌ Error: Usuario escolar existe pero no se pudo cargar el perfil');
-          setUserProfile(null);
-          setLoading(false);
+          setAuthState(prev => ({
+            ...prev,
+            userProfile: null,
+            loading: false
+          }));
           return;
         }
         
@@ -384,7 +388,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Actualizar estado final
           setAuthState(prev => ({
             ...prev,
-            userProfile: profile,
+            userProfile: profile || null,
             isEmailVerified: verificationResult,
             emailVerificationState: {
               ...prev.emailVerificationState,
