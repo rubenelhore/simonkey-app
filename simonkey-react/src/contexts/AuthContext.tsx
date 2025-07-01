@@ -20,6 +20,7 @@ export interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
+  effectiveUserId: string | null;
   refreshEmailVerification: () => Promise<boolean>;
   requiresEmailVerification: () => boolean;
   canAccessApp: () => boolean;
@@ -206,8 +207,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               console.log('🔍 Usuario existente encontrado con el mismo email:', existingUserCheck.userId);
               console.log('🔍 Datos del usuario existente:', existingUserCheck.userData);
               
-              // Verificar si el usuario existente tiene este UID de Google Auth vinculado
-              if (existingUserCheck.userData.googleAuthUid === user.uid && existingUserCheck.userId) {
+              // Para usuarios escolares, usar el perfil existente aunque no tenga googleAuthUid vinculado
+              const isSchoolUser = existingUserCheck.userType?.includes('SCHOOL');
+              
+              if (isSchoolUser && existingUserCheck.userId) {
+                console.log('🏫 Usuario escolar encontrado, usando perfil existente:', existingUserCheck.userId);
+                profile = await getUserProfile(existingUserCheck.userId);
+                console.log(`🔍 loadUserProfile - Perfil escolar obtenido:`, profile);
+                
+                // Guardar el ID del usuario escolar para futuras referencias
+                linkedSchoolUserId = existingUserCheck.userId;
+              } else if (existingUserCheck.userData.googleAuthUid === user.uid && existingUserCheck.userId) {
                 console.log('✅ Usuario vinculado encontrado, usando ID del usuario existente:', existingUserCheck.userId);
                 profile = await getUserProfile(existingUserCheck.userId);
                 console.log(`🔍 loadUserProfile - Perfil obtenido con ID de usuario existente:`, profile);
@@ -224,7 +234,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       if (!profile) {
-        console.log('⚠️ No se encontró perfil, creando perfil básico...');
+        console.log('⚠️ No se encontró perfil con los IDs probados');
+        
+        // NO crear un perfil nuevo si ya existe un usuario escolar con el mismo email
+        if (linkedSchoolUserId) {
+          console.log('❌ Error: Usuario escolar existe pero no se pudo cargar el perfil');
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('⚠️ Creando perfil básico...');
         
         try {
           const { createUserProfile } = await import('../services/userService');
@@ -427,9 +447,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     (window as any).forceAuthState = forceAuthState;
   }
 
+  // Crear un usuario virtual que use el ID correcto
+  const effectiveUserId = authState.userProfile?.id || authState.user?.uid || null;
+  
   const contextValue: AuthContextType = {
     // Estado
     ...authState,
+    
+    // ID efectivo del usuario (usa el ID del perfil si existe, sino el UID de Firebase)
+    effectiveUserId,
     
     // Funciones de utilidad
     refreshEmailVerification,

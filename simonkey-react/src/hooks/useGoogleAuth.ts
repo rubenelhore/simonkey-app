@@ -37,9 +37,15 @@ export const useGoogleAuth = () => {
       // Si es login (isSignup = false) y el usuario existe, verificar perfil
       if (!isSignup && existingUserCheck.exists) {
         console.log('🔍 Modo LOGIN: Verificando que el usuario existe sin crear perfiles...');
+        console.log('🔍 ID del usuario existente:', existingUserCheck.userId);
+        console.log('🔍 UID de Google:', user.uid);
+        
+        // Para usuarios escolares, el perfil está bajo el ID escolar, no el UID de Google
+        const profileIdToCheck = existingUserCheck.userId || user.uid;
+        console.log('🔍 Verificando perfil con ID:', profileIdToCheck);
         
         // Verificar que el usuario existe en Firestore
-        const existingProfile = await getUserProfile(existingUserCheck.userId || user.uid);
+        const existingProfile = await getUserProfile(profileIdToCheck);
         if (!existingProfile) {
           console.log('❌ Usuario no tiene perfil en Firestore, cerrando sesión...');
           await signOut(auth);
@@ -51,6 +57,7 @@ export const useGoogleAuth = () => {
         }
         
         console.log('✅ Usuario existe y tiene perfil válido, continuando con login...');
+        console.log('✅ Tipo de usuario:', existingUserCheck.userType);
         
         // Guardar información básica del usuario
         const userData = {
@@ -100,6 +107,11 @@ export const useGoogleAuth = () => {
           shouldCreateProfile = false; // No crear perfil nuevo, usar el existente
           console.log('🔄 Usando ID de usuario existente:', userIdToUse);
           console.log('🔄 No se creará perfil nuevo, se usará el existente');
+          
+          // Si es un usuario escolar, estamos usando su ID original, NO el UID de Google
+          if (existingUserCheck.userType?.includes('SCHOOL')) {
+            console.log('🏫 Usuario escolar detectado, usando perfil escolar existente');
+          }
         }
       } else {
         console.log('✅ No se encontró usuario existente, continuando con creación normal');

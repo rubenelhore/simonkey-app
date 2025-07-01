@@ -7,7 +7,7 @@ service cloud.firestore {
     // Función auxiliar para verificar si el usuario es Super Admin
     function isSuperAdmin() {
       return request.auth != null && 
-             request.auth.token.email in ['ruben.elhore@gmail.com', 'simon.elhore@gmail.com'];
+             request.auth.token.email in ['ruben.elhore@gmail.com', 'santiagoarceofel@gmail.com'];
     }
     
     // Función auxiliar para obtener datos del usuario autenticado
@@ -15,24 +15,15 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    // Función auxiliar segura para obtener datos del usuario (no falla si no existe)
-    function getUserDataSafe() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-             ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
-             : {};
-    }
-    
     // Función para verificar si es usuario escolar
     function isSchoolUser() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              getUserData().subscription == 'school';
     }
     
     // Función para verificar si es profesor escolar
     function isSchoolTeacher() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              getUserData().subscription == 'school' &&
              getUserData().schoolRole == 'teacher';
     }
@@ -40,7 +31,6 @@ service cloud.firestore {
     // Función para verificar si es estudiante escolar
     function isSchoolStudent() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              getUserData().subscription == 'school' &&
              getUserData().schoolRole == 'student';
     }
@@ -48,7 +38,6 @@ service cloud.firestore {
     // Función para verificar si es administrador escolar
     function isSchoolAdmin() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              getUserData().subscription == 'school' &&
              getUserData().schoolRole == 'admin';
     }
@@ -56,48 +45,29 @@ service cloud.firestore {
     // Función para verificar si es tutor escolar
     function isSchoolTutor() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              getUserData().subscription == 'school' &&
              getUserData().schoolRole == 'tutor';
     }
     
     // ========== USUARIOS ==========
     match /users/{userId} {
-      // Permitir list/query si el usuario está autenticado
-      // IMPORTANTE: No usar funciones que requieran getUserData() aquí
-      // porque pueden fallar durante el proceso de autenticación
-      allow list: if request.auth != null;
-      
-      // Permitir get (lectura individual) con reglas más específicas
-      allow get: if request.auth != null && 
-                   (request.auth.uid == userId || 
-                    isSuperAdmin() ||
-                    // Permitir lectura si el email del usuario autenticado coincide con el email del documento
-                    (request.auth.token.email == resource.data.email) ||
-                    // Permitir lectura si el ID del documento empieza con 'school_' y el email coincide
-                    (userId.matches('^school_.*') && request.auth.token.email == resource.data.email) ||
-                    (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                     getUserData().subscription == 'school' && 
-                     getUserData().schoolRole in ['teacher', 'admin'] && 
-                     resource.data.subscription == 'school'));
+      // Permitir lectura si:
+      // 1. Es el propio usuario
+      // 2. Es Super Admin
+      // 3. Es un profesor/admin escolar viendo estudiantes de su institución
+      allow read: if request.auth != null && 
+                    (request.auth.uid == userId || 
+                     isSuperAdmin() ||
+                     (isSchoolTeacher() && resource.data.subscription == 'school') ||
+                     (isSchoolAdmin() && resource.data.subscription == 'school'));
       
       // Permitir creación si está autenticado y el ID coincide o es Super Admin
-      // También permitir si el email coincide (para vincular cuentas escolares)
       allow create: if request.auth != null && 
-                      (request.auth.uid == userId || 
-                       isSuperAdmin() ||
-                       request.auth.token.email == request.resource.data.email);
+                      (request.auth.uid == userId || isSuperAdmin());
       
       // Permitir actualización si es el propietario o Super Admin
-      // También permitir si el email coincide (para actualizar cuentas vinculadas)
-      // También permitir si se está vinculando una cuenta Google (agregando googleAuthUid)
       allow update: if request.auth != null && 
-                      (request.auth.uid == userId || 
-                       isSuperAdmin() ||
-                       request.auth.token.email == resource.data.email ||
-                       // Permitir vincular cuenta Google si el email coincide y se está agregando googleAuthUid
-                       (request.auth.token.email == resource.data.email && 
-                        request.resource.data.googleAuthUid == request.auth.uid));
+                      (request.auth.uid == userId || isSuperAdmin());
       
       // Permitir eliminación solo a Super Admin
       allow delete: if request.auth != null && isSuperAdmin();
@@ -200,26 +170,22 @@ service cloud.firestore {
     
     // ========== NOTEBOOKS ESCOLARES ==========
     match /schoolNotebooks/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      // TODO: Restringir después de resolver el problema
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isSchoolTeacher();
       allow update: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
       allow delete: if request.auth != null && isSuperAdmin();
     }
     
     match /schoolConcepts/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isSchoolTeacher();
       allow update: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
       allow delete: if request.auth != null && isSuperAdmin();
     }
     
     match /schoolSubjects/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (isSchoolTeacher() || isSchoolAdmin() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow write: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
     }
     
     match /schoolInstitutions/{document} {

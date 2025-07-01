@@ -9,7 +9,10 @@ import {
   faBullseye, 
   faChartLine,
   faCalendarAlt,
-  faBook
+  faBook,
+  faLightbulb,
+  faArrowUp,
+  faArrowDown
 } from '@fortawesome/free-solid-svg-icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import '../styles/ProgressPage.css';
@@ -152,6 +155,70 @@ const ProgressPage: React.FC = () => {
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
+
+  // Generar insights aleatorios (2 de 4 posibles)
+  const generateInsights = () => {
+    // Encontrar el día con más y menos tiempo de estudio
+    const maxDay = studyTimeData.reduce((max, day) => day.tiempo > max.tiempo ? day : max);
+    const minDay = studyTimeData.reduce((min, day) => day.tiempo < min.tiempo ? day : min);
+    
+    // Encontrar el cuaderno con peor ranking
+    const worstNotebook = cuadernosData.reduce((worst, notebook) => 
+      (notebook.posicion / notebook.totalAlumnos) > (worst.posicion / worst.totalAlumnos) ? notebook : worst
+    );
+    
+    // Simular datos de semanas anteriores
+    const thisWeekStudyTime = globalStudyTime;
+    const lastWeekStudyTime = globalStudyTime - 45; // Dummy
+    const studyTimeDiff = thisWeekStudyTime - lastWeekStudyTime;
+    
+    const thisWeekSmartStudies = globalSmartStudies;
+    const lastWeekSmartStudies = globalSmartStudies - 3; // Dummy
+    const smartStudiesDiff = thisWeekSmartStudies - lastWeekSmartStudies;
+    
+    const allInsights = [
+      {
+        id: 1,
+        type: 'study-day',
+        title: Math.random() > 0.5 ? 'Día más productivo' : 'Día menos productivo',
+        content: Math.random() > 0.5 
+          ? `El día de la semana que más estudias es ${maxDay.dia} con un promedio de ${maxDay.tiempo} minutos.`
+          : `El día de la semana que menos estudias es ${minDay.dia} con solo ${minDay.tiempo} minutos.`,
+        icon: faCalendarAlt,
+        color: Math.random() > 0.5 ? 'green' : 'orange'
+      },
+      {
+        id: 2,
+        type: 'study-time',
+        title: 'Progreso semanal',
+        content: `Tu tiempo de estudio de la semana pasada fue de ${formatTime(thisWeekStudyTime)}, que fue ${Math.abs(studyTimeDiff)} minutos ${studyTimeDiff > 0 ? 'más' : 'menos'} que la semana anterior.`,
+        icon: studyTimeDiff > 0 ? faArrowUp : faArrowDown,
+        color: studyTimeDiff > 0 ? 'blue' : 'orange'
+      },
+      {
+        id: 3,
+        type: 'opportunity',
+        title: 'Área de oportunidad',
+        content: `Tu cuaderno con mayor área de oportunidad es "${worstNotebook.nombre}" (posición ${worstNotebook.posicion}/${worstNotebook.totalAlumnos}).`,
+        icon: faBook,
+        color: 'orange'
+      },
+      {
+        id: 4,
+        type: 'smart-studies',
+        title: 'Estudios inteligentes',
+        content: `El número de estudios inteligentes de la semana pasada fue de ${thisWeekSmartStudies}, ${Math.abs(smartStudiesDiff)} ${smartStudiesDiff > 0 ? 'más' : 'menos'} que la semana anterior.`,
+        icon: faBrain,
+        color: smartStudiesDiff > 0 ? 'purple' : 'orange'
+      }
+    ];
+
+    // Seleccionar 2 insights aleatorios
+    const shuffled = [...allInsights].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 2);
+  };
+
+  const insights = generateInsights();
 
   return (
     <>
@@ -330,6 +397,27 @@ const ProgressPage: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Módulo de Insights */}
+              <div className="insights-module">
+                <div className="insights-header">
+                  <FontAwesomeIcon icon={faLightbulb} className="insights-header-icon" />
+                  <h3>Insights Personalizados</h3>
+                </div>
+                <div className="insights-grid">
+                  {insights.map((insight) => (
+                    <div key={insight.id} className={`insight-card ${insight.color}`}>
+                      <div className="insight-icon">
+                        <FontAwesomeIcon icon={insight.icon} />
+                      </div>
+                      <div className="insight-content">
+                        <h4>{insight.title}</h4>
+                        <p>{insight.content}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

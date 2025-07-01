@@ -361,6 +361,61 @@ const Notebooks: React.FC = () => {
     (notebooks || []);
 
   const isLoading = isSchoolStudent ? schoolNotebooksLoading : notebooksLoading;
+  
+  // Función de diagnóstico para estudiantes escolares
+  const runStudentDiagnostics = async () => {
+    console.log('🔍 === DIAGNÓSTICO DE ESTUDIANTE ESCOLAR ===');
+    console.log('👤 Usuario actual:', {
+      uid: user?.uid,
+      email: user?.email,
+      isSchoolStudent,
+      userProfile
+    });
+    
+    if (userProfile && userProfile.id) {
+      try {
+        // Obtener el documento del usuario directamente
+        const userDoc = await getDoc(doc(db, 'users', userProfile.id));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('📋 Datos del usuario:', {
+            id: userDoc.id,
+            email: userData.email,
+            nombre: userData.nombre,
+            subscription: userData.subscription,
+            schoolRole: userData.schoolRole,
+            idCuadernos: userData.idCuadernos
+          });
+          
+          // Verificar cada cuaderno en idCuadernos
+          if (userData.idCuadernos && userData.idCuadernos.length > 0) {
+            console.log('📚 Verificando cuadernos asignados:');
+            for (const notebookId of userData.idCuadernos) {
+              try {
+                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+                if (notebookDoc.exists()) {
+                  console.log(`  ✅ ${notebookId}:`, notebookDoc.data());
+                } else {
+                  console.log(`  ❌ ${notebookId}: No encontrado en schoolNotebooks`);
+                }
+              } catch (err) {
+                console.error(`  ❌ ${notebookId}: Error al buscar:`, err);
+              }
+            }
+          } else {
+            console.log('❌ No hay cuadernos asignados (idCuadernos vacío o no existe)');
+          }
+        } else {
+          console.log('❌ No se encontró el documento del usuario');
+        }
+      } catch (error) {
+        console.error('❌ Error en diagnóstico:', error);
+      }
+    }
+    
+    console.log('📓 Cuadernos escolares cargados por el hook:', schoolNotebooks);
+    console.log('🔍 === FIN DEL DIAGNÓSTICO ===');
+  };
 
   if (isLoading) {
     return (
@@ -401,7 +456,25 @@ const Notebooks: React.FC = () => {
           />
         </div>
         <div className="notebooks-list-section">
-          <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
+            {isSchoolStudent && (
+              <button 
+                onClick={runStudentDiagnostics}
+                style={{ 
+                  padding: '5px 10px', 
+                  fontSize: '12px',
+                  backgroundColor: '#ff6b6b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔍 Diagnóstico
+              </button>
+            )}
+          </div>
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,

@@ -24,10 +24,16 @@ export const useSchoolNotebooks = () => {
         
         // LOG: userProfile
         console.log('🔍 useSchoolNotebooks - userProfile:', userProfile);
+        console.log('🔍 useSchoolNotebooks - user:', {
+          uid: user.uid,
+          email: user.email
+        });
         
         // Verificar que el usuario es profesor
         if (!userProfile || userProfile.schoolRole !== 'teacher') {
           console.log('❌ Usuario no es profesor escolar');
+          console.log('   - schoolRole:', userProfile?.schoolRole);
+          console.log('   - subscription:', userProfile?.subscription);
           setSchoolNotebooks([]);
           setLoading(false);
           return undefined;
@@ -36,13 +42,31 @@ export const useSchoolNotebooks = () => {
         console.log('✅ Usuario confirmado como profesor escolar');
 
         // Obtener directamente las materias asignadas al profesor
-        console.log('🔍 Ejecutando query para schoolSubjects con idProfesor:', user.uid);
+        // IMPORTANTE: Usar el ID del documento del profesor, no el UID de Firebase
+        const teacherId = userProfile.id || user.uid;
+        console.log('🔍 Buscando materias para profesor con ID:', teacherId);
+        console.log('📊 Detalles del profesor:', {
+          documentId: userProfile.id,
+          firebaseUid: user.uid,
+          email: userProfile.email,
+          nombre: userProfile.nombre
+        });
+        
+        console.log('🔍 Intentando query en schoolSubjects...');
         const subjectQuery = query(
           collection(db, 'schoolSubjects'),
-          where('idProfesor', '==', user.uid)
+          where('idProfesor', '==', teacherId)
         );
-        const subjectSnapshot = await getDocs(subjectQuery);
-        console.log('🔍 subjectSnapshot.size:', subjectSnapshot.size);
+        
+        let subjectSnapshot;
+        try {
+          subjectSnapshot = await getDocs(subjectQuery);
+          console.log('✅ Query exitosa en schoolSubjects');
+          console.log('🔍 subjectSnapshot.size:', subjectSnapshot.size);
+        } catch (queryError) {
+          console.error('❌ Error específico en query de schoolSubjects:', queryError);
+          throw queryError;
+        }
         
         if (subjectSnapshot.empty) {
           console.log('❌ No se encontraron materias asignadas al profesor');

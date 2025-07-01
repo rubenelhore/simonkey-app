@@ -12,8 +12,12 @@ import {
   doc, 
   addDoc,
   deleteDoc,
-  serverTimestamp 
+  serverTimestamp,
+  setDoc,
+  query,
+  where 
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import '../styles/SchoolComponents.css';
 
 interface SchoolCreationProps {
@@ -56,38 +60,165 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
   const loadEntities = async (category: SchoolCategory) => {
     setLoading(true);
     try {
-      let collectionName = '';
+      let data: any[] = [];
+      
       switch (category) {
         case SchoolCategory.INSTITUCIONES:
-          collectionName = 'schoolInstitutions';
+          // Las instituciones siguen en su colección separada
+          const institutionsSnapshot = await getDocs(collection(db, 'schoolInstitutions'));
+          data = institutionsSnapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.ADMINS:
-          collectionName = 'schoolAdmins';
+          // Cargar usuarios con subscription SCHOOL y schoolRole ADMIN
+          console.log('🔍 Buscando admins con:', {
+            subscription: UserSubscriptionType.SCHOOL,
+            schoolRole: SchoolRole.ADMIN
+          });
+          
+          // Buscar con valores en minúsculas (correcto)
+          const adminsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.ADMIN)
+          );
+          const adminsSnapshot = await getDocs(adminsQuery);
+          console.log('📊 Admins encontrados (minúsculas):', adminsSnapshot.size);
+          
+          // También buscar con valores en mayúsculas (por si la función no se actualizó)
+          const adminsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'ADMIN')
+          );
+          const adminsSnapshotUppercase = await getDocs(adminsQueryUppercase);
+          console.log('📊 Admins encontrados (MAYÚSCULAS):', adminsSnapshotUppercase.size);
+          
+          // Combinar resultados
+          const allAdmins = new Map();
+          adminsSnapshot.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          adminsSnapshotUppercase.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allAdmins.values());
+          console.log('👥 Total de admins (combinado):', data.length);
+          console.log('👥 Datos de admins:', data);
           break;
+          
         case SchoolCategory.PROFESORES:
-          collectionName = 'schoolTeachers';
+          // Cargar usuarios con subscription SCHOOL y schoolRole TEACHER
+          const teachersQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TEACHER)
+          );
+          const teachersSnapshot = await getDocs(teachersQuery);
+          
+          // También buscar con valores en mayúsculas
+          const teachersQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TEACHER')
+          );
+          const teachersSnapshotUppercase = await getDocs(teachersQueryUppercase);
+          
+          // Combinar resultados
+          const allTeachers = new Map();
+          teachersSnapshot.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          teachersSnapshotUppercase.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTeachers.values());
           break;
+          
         case SchoolCategory.MATERIAS:
-          collectionName = 'schoolSubjects';
+          // Las materias siguen en su colección separada
+          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
+          data = subjectsSnapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.CUADERNOS:
-          collectionName = 'schoolNotebooks';
+          // Los cuadernos siguen en su colección separada
+          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
+          data = notebooksSnapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.ALUMNOS:
-          collectionName = 'schoolStudents';
+          // Cargar usuarios con subscription SCHOOL y schoolRole STUDENT
+          const studentsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.STUDENT)
+          );
+          const studentsSnapshot = await getDocs(studentsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const studentsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'STUDENT')
+          );
+          const studentsSnapshotUppercase = await getDocs(studentsQueryUppercase);
+          
+          // Combinar resultados
+          const allStudents = new Map();
+          studentsSnapshot.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          studentsSnapshotUppercase.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allStudents.values());
           break;
+          
         case SchoolCategory.TUTORES:
-          collectionName = 'schoolTutors';
+          // Cargar usuarios con subscription SCHOOL y schoolRole TUTOR
+          const tutorsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TUTOR)
+          );
+          const tutorsSnapshot = await getDocs(tutorsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const tutorsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TUTOR')
+          );
+          const tutorsSnapshotUppercase = await getDocs(tutorsQueryUppercase);
+          
+          // Combinar resultados
+          const allTutors = new Map();
+          tutorsSnapshot.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          tutorsSnapshotUppercase.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTutors.values());
           break;
+          
         default:
           return;
       }
-
-      const snapshot = await getDocs(collection(db, collectionName));
-      const data = snapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
 
       setEntities(data);
     } catch (error) {
@@ -146,91 +277,120 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
     try {
       setLoading(true);
-
-      let collectionName = '';
-      let entityData: any = {
-        createdAt: serverTimestamp()
-      };
+      console.log('🚀 Creando entidad:', creationData.categoria);
+      console.log('📝 Datos:', creationData.informacionBasica);
 
       switch (creationData.categoria) {
         case SchoolCategory.INSTITUCIONES:
-          collectionName = 'schoolInstitutions';
-          entityData.nombre = creationData.informacionBasica.nombre;
+          // Las instituciones siguen en su colección separada
+          await addDoc(collection(db, 'schoolInstitutions'), {
+            nombre: creationData.informacionBasica.nombre,
+            createdAt: serverTimestamp()
+          });
           break;
+          
         case SchoolCategory.ADMINS:
-          collectionName = 'schoolAdmins';
-          entityData = {
-            ...entityData,
-            nombre: creationData.informacionBasica.nombre,
-            email: creationData.informacionBasica.email,
-            password: '1234',
-            subscription: UserSubscriptionType.SCHOOL,
-            idInstitucion: '' // Se vinculará después
-          };
+          // Crear usuario en colección users con etiquetas apropiadas
+          const functions = getFunctions();
+          const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
+          
+          const result = await createSchoolUser({
+            userData: {
+              email: creationData.informacionBasica.email,
+              nombre: creationData.informacionBasica.nombre,
+              role: 'admin',
+              password: '1234',
+              additionalData: {
+                idInstitucion: '' // Se vinculará después
+              }
+            }
+          });
+          console.log('✅ Resultado de creación:', result);
           break;
+          
         case SchoolCategory.PROFESORES:
-          collectionName = 'schoolTeachers';
-          entityData = {
-            ...entityData,
-            nombre: creationData.informacionBasica.nombre,
-            email: creationData.informacionBasica.email,
-            password: '1234',
-            subscription: UserSubscriptionType.SCHOOL,
-            idAdmin: '' // Se vinculará después
-          };
+          // Crear usuario en colección users con etiquetas apropiadas
+          const functionsTeacher = getFunctions();
+          const createTeacher = httpsCallable(functionsTeacher, 'createSchoolUser');
+          
+          await createTeacher({
+            userData: {
+              email: creationData.informacionBasica.email,
+              nombre: creationData.informacionBasica.nombre,
+              role: 'teacher',
+              password: '1234',
+              additionalData: {
+                idAdmin: '' // Se vinculará después
+              }
+            }
+          });
           break;
+          
         case SchoolCategory.MATERIAS:
-          collectionName = 'schoolSubjects';
-          entityData = {
-            ...entityData,
+          // Las materias siguen en su colección separada
+          await addDoc(collection(db, 'schoolSubjects'), {
             nombre: creationData.informacionBasica.nombre,
-            idProfesor: '' // Se vinculará después
-          };
+            idProfesor: '', // Se vinculará después
+            createdAt: serverTimestamp()
+          });
           break;
+          
         case SchoolCategory.CUADERNOS:
-          collectionName = 'schoolNotebooks';
-          entityData = {
-            ...entityData,
+          // Los cuadernos siguen en su colección separada
+          await addDoc(collection(db, 'schoolNotebooks'), {
             title: creationData.informacionBasica.titulo,
             color: 'default',
-            idMateria: '' // Se vinculará después
-          };
+            idMateria: '', // Se vinculará después
+            createdAt: serverTimestamp()
+          });
           break;
+          
         case SchoolCategory.ALUMNOS:
-          collectionName = 'schoolStudents';
-          entityData = {
-            ...entityData,
-            nombre: creationData.informacionBasica.nombre,
-            email: creationData.informacionBasica.email,
-            password: '1234',
-            subscription: UserSubscriptionType.SCHOOL,
-            idCuadernos: [] // Se vinculará después
-          };
+          // Crear usuario en colección users con etiquetas apropiadas
+          const functionsStudent = getFunctions();
+          const createStudent = httpsCallable(functionsStudent, 'createSchoolUser');
+          
+          await createStudent({
+            userData: {
+              email: creationData.informacionBasica.email,
+              nombre: creationData.informacionBasica.nombre,
+              role: 'student',
+              password: '1234',
+              additionalData: {
+                idCuadernos: [] // Se vinculará después
+              }
+            }
+          });
           break;
+          
         case SchoolCategory.TUTORES:
-          collectionName = 'schoolTutors';
-          entityData = {
-            ...entityData,
-            nombre: creationData.informacionBasica.nombre,
-            email: creationData.informacionBasica.email,
-            password: '1234',
-            subscription: UserSubscriptionType.SCHOOL,
-            schoolRole: SchoolRole.TUTOR,
-            idAlumnos: [] // Se vinculará después
-          };
+          // Crear usuario en colección users con etiquetas apropiadas
+          const functionsTutor = getFunctions();
+          const createTutor = httpsCallable(functionsTutor, 'createSchoolUser');
+          
+          await createTutor({
+            userData: {
+              email: creationData.informacionBasica.email,
+              nombre: creationData.informacionBasica.nombre,
+              role: 'tutor',
+              password: '1234',
+              additionalData: {
+                idAlumnos: [] // Se vinculará después
+              }
+            }
+          });
           break;
+          
         default:
           throw new Error('Categoría no válida');
       }
-
-      await addDoc(collection(db, collectionName), entityData);
       
       alert('Entidad creada exitosamente');
       
       // Limpiar formulario
-      const requiredFields = getRequiredFields(creationData.categoria);
+      const newRequiredFields = getRequiredFields(creationData.categoria);
       const basicInfo: { [key: string]: string } = {};
-      requiredFields.forEach(field => {
+      newRequiredFields.forEach(field => {
         basicInfo[field] = '';
       });
 
@@ -265,34 +425,34 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
     try {
       setLoading(true);
 
-      let collectionName = '';
       switch (creationData.categoria) {
         case SchoolCategory.INSTITUCIONES:
-          collectionName = 'schoolInstitutions';
+          // Las instituciones siguen en su colección separada
+          await deleteDoc(doc(db, 'schoolInstitutions', creationData.selectedEntity));
           break;
+          
         case SchoolCategory.ADMINS:
-          collectionName = 'schoolAdmins';
-          break;
         case SchoolCategory.PROFESORES:
-          collectionName = 'schoolTeachers';
-          break;
-        case SchoolCategory.MATERIAS:
-          collectionName = 'schoolSubjects';
-          break;
-        case SchoolCategory.CUADERNOS:
-          collectionName = 'schoolNotebooks';
-          break;
         case SchoolCategory.ALUMNOS:
-          collectionName = 'schoolStudents';
-          break;
         case SchoolCategory.TUTORES:
-          collectionName = 'schoolTutors';
+          // Eliminar usuario de la colección users
+          // Nota: Esto solo elimina el documento de Firestore, no la cuenta de Auth
+          await deleteDoc(doc(db, 'users', creationData.selectedEntity));
           break;
+          
+        case SchoolCategory.MATERIAS:
+          // Las materias siguen en su colección separada
+          await deleteDoc(doc(db, 'schoolSubjects', creationData.selectedEntity));
+          break;
+          
+        case SchoolCategory.CUADERNOS:
+          // Los cuadernos siguen en su colección separada
+          await deleteDoc(doc(db, 'schoolNotebooks', creationData.selectedEntity));
+          break;
+          
         default:
           throw new Error('Categoría no válida');
       }
-
-      await deleteDoc(doc(db, collectionName, creationData.selectedEntity));
       
       alert('Entidad eliminada exitosamente');
       

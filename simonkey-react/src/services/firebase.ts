@@ -24,16 +24,10 @@ import {
 } from 'firebase/firestore';
 import { getStorage } from "firebase/storage";
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFirebaseConfig } from '../firebase/config';
 
-// Tu configuración de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyC26QZw7297E_YOoF5OqR2Ck6x_bw5_Hic",
-  authDomain: "simonkey-5c78f.firebaseapp.com",
-  projectId: "simonkey-5c78f",
-  storageBucket: "simonkey-5c78f.firebasestorage.app",
-  messagingSenderId: "235501879490",
-  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b"
-};
+// Usar configuración centralizada
+const firebaseConfig = getFirebaseConfig();
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
@@ -48,6 +42,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app, 'simonkey-general');
 
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 // Configurar persistencia para autenticación (mantener sesión activa)
 setPersistence(auth, browserLocalPersistence)

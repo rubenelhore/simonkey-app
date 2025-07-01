@@ -455,6 +455,155 @@
   }
 }
 
+/* Insights Module */
+.insights-module {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.insights-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.insights-header-icon {
+  font-size: 24px;
+  color: #f59e0b;
+}
+
+.insights-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.insight-card {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.insight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Color variations for insights */
+.insight-card.green {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.insight-card.green .insight-icon {
+  color: #10b981;
+  background: #d1fae5;
+}
+
+.insight-card.blue {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.insight-card.blue .insight-icon {
+  color: #3b82f6;
+  background: #dbeafe;
+}
+
+.insight-card.orange {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.insight-card.orange .insight-icon {
+  color: #f97316;
+  background: #fed7aa;
+}
+
+.insight-card.purple {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+}
+
+.insight-card.purple .insight-icon {
+  color: #8b5cf6;
+  background: #ede9fe;
+}
+
+.insight-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.insight-icon svg {
+  font-size: 24px;
+}
+
+.insight-content {
+  flex: 1;
+}
+
+.insight-content h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.insight-content p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments for insights */
+@media (max-width: 768px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .insight-card {
+    padding: 16px;
+  }
+
+  .insight-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .insight-icon svg {
+    font-size: 20px;
+  }
+
+  .insight-content h4 {
+    font-size: 15px;
+  }
+
+  .insight-content p {
+    font-size: 13px;
+  }
+}
+
 /* Scrollbar styling */
 .ranking-list::-webkit-scrollbar,
 .notebooks-table::-webkit-scrollbar {

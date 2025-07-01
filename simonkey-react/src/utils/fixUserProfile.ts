@@ -1,20 +1,9 @@
-import { auth, db } from '../services/firebase';
+import { auth, db, app } from '../services/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { UserSubscriptionType } from '../types/interfaces';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { initializeApp } from 'firebase/app';
 
-// Configuración de Firebase para functions
-const firebaseConfig = {
-  apiKey: "AIzaSyC26QZw7297E_YOoF5OqR2Ck6x_bw5_Hic",
-  authDomain: "simonkey-5c78f.firebaseapp.com",
-  projectId: "simonkey-5c78f",
-  storageBucket: "simonkey-5c78f.firebasestorage.app",
-  messagingSenderId: "235501879490",
-  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b"
-};
-
-const app = initializeApp(firebaseConfig);
+// Usar la app de Firebase ya inicializada
 const functions = getFunctions(app);
 
 /**

@@ -1,0 +1,83 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscription",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schoolRole",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscription",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schoolRole",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "idInstitucion",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscription",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schoolRole",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "idAdmin",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "subscription",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schoolRole", 
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

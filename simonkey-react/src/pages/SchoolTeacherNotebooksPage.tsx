@@ -34,68 +34,135 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
   console.log('🔍 SchoolTeacherNotebooksPage - isSchoolTeacher:', isSchoolTeacher);
   console.log('🔍 SchoolTeacherNotebooksPage - schoolNotebooks:', schoolNotebooks);
   console.log('🔍 SchoolTeacherNotebooksPage - loading:', notebooksLoading, 'error:', notebooksError);
+  
+  // Función de diagnóstico para profesores escolares
+  const runTeacherDiagnostics = async () => {
+    console.log('🔍 === DIAGNÓSTICO DE PROFESOR ESCOLAR ===');
+    console.log('👤 Usuario actual:', {
+      uid: user?.uid,
+      email: user?.email,
+      isSchoolTeacher,
+      userProfile
+    });
+    
+    if (userProfile && userProfile.id) {
+      try {
+        // Obtener el documento del usuario directamente
+        const userDoc = await getDoc(doc(db, 'users', userProfile.id));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('📋 Datos del profesor:', {
+            id: userDoc.id,
+            email: userData.email,
+            nombre: userData.nombre,
+            subscription: userData.subscription,
+            schoolRole: userData.schoolRole,
+            idAdmin: userData.idAdmin,
+            googleAuthUid: userData.googleAuthUid
+          });
+          
+          // Buscar materias del profesor
+          console.log('📚 Buscando materias del profesor...');
+          console.log('🔍 ID del profesor para búsqueda:', userProfile.id);
+          
+          // Buscar todas las materias para debug
+          console.log('🔍 Buscando TODAS las materias en schoolSubjects...');
+          const allSubjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
+          console.log(`📊 Total de materias en el sistema: ${allSubjectsSnapshot.size}`);
+          allSubjectsSnapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`  - Materia ${index + 1}:`, {
+              id: doc.id,
+              nombre: data.nombre,
+              idProfesor: data.idProfesor,
+              idAdmin: data.idAdmin
+            });
+          });
+          
+          // Ahora buscar las del profesor específico
+          console.log(`\n🎯 Filtrando materias con idProfesor === "${userProfile.id}"`);
+          const subjectsQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idProfesor', '==', userProfile.id)
+          );
+          const subjectsSnapshot = await getDocs(subjectsQuery);
+          console.log(`📊 Materias asignadas al profesor: ${subjectsSnapshot.size}`);
+          
+          const subjectIds: string[] = [];
+          subjectsSnapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`  - Materia ${index + 1}:`, doc.id, data);
+            subjectIds.push(doc.id);
+          });
+          
+          // Buscar cuadernos de las materias
+          if (subjectIds.length > 0) {
+            console.log('\n📓 Buscando cuadernos de las materias...');
+            const notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', 'in', subjectIds)
+            );
+            const notebooksSnapshot = await getDocs(notebooksQuery);
+            console.log(`📊 Cuadernos encontrados: ${notebooksSnapshot.size}`);
+            
+            notebooksSnapshot.docs.forEach((doc, index) => {
+              const data = doc.data();
+              console.log(`  - Cuaderno ${index + 1}:`, doc.id, data);
+            });
+          } else {
+            console.log('❌ No hay materias asignadas al profesor');
+            console.log('💡 Posibles causas:');
+            console.log('   1. El idProfesor en las materias no coincide con el ID del documento del profesor');
+            console.log('   2. Las materias fueron vinculadas con el UID de Firebase en lugar del ID del documento');
+            console.log('   3. No se han asignado materias a este profesor');
+          }
+        } else {
+          console.log('❌ No se encontró el documento del usuario');
+        }
+      } catch (error) {
+        console.error('❌ Error en diagnóstico:', error);
+      }
+    }
+    
+    console.log('\n📓 Cuadernos escolares cargados por el hook:', schoolNotebooks);
+    console.log('🔍 === FIN DEL DIAGNÓSTICO ===');
+  };
 
-  // Función temporal para migrar usuario a schoolTeachers si no existe
-  const migrateUserToSchoolTeachers = async () => {
+  // Función para asegurar que el usuario tenga el rol correcto en la colección users
+  const ensureTeacherRole = async () => {
     if (!user || !userProfile) {
       console.log('❌ No hay usuario o perfil disponible');
       return;
     }
 
     try {
-      console.log('🔄 Migrando usuario a profesor escolar...');
-      
-      // Verificar si ya existe en schoolTeachers
-      const teacherQuery = query(
-        collection(db, 'schoolTeachers'),
-        where('id', '==', user.uid)
-      );
-      const teacherSnapshot = await getDocs(teacherQuery);
-      
-      if (!teacherSnapshot.empty) {
-        console.log('✅ Usuario ya existe en schoolTeachers, no es necesario migrar');
-        return;
-      }
-
-      // Buscar un admin disponible o crear uno temporal
-      let idAdmin = '';
-      const adminsSnapshot = await getDocs(collection(db, 'schoolAdmins'));
-      
-      if (!adminsSnapshot.empty) {
-        // Usar el primer admin disponible
-        idAdmin = adminsSnapshot.docs[0].id;
-        console.log('✅ Usando admin existente:', idAdmin);
-      } else {
-        // Crear un admin temporal si no existe ninguno
-        console.log('⚠️ No hay admins disponibles, creando uno temporal...');
-        const adminData = {
-          nombre: 'Admin Temporal',
-          email: 'admin@temporal.com',
-          password: '1234',
-          subscription: UserSubscriptionType.SCHOOL,
-          idInstitucion: '',
-          createdAt: serverTimestamp()
-        };
+      // Solo actualizar si el usuario no tiene el rol correcto
+      if (userProfile.subscription !== UserSubscriptionType.SCHOOL || userProfile.schoolRole !== SchoolRole.TEACHER) {
+        console.log('🔄 Actualizando rol del usuario a profesor escolar...');
         
-        const adminRef = await addDoc(collection(db, 'schoolAdmins'), adminData);
-        idAdmin = adminRef.id;
-        console.log('✅ Admin temporal creado:', idAdmin);
+        // IMPORTANTE: Usar el ID del documento del usuario, no el UID de Firebase
+        const userId = userProfile.id || user.uid;
+        console.log('📊 IDs del usuario:', {
+          documentId: userProfile.id,
+          firebaseUid: user.uid,
+          usandoId: userId
+        });
+        
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+          subscription: UserSubscriptionType.SCHOOL,
+          schoolRole: SchoolRole.TEACHER,
+          maxNotebooks: 999,
+          maxConceptsPerNotebook: 999,
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log('✅ Usuario actualizado exitosamente como profesor escolar');
+      } else {
+        console.log('✅ Usuario ya tiene el rol correcto de profesor escolar');
       }
-      
-      // SOLO actualizar el documento existente en users, NO crear uno nuevo en schoolTeachers
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        subscription: UserSubscriptionType.SCHOOL,
-        schoolRole: SchoolRole.TEACHER,
-        maxNotebooks: 999,
-        maxConceptsPerNotebook: 999,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Usuario actualizado exitosamente como profesor escolar');
-      
     } catch (error) {
-      console.error('❌ Error migrando usuario a profesor escolar:', error);
+      console.error('❌ Error actualizando rol del usuario:', error);
     }
   };
 
@@ -109,10 +176,10 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     }
   }, [isSchoolTeacher, notebooksLoading, navigate]);
 
-  // Migrar usuario a schoolTeachers cuando se carga el componente
+  // Asegurar que el usuario tenga el rol correcto cuando se carga el componente
   useEffect(() => {
     if (user && userProfile && isSchoolTeacher) {
-      migrateUserToSchoolTeachers();
+      ensureTeacherRole();
     }
   }, [user, userProfile, isSchoolTeacher]);
 

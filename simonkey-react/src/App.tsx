@@ -57,8 +57,17 @@ import AuthUnlocker from './components/AuthUnlocker';
 import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 import SuperAdminRoute from './pages/SuperAdminRoute';
-// Importar utilidad para arreglar perfil de usuario
-import './utils/fixUserProfile';
+// Importar utilidad para arreglar perfil de usuario (solo en desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/fixUserProfile');
+}
+// Importar funciones de debug para profesores
+import './utils/browserDebugTeacher';
+import './utils/fixTeacherSubjectsMapping';
+import './utils/generateFirebaseCommands';
+import './utils/debugCurrentUser';
+import './utils/verifyFirebaseSetup';
+import './utils/testGenerateConcepts';
 
 // Definir el tipo para el usuario
 interface User {

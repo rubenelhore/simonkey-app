@@ -8,7 +8,9 @@ import {
   SchoolNotebook,
   SchoolStudent,
   SchoolTutor,
-  SchoolSubject
+  SchoolSubject,
+  UserSubscriptionType,
+  SchoolRole
 } from '../types/interfaces';
 import { db } from '../services/firebase';
 import { 
@@ -16,7 +18,9 @@ import {
   getDocs, 
   doc, 
   updateDoc,
-  serverTimestamp 
+  serverTimestamp,
+  query,
+  where 
 } from 'firebase/firestore';
 import '../styles/SchoolComponents.css';
 
@@ -44,38 +48,164 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
   const loadEntities = async (category: SchoolCategory) => {
     setLoading(true);
     try {
-      let collectionName = '';
+      let data: any[] = [];
+      
       switch (category) {
         case SchoolCategory.INSTITUCIONES:
-          collectionName = 'schoolInstitutions';
+          // Las instituciones siguen en su colección separada
+          const institutionsSnapshot = await getDocs(collection(db, 'schoolInstitutions'));
+          data = institutionsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.ADMINS:
-          collectionName = 'schoolAdmins';
+          // Cargar usuarios con subscription SCHOOL y schoolRole ADMIN
+          console.log('🔍 Buscando admins con:', {
+            subscription: UserSubscriptionType.SCHOOL,
+            schoolRole: SchoolRole.ADMIN
+          });
+          
+          // Buscar con valores en minúsculas (correcto)
+          const adminsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.ADMIN)
+          );
+          const adminsSnapshot = await getDocs(adminsQuery);
+          console.log('📊 Admins encontrados (minúsculas):', adminsSnapshot.size);
+          
+          // También buscar con valores en mayúsculas (por si la función no se actualizó)
+          const adminsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'ADMIN')
+          );
+          const adminsSnapshotUppercase = await getDocs(adminsQueryUppercase);
+          console.log('📊 Admins encontrados (MAYÚSCULAS):', adminsSnapshotUppercase.size);
+          
+          // Combinar resultados únicos
+          const allAdmins = new Map();
+          adminsSnapshot.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          adminsSnapshotUppercase.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allAdmins.values());
+          console.log('👥 Total de admins (combinado):', data.length);
           break;
+          
         case SchoolCategory.PROFESORES:
-          collectionName = 'schoolTeachers';
+          // Cargar usuarios con subscription SCHOOL y schoolRole TEACHER
+          const teachersQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TEACHER)
+          );
+          const teachersSnapshot = await getDocs(teachersQuery);
+          
+          // También buscar con valores en mayúsculas
+          const teachersQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TEACHER')
+          );
+          const teachersSnapshotUppercase = await getDocs(teachersQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allTeachers = new Map();
+          teachersSnapshot.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          teachersSnapshotUppercase.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTeachers.values());
           break;
+          
         case SchoolCategory.MATERIAS:
-          collectionName = 'schoolSubjects';
+          // Las materias siguen en su colección separada
+          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
+          data = subjectsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.CUADERNOS:
-          collectionName = 'schoolNotebooks';
+          // Los cuadernos siguen en su colección separada
+          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
+          data = notebooksSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.ALUMNOS:
-          collectionName = 'schoolStudents';
+          // Cargar usuarios con subscription SCHOOL y schoolRole STUDENT
+          const studentsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.STUDENT)
+          );
+          const studentsSnapshot = await getDocs(studentsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const studentsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'STUDENT')
+          );
+          const studentsSnapshotUppercase = await getDocs(studentsQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allStudents = new Map();
+          studentsSnapshot.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          studentsSnapshotUppercase.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allStudents.values());
           break;
+          
         case SchoolCategory.TUTORES:
-          collectionName = 'schoolTutors';
+          // Cargar usuarios con subscription SCHOOL y schoolRole TUTOR
+          const tutorsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TUTOR)
+          );
+          const tutorsSnapshot = await getDocs(tutorsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const tutorsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TUTOR')
+          );
+          const tutorsSnapshotUppercase = await getDocs(tutorsQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allTutors = new Map();
+          tutorsSnapshot.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          tutorsSnapshotUppercase.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTutors.values());
           break;
+          
         default:
           return;
       }
-
-      const snapshot = await getDocs(collection(db, collectionName));
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
 
       setEntities(prev => ({
         ...prev,
@@ -92,38 +222,148 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
   const loadLinkableEntities = async (category: SchoolCategory) => {
     setLoading(true);
     try {
-      let linkableCategory = '';
+      let data: any[] = [];
       
       // Definir qué categorías se pueden vincular con cada una
       switch (category) {
         case SchoolCategory.INSTITUCIONES:
-          linkableCategory = 'schoolAdmins';
+          // Vincular con Admins
+          const adminsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.ADMIN)
+          );
+          const adminsSnapshot = await getDocs(adminsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const adminsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'ADMIN')
+          );
+          const adminsSnapshotUppercase = await getDocs(adminsQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allAdmins = new Map();
+          adminsSnapshot.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          adminsSnapshotUppercase.docs.forEach(doc => {
+            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allAdmins.values());
           break;
+          
         case SchoolCategory.ADMINS:
-          linkableCategory = 'schoolTeachers';
+          // Vincular con Teachers
+          const teachersQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TEACHER)
+          );
+          const teachersSnapshot = await getDocs(teachersQuery);
+          
+          // También buscar con valores en mayúsculas
+          const teachersQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TEACHER')
+          );
+          const teachersSnapshotUppercase = await getDocs(teachersQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allTeachers = new Map();
+          teachersSnapshot.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          teachersSnapshotUppercase.docs.forEach(doc => {
+            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTeachers.values());
           break;
+          
         case SchoolCategory.PROFESORES:
-          linkableCategory = 'schoolSubjects';
+          // Vincular con Materias
+          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
+          data = subjectsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.MATERIAS:
-          linkableCategory = 'schoolNotebooks';
+          // Vincular con Cuadernos
+          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
+          data = notebooksSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
           break;
+          
         case SchoolCategory.CUADERNOS:
-          linkableCategory = 'schoolStudents';
+          // Vincular con Students
+          const studentsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.STUDENT)
+          );
+          const studentsSnapshot = await getDocs(studentsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const studentsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'STUDENT')
+          );
+          const studentsSnapshotUppercase = await getDocs(studentsQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allStudents = new Map();
+          studentsSnapshot.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          studentsSnapshotUppercase.docs.forEach(doc => {
+            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allStudents.values());
           break;
+          
         case SchoolCategory.ALUMNOS:
-          linkableCategory = 'schoolTutors';
+          // Vincular con Tutors
+          const tutorsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL),
+            where('schoolRole', '==', SchoolRole.TUTOR)
+          );
+          const tutorsSnapshot = await getDocs(tutorsQuery);
+          
+          // También buscar con valores en mayúsculas
+          const tutorsQueryUppercase = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'SCHOOL'),
+            where('schoolRole', '==', 'TUTOR')
+          );
+          const tutorsSnapshotUppercase = await getDocs(tutorsQueryUppercase);
+          
+          // Combinar resultados únicos
+          const allTutors = new Map();
+          tutorsSnapshot.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          tutorsSnapshotUppercase.docs.forEach(doc => {
+            allTutors.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+          
+          data = Array.from(allTutors.values());
           break;
+          
         default:
           setLinkableEntities([]);
           return;
       }
-
-      const snapshot = await getDocs(collection(db, linkableCategory));
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
 
       setLinkableEntities(data);
     } catch (error) {
@@ -194,31 +434,47 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
       // Determinar la colección y el campo de vinculación
       let collectionName = '';
       let linkField = '';
+      let isUserCollection = false;
       
       switch (linkingData.categoria) {
         case SchoolCategory.INSTITUCIONES:
-          collectionName = 'schoolAdmins';
+          // Vincular institución con admin (en colección users)
+          collectionName = 'users';
           linkField = 'idInstitucion';
+          isUserCollection = true;
           break;
         case SchoolCategory.ADMINS:
-          collectionName = 'schoolTeachers';
+          // Vincular admin con teacher (en colección users)
+          collectionName = 'users';
           linkField = 'idAdmin';
+          isUserCollection = true;
           break;
         case SchoolCategory.PROFESORES:
+          // Vincular profesor con materia (en colección schoolSubjects)
           collectionName = 'schoolSubjects';
           linkField = 'idProfesor';
+          console.log('📊 Vinculando profesor con materia:', {
+            profesorId: linkingData.especifico,
+            materiaId: linkingData.vincular,
+            campo: linkField
+          });
           break;
         case SchoolCategory.MATERIAS:
+          // Vincular materia con cuaderno (en colección schoolNotebooks)
           collectionName = 'schoolNotebooks';
           linkField = 'idMateria';
           break;
         case SchoolCategory.CUADERNOS:
-          collectionName = 'schoolStudents';
+          // Vincular cuaderno con estudiante (en colección users)
+          collectionName = 'users';
           linkField = 'idCuadernos';
+          isUserCollection = true;
           break;
         case SchoolCategory.ALUMNOS:
-          collectionName = 'schoolTutors';
+          // Vincular alumno con tutor (en colección users)
+          collectionName = 'users';
           linkField = 'idAlumnos';
+          isUserCollection = true;
           break;
         default:
           throw new Error('Categoría no válida para vinculación');

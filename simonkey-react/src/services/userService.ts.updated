@@ -1,0 +1,62 @@
+// Updated checkUserExistsByEmail function to use unified users collection
+export const checkUserExistsByEmail = async (email: string): Promise<ExistingUserCheck> => {
+  try {
+    logger.debug('🔍 Iniciando búsqueda de usuario por email:', email);
+    
+    // Buscar en la colección users por email
+    logger.debug('🔍 Buscando en colección users...');
+    try {
+      const usersQuery = query(collection(db, 'users'), where('email', '==', email));
+      const usersSnapshot = await getDocs(usersQuery);
+      logger.debug(`🔍 Resultado búsqueda en users: ${usersSnapshot.size} documentos encontrados`);
+      
+      if (!usersSnapshot.empty) {
+        const userDoc = usersSnapshot.docs[0];
+        const userData = userDoc.data();
+        logger.debug(`✅ Usuario encontrado con email: ${email} ID: ${userDoc.id}`);
+        logger.debug('✅ Datos completos del usuario:', userData);
+        
+        // Determinar el tipo de usuario basado en subscription y schoolRole
+        let userType = userData.subscription || 'FREE';
+        
+        // Si es un usuario escolar, usar el schoolRole para determinar el tipo específico
+        if (userData.subscription === 'school' && userData.schoolRole) {
+          switch (userData.schoolRole) {
+            case 'student':
+              userType = 'SCHOOL_STUDENT';
+              break;
+            case 'teacher':
+              userType = 'SCHOOL_TEACHER';
+              break;
+            case 'admin':
+              userType = 'SCHOOL_ADMIN';
+              break;
+            case 'tutor':
+              userType = 'SCHOOL_TUTOR';
+              break;
+            default:
+              userType = 'SCHOOL';
+          }
+        }
+        
+        return {
+          exists: true,
+          userId: userDoc.id,
+          userData: userData as UserProfile,
+          userType: userType
+        };
+      }
+    } catch (usersError) {
+      logger.error('❌ Error buscando en colección users:', usersError);
+    }
+    
+    // NOTA: Ya no buscamos en schoolStudents/schoolTeachers ya que todo está consolidado en users
+    
+    logger.debug('❌ No se encontró usuario con email:', email);
+    return { exists: false };
+    
+  } catch (error) {
+    logger.error('❌ Error verificando usuario por email:', error);
+    return { exists: false };
+  }
+};

@@ -1189,7 +1189,26 @@ export const createSchoolUser = onCall(
         ? userData.password 
         : 'school123';
 
-      // Crear documento en colección users
+      // Determinar el schoolRole basado en el role proporcionado
+      let schoolRole: string;
+      switch (userData.role) {
+        case 'admin':
+          schoolRole = 'admin';
+          break;
+        case 'teacher':
+          schoolRole = 'teacher';
+          break;
+        case 'student':
+          schoolRole = 'student';
+          break;
+        case 'tutor':
+          schoolRole = 'tutor';
+          break;
+        default:
+          schoolRole = 'student';
+      }
+
+      // Crear documento solo en colección users
       await db.collection("users").doc(userId).set({
         id: userId,
         email: userData.email,
@@ -1197,26 +1216,14 @@ export const createSchoolUser = onCall(
         nombre: userData.nombre,
         displayName: userData.nombre,
         birthdate: '',
-        subscription: 'SCHOOL',
-        schoolRole: userData.role === 'teacher' ? 'TEACHER' : 'STUDENT',
+        subscription: 'school',
+        schoolRole: schoolRole,
         notebookCount: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         maxNotebooks: userData.role === 'teacher' ? 999 : 0,
         maxConceptsPerNotebook: userData.role === 'teacher' ? 999 : 0,
         canDeleteAndRecreate: false,
-        ...userData.additionalData
-      });
-      
-      // Crear documento en colección específica
-      const collectionName = userData.role === 'teacher' ? 'schoolTeachers' : 'schoolStudents';
-      await db.collection(collectionName).doc(userId).set({
-        id: userId,
-        nombre: userData.nombre,
-        email: userData.email,
-        password: passwordToUse,
-        subscription: 'SCHOOL',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
         ...userData.additionalData
       });
 
@@ -2212,12 +2219,41 @@ export const generateConceptsFromFile = onCall(
       const db = getDb();
       
       // Verificar límites de uso
-      const userDoc = await db.collection("users").doc(userId).get();
+      let userDoc = await db.collection("users").doc(userId).get();
+      let userData;
+      let actualUserId = userId; // Para tracking del ID real usado
+      
       if (!userDoc.exists) {
-        throw new HttpsError("not-found", "Usuario no encontrado");
+        // Si no se encuentra por UID, buscar por email para usuarios escolares
+        logger.info("🔍 Usuario no encontrado por UID, buscando por email", { userId });
+        
+        const userEmail = request.auth?.token?.email;
+        if (userEmail) {
+          const usersQuery = await db.collection("users")
+            .where("email", "==", userEmail)
+            .limit(1)
+            .get();
+          
+          if (!usersQuery.empty) {
+            userDoc = usersQuery.docs[0];
+            userData = userDoc.data();
+            actualUserId = userDoc.id; // Usar el ID del documento encontrado
+            logger.info("✅ Usuario escolar encontrado por email", { 
+              originalUid: userId,
+              documentId: actualUserId,
+              email: userEmail,
+              schoolRole: userData?.schoolRole 
+            });
+          } else {
+            throw new HttpsError("not-found", "Usuario no encontrado");
+          }
+        } else {
+          throw new HttpsError("not-found", "Usuario no encontrado");
+        }
+      } else {
+        userData = userDoc.data();
       }
-
-      const userData = userDoc.data();
+      
       logger.info("👤 Datos del usuario obtenidos", {
         userId,
         userData: {
@@ -2244,9 +2280,9 @@ export const generateConceptsFromFile = onCall(
       
       const limits = getSubscriptionLimits(subscriptionType);
 
-      // Verificar límite diario
+      // Verificar límite diario (usar actualUserId para usuarios escolares)
       const today = new Date().toISOString().split('T')[0];
-      const usageRef = db.collection("users").doc(userId).collection("geminiUsage").doc(today);
+      const usageRef = db.collection("users").doc(actualUserId).collection("geminiUsage").doc(today);
       const usageDoc = await usageRef.get();
       
       const currentUsage = usageDoc.exists ? usageDoc.data()?.count || 0 : 0;
@@ -2450,7 +2486,7 @@ Responde ÚNICAMENTE con este JSON válido:
         const schoolConceptRef = db.collection("schoolConcepts").doc();
         const conceptData = {
           cuadernoId: notebookId,
-          usuarioId: userId,
+          usuarioId: actualUserId, // Usar actualUserId para usuarios escolares
           conceptos: validConcepts.map((concept: any, index: number) => ({
             id: `${schoolConceptRef.id}_${index}`,
             término: concept.termino,
@@ -2499,7 +2535,7 @@ Responde ÚNICAMENTE con este JSON válido:
 
       // Registrar actividad
       await db.collection("userActivities").add({
-        userId,
+        userId: actualUserId, // Usar actualUserId para consistencia
         type: 'concepts_generated',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         metadata: {

@@ -24,8 +24,7 @@ import { deleteUserWithConfirmation, syncSchoolUsers, migrateUsers } from '../se
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
 import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
-import DuplicateAccountsDiagnostic from '../components/DuplicateAccountsDiagnostic';
-import SchoolStudentDiagnostic from '../components/SchoolStudentDiagnostic';
+import SchoolMigrationTool from '../components/SchoolMigrationTool';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
@@ -335,118 +334,25 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  // Función para crear réplica de profesor
+  // Función para crear réplica de profesor (DEPRECADA - Ya no usamos réplicas)
   const createTeacherReplica = async (userId: string, userData: any) => {
-    try {
-      console.log(`👨‍🏫 Creando réplica de profesor para ${userData.nombre || userData.displayName}`);
-      
-      // Verificar si ya existe en schoolTeachers
-      const teacherQuery = query(collection(db, 'schoolTeachers'), where('id', '==', userId));
-      const teacherSnapshot = await getDocs(teacherQuery);
-      
-      if (!teacherSnapshot.empty) {
-        console.log('✅ Usuario ya existe en schoolTeachers, actualizando...');
-        await updateDoc(doc(db, 'schoolTeachers', userId), {
-          nombre: userData.nombre || userData.displayName || userData.username || 'Profesor',
-          email: userData.email,
-          password: '1234', // Password por defecto
-          subscription: UserSubscriptionType.SCHOOL,
-          updatedAt: serverTimestamp()
-        });
-        return;
-      }
-      
-      // Crear nuevo registro en schoolTeachers
-      await setDoc(doc(db, 'schoolTeachers', userId), {
-        id: userId,
-        nombre: userData.nombre || userData.displayName || userData.username || 'Profesor',
-        email: userData.email,
-        password: '1234', // Password por defecto
-        subscription: UserSubscriptionType.SCHOOL,
-        idAdmin: '', // Se vinculará después
-        createdAt: userData.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Réplica de profesor creada exitosamente');
-    } catch (error) {
-      console.error('Error creando réplica de profesor:', error);
-      throw error;
-    }
+    console.log(`⚠️ FUNCIÓN DEPRECADA: createTeacherReplica - Ya no usamos réplicas`);
+    console.log(`Los usuarios escolares ahora se crean directamente en la colección users con subscription: SCHOOL y schoolRole: TEACHER`);
+    // No hacer nada - las réplicas ya no son necesarias
   };
 
-  // Función para crear réplica de estudiante
+  // Función para crear réplica de estudiante (DEPRECADA - Ya no usamos réplicas)
   const createStudentReplica = async (userId: string, userData: any) => {
-    try {
-      console.log(`👨‍🎓 Creando réplica de estudiante para ${userData.nombre || userData.displayName}`);
-      
-      // Verificar si ya existe en schoolStudents
-      const studentQuery = query(collection(db, 'schoolStudents'), where('id', '==', userId));
-      const studentSnapshot = await getDocs(studentQuery);
-      
-      if (!studentSnapshot.empty) {
-        console.log('✅ Usuario ya existe en schoolStudents, actualizando...');
-        await updateDoc(doc(db, 'schoolStudents', userId), {
-          nombre: userData.nombre || userData.displayName || userData.username || 'Estudiante',
-          email: userData.email,
-          password: '1234', // Password por defecto
-          subscription: UserSubscriptionType.SCHOOL,
-          updatedAt: serverTimestamp()
-        });
-        return;
-      }
-      
-      // Crear nuevo registro en schoolStudents
-      await setDoc(doc(db, 'schoolStudents', userId), {
-        id: userId,
-        nombre: userData.nombre || userData.displayName || userData.username || 'Estudiante',
-        email: userData.email,
-        password: '1234', // Password por defecto
-        subscription: UserSubscriptionType.SCHOOL,
-        idAdmin: '', // Se vinculará después
-        idTeacher: '', // Se vinculará después
-        idNotebook: '', // Se vinculará después
-        createdAt: userData.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Réplica de estudiante creada exitosamente');
-    } catch (error) {
-      console.error('Error creando réplica de estudiante:', error);
-      throw error;
-    }
+    console.log(`⚠️ FUNCIÓN DEPRECADA: createStudentReplica - Ya no usamos réplicas`);
+    console.log(`Los usuarios escolares ahora se crean directamente en la colección users con subscription: SCHOOL y schoolRole: STUDENT`);
+    // No hacer nada - las réplicas ya no son necesarias
   };
 
-  // Función para limpiar réplicas cuando se elimina un usuario
+  // Función para limpiar réplicas cuando se elimina un usuario (DEPRECADA - Ya no usamos réplicas)
   const cleanupUserReplicas = async (userId: string) => {
-    try {
-      console.log(`🧹 Limpiando réplicas del usuario ${userId}`);
-      
-      // Verificar si existe en schoolTeachers y eliminarlo
-      const teacherQuery = query(collection(db, 'schoolTeachers'), where('id', '==', userId));
-      const teacherSnapshot = await getDocs(teacherQuery);
-      
-      if (!teacherSnapshot.empty) {
-        console.log('🗑️ Eliminando réplica de schoolTeachers...');
-        await deleteDoc(doc(db, 'schoolTeachers', userId));
-        console.log('✅ Réplica de schoolTeachers eliminada');
-      }
-      
-      // Verificar si existe en schoolStudents y eliminarlo
-      const studentQuery = query(collection(db, 'schoolStudents'), where('id', '==', userId));
-      const studentSnapshot = await getDocs(studentQuery);
-      
-      if (!studentSnapshot.empty) {
-        console.log('🗑️ Eliminando réplica de schoolStudents...');
-        await deleteDoc(doc(db, 'schoolStudents', userId));
-        console.log('✅ Réplica de schoolStudents eliminada');
-      }
-      
-      console.log('✅ Limpieza de réplicas completada');
-    } catch (error) {
-      console.error('Error limpiando réplicas del usuario:', error);
-      // No lanzar error para no interrumpir el proceso de eliminación
-    }
+    console.log(`⚠️ FUNCIÓN DEPRECADA: cleanupUserReplicas - Ya no usamos réplicas`);
+    console.log(`Los usuarios escolares ahora están solo en la colección users`);
+    // No hacer nada - las réplicas ya no existen
   };
 
   const deleteUser = async (userId: string, userName: string) => {
@@ -759,81 +665,6 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  // Función de diagnóstico para verificar acceso a la base de datos
-  const diagnosticarBaseDatos = async () => {
-    console.log('🔍 DIAGNÓSTICO DE BASE DE DATOS');
-    console.log('==============================');
-    
-    try {
-      // 1. Verificar configuración de Firestore
-      console.log('1. Configuración de Firestore:');
-      console.log('- db:', db);
-      console.log('- app:', db.app);
-      
-      // 2. Verificar acceso a la colección users
-      console.log('\n2. Verificando acceso a colección users...');
-      const usersQuery = query(collection(db, 'users'), limit(1));
-      const usersSnapshot = await getDocs(usersQuery);
-      console.log('✅ Acceso a users OK:', usersSnapshot.size, 'documentos');
-      
-      // 3. Verificar acceso a schoolTeachers
-      console.log('\n3. Verificando acceso a schoolTeachers...');
-      const teachersQuery = query(collection(db, 'schoolTeachers'), limit(1));
-      const teachersSnapshot = await getDocs(teachersQuery);
-      console.log('✅ Acceso a schoolTeachers OK:', teachersSnapshot.size, 'documentos');
-      
-      // 4. Verificar acceso a schoolStudents
-      console.log('\n4. Verificando acceso a schoolStudents...');
-      const studentsQuery = query(collection(db, 'schoolStudents'), limit(1));
-      const studentsSnapshot = await getDocs(studentsQuery);
-      console.log('✅ Acceso a schoolStudents OK:', studentsSnapshot.size, 'documentos');
-      
-      // 5. Verificar permisos de escritura
-      console.log('\n5. Verificando permisos de escritura...');
-      const testDocRef = doc(collection(db, 'testPermissions'));
-      await setDoc(testDocRef, {
-        test: true,
-        timestamp: serverTimestamp()
-      });
-      console.log('✅ Permisos de escritura OK');
-      
-      // Limpiar documento de prueba
-      await deleteDoc(testDocRef);
-      console.log('✅ Documento de prueba eliminado');
-      
-    } catch (error) {
-      console.log('❌ Error en diagnóstico:', error);
-      
-      // 6. Probar con base de datos por defecto
-      console.log('\n6. Probando con base de datos por defecto...');
-      try {
-        const defaultDb = getFirestore(app); // Sin especificar base de datos
-        console.log('- defaultDb:', defaultDb);
-        
-        const testDocRefDefault = doc(collection(defaultDb, 'testPermissions'));
-        await setDoc(testDocRefDefault, {
-          test: true,
-          timestamp: serverTimestamp()
-        });
-        console.log('✅ Escritura en base de datos por defecto OK');
-        
-        await deleteDoc(testDocRefDefault);
-        console.log('✅ Documento de prueba eliminado de base por defecto');
-        
-      } catch (defaultError) {
-        console.log('❌ Error con base de datos por defecto:', defaultError);
-      }
-    }
-  };
-
-  // Exponer función de diagnóstico en window
-  useEffect(() => {
-    (window as any).diagnosticarBaseDatos = diagnosticarBaseDatos;
-    return () => {
-      delete (window as any).diagnosticarBaseDatos;
-    };
-  }, []);
-
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -899,20 +730,6 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-search"></i>
             Verificación de Vinculación
           </button>
-          <button 
-            className={`tab-button ${activeTab === 'duplicateAccounts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('duplicateAccounts')}
-          >
-            <i className="fas fa-search"></i>
-            Diagnóstico de Cuentas Duplicadas
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'schoolStudent' ? 'active' : ''}`}
-            onClick={() => setActiveTab('schoolStudent')}
-          >
-            <i className="fas fa-user-graduate"></i>
-            Diagnóstico de Estudiantes
-          </button>
         </nav>
 
         <div className="tab-content">
@@ -948,7 +765,17 @@ const SuperAdminPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="users-grid">
-                  {users.map(user => (
+                  {users.map(user => {
+                    // Debug log para cada usuario
+                    console.log('👤 Usuario:', {
+                      id: user.id,
+                      subscription: user.subscription,
+                      schoolRole: user.schoolRole,
+                      'UserSubscriptionType.SCHOOL': UserSubscriptionType.SCHOOL,
+                      'Comparación': user.subscription === UserSubscriptionType.SCHOOL
+                    });
+                    
+                    return (
                     <div key={user.id} className="user-card">
                       <div className="user-info">
                         <div className="user-header">
@@ -956,11 +783,24 @@ const SuperAdminPage: React.FC = () => {
                             {user.nombre || user.displayName || user.username || 'Sin nombre'}
                             {user.apellidos && ` ${user.apellidos}`}
                           </h3>
-                          <span className={`badge ${user.subscription}`}>
-                            {user.subscription === UserSubscriptionType.SUPER_ADMIN && '👑 Súper Admin'}
-                            {user.subscription === UserSubscriptionType.FREE && '🆓 Gratis'}
-                            {user.subscription === UserSubscriptionType.PRO && '⭐ Pro'}
-                            {user.subscription === UserSubscriptionType.SCHOOL && `🏫 Escolar - ${user.schoolRole || 'Sin rol'}`}
+                          <span className={`badge ${user.subscription?.toLowerCase() || 'free'}`}>
+                            {(() => {
+                              const sub = user.subscription?.toLowerCase();
+                              
+                              if (sub === 'super_admin') return '👑 Súper Admin';
+                              if (sub === 'pro') return '⭐ Pro';
+                              if (sub === 'school') {
+                                const role = user.schoolRole?.toLowerCase();
+                                let roleText = 'Sin rol';
+                                if (role === 'admin') roleText = 'Admin';
+                                if (role === 'teacher') roleText = 'Profesor';
+                                if (role === 'student') roleText = 'Estudiante';
+                                if (role === 'tutor') roleText = 'Tutor';
+                                return `🏫 Escolar - ${roleText}`;
+                              }
+                              // Por defecto es FREE
+                              return '🆓 Gratis';
+                            })()}
                           </span>
                         </div>
                         
@@ -1038,7 +878,7 @@ const SuperAdminPage: React.FC = () => {
                         <div className="action-group">
                           <label className="action-label">Tipo de suscripción:</label>
                           <select 
-                            value={user.subscription}
+                            value={user.subscription?.toLowerCase() || UserSubscriptionType.FREE}
                             onChange={(e) => updateUserSubscription(user.id, e.target.value as UserSubscriptionType)}
                             className="subscription-select"
                           >
@@ -1049,11 +889,11 @@ const SuperAdminPage: React.FC = () => {
                           </select>
                         </div>
                         
-                        {user.subscription === UserSubscriptionType.SCHOOL && (
+                        {user.subscription?.toLowerCase() === 'school' && (
                           <div className="action-group">
                             <label className="action-label">Rol escolar:</label>
                             <select 
-                              value={user.schoolRole || ''}
+                              value={user.schoolRole?.toLowerCase() || ''}
                               onChange={(e) => updateUserSchoolRole(user.id, e.target.value as SchoolRole)}
                               className="role-select"
                             >
@@ -1076,7 +916,7 @@ const SuperAdminPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -1292,6 +1132,9 @@ const SuperAdminPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Nueva herramienta de migración */}
+              <SchoolMigrationTool />
+
               {syncResults && (
                 <div className="sync-results">
                   <h3>📊 Resultados de Sincronización</h3>
@@ -1393,32 +1236,7 @@ const SuperAdminPage: React.FC = () => {
             </div>
           )}
 
-          {/* Tab de Diagnóstico de Cuentas Duplicadas */}
-          {activeTab === 'duplicateAccounts' && (
-            <div className="duplicate-accounts-tab">
-              <div className="tab-header">
-                <h2>🔍 Diagnóstico de Cuentas Duplicadas</h2>
-                <p className="tab-description">
-                  Detecta y limpia cuentas duplicadas que se crean cuando un usuario intenta 
-                  iniciar sesión con Google Auth usando un email que ya existe en el sistema.
-                </p>
-              </div>
-              <DuplicateAccountsDiagnostic />
-            </div>
-          )}
 
-          {/* Tab de Diagnóstico de Estudiantes */}
-          {activeTab === 'schoolStudent' && (
-            <div className="school-student-tab">
-              <div className="tab-header">
-                <h2>🔍 Diagnóstico de Estudiantes</h2>
-                <p className="tab-description">
-                  Detecta y gestiona problemas específicos relacionados con los estudiantes.
-                </p>
-              </div>
-              <SchoolStudentDiagnostic />
-            </div>
-          )}
         </div>
       </div>
 

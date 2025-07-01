@@ -272,43 +272,10 @@ export const diagnoseUserByEmail = async (email: string): Promise<{
       results.found = true;
     }
 
-    // Buscar en colección schoolTeachers
-    console.log('2. Buscando en colección schoolTeachers...');
-    const teachersQuery = query(collection(db, 'schoolTeachers'), where('email', '==', email));
-    const teachersSnapshot = await getDocs(teachersQuery);
-    console.log(`   Resultado: ${teachersSnapshot.size} documentos encontrados`);
-    
-    if (!teachersSnapshot.empty) {
-      teachersSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        results.locations.push({
-          collection: 'schoolTeachers',
-          id: doc.id,
-          data: data
-        });
-        console.log(`   ✅ Encontrado en schoolTeachers - ID: ${doc.id}, Nombre: ${data.nombre}`);
-      });
-      results.found = true;
-    }
-
-    // Buscar en colección schoolStudents
-    console.log('3. Buscando en colección schoolStudents...');
-    const studentsQuery = query(collection(db, 'schoolStudents'), where('email', '==', email));
-    const studentsSnapshot = await getDocs(studentsQuery);
-    console.log(`   Resultado: ${studentsSnapshot.size} documentos encontrados`);
-    
-    if (!studentsSnapshot.empty) {
-      studentsSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        results.locations.push({
-          collection: 'schoolStudents',
-          id: doc.id,
-          data: data
-        });
-        console.log(`   ✅ Encontrado en schoolStudents - ID: ${doc.id}, Nombre: ${data.nombre}`);
-      });
-      results.found = true;
-    }
+    // Ya no buscamos en las colecciones antiguas schoolTeachers y schoolStudents
+    // Todos los usuarios escolares están ahora en la colección users con subscription: SCHOOL
+    console.log('2. Usuarios escolares ahora están en colección users con subscription: SCHOOL');
+    console.log('   (Las colecciones schoolTeachers y schoolStudents ya no se usan)');
 
     // Generar resumen
     if (results.found) {

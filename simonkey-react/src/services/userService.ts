@@ -166,6 +166,15 @@ export const createUserProfile = async (
   try {
     logger.debug('Creando perfil de usuario:', { userId, userData });
     
+    // IMPORTANTE: Verificar si ya existe un usuario con este email
+    const existingUserCheck = await checkUserExistsByEmail(userData.email);
+    if (existingUserCheck.exists && existingUserCheck.userType?.includes('SCHOOL')) {
+      logger.error('❌ INTENTO DE CREAR PERFIL DUPLICADO: Ya existe un usuario escolar con este email');
+      logger.error('❌ Usuario existente:', existingUserCheck.userId);
+      logger.error('❌ Tipo:', existingUserCheck.userType);
+      throw new Error('Ya existe un usuario escolar con este email. Por favor, inicia sesión en lugar de crear una cuenta nueva.');
+    }
+    
     // Verificar si el email corresponde a un usuario escolar existente
     const isSchoolUser = await checkIfEmailIsSchoolUser(userData.email);
     
@@ -229,9 +238,16 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     
     if (userDoc.exists()) {
       const userData = userDoc.data() as UserProfile;
+      
+      // IMPORTANTE: Asegurar que el ID del documento se preserve
+      // Para usuarios escolares, el ID del documento es el ID real del usuario
+      userData.id = userDoc.id;
+      
       logger.debug('Perfil de usuario encontrado:', userData);
       logger.debug('Detalles del perfil:', {
         id: userData.id,
+        docId: userDoc.id,
+        dataId: userDoc.data().id,
         email: userData.email,
         subscription: userData.subscription,
         schoolRole: userData.schoolRole,
@@ -797,53 +813,7 @@ export const checkUserExistsByEmail = async (email: string): Promise<ExistingUse
     }
     
     // PRIMERO: Buscar en colecciones escolares (prioridad alta)
-    logger.debug('🔍 Buscando en colección schoolStudents...');
-    try {
-      const studentsQuery = query(collection(db, 'schoolStudents'), where('email', '==', email));
-      const studentsSnapshot = await getDocs(studentsQuery);
-      logger.debug(`🔍 Resultado búsqueda en schoolStudents: ${studentsSnapshot.size} documentos encontrados`);
-      
-      if (!studentsSnapshot.empty) {
-        const studentDoc = studentsSnapshot.docs[0];
-        const studentData = studentDoc.data();
-        logger.debug(`✅ Estudiante escolar encontrado con email: ${email} ID: ${studentDoc.id}`);
-        logger.debug('✅ Datos completos del estudiante:', studentData);
-        return {
-          exists: true,
-          userId: studentDoc.id,
-          userData: studentData as UserProfile,
-          userType: 'SCHOOL_STUDENT'
-        };
-      }
-    } catch (studentsError) {
-      logger.error('❌ Error buscando en colección schoolStudents:', studentsError);
-      logger.debug('⚠️ Posible problema de permisos en schoolStudents');
-    }
-    
-    logger.debug('🔍 Buscando en colección schoolTeachers...');
-    try {
-      const teachersQuery = query(collection(db, 'schoolTeachers'), where('email', '==', email));
-      const teachersSnapshot = await getDocs(teachersQuery);
-      logger.debug(`🔍 Resultado búsqueda en schoolTeachers: ${teachersSnapshot.size} documentos encontrados`);
-      
-      if (!teachersSnapshot.empty) {
-        const teacherDoc = teachersSnapshot.docs[0];
-        const teacherData = teacherDoc.data();
-        logger.debug(`✅ Profesor escolar encontrado con email: ${email} ID: ${teacherDoc.id}`);
-        logger.debug('✅ Datos completos del profesor:', teacherData);
-        return {
-          exists: true,
-          userId: teacherDoc.id,
-          userData: teacherData as UserProfile,
-          userType: 'SCHOOL_TEACHER'
-        };
-      }
-    } catch (teachersError) {
-      logger.error('❌ Error buscando en colección schoolTeachers:', teachersError);
-      logger.debug('⚠️ Posible problema de permisos en schoolTeachers');
-    }
-    
-    // SEGUNDO: Buscar en la colección users por email
+    // Buscar en la colección users por email
     logger.debug('🔍 Buscando en colección users...');
     try {
       const usersQuery = query(collection(db, 'users'), where('email', '==', email));
@@ -853,17 +823,54 @@ export const checkUserExistsByEmail = async (email: string): Promise<ExistingUse
       if (!usersSnapshot.empty) {
         const userDoc = usersSnapshot.docs[0];
         const userData = userDoc.data();
-        logger.debug(`✅ Usuario encontrado en users con email: ${email} ID: ${userDoc.id} Tipo: ${userData.subscription}`);
+        logger.debug(`✅ Usuario encontrado con email: ${email} ID: ${userDoc.id}`);
         logger.debug('✅ Datos completos del usuario:', userData);
+        
+        // Determinar el tipo de usuario basado en subscription y schoolRole
+        // Normalizar subscription a minúsculas para evitar problemas de case sensitivity
+        const normalizedSubscription = userData.subscription?.toLowerCase() || 'free';
+        let userType = normalizedSubscription.toUpperCase();
+        
+        // Si es un usuario escolar, usar el schoolRole para determinar el tipo específico
+        if (normalizedSubscription === 'school' && userData.schoolRole) {
+          const role = userData.schoolRole.toLowerCase();
+          switch (role) {
+            case 'student':
+              userType = 'SCHOOL_STUDENT';
+              break;
+            case 'teacher':
+              userType = 'SCHOOL_TEACHER';
+              break;
+            case 'admin':
+              userType = 'SCHOOL_ADMIN';
+              break;
+            case 'tutor':
+              userType = 'SCHOOL_TUTOR';
+              break;
+            default:
+              userType = 'SCHOOL';
+          }
+        } else if (normalizedSubscription === 'school') {
+          // Si es escolar pero no tiene rol específico
+          userType = 'SCHOOL';
+        }
+        
         return {
           exists: true,
           userId: userDoc.id,
           userData: userData as UserProfile,
-          userType: userData.subscription || 'FREE'
+          userType: userType
         };
       }
-    } catch (usersError) {
-      logger.error('❌ Error buscando en colección users:', usersError);
+    } catch (usersError: any) {
+      // Si es un error de permisos, es porque las reglas de Firestore están evaluando funciones
+      // que requieren getUserData() durante la query, lo cual falla para usuarios nuevos
+      if (usersError.code === 'permission-denied' || usersError.message?.includes('Missing or insufficient permissions')) {
+        logger.warn('⚠️ Error de permisos al buscar usuarios por email. Las reglas de Firestore pueden estar bloqueando la búsqueda.');
+        logger.warn('⚠️ Esto puede causar que se cree una cuenta duplicada. Verificar reglas de Firestore.');
+      } else {
+        logger.error('❌ Error buscando en colección users:', usersError);
+      }
     }
     
     logger.debug('❌ No se encontró usuario con email:', email);
@@ -896,48 +903,42 @@ export const handleExistingUserWithSameEmail = async (
     // Si el usuario existente es un usuario escolar (creado desde superAdmin)
     if (existingUserCheck.userType === 'SCHOOL' || 
         existingUserCheck.userType === 'SCHOOL_TEACHER' || 
-        existingUserCheck.userType === 'SCHOOL_STUDENT') {
+        existingUserCheck.userType === 'SCHOOL_STUDENT' || 
+        existingUserCheck.userType === 'SCHOOL_ADMIN' || 
+        existingUserCheck.userType === 'SCHOOL_TUTOR') {
       
-      logger.debug('👨‍🎓 Usuario escolar existente detectado, vinculando con Google Auth');
-      
-      // Verificar si ya existe un perfil en la colección users con el UID de Google Auth
-      const googleUserDoc = await getDoc(doc(db, 'users', googleUser.uid));
-      
-      if (!googleUserDoc.exists()) {
-        logger.debug('⚠️ No existe perfil en users con UID de Google Auth, creando...');
-        
-        // Crear el perfil en la colección users usando el UID de Google Auth (NO el ID del usuario escolar)
-        const userData = {
-          email: googleUser.email || '',
-          username: existingUserCheck.userData.nombre || googleUser.displayName || '',
-          nombre: existingUserCheck.userData.nombre || googleUser.displayName || '',
-          displayName: existingUserCheck.userData.nombre || googleUser.displayName || '',
-          birthdate: existingUserCheck.userData.birthdate || ''
-        };
-        
-        // Usar el UID de Google Auth, NO el ID del usuario escolar
-        await createUserProfile(googleUser.uid, userData);
-        logger.debug('✅ Perfil creado en users con UID de Google Auth');
-      } else {
-        logger.debug('✅ Perfil ya existe en users con UID de Google Auth');
-      }
-      
-      // Actualizar con información de Google Auth y vincular con el usuario escolar
-      await updateDoc(doc(db, 'users', googleUser.uid), {
-        googleAuthUid: googleUser.uid,
-        googleAuthEmail: googleUser.email,
-        googleAuthDisplayName: googleUser.displayName,
-        googleAuthPhotoURL: googleUser.photoURL,
-        linkedSchoolUserId: existingUserCheck.userId, // Vincular con el ID del usuario escolar
-        linkedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      logger.debug('👨‍🎓 Usuario escolar existente detectado, usando el perfil existente');
+      logger.debug('📋 Datos del usuario escolar:', {
+        id: existingUserCheck.userId,
+        email: existingUserCheck.userData.email,
+        subscription: existingUserCheck.userData.subscription,
+        schoolRole: existingUserCheck.userData.schoolRole
       });
       
-      logger.debug('✅ Usuario escolar vinculado exitosamente con Google Auth');
+      // Actualizar el documento EXISTENTE del usuario escolar con información de Google Auth
+      try {
+        await updateDoc(doc(db, 'users', existingUserCheck.userId), {
+          googleAuthUid: googleUser.uid,
+          googleAuthEmail: googleUser.email,
+          googleAuthDisplayName: googleUser.displayName,
+          googleAuthPhotoURL: googleUser.photoURL,
+          lastLoginAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        logger.debug('✅ Usuario escolar actualizado con información de Google Auth');
+      } catch (updateError: any) {
+        // Si falla la actualización por permisos, continuamos de todos modos
+        // ya que el usuario existe y queremos usar su perfil
+        logger.warn('⚠️ No se pudo actualizar el usuario escolar con info de Google Auth:', updateError.message);
+        logger.warn('⚠️ Continuando con el perfil escolar existente sin vincular Google Auth');
+      }
+      
+      // IMPORTANTE: Retornar el ID del usuario escolar existente, NO el UID de Google
       return { 
         shouldContinue: true, 
-        message: "Cuenta vinculada exitosamente con tu cuenta escolar existente.",
-        useExistingUserId: googleUser.uid // Usar el UID de Google Auth, no el ID del usuario escolar
+        message: "Sesión iniciada exitosamente con tu cuenta escolar.",
+        useExistingUserId: existingUserCheck.userId // Usar el ID del usuario escolar existente
       };
     }
     

@@ -74,8 +74,6 @@ service cloud.firestore {
                     isSuperAdmin() ||
                     // Permitir lectura si el email del usuario autenticado coincide con el email del documento
                     (request.auth.token.email == resource.data.email) ||
-                    // Permitir lectura si el ID del documento empieza con 'school_' y el email coincide
-                    (userId.matches('^school_.*') && request.auth.token.email == resource.data.email) ||
                     (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
                      getUserData().subscription == 'school' && 
                      getUserData().schoolRole in ['teacher', 'admin'] && 
@@ -90,14 +88,10 @@ service cloud.firestore {
       
       // Permitir actualización si es el propietario o Super Admin
       // También permitir si el email coincide (para actualizar cuentas vinculadas)
-      // También permitir si se está vinculando una cuenta Google (agregando googleAuthUid)
       allow update: if request.auth != null && 
                       (request.auth.uid == userId || 
                        isSuperAdmin() ||
-                       request.auth.token.email == resource.data.email ||
-                       // Permitir vincular cuenta Google si el email coincide y se está agregando googleAuthUid
-                       (request.auth.token.email == resource.data.email && 
-                        request.resource.data.googleAuthUid == request.auth.uid));
+                       request.auth.token.email == resource.data.email);
       
       // Permitir eliminación solo a Super Admin
       allow delete: if request.auth != null && isSuperAdmin();
@@ -200,26 +194,22 @@ service cloud.firestore {
     
     // ========== NOTEBOOKS ESCOLARES ==========
     match /schoolNotebooks/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      // TODO: Restringir después de resolver el problema
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isSchoolTeacher();
       allow update: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
       allow delete: if request.auth != null && isSuperAdmin();
     }
     
     match /schoolConcepts/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow create: if request.auth != null && isSchoolTeacher();
       allow update: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
       allow delete: if request.auth != null && isSuperAdmin();
     }
     
     match /schoolSubjects/{document} {
-      // Permitir lectura a cualquier usuario autenticado temporalmente para debugging
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (isSchoolTeacher() || isSchoolAdmin() || isSuperAdmin());
+      allow read: if request.auth != null && (isSchoolUser() || isSuperAdmin());
+      allow write: if request.auth != null && (isSchoolTeacher() || isSuperAdmin());
     }
     
     match /schoolInstitutions/{document} {

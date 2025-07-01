@@ -13,7 +13,7 @@ import {
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyC26QZw7297E_YOoF5OqR2Ck6x_bw5_Hic",
-  authDomain: "simonkey-5c78f.firebaseapp.com",
+  authDomain: "simonkey.ai", // Actualizado para usar tu dominio personalizado
   projectId: "simonkey-5c78f",
   storageBucket: "simonkey-5c78f.firebasestorage.app",
   messagingSenderId: "235501879490",

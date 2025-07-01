@@ -8,22 +8,24 @@ export const useNotebooks = () => {
   const [notebooks, setNotebooks] = useState<Notebook[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !effectiveUserId) {
       console.log('👤 No hay usuario autenticado, limpiando cuadernos');
       setNotebooks([]);
       setLoading(false);
       return;
     }
 
-    console.log('🔄 Cargando cuadernos para usuario:', user.uid);
+    console.log('🔄 Cargando cuadernos para usuario:', effectiveUserId);
+    console.log('🔍 UID de Firebase:', user.uid);
+    console.log('🔍 ID efectivo:', effectiveUserId);
     setLoading(true);
     
     const notebooksQuery = query(
       collection(db, 'notebooks'),
-      where('userId', '==', user.uid),
+      where('userId', '==', effectiveUserId),
       orderBy('createdAt', 'desc')
     );
 
@@ -61,7 +63,7 @@ export const useNotebooks = () => {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   return { notebooks, loading, error };
 };

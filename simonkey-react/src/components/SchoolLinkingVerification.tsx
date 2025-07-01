@@ -14,7 +14,9 @@ import {
   SchoolSubject,
   SchoolNotebook,
   SchoolStudent,
-  SchoolTutor
+  SchoolTutor,
+  UserSubscriptionType,
+  SchoolRole
 } from '../types/interfaces';
 import '../styles/SchoolLinkingVerification.css';
 
@@ -92,57 +94,93 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     loadFilteredOptions();
   }, [selection]);
 
+  // Función helper para buscar usuarios escolares con ambas variaciones de case
+  const loadSchoolUsersByRole = async (role: string) => {
+    const roleLower = role.toLowerCase();
+    const roleUpper = role.toUpperCase();
+    
+    // Buscar con minúsculas
+    const queryLower = query(
+      collection(db, 'users'),
+      where('subscription', '==', 'school'),
+      where('schoolRole', '==', roleLower)
+    );
+    const snapshotLower = await getDocs(queryLower);
+    
+    // Buscar con mayúsculas
+    const queryUpper = query(
+      collection(db, 'users'),
+      where('subscription', '==', 'SCHOOL'),
+      where('schoolRole', '==', roleUpper)
+    );
+    const snapshotUpper = await getDocs(queryUpper);
+    
+    // Combinar resultados
+    const usersMap = new Map();
+    snapshotLower.docs.forEach(doc => {
+      usersMap.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+    snapshotUpper.docs.forEach(doc => {
+      usersMap.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+    
+    return Array.from(usersMap.values());
+  };
+
   const loadInitialData = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Iniciando carga de datos de vinculación escolar...');
+      
       // Cargar todas las instituciones
+      console.log('🏫 Cargando instituciones...');
       const institutionsSnapshot = await getDocs(collection(db, 'schoolInstitutions'));
+      console.log(`📊 Instituciones encontradas: ${institutionsSnapshot.size}`);
       const institutions = institutionsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as SchoolInstitution[];
+      console.log('🏫 Instituciones cargadas:', institutions);
 
       // Cargar todos los administradores
-      const adminsSnapshot = await getDocs(collection(db, 'schoolAdmins'));
-      const admins = adminsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SchoolAdmin[];
+      console.log('👨‍💼 Cargando administradores...');
+      const admins = await loadSchoolUsersByRole('admin') as SchoolAdmin[];
+      console.log(`👨‍💼 Administradores encontrados: ${admins.length}`);
 
       // Cargar todos los profesores
-      const teachersSnapshot = await getDocs(collection(db, 'schoolTeachers'));
-      const teachers = teachersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SchoolTeacher[];
+      console.log('👨‍🏫 Cargando profesores...');
+      const teachers = await loadSchoolUsersByRole('teacher') as SchoolTeacher[];
+      console.log(`👨‍🏫 Profesores encontrados: ${teachers.length}`);
 
       // Cargar todas las materias
+      console.log('📚 Cargando materias...');
       const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
+      console.log(`📊 Materias encontradas: ${subjectsSnapshot.size}`);
       const subjects = subjectsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as SchoolSubject[];
+      console.log('📚 Materias cargadas:', subjects);
 
       // Cargar todos los cuadernos
+      console.log('📓 Cargando cuadernos...');
       const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
+      console.log(`📊 Cuadernos encontrados: ${notebooksSnapshot.size}`);
       const notebooks = notebooksSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as SchoolNotebook[];
+      console.log('📓 Cuadernos cargados:', notebooks);
 
       // Cargar todos los estudiantes
-      const studentsSnapshot = await getDocs(collection(db, 'schoolStudents'));
-      const students = studentsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SchoolStudent[];
+      console.log('👨‍🎓 Cargando estudiantes...');
+      const students = await loadSchoolUsersByRole('student') as SchoolStudent[];
+      console.log(`👨‍🎓 Estudiantes encontrados: ${students.length}`);
 
       // Cargar todos los tutores
-      const tutorsSnapshot = await getDocs(collection(db, 'schoolTutors'));
-      const tutors = tutorsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SchoolTutor[];
+      console.log('👨‍👩‍👧‍👦 Cargando tutores...');
+      const tutors = await loadSchoolUsersByRole('tutor') as SchoolTutor[];
+      console.log(`👨‍👩‍👧‍👦 Tutores encontrados: ${tutors.length}`);
 
       setAvailableOptions({
         institutions,
@@ -164,8 +202,29 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
         tutors: tutors.length
       });
 
-    } catch (error) {
-      console.error('Error cargando datos iniciales:', error);
+      console.log('✅ Datos cargados exitosamente');
+      console.log('📊 Resumen de datos cargados:', {
+        instituciones: institutions.length,
+        admins: admins.length,
+        profesores: teachers.length,
+        materias: subjects.length,
+        cuadernos: notebooks.length,
+        estudiantes: students.length,
+        tutores: tutors.length
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error cargando datos iniciales:', error);
+      console.error('❌ Detalles del error:', {
+        code: error.code,
+        message: error.message,
+        details: error
+      });
+      
+      // Si es un error de permisos, mostrar más información
+      if (error.code === 'permission-denied') {
+        console.error('❌ Error de permisos. Verifica que el usuario tenga permisos de SuperAdmin');
+      }
     } finally {
       setLoading(false);
     }
@@ -393,6 +452,72 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     });
   };
 
+  const runDiagnostics = async () => {
+    console.log('🔍 === DIAGNÓSTICO DE COLECCIONES ESCOLARES ===');
+    try {
+      // Verificar cada colección
+      const collections = [
+        'schoolInstitutions',
+        'schoolSubjects', 
+        'schoolNotebooks'
+      ];
+      
+      for (const collName of collections) {
+        try {
+          const snapshot = await getDocs(collection(db, collName));
+          console.log(`📊 ${collName}: ${snapshot.size} documentos`);
+          snapshot.docs.forEach((doc, index) => {
+            console.log(`  - Doc ${index + 1}:`, doc.id, doc.data());
+          });
+        } catch (err: any) {
+          console.error(`❌ Error en ${collName}:`, err.message);
+        }
+      }
+      
+      // Verificar usuarios escolares
+      console.log('👥 === USUARIOS ESCOLARES ===');
+      
+      // Buscar con minúsculas
+      const usersQueryLower = query(
+        collection(db, 'users'),
+        where('subscription', '==', 'school')
+      );
+      const usersSnapshotLower = await getDocs(usersQueryLower);
+      console.log(`📊 Usuarios escolares (school): ${usersSnapshotLower.size}`);
+      
+      // Buscar con mayúsculas
+      const usersQueryUpper = query(
+        collection(db, 'users'),
+        where('subscription', '==', 'SCHOOL')
+      );
+      const usersSnapshotUpper = await getDocs(usersQueryUpper);
+      console.log(`📊 Usuarios escolares (SCHOOL): ${usersSnapshotUpper.size}`);
+      
+      // Combinar resultados
+      const allSchoolUsers = new Map();
+      usersSnapshotLower.docs.forEach(doc => {
+        allSchoolUsers.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      usersSnapshotUpper.docs.forEach(doc => {
+        allSchoolUsers.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      
+      console.log(`📊 Total usuarios escolares: ${allSchoolUsers.size}`);
+      Array.from(allSchoolUsers.values()).forEach((user, index) => {
+        console.log(`  - ${user.schoolRole || 'Sin rol'} ${index + 1}:`, user.id, {
+          email: user.email,
+          nombre: user.nombre || user.displayName,
+          schoolRole: user.schoolRole,
+          subscription: user.subscription
+        });
+      });
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+    }
+    console.log('🔍 === FIN DEL DIAGNÓSTICO ===');
+  };
+
   if (loading) {
     return (
       <div className="school-linking-verification">
@@ -605,6 +730,12 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
               onClick={loadInitialData}
             >
               🔄 Actualizar Datos
+            </button>
+            <button 
+              className="refresh-button"
+              onClick={runDiagnostics}
+            >
+              🔍 Diagnóstico
             </button>
           </div>
         </div>
