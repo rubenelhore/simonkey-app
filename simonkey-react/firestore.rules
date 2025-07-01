@@ -274,7 +274,8 @@ service cloud.firestore {
     
     // ========== CATEGORÍAS PERSONALIZADAS ==========
     match /categories/{categoryId} {
-      allow read, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     
@@ -288,6 +289,13 @@ service cloud.firestore {
     match /users/{userId}/miniQuizResults/{quizId} {
       allow read, write: if request.auth != null && 
                           (request.auth.uid == userId || isSuperAdmin());
+    }
+    
+    // Reglas para eventos de calendario
+    match /calendarEvents/{eventId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
     }
     
     // Permitir a Super Admin acceso completo a cualquier colección no especificada

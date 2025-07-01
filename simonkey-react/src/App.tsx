@@ -68,6 +68,7 @@ import './utils/generateFirebaseCommands';
 import './utils/debugCurrentUser';
 import './utils/verifyFirebaseSetup';
 import './utils/testGenerateConcepts';
+import CalendarPage from './pages/CalendarPage';
 
 // Definir el tipo para el usuario
 interface User {
@@ -484,6 +485,7 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/login" replace />
           }
         />
+        <Route path="/calendario" element={<CalendarPage />} />
       </Routes>
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}

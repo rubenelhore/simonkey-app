@@ -26,6 +26,7 @@
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.3.31",
     "react": "^19.1.0",
+    "react-calendar": "^6.0.0",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.1.0",
     "react-firebase-hooks": "^5.1.1",
