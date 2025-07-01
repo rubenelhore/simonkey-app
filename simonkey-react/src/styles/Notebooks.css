@@ -2849,3 +2849,21 @@ body.modal-open .notebooks-hamburger-btn {
     font-size: 0.8rem;
   }
 }
+
+.notebooks-dotted-line-container {
+  width: 80%;
+  margin: 24px auto 16px auto;
+  display: flex;
+  justify-content: center;
+}
+
+.notebooks-dotted-line {
+  border: none;
+  border-top: 2px dotted #bdbdbd;
+  width: 100%;
+  max-width: 500px;
+  background: none;
+  height: 0;
+  margin: 0;
+  opacity: 0.7;
+}

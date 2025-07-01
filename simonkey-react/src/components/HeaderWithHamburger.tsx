@@ -39,6 +39,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // Detectar si estamos en la página de perfil
   const isProfilePage = location.pathname === '/profile';
 
+  // Detectar si estamos en la página de calendario
+  const isCalendarPage = location.pathname === '/calendario';
+
   // Función de depuración para verificar y actualizar superadmin
   const checkAndUpdateSuperAdmin = async () => {
     const currentUser = auth.currentUser;
@@ -130,7 +133,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleCalendarClick = () => {
     setIsHelpSubmenuOpen(false);
-    navigate('/calendar');
+    navigate('/calendario');
   };
 
   const toggleHelpSubmenu = () => {
@@ -212,8 +215,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               <i className="fas fa-volume-up"></i> 
               <span>Configuración de voz</span>
             </button>
-            <button className="side-menu-button calendar-button">
-              <i className="fas fa-calendar-alt"></i> 
+            <button className={`side-menu-button calendar-button${isCalendarPage ? ' disabled' : ''}`} onClick={isCalendarPage ? undefined : handleCalendarClick} disabled={isCalendarPage}>
+              <i className="fas fa-calendar-alt"></i>
               <span>Calendario</span>
             </button>
             <button className="side-menu-button help-button" onClick={toggleHelpSubmenu}>

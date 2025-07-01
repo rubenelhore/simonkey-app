@@ -59,6 +59,7 @@ import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 import SuperAdminRoute from './pages/SuperAdminRoute';
 // Importar utilidad para arreglar perfil de usuario
 import './utils/fixUserProfile';
+import CalendarPage from './pages/CalendarPage';
 
 // Definir el tipo para el usuario
 interface User {
@@ -475,6 +476,7 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/login" replace />
           }
         />
+        <Route path="/calendario" element={<CalendarPage />} />
       </Routes>
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}

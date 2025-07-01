@@ -9,7 +9,6 @@ import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import StreakTracker from '../components/StreakTracker';
-import DaysWithIntelligentStudy from '../components/DaysWithIntelligentStudy';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
@@ -161,7 +160,7 @@ const Notebooks: React.FC = () => {
       console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
       
       // Si es un error de nombre duplicado, solo lanzar la excepción
-      if (error instanceof Error && error.message.includes('Ya existe un cuaderno con ese nombre')) {
+      if (error instanceof Error && error.message.includes('Ya existe una materia con ese nombre')) {
         console.log('Error de nombre duplicado detectado, lanzando excepción');
         // No mostrar alert, el error se muestra visualmente en el input
         throw error;
@@ -181,7 +180,7 @@ const Notebooks: React.FC = () => {
   };
 
   const handleAddConcept = (notebookId: string) => {
-    // Navegar a la página de detalles del cuaderno con parámetro para abrir modal automáticamente
+    // Navegar a la página de detalles de la materia con parámetro para abrir modal automáticamente
     navigate(`/notebooks/${notebookId}?openModal=true`);
   };
 
@@ -366,7 +365,7 @@ const Notebooks: React.FC = () => {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p>Cargando cuadernos...</p>
+        <p>Cargando materias...</p>
       </div>
     );
   }
@@ -375,7 +374,7 @@ const Notebooks: React.FC = () => {
     console.error('Error loading notebooks:', notebooksError);
     return (
       <div className="error-container">
-        <h2>Error al cargar los cuadernos</h2>
+        <h2>Error al cargar las materias</h2>
         <p>{notebooksError.message}</p>
       </div>
     );
@@ -392,7 +391,6 @@ const Notebooks: React.FC = () => {
         <div className="left-column">
           {/* Nuevo componente de racha */}
           <StreakTracker />
-          <DaysWithIntelligentStudy />
           <CategoryDropdown 
             onCategorySelect={handleCategorySelect}
             selectedCategory={selectedCategory}
@@ -401,7 +399,7 @@ const Notebooks: React.FC = () => {
           />
         </div>
         <div className="notebooks-list-section">
-          <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
+          <h2>{isSchoolStudent ? 'Mis materias escolares' : 'Mis materias'}</h2>
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,
