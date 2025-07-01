@@ -159,7 +159,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             </button>
           )}
           
-          <div className="logo2-title-group">
+          <div className="logo2-title-group" style={{ cursor: 'pointer' }} onClick={() => navigate('/notebooks')}>
             <img
               src="/img/favicon.svg"
               alt="Logo Simonkey"
