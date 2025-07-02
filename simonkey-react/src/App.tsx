@@ -71,6 +71,7 @@ import './utils/testGenerateConcepts';
 import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
 import CalendarPage from './pages/CalendarPage';
+import Materias from './pages/Materias';
 
 // Definir el tipo para el usuario
 interface User {
@@ -331,6 +332,55 @@ const AppContent: React.FC = () => {
         <Route path="/terms" element={<TermsPage />} />
         
         {/* Rutas protegidas - requieren autenticación Y verificación de email */}
+        {/* Nueva ruta principal: Materias */}
+        <Route
+          path="/materias"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <>
+                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                    setHasCompletedOnboarding(true);
+                    localStorage.setItem('hasCompletedOnboarding', 'true');
+                  }} />}
+                  <Materias />
+                </>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        {/* Notebooks dentro de una materia */}
+        <Route
+          path="/materias/:materiaId/notebooks"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <Notebooks />
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/materias/:materiaId/notebooks/:id"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <NotebookDetailWrapper />
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/materias/:materiaId/notebooks/:notebookId/concepto/:conceptoId/:index"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <ConceptDetail />
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        {/* Ruta legacy para notebooks (temporal, para compatibilidad) */}
         <Route
           path="/notebooks"
           element={
@@ -341,7 +391,7 @@ const AppContent: React.FC = () => {
                     setHasCompletedOnboarding(true);
                     localStorage.setItem('hasCompletedOnboarding', 'true');
                   }} />}
-                  <Notebooks />
+                  <Navigate to="/materias" replace />
                 </>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
@@ -455,7 +505,7 @@ const AppContent: React.FC = () => {
         {/* La ruta /school/student ya no es necesaria - los estudiantes usan las rutas normales */}
         <Route
           path="/school/student"
-          element={<Navigate to="/notebooks" replace />}
+          element={<Navigate to="/materias" replace />}
         />
         
         {/* Ruta para el panel de control del súper admin */}

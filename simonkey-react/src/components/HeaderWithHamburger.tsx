@@ -159,20 +159,23 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             </button>
           )}
           
-          <div className="logo2-title-group" style={{ cursor: 'pointer' }} onClick={() => navigate('/notebooks')}>
-            <img
-              src="/img/favicon.svg"
-              alt="Logo Simonkey"
-              className="logo-img"
-              width="24"
-              height="24"
-              style={{ filter: 'brightness(0) invert(1)' }}
-            />  
-            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
-              <span>Simon</span>
-              <span>key</span>
-            </h1>
-          </div>
+          {/* Solo mostrar el logo si NO hay back button */}
+          {!showBackButton && (
+            <div className="logo2-title-group" style={{ cursor: 'pointer' }} onClick={() => navigate('/materias')}>
+              <img
+                src="/img/favicon.svg"
+                alt="Logo Simonkey"
+                className="logo-img"
+                width="24"
+                height="24"
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />  
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+                <span>Simon</span>
+                <span>key</span>
+              </h1>
+            </div>
+          )}
           
           {/* Título de la página */}
           <div className="page-title-section">

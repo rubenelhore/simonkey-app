@@ -1,30 +1,39 @@
-// src/components/NotebookItem.tsx
-import { useNavigate } from 'react-router-dom';
-import { deleteNotebook } from '../services/notebookService';
+// src/components/MateriaItem.tsx
 import { useState, useEffect } from 'react';
 
-interface NotebookItemProps {
+interface MateriaItemProps {
   id: string;
   title: string;
-  color?: string; // Nuevo prop para el color
-  category?: string; // Nuevo prop para la categoría
-  onDelete?: (id: string) => void; // Made optional for school students
+  color?: string;
+  category?: string;
+  notebookCount: number;
+  onDelete?: (id: string) => void;
   onEdit?: (id: string, newTitle: string) => void;
-  onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
-  showActions: boolean; // Nuevo prop para controlar si las acciones están visibles
-  onToggleActions: (notebookId: string) => void; // Nueva función para alternar las acciones
-  isSchoolNotebook?: boolean; // Nuevo prop
-  onAddConcept?: (id: string) => void; // Nueva función para agregar conceptos
+  onColorChange?: (id: string, newColor: string) => void;
+  onView: (id: string) => void;
+  showActions: boolean;
+  onToggleActions: (materiaId: string) => void;
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept }) => {
-  const navigate = useNavigate();
+const MateriaItem: React.FC<MateriaItemProps> = ({ 
+  id, 
+  title, 
+  color, 
+  category, 
+  notebookCount,
+  onDelete, 
+  onEdit, 
+  onColorChange, 
+  onView,
+  showActions, 
+  onToggleActions 
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [notebookColor, setNotebookColor] = useState(color || '#6147FF'); // Color predeterminado
-  const [hasError, setHasError] = useState(false); // Estado para manejar errores
-  const [isButtonClick, setIsButtonClick] = useState(false); // Estado para prevenir onBlur cuando se hace clic en botón
+  const [materiaColor, setMateriaColor] = useState(color || '#6147FF');
+  const [hasError, setHasError] = useState(false);
+  const [isButtonClick, setIsButtonClick] = useState(false);
 
   useEffect(() => {
     setEditableTitle(title);
@@ -32,30 +41,19 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("¿Estás seguro de que deseas eliminar este cuaderno?")) {
-      await deleteNotebook(id);
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta materia?")) {
       if (onDelete) {
         onDelete(id);
       }
     }
   };
 
-  const handleView = () => {
-    // Detectar si estamos dentro de una materia
-    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-    const materiaId = materiaMatch ? materiaMatch[1] : null;
-    
-    if (isSchoolNotebook) {
-      navigate(`/school/notebooks/${id}`);
-    } else if (materiaId) {
-      navigate(`/materias/${materiaId}/notebooks/${id}`);
-    } else {
-      navigate(`/notebooks/${id}`);
-    }
+  const handleView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onView(id);
   };
 
   const handleCardClick = () => {
-    // Si hay error, no permitir abrir las acciones
     if (hasError) {
       return;
     }
@@ -64,116 +62,71 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Editando cuaderno:', title, 'editableTitle:', editableTitle);
     setEditableTitle(title);
     setIsEditing(true);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    console.log('Cambiando título a:', newValue);
     setEditableTitle(newValue);
-    setHasError(false); // Resetear error cuando el usuario cambia el texto
+    setHasError(false);
   };
 
   const handleSave = async () => {
-    console.log('=== INICIO handleSave ===');
-    
-    // Si se hizo clic en el botón, no ejecutar handleSave
     if (isButtonClick) {
-      console.log('Clic en botón detectado, saltando handleSave');
       return;
     }
     
-    // Si hay error, no permitir guardar
     if (hasError) {
-      console.log('Error activo, no permitiendo guardar');
       return;
     }
     
     if (onEdit) {
       try {
-        console.log('Llamando a onEdit desde handleSave...');
         await onEdit(id, editableTitle);
-        console.log('onEdit completado exitosamente desde handleSave');
         setIsEditing(false);
         setHasError(false);
       } catch (error) {
-        console.log('=== ERROR CAPTURADO EN handleSave ===');
-        // Si hay error, mostrar error visual y no cerrar edición
-        console.error("Error al guardar desde handleSave:", error);
-        console.error("Tipo de error:", typeof error);
-        console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
         setHasError(true);
         
-        // Mostrar alert solo si es un error de nombre duplicado
-        if (error instanceof Error && error.message.includes("Ya existe un cuaderno con ese nombre")) {
-          console.log("Mostrando alert de nombre duplicado desde handleSave");
+        if (error instanceof Error && error.message.includes("Ya existe una materia con ese nombre")) {
           alert(error.message);
-        } else {
-          console.log('Mensaje de error no coincide:', error instanceof Error ? error.message : 'No es Error');
         }
-        
-        // NO cerrar el modo de edición
       }
     } else {
       setIsEditing(false);
     }
-    console.log('=== FIN handleSave ===');
   };
 
   const handleValidateAndSave = async () => {
-    console.log('=== INICIO handleValidateAndSave ===');
-    
-    // Marcar que se hizo clic en el botón
     setIsButtonClick(true);
     
-    // Si hay error, no permitir guardar
     if (hasError) {
-      console.log('Error activo, no permitiendo guardar desde handleValidateAndSave');
-      setIsButtonClick(false); // Resetear el flag
+      setIsButtonClick(false);
       return;
     }
     
-    console.log('Intentando guardar con valor:', editableTitle);
-    console.log('ID del cuaderno:', id);
     if (onEdit) {
       try {
-        console.log('Llamando a onEdit...');
         await onEdit(id, editableTitle);
-        console.log('onEdit completado exitosamente');
         setIsEditing(false);
         setHasError(false);
       } catch (error) {
-        console.log('=== ERROR CAPTURADO EN NOTEBOOKITEM ===');
-        // Si hay error, mostrar error visual y no cerrar edición
-        console.error("Error al guardar:", error);
-        console.error("Tipo de error:", typeof error);
-        console.error("Mensaje de error:", error instanceof Error ? error.message : 'Error desconocido');
         setHasError(true);
         
-        // Mostrar alert si es un error de nombre duplicado
-        if (error instanceof Error && error.message.includes('Ya existe un cuaderno con ese nombre')) {
-          console.log('Error de nombre duplicado detectado en handleValidateAndSave');
-          // No mostrar alert aquí, ya se muestra en handleSave
+        if (error instanceof Error && error.message.includes('Ya existe una materia con ese nombre')) {
+          // Error ya se muestra en handleSave
         } else {
-          console.log('Error no es de nombre duplicado, mostrando alert genérico');
-          alert('Error al guardar el nombre del cuaderno.');
+          alert('Error al guardar el nombre de la materia.');
         }
-        
-        // NO cerrar el modo de edición
       }
     } else {
-      console.log('No hay función onEdit disponible');
       setIsEditing(false);
     }
     
-    // Resetear el flag después de un pequeño delay
     setTimeout(() => {
       setIsButtonClick(false);
     }, 100);
-    
-    console.log('=== FIN handleValidateAndSave ===');
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -188,7 +141,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   const handleColorChange = (newColor: string) => {
-    setNotebookColor(newColor);
+    setMateriaColor(newColor);
     setShowColorPicker(false);
     if (onColorChange) {
       onColorChange(id, newColor);
@@ -196,13 +149,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   return (
-    <div 
-      className="notebook-card"
-    >
+    <div className="materia-card">
       <div 
-        className="notebook-card-content" 
+        className="materia-card-content" 
         onClick={handleCardClick}
-        style={{ '--notebook-color': notebookColor } as React.CSSProperties}
+        style={{ '--materia-color': materiaColor } as React.CSSProperties}
       >
         {isEditing ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -233,7 +184,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               onClick={handleValidateAndSave}
               disabled={hasError}
               style={{
-                background: hasError ? 'rgba(255, 107, 107, 0.3)' : notebookColor,
+                background: hasError ? 'rgba(255, 107, 107, 0.3)' : materiaColor,
                 border: 'none',
                 color: 'white',
                 cursor: hasError ? 'not-allowed' : 'pointer',
@@ -254,39 +205,26 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
             </button>
           </div>
         ) : (
-          <h3>{editableTitle}</h3>
+          <>
+            <h3>{editableTitle}</h3>
+            <span className="materia-info">
+              {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
+            </span>
+          </>
         )}
       </div>
       {showActions && (
         <div 
-          className="notebook-card-actions"
-          style={{ backgroundColor: notebookColor }}
+          className="materia-card-actions"
+          style={{ backgroundColor: materiaColor }}
         >
-          {onAddConcept && (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddConcept(id);
-              }}
-              className="action-add-concept" 
-              title="Agregar concepto"
-              disabled={hasError}
-              style={{ 
-                backgroundColor: notebookColor,
-                opacity: hasError ? 0.5 : 1, 
-                cursor: hasError ? 'not-allowed' : 'pointer' 
-              }}
-            >
-              <i className="fas fa-plus"></i>
-            </button>
-          )}
           <button 
             onClick={handleView} 
             className="action-view" 
-            title="Ver cuaderno"
+            title="Ver cuadernos"
             disabled={hasError}
             style={{ 
-              backgroundColor: notebookColor,
+              backgroundColor: materiaColor,
               opacity: hasError ? 0.5 : 1, 
               cursor: hasError ? 'not-allowed' : 'pointer' 
             }}
@@ -300,7 +238,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               title="Cambiar color"
               disabled={hasError}
               style={{ 
-                backgroundColor: notebookColor,
+                backgroundColor: materiaColor,
                 opacity: hasError ? 0.5 : 1, 
                 cursor: hasError ? 'not-allowed' : 'pointer' 
               }}
@@ -315,7 +253,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               title="Editar nombre"
               disabled={hasError}
               style={{ 
-                backgroundColor: notebookColor,
+                backgroundColor: materiaColor,
                 opacity: hasError ? 0.5 : 1, 
                 cursor: hasError ? 'not-allowed' : 'pointer' 
               }}
@@ -327,10 +265,10 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
             <button 
               onClick={handleDelete} 
               className="action-delete" 
-              title="Eliminar cuaderno"
+              title="Eliminar materia"
               disabled={hasError}
               style={{ 
-                backgroundColor: notebookColor,
+                backgroundColor: materiaColor,
                 opacity: hasError ? 0.5 : 1, 
                 cursor: hasError ? 'not-allowed' : 'pointer' 
               }}
@@ -343,7 +281,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
       {showColorPicker && (
         <div className="color-picker-container">
           <div className="color-picker">
-            {['#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'].map(color => (
+            {['#6147FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#F7B731', '#5F27CD', '#00D2D3', '#FF9FF3', '#54A0FF', '#48DBFB', '#1ABC9C', '#FF6348'].map(color => (
               <button
                 key={color}
                 className="color-option"
@@ -359,4 +297,4 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   );
 };
 
-export default NotebookItem;
+export default MateriaItem;

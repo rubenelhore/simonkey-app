@@ -41,9 +41,9 @@ const MobileNavigation = () => {
 
   return (
     <nav className={`mobile-navigation ${isVisible ? 'visible' : 'hidden'}`}>
-      <NavLink to="/notebooks" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
+      <NavLink to="/materias" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
         <i className="fas fa-book"></i>
-        <span>Cuadernos</span>
+        <span>Materias</span>
       </NavLink>
       
       <NavLink to="/study" className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>

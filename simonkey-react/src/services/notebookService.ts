@@ -10,10 +10,11 @@ interface Notebook {
   createdAt: Date;
   color?: string;
   category?: string;
+  materiaId?: string;
 }
 
 // Create a new notebook
-export const createNotebook = async (userId: string, title: string, color: string = '#6147FF', category?: string) => {
+export const createNotebook = async (userId: string, title: string, color: string = '#6147FF', category?: string, materiaId?: string) => {
   // Verificar si el usuario puede crear un nuevo cuaderno
   const canCreate = await canCreateNotebook(userId);
   
@@ -32,13 +33,18 @@ export const createNotebook = async (userId: string, title: string, color: strin
     throw new Error('Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.');
   }
 
-  const notebookData = {
+  const notebookData: any = {
     title,
     userId,
     color,
     category: category || '', // Incluir categoría (vacía si no se proporciona)
     createdAt: serverTimestamp(), // Usar serverTimestamp para mejor consistencia
   };
+  
+  // Si se proporciona materiaId, incluirlo
+  if (materiaId) {
+    notebookData.materiaId = materiaId;
+  }
   
   const docRef = await addDoc(collection(db, 'notebooks'), notebookData);
   

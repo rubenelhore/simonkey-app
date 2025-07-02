@@ -175,7 +175,15 @@ const NotebookList: React.FC<NotebookListProps> = ({
     }
 
     try {
-      const notebook = await createNotebook(user.uid, newNotebookTitle.trim());
+      // Si tenemos materiaId en las props, pasarlo a createNotebook
+      const materiaId = (window.location.pathname.match(/\/materias\/([^\/]+)/) || [])[1];
+      const notebook = await createNotebook(
+        user.uid, 
+        newNotebookTitle.trim(),
+        '#6147FF', // color por defecto
+        undefined, // categoría
+        materiaId // materiaId si estamos dentro de una materia
+      );
       console.log('✅ Notebook created:', notebook);
       
       setNewNotebookTitle('');

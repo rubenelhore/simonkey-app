@@ -1,7 +1,7 @@
 // src/pages/Notebooks.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
@@ -18,6 +18,7 @@ import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import CategoryDropdown from '../components/CategoryDropdown';
 
 const Notebooks: React.FC = () => {
+  const { materiaId } = useParams<{ materiaId: string }>();
   const { user, userProfile, loading: authLoading } = useAuth();
   const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
   const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData();
@@ -27,6 +28,7 @@ const Notebooks: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [, setUserEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [materiaData, setMateriaData] = useState<any>(null);
   const navigate = useNavigate();
   const { isSchoolUser, isSchoolTeacher, isSchoolStudent, isSuperAdmin, subscription } = useUserType();
 
@@ -82,6 +84,24 @@ const Notebooks: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Cargar datos de la materia
+  useEffect(() => {
+    const loadMateriaData = async () => {
+      if (!materiaId) return;
+      
+      try {
+        const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+        if (materiaDoc.exists()) {
+          setMateriaData({ id: materiaDoc.id, ...materiaDoc.data() });
+        }
+      } catch (error) {
+        console.error('Error loading materia:', error);
+      }
+    };
+    
+    loadMateriaData();
+  }, [materiaId]);
 
   useEffect(() => {
     if (user) {
@@ -180,8 +200,12 @@ const Notebooks: React.FC = () => {
   };
 
   const handleAddConcept = (notebookId: string) => {
-    // Navegar a la página de detalles de la materia con parámetro para abrir modal automáticamente
-    navigate(`/notebooks/${notebookId}?openModal=true`);
+    // Navegar a la página de detalles del cuaderno con parámetro para abrir modal automáticamente
+    if (materiaId) {
+      navigate(`/materias/${materiaId}/notebooks/${notebookId}?openModal=true`);
+    } else {
+      navigate(`/notebooks/${notebookId}?openModal=true`);
+    }
   };
 
   const handleLogout = async () => {
@@ -351,13 +375,18 @@ const Notebooks: React.FC = () => {
   };
 
   // Determine which notebooks to use based on user type
-  const effectiveNotebooks = isSchoolStudent ? 
+  let effectiveNotebooks = isSchoolStudent ? 
     (schoolNotebooks || []).map(notebook => ({
       ...notebook,
       userId: notebook.userId || user?.uid || '',
       conceptCount: notebook.conceptCount || 0
     })) : 
     (notebooks || []);
+    
+  // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
+  if (materiaId) {
+    effectiveNotebooks = effectiveNotebooks.filter(notebook => notebook.materiaId === materiaId);
+  }
 
   const isLoading = isSchoolStudent ? schoolNotebooksLoading : notebooksLoading;
   
@@ -439,7 +468,9 @@ const Notebooks: React.FC = () => {
     <>
       <HeaderWithHamburger
         title=""
-        subtitle={`Espacio Personal de ${userData.nombre || 'Simón'}`}
+        subtitle={materiaData ? `Cuadernos de ${materiaData.title}` : `Espacio Personal de ${userData.nombre || 'Simón'}`}
+        showBackButton={!!materiaId}
+        onBackClick={() => navigate('/materias')}
       />
       {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main">
@@ -455,7 +486,7 @@ const Notebooks: React.FC = () => {
         </div>
         <div className="notebooks-list-section">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2>{isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
+            <h2>{materiaData ? `Cuadernos de ${materiaData.title}` : isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
             {isSchoolStudent && (
               <button 
                 onClick={runStudentDiagnostics}

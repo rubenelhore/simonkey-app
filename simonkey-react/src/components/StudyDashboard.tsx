@@ -681,118 +681,6 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     <div className="study-dashboard" onClick={(e) => {
       console.log('[STUDY DASHBOARD] Dashboard container clicked', e.target);
     }}>
-      {/* Botón de refresh para desarrollo */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{ 
-          marginBottom: '10px', 
-          textAlign: 'center' 
-        }}>
-          <button
-            onClick={loadDashboardData}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              marginRight: '8px'
-            }}
-          >
-            🔄 Refresh Dashboard
-          </button>
-          
-          <button
-            onClick={() => {
-              console.log('[TEST] Test quiz button clicked');
-              if (onStartSession) {
-                console.log('[TEST] Calling onStartSession(QUIZ)');
-                onStartSession(StudyMode.QUIZ);
-              } else {
-                console.log('[TEST] onStartSession is not defined!');
-              }
-            }}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#22c55e',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              marginRight: '8px'
-            }}
-          >
-            🧪 Test Quiz
-          </button>
-          
-          <button
-            onClick={async () => {
-              if (!notebook) return;
-              console.log('🔍 DEBUG: Verificando datos de aprendizaje...');
-              
-              try {
-                // Verificar datos de aprendizaje
-                const learningData = await getLearningDataForNotebook(userId, notebook.id);
-                console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
-                
-                // Verificar conceptos del cuaderno
-                const conceptsQuery = query(
-                  collection(db, 'conceptos'),
-                  where('cuadernoId', '==', notebook.id)
-                );
-                const conceptDocs = await getDocs(conceptsQuery);
-                const allConcepts: any[] = [];
-                
-                conceptDocs.forEach(doc => {
-                  const conceptosData = doc.data().conceptos || [];
-                  conceptosData.forEach((concepto: any, index: number) => {
-                    allConcepts.push({
-                      id: concepto.id || `${doc.id}-${index}`,
-                      término: concepto.término
-                    });
-                  });
-                });
-                
-                console.log('📋 Conceptos del cuaderno:', allConcepts.length);
-                console.log('🎯 Conceptos:', allConcepts);
-                
-                // Verificar conceptos listos para repaso
-                const reviewableCount = await studyService.getReviewableConceptsCount(userId, notebook.id);
-                console.log('✅ Conceptos listos para repaso:', reviewableCount);
-                
-                // Verificar si hay coincidencias
-                const learningIds = learningData.map(data => data.conceptId);
-                const conceptIds = allConcepts.map(c => c.id);
-                
-                console.log('🔍 COMPARACIÓN DE IDs:');
-                console.log('📊 IDs en datos de aprendizaje:', learningIds);
-                console.log('📋 IDs en conceptos del cuaderno:', conceptIds);
-                
-                const matches = learningIds.filter(id => conceptIds.includes(id));
-                console.log('✅ IDs que coinciden:', matches.length, 'de', learningIds.length);
-                console.log('🎯 IDs coincidentes:', matches);
-                
-              } catch (error) {
-                console.error('❌ Error en debug:', error);
-              }
-            }}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            🔍 Debug Data
-          </button>
-        </div>
-      )}
-      
       <div className="dashboard-grid">
         {/* Score General */}
         <div className="dashboard-card score-card">
@@ -828,10 +716,6 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
                 ? 'Disponible'
                 : formatDate(dashboardData.nextSmartStudyDate)
               }
-            </div>
-            <div className="mini-quiz-info">
-              <i className="fas fa-question-circle"></i>
-              <span>Incluye Mini Quiz (≥8/10)</span>
             </div>
           </div>
         </div>
@@ -884,35 +768,6 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
                 : formatDate(dashboardData.nextQuizDate)
               }
             </div>
-            {dashboardData.isQuizAvailable && (
-              <>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                  <i className="fas fa-mouse-pointer"></i> Haz clic para iniciar
-                </div>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('[QUIZ BUTTON] Native button clicked!');
-                    if (onStartSession) {
-                      onStartSession(StudyMode.QUIZ);
-                    }
-                  }}
-                  style={{
-                    marginTop: '8px',
-                    padding: '8px 16px',
-                    backgroundColor: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '600'
-                  }}
-                >
-                  Iniciar Quiz
-                </button>
-              </>
-            )}
           </div>
         </div>
 
