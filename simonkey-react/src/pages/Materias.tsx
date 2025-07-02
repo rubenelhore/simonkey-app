@@ -113,7 +113,7 @@ const Materias: React.FC = () => {
       await addDoc(collection(db, 'materias'), {
         title,
         color,
-        category,
+        category: category || '', // Asegurar que no sea undefined
         userId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
