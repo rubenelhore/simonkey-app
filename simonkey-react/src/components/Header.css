@@ -1,17 +1,28 @@
 /* src/components/Header.css */
 .header {
-  padding: 20px 0;
   position: fixed;
   width: 100%;
   background-color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   z-index: 100;
+  height: 70px; /* Altura fija para mejor control */
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 70px; /* Altura fija igual al header */
+  width: 100%;
 }
 
 .logo {
@@ -19,7 +30,8 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  margin-left: 60px;
+  margin-left: 0;
+  height: 100%;
 }
 
 .logo-img {
@@ -36,6 +48,9 @@
 .nav-links {
   display: flex;
   gap: 30px;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
 }
 
 .nav-link {
@@ -66,10 +81,15 @@
   width: 100%;
 }
 
-.auth-buttons {
-  display: flex;
-  gap: 15px;
-  margin-right: 60px;
+.header .auth-buttons {
+  display: flex !important;
+  gap: 15px !important;
+  margin-right: 0 !important;
+  margin-top: 0 !important; /* Sobrescribir el margin-top de SharedNotebook.css */
+  align-items: center !important; /* Forzar center con !important */
+  height: 70px !important; /* Altura fija igual al header */
+  padding: 0 !important; /* Quitar padding que puede interferir */
+  justify-content: flex-end !important; /* Alinear a la derecha */
 }
 
 /* Estilos para el botón hamburguesa */
@@ -95,81 +115,36 @@
   transition: all 0.3s ease;
 }
 
-/* Estilos responsivos */
-@media (max-width: 768px) {
-  .hamburger-btn {
-    display: block;
-  }
-
-  .nav-links,
-  .auth-buttons {
-    display: none;
-  }
-
-  .nav.menu-open .nav-links,
-  .nav.menu-open .auth-buttons {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    background-color: white;
-    padding: 10px 20px;
-    align-items: center; /* Centro los elementos horizontalmente */
-    text-align: center; /* Centro el texto */
-  }
-
-  .nav.menu-open .nav-links {
-    order: 2;
-  }
-
-  .nav.menu-open .auth-buttons {
-    order: 1;
-    border-top: 1px solid #f0f0f0;
-    padding-top: 15px;
-    margin-top: 5px;
-    margin-right: 0; /* Elimino el margen derecho para centrar */
-  }
-
-  .nav.menu-open .nav-link,
-  .nav.menu-open .auth-buttons a {
-    margin: 10px 0;
-  }
-
-  .nav.menu-open .hamburger-line:nth-child(1) {
-    transform: rotate(45deg) translate(5px, 5px);
-  }
-
-  .nav.menu-open .hamburger-line:nth-child(2) {
-    opacity: 0;
-  }
-
-  .nav.menu-open .hamburger-line:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
-  }
-}
-
 /* Agregar al archivo CSS existente */
 
 .nav-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  min-width: 200px;
+  flex-shrink: 0;
+  height: 70px; /* Altura fija */
 }
 
-.mobile-menu {
+.nav-menu {
   display: flex;
-  flex-direction: row; /* Horizontal por defecto para escritorio */
+  flex-direction: row;
   justify-content: space-between;
-  align-items: center;
+  align-items: center !important; /* Forzar centrado vertical */
   width: 100%;
+  flex: 1;
+  gap: 30px;
+  height: 70px; /* Altura fija igual al header */
 }
 
 /* Media query para dispositivos móviles */
-@media (max-width: 750px) {
+@media (max-width: 850px) {
   .hamburger-btn {
-    position: fixed;
-    top: 20px;
+    display: block;
+    position: absolute;
+    top: 50%;
     right: 20px;
+    transform: translateY(-50%);
   }
 
   .nav {
@@ -177,55 +152,117 @@
     align-items: flex-start;
   }
   
-  .mobile-menu {
-    display: none; /* Oculto por defecto en móvil */
-    flex-direction: column; /* Vertical en móvil */
+  .nav-top {
     width: 100%;
-    align-items: flex-start;
-    padding-top: 1rem;
-    gap: 0rem;
+    position: relative;
+    padding: 10px 0;
   }
   
-  .menu-open .mobile-menu {
-    display: flex; /* Mostrar cuando el menú está abierto */
+  /* Ocultar el menú completo por defecto en móvil */
+  .nav-menu {
+    display: none !important;
   }
   
-  .nav-links {
+  /* Mostrar el menú cuando está abierto */
+  .nav.menu-open .nav-menu {
+    display: flex !important;
     flex-direction: column;
     width: 100%;
-    margin-top: 0;
+    background-color: white !important;
+    background: white !important;
+    padding: 20px;
+    position: absolute;
+    top: 70px; /* Usar altura fija del header en lugar de 100% */
+    left: 0;
+    right: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 999; /* Asegurar que esté por encima de otros elementos */
+    border-top: 1px solid #f0f0f0; /* Añadir borde superior para separación */
+    gap: 0 !important; /* Eliminar el gap que causa el espacio transparente */
+    height: auto !important; /* Permitir altura automática */
+  }
+  
+  .nav.menu-open .nav-links {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    margin-bottom: 0; /* Eliminar espacio inferior */
+    background-color: white;
+    padding-bottom: 15px; /* Añadir padding en lugar de margin */
+  }
+  
+  .nav.menu-open .auth-buttons {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    margin-right: 0;
+    margin-top: 0 !important; /* Sobrescribir margin-top conflictivo */
+    height: auto !important; /* Permitir altura automática en móvil */
+    background-color: white;
+    padding-top: 15px; /* Añadir padding superior */
+    border-top: 1px solid #f0f0f0; /* Línea divisoria */
   }
   
   .nav-link {
-    padding: 0rem 0;
+    padding: 10px 0;
     width: 100%;
-  }
-  
-  .auth-buttons {
-    width: 100%;
-    flex-direction: column;
-    gap: 0.2rem;
-    margin-bottom: 0;
+    text-align: center;
   }
   
   .auth-buttons .btn {
     width: 100%;
     text-align: center;
+    background-color: white !important; /* Asegurar fondo blanco */
+  }
+  
+  /* Estilos específicos para botones en menú móvil */
+  .nav.menu-open .auth-buttons .btn-outline {
+    background-color: white !important;
+    border: 2px solid var(--primary) !important;
+    color: var(--primary) !important;
+  }
+  
+  .nav.menu-open .auth-buttons .btn-primary {
+    background-color: var(--primary) !important;
+    border: 2px solid var(--primary) !important;
+    color: white !important;
+  }
+  
+  /* Ajustar el logo en móvil */
+  .logo {
+    margin-left: 0;
+  }
+  
+  .header-container {
+    padding: 0 15px;
   }
 }
 
 /* Estilos específicos para centrar el texto en los botones */
-.auth-buttons .btn {
+.header .auth-buttons .btn {
   text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: flex !important; /* Forzar flex para anular el inline-block global */
+  align-items: center !important;
+  justify-content: center !important;
   min-width: 120px; /* Asegura un ancho mínimo para mejor centrado */
+  height: auto !important; /* Cambiar a auto para permitir centrado natural */
+  line-height: 1;
+  padding: 12px 24px !important; /* Padding simétrico */
+  margin: 0 !important; /* Eliminar cualquier margen */
+  align-self: center !important; /* Asegurar que el elemento se centre */
 }
 
-.auth-buttons .btn-outline {
+.header .auth-buttons .btn-outline,
+.header .auth-buttons .btn-primary {
   text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: flex !important; /* Forzar flex para anular el inline-block global */
+  align-items: center !important;
+  justify-content: center !important;
+  height: auto !important; /* Cambiar a auto para permitir centrado natural */
+  line-height: 1;
+  padding: 12px 24px !important; /* Padding simétrico */
+  margin: 0 !important; /* Eliminar cualquier margen */
+  align-self: center !important; /* Asegurar que el elemento se centre */
 }

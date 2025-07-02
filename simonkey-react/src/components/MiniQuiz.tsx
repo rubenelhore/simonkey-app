@@ -11,6 +11,7 @@ import {
 } from '../types/interfaces';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useUserType } from '../hooks/useUserType';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import '../styles/MiniQuiz.css';
 
 interface MiniQuizProps {
@@ -543,8 +544,13 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         }
       });
 
+      // Obtener el ID efectivo del usuario para usuarios escolares
+      const effectiveUserData = await getEffectiveUserId();
+      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      console.log('💾 Guardando miniQuizResults con userId:', userId);
+      
       // Guardar resultado del mini quiz
-      const miniQuizResultsRef = doc(db, 'users', auth.currentUser.uid, 'miniQuizResults', session.id);
+      const miniQuizResultsRef = doc(db, 'users', userId, 'miniQuizResults', session.id);
       await setDoc(miniQuizResultsRef, finalCleanData);
       
       console.log('[MINI QUIZ] Resultados guardados exitosamente');

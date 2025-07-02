@@ -71,6 +71,11 @@ const StudyModePage = () => {
   const [showFreeStudyIntro, setShowFreeStudyIntro] = useState<boolean>(false);
   const [pendingStudyMode, setPendingStudyMode] = useState<StudyMode | null>(null);
   
+  // Debug: Monitor quiz intro state changes
+  useEffect(() => {
+    console.log('[DEBUG] showQuizIntro state changed to:', showQuizIntro);
+  }, [showQuizIntro]);
+  
   // Usar nuestro hook de servicio personalizado con el tipo de suscripción
   const studyService = useStudyService(subscription);
   
@@ -333,11 +338,15 @@ const StudyModePage = () => {
       return;
     } else if (sessionMode === StudyMode.QUIZ) {
       console.log('[START SESSION] Setting up QUIZ intro screen');
-      console.log('[START SESSION] Current showQuizIntro state:', showQuizIntro);
+      console.log('[START SESSION] Current showQuizIntro state before:', showQuizIntro);
       setShowQuizIntro(true);
       setPendingStudyMode(sessionMode);
-      console.log('[START SESSION] Set showQuizIntro to true and pendingStudyMode to:', sessionMode);
-      // Force a re-render to ensure state is updated
+      console.log('[START SESSION] Called setShowQuizIntro(true) and setPendingStudyMode:', sessionMode);
+      
+      // Debug: Check if state update is working
+      setTimeout(() => {
+        console.log('[START SESSION] After timeout - checking state update');
+      }, 100);
       setTimeout(() => {
         console.log('[START SESSION] After timeout - showQuizIntro should be true');
       }, 100);
@@ -987,6 +996,15 @@ const StudyModePage = () => {
   // Renderizar introducción al Quiz
   const renderQuizIntro = () => {
     console.log('[QUIZ] renderQuizIntro called, returning modal');
+    console.log('[QUIZ] Current state - showQuizIntro:', showQuizIntro);
+    console.log('[QUIZ] Current state - pendingStudyMode:', pendingStudyMode);
+    console.log('[QUIZ] Current state - selectedNotebook:', selectedNotebook?.id);
+    
+    if (!showQuizIntro) {
+      console.log('[QUIZ] showQuizIntro is false, not rendering modal');
+      return null;
+    }
+    
     return (
       <div className="study-intro-overlay">
         <div className="study-intro-modal">
@@ -1141,7 +1159,9 @@ const StudyModePage = () => {
       {showSmartStudyIntro && renderSmartStudyIntro()}
       {showQuizIntro && (
         <>
-          {console.log('[QUIZ] Rendering quiz intro screen, showQuizIntro=', showQuizIntro)}
+          {console.log('[QUIZ] About to render quiz intro screen, showQuizIntro=', showQuizIntro)}
+          {console.log('[QUIZ] pendingStudyMode=', pendingStudyMode)}
+          {console.log('[QUIZ] selectedNotebook=', selectedNotebook?.id)}
           {renderQuizIntro()}
         </>
       )}
