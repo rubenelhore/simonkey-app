@@ -857,11 +857,13 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             }
             
             console.log('[QUIZ CLICK] All checks passed, calling onStartSession(QUIZ)');
+            console.log('[QUIZ CLICK] StudyMode.QUIZ value:', StudyMode.QUIZ);
             try {
               onStartSession(StudyMode.QUIZ);
               console.log('[QUIZ CLICK] onStartSession called successfully');
             } catch (error) {
               console.error('[QUIZ CLICK] Error calling onStartSession:', error);
+              console.error('[QUIZ CLICK] Error stack:', error instanceof Error ? error.stack : 'Unknown error');
             }
           }}
           style={{ 

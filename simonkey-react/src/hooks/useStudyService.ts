@@ -36,6 +36,7 @@ import {
   isFreeStudyAvailable,
   calculateLearningStats
 } from '../utils/sm3Algorithm';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 
 interface StudySession {
   id: string;
@@ -84,6 +85,24 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   console.log('🔍 useStudyService - isSchoolStudent:', isSchoolStudent);
   
   /**
+   * Obtiene el ID efectivo del usuario, asegurándose de usar el ID correcto para usuarios escolares
+   */
+  const getEffectiveUserIdForService = useCallback(
+    async (providedUserId: string): Promise<string> => {
+      // Si es un estudiante escolar, verificar si el ID proporcionado es el correcto
+      if (isSchoolStudent) {
+        const effectiveUserData = await getEffectiveUserId();
+        if (effectiveUserData && effectiveUserData.isSchoolUser) {
+          console.log('🎓 Using school user ID:', effectiveUserData.id, 'instead of:', providedUserId);
+          return effectiveUserData.id;
+        }
+      }
+      return providedUserId;
+    },
+    [isSchoolStudent]
+  );
+  
+  /**
    * Registra actividad de estudio del usuario
    */
   const logStudyActivity = useCallback(
@@ -111,21 +130,25 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const createStudySession = useCallback(
     async (userId: string, notebookId: string, mode: StudyMode): Promise<StudySession> => {
       try {
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('📝 createStudySession - using effectiveUserId:', effectiveUserId);
+        
         // Verificar límites según el modo
         if (mode === StudyMode.FREE) {
-          const canStudy = await checkFreeStudyLimit(userId, notebookId);
+          const canStudy = await checkFreeStudyLimit(effectiveUserId, notebookId);
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio libre hoy');
           }
         } else if (mode === StudyMode.SMART) {
-          const canStudy = await checkSmartStudyLimit(userId, notebookId);
+          const canStudy = await checkSmartStudyLimit(effectiveUserId, notebookId);
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio inteligente hoy para este cuaderno');
           }
         }
         
         const sessionData = {
-          userId,
+          userId: effectiveUserId,
           notebookId,
           mode,
           conceptsStudied: [],
@@ -136,7 +159,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         const sessionRef = await addDoc(collection(db, 'studySessions'), sessionData);
         
         // Actualizar estadísticas del usuario
-        await updateUserStats(userId, {
+        await updateUserStats(effectiveUserId, {
           totalSessionsStarted: increment(1),
           lastSessionDate: serverTimestamp()
         });
@@ -163,10 +186,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const checkFreeStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
       try {
-        console.log('🔍 checkFreeStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('🔍 checkFreeStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
         
         // CORRECCIÓN: Usar un solo documento con campos separados
-        const limitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
+        const limitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
         const limitsDoc = await getDoc(limitsRef);
         
         console.log('🔍 Documento de límites del cuaderno existe:', limitsDoc.exists());
@@ -204,10 +229,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const checkSmartStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
       try {
-        console.log('🔍 checkSmartStudyLimit llamado para usuario:', userId, 'cuaderno:', notebookId);
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('🔍 checkSmartStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
         
         // CORRECCIÓN: Usar un solo documento con campos separados
-        const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
+        const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
         const notebookLimitsDoc = await getDoc(notebookLimitsRef);
         
         console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
@@ -286,11 +313,13 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const updateSmartStudyUsage = useCallback(
     async (userId: string, notebookId: string): Promise<void> => {
       try {
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
         console.log('🔄 Actualizando límites de estudio inteligente por cuaderno para cuaderno:', notebookId);
         // CORRECCIÓN: Usar un solo documento con campos separados
-        const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
+        const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
         await setDoc(notebookLimitsRef, {
-          userId,
+          userId: effectiveUserId,
           notebookId,
           lastSmartStudyDate: new Date(),
           smartStudyCountToday: 1,
@@ -609,7 +638,10 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const getLearningDataForNotebook = useCallback(
     async (userId: string, notebookId: string): Promise<LearningData[]> => {
       try {
-        const learningRef = collection(db, 'users', userId, 'learningData');
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        
+        const learningRef = collection(db, 'users', effectiveUserId, 'learningData');
         const learningQuery = query(
           learningRef,
           where('notebookId', '==', notebookId)
@@ -642,6 +674,10 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const updateConceptResponse = useCallback(
     async (userId: string, conceptId: string, quality: ResponseQuality): Promise<void> => {
       try {
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('📝 updateConceptResponse - using effectiveUserId:', effectiveUserId);
+        
         // Convertir ResponseQuality a calidad SM-3 (0-5)
         // MODIFICACIÓN: Usar calidad 2 para intervalos más cortos y repasos más frecuentes
         const sm3Quality = quality === ResponseQuality.MASTERED ? 2 : 2; // Cambiado de 4 a 2
@@ -654,7 +690,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         });
         
         // Obtener datos de aprendizaje actuales
-        const learningRef = doc(db, 'users', userId, 'learningData', conceptId);
+        const learningRef = doc(db, 'users', effectiveUserId, 'learningData', conceptId);
         const learningDoc = await getDoc(learningRef);
         
         let currentData: LearningData;
@@ -702,14 +738,18 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const getReviewableConcepts = useCallback(
     async (userId: string, notebookId: string): Promise<Concept[]> => {
       try {
-        console.log('🔍 getReviewableConcepts llamado para:', { userId, notebookId });
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('📝 getReviewableConcepts - using effectiveUserId:', effectiveUserId);
+        
+        console.log('🔍 getReviewableConcepts llamado para:', { effectiveUserId, notebookId });
         
         // 1. Obtener TODOS los conceptos del cuaderno primero
-        const allNotebookConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+        const allNotebookConcepts = await getAllConceptsFromNotebook(effectiveUserId, notebookId);
         console.log('📚 Total de conceptos en el cuaderno:', allNotebookConcepts.length);
         
         // 2. Obtener datos de aprendizaje existentes
-        const learningData = await getLearningDataForNotebook(userId, notebookId);
+        const learningData = await getLearningDataForNotebook(effectiveUserId, notebookId);
         console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
         
         // 3. Crear un Set con los IDs de conceptos que ya tienen datos de aprendizaje
@@ -930,7 +970,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const updateUserStats = useCallback(
     async (userId: string, updates: any): Promise<void> => {
       try {
-        const userStatsRef = doc(db, 'users', userId, 'stats', 'study');
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        const userStatsRef = doc(db, 'users', effectiveUserId, 'stats', 'study');
         await updateDoc(userStatsRef, {
           ...updates,
           updatedAt: serverTimestamp()

@@ -194,7 +194,9 @@ const QuizModePage: React.FC = () => {
     }
     
     // Usar el ID efectivo del usuario
+    // Usar effectiveUserId que ya se establece al inicio del componente
     const userId = effectiveUserId || auth.currentUser.uid;
+    console.log('💾 Usando userId para guardar datos:', userId);
 
     try {
       // Verificar límites de quiz para este cuaderno específico
@@ -657,7 +659,9 @@ const QuizModePage: React.FC = () => {
     if (!auth.currentUser) return;
     
     // Usar el ID efectivo del usuario
+    // Usar effectiveUserId que ya se establece al inicio del componente
     const userId = effectiveUserId || auth.currentUser.uid;
+    console.log('💾 Usando userId para guardar datos:', userId);
 
     try {
       console.log('💾 Guardando resultados del quiz:', {
@@ -789,7 +793,9 @@ const QuizModePage: React.FC = () => {
     if (!auth.currentUser || !notebookId) return;
     
     // Usar el ID efectivo del usuario
+    // Usar effectiveUserId que ya se establece al inicio del componente
     const userId = effectiveUserId || auth.currentUser.uid;
+    console.log('💾 Usando userId para guardar datos:', userId);
 
     try {
       console.log('🔄 Aplicando límite de quiz para cuaderno:', notebookId);
