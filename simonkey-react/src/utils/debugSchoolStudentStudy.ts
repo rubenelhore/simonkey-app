@@ -47,11 +47,14 @@ export async function debugSchoolStudentStudy() {
     // 4. Buscar cuadernos asignados
     console.log('\\n📚 Buscando cuadernos asignados...');
     
-    if (userProfile?.idCuadernos && userProfile.idCuadernos.length > 0) {
-      console.log('✅ Cuadernos asignados:', userProfile.idCuadernos);
+    // Cast to SchoolStudent to access idCuadernos
+    const schoolStudent = userProfile as any;
+    
+    if (schoolStudent?.idCuadernos && schoolStudent.idCuadernos.length > 0) {
+      console.log('✅ Cuadernos asignados:', schoolStudent.idCuadernos);
       
       // 5. Para cada cuaderno, buscar conceptos
-      for (const notebookId of userProfile.idCuadernos) {
+      for (const notebookId of schoolStudent.idCuadernos) {
         console.log(`\\n🔍 Buscando conceptos para cuaderno: ${notebookId}`);
         
         // Buscar en schoolConcepts

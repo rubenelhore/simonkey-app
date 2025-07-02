@@ -15,7 +15,8 @@ import {
   serverTimestamp,
   setDoc,
   query,
-  where 
+  where,
+  onSnapshot 
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import '../styles/SchoolComponents.css';
@@ -33,6 +34,73 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
   const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Listener en tiempo real para administradores
+  useEffect(() => {
+    if (creationData.categoria === SchoolCategory.ADMINS) {
+      console.log('🔊 Configurando listener en tiempo real para admins');
+      
+      // Query para administradores con valores en minúsculas
+      const adminsQuery = query(
+        collection(db, 'users'),
+        where('subscription', '==', UserSubscriptionType.SCHOOL),
+        where('schoolRole', '==', SchoolRole.ADMIN)
+      );
+      
+      // Query para administradores con valores en mayúsculas (por compatibilidad)
+      const adminsQueryUppercase = query(
+        collection(db, 'users'),
+        where('subscription', '==', 'SCHOOL'),
+        where('schoolRole', '==', 'ADMIN')
+      );
+      
+      const allAdmins = new Map();
+      
+      // Listener para minúsculas
+      const unsubscribe1 = onSnapshot(adminsQuery, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const data = { id: change.doc.id, ...change.doc.data() };
+            allAdmins.set(change.doc.id, data);
+            console.log('➕ Admin agregado/modificado (minúsculas):', data);
+          } else if (change.type === 'removed') {
+            allAdmins.delete(change.doc.id);
+            console.log('➖ Admin eliminado (minúsculas):', change.doc.id);
+          }
+        });
+        
+        // Actualizar la lista
+        setEntities(Array.from(allAdmins.values()));
+      });
+      
+      // Listener para mayúsculas
+      const unsubscribe2 = onSnapshot(adminsQueryUppercase, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const data = { id: change.doc.id, ...change.doc.data() };
+            allAdmins.set(change.doc.id, data);
+            console.log('➕ Admin agregado/modificado (MAYÚSCULAS):', data);
+          } else if (change.type === 'removed') {
+            allAdmins.delete(change.doc.id);
+            console.log('➖ Admin eliminado (MAYÚSCULAS):', change.doc.id);
+          }
+        });
+        
+        // Actualizar la lista
+        setEntities(Array.from(allAdmins.values()));
+      });
+      
+      // Cargar datos iniciales
+      loadEntities(SchoolCategory.ADMINS);
+      
+      // Cleanup
+      return () => {
+        console.log('🔇 Desconectando listeners de admins');
+        unsubscribe1();
+        unsubscribe2();
+      };
+    }
+  }, [creationData.categoria]);
 
   // Campos requeridos por categoría
   const getRequiredFields = (category: SchoolCategory): string[] => {
@@ -100,15 +168,33 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           // Combinar resultados
           const allAdmins = new Map();
           adminsSnapshot.docs.forEach(doc => {
-            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+            const userData = doc.data();
+            console.log('📋 Admin (minúsculas):', doc.id, userData);
+            allAdmins.set(doc.id, { id: doc.id, ...userData });
           });
           adminsSnapshotUppercase.docs.forEach(doc => {
-            allAdmins.set(doc.id, { id: doc.id, ...doc.data() });
+            const userData = doc.data();
+            console.log('📋 Admin (MAYÚSCULAS):', doc.id, userData);
+            allAdmins.set(doc.id, { id: doc.id, ...userData });
           });
           
           data = Array.from(allAdmins.values());
           console.log('👥 Total de admins (combinado):', data.length);
           console.log('👥 Datos de admins:', data);
+          
+          // Verificar si hay usuarios school sin el campo schoolRole
+          const schoolUsersQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', UserSubscriptionType.SCHOOL)
+          );
+          const schoolUsersSnapshot = await getDocs(schoolUsersQuery);
+          console.log('🏫 Total usuarios school:', schoolUsersSnapshot.size);
+          schoolUsersSnapshot.docs.forEach(doc => {
+            const userData = doc.data();
+            if (!userData.schoolRole) {
+              console.warn('⚠️ Usuario school sin schoolRole:', doc.id, userData);
+            }
+          });
           break;
           
         case SchoolCategory.PROFESORES:
@@ -294,6 +380,12 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           const functions = getFunctions();
           const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
           
+          console.log('📤 Enviando datos para crear admin:', {
+            email: creationData.informacionBasica.email,
+            nombre: creationData.informacionBasica.nombre,
+            role: 'admin'
+          });
+          
           const result = await createSchoolUser({
             userData: {
               email: creationData.informacionBasica.email,
@@ -306,6 +398,9 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
             }
           });
           console.log('✅ Resultado de creación:', result);
+          
+          // Esperar un momento para asegurar la propagación en Firebase
+          await new Promise(resolve => setTimeout(resolve, 500));
           break;
           
         case SchoolCategory.PROFESORES:
@@ -339,7 +434,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           // Los cuadernos siguen en su colección separada
           await addDoc(collection(db, 'schoolNotebooks'), {
             title: creationData.informacionBasica.titulo,
-            color: 'default',
+            color: '#6147FF', // Color azul/morado por defecto
             idMateria: '', // Se vinculará después
             createdAt: serverTimestamp()
           });

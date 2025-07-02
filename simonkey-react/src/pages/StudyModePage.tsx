@@ -100,6 +100,20 @@ const StudyModePage = () => {
   const [reviewedConceptIds, setReviewedConceptIds] = useState<Set<string>>(new Set());
   const [masteredConceptIds, setMasteredConceptIds] = useState<Set<string>>(new Set());
   const [reviewingConceptIds, setReviewingConceptIds] = useState<Set<string>>(new Set());
+  
+  // Estado para el ID efectivo del usuario (para usuarios escolares)
+  const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
+
+  // Cargar el ID efectivo del usuario al montar el componente
+  useEffect(() => {
+    const loadEffectiveUserId = async () => {
+      if (auth.currentUser) {
+        const effectiveUserData = await getEffectiveUserId();
+        setEffectiveUserId(effectiveUserData ? effectiveUserData.id : auth.currentUser.uid);
+      }
+    };
+    loadEffectiveUserId();
+  }, [auth.currentUser]);
 
   // Verificar si viene de otra página con datos
   useEffect(() => {
@@ -713,6 +727,8 @@ const StudyModePage = () => {
         await studyService.markStudySessionAsValidated(sessionId, false);
         
         // Registrar actividad fallida
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         await studyService.logStudyActivity(
           userKey,
           'smart_study_failed_validation',
@@ -732,6 +748,12 @@ const StudyModePage = () => {
         showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
       }
       
+      // Esperar un momento para asegurar que los datos se propaguen en Firestore
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Refrescar datos del dashboard para mostrar el progreso actualizado
+      await refreshDashboardData();
+      
     } catch (error) {
       console.error("Error al procesar resultado del Mini Quiz:", error);
       showFeedback('warning', 'Error al procesar el resultado del Mini Quiz');
@@ -739,6 +761,13 @@ const StudyModePage = () => {
       // Aún así completar la sesión
       setSessionComplete(true);
       setSessionActive(false);
+      
+      // Intentar refrescar el dashboard aunque haya error
+      try {
+        await refreshDashboardData();
+      } catch (refreshError) {
+        console.error("Error al refrescar dashboard:", refreshError);
+      }
     }
   };
   
@@ -1207,7 +1236,7 @@ const StudyModePage = () => {
                       {/* Dashboard de estudio */}
                       <StudyDashboard
                         notebook={selectedNotebook}
-                        userId={auth.currentUser?.uid || ''}
+                        userId={effectiveUserId || auth.currentUser?.uid || ''}
                         userSubscription={subscription}
                         onRefresh={refreshDashboardData}
                         onStartSession={startStudySession}
