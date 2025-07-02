@@ -21,6 +21,7 @@ import {
   getTimerColor
 } from '../utils/quizTimer';
 import { useUserType } from '../hooks/useUserType';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
@@ -61,6 +62,9 @@ const QuizModePage: React.FC = () => {
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [showQuizIntro, setShowQuizIntro] = useState<boolean>(false);
+  
+  // Estado para el ID efectivo del usuario (para usuarios escolares)
+  const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
 
   // Configuración del timer
   const timerConfig: QuizTimerConfig = {
@@ -115,6 +119,19 @@ const QuizModePage: React.FC = () => {
     console.log('[QuizModePage] useEffect - fetchNotebooks');
     fetchNotebooks();
   }, [isSchoolStudent]); // Re-cargar si cambia el tipo de usuario
+  
+  // Cargar el ID efectivo del usuario al montar el componente
+  useEffect(() => {
+    const loadEffectiveUserId = async () => {
+      if (auth.currentUser) {
+        const effectiveUserData = await getEffectiveUserId();
+        const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        setEffectiveUserId(userId);
+        console.log('[QuizModePage] Effective userId loaded:', userId);
+      }
+    };
+    loadEffectiveUserId();
+  }, []);
 
   // Pre-seleccionar cuaderno si viene de StudyModePage e iniciar quiz automáticamente
   useEffect(() => {
@@ -175,12 +192,16 @@ const QuizModePage: React.FC = () => {
       console.log('❌ No hay usuario autenticado');
       return false;
     }
+    
+    // Usar el ID efectivo del usuario
+    const userId = effectiveUserId || auth.currentUser.uid;
 
     try {
       // Verificar límites de quiz para este cuaderno específico
       console.log('🔍 Verificando límites de quiz para cuaderno:', notebookId);
+      console.log('🔍 Usuario:', userId);
       // CORRECCIÓN: Usar un solo documento con campos separados
-      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebookLimits', notebookId);
+      const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
       const notebookLimitsDoc = await getDoc(notebookLimitsRef);
       
       console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
@@ -634,6 +655,9 @@ const QuizModePage: React.FC = () => {
   // Guardar resultados del quiz
   const saveQuizResults = async (session: QuizSession) => {
     if (!auth.currentUser) return;
+    
+    // Usar el ID efectivo del usuario
+    const userId = effectiveUserId || auth.currentUser.uid;
 
     try {
       console.log('💾 Guardando resultados del quiz:', {
@@ -641,7 +665,8 @@ const QuizModePage: React.FC = () => {
         notebookId: session.notebookId,
         score: session.score,
         finalScore: session.finalScore,
-        accuracy: session.accuracy
+        accuracy: session.accuracy,
+        userId: userId
       });
 
       // Recursive function to remove undefined values from objects
@@ -701,14 +726,14 @@ const QuizModePage: React.FC = () => {
       console.log('🧹 Datos limpios para guardar:', finalCleanData);
       
       // 1. Guardar resultado del quiz
-      const quizResultsRef = doc(db, 'users', auth.currentUser.uid, 'quizResults', session.id);
+      const quizResultsRef = doc(db, 'users', userId, 'quizResults', session.id);
       
       await setDoc(quizResultsRef, finalCleanData);
       console.log('✅ Resultado del quiz guardado');
 
       // 2. Actualizar estadísticas del cuaderno
-      const notebookStatsRef = doc(db, 'users', auth.currentUser.uid, 'quizStats', session.notebookId);
-      console.log('💾 Guardando en ruta:', `users/${auth.currentUser.uid}/quizStats/${session.notebookId}`);
+      const notebookStatsRef = doc(db, 'users', userId, 'quizStats', session.notebookId);
+      console.log('💾 Guardando en ruta:', `users/${userId}/quizStats/${session.notebookId}`);
       const statsDoc = await getDoc(notebookStatsRef);
       
       const baseStats = {
@@ -762,20 +787,23 @@ const QuizModePage: React.FC = () => {
   // Actualizar límites de quiz - POR CUADERNO
   const updateQuizLimits = async (notebookId: string) => {
     if (!auth.currentUser || !notebookId) return;
+    
+    // Usar el ID efectivo del usuario
+    const userId = effectiveUserId || auth.currentUser.uid;
 
     try {
       console.log('🔄 Aplicando límite de quiz para cuaderno:', notebookId);
-      console.log('🔍 Usuario actual:', auth.currentUser.uid);
-      console.log('🔄 Ruta de guardado:', `users/${auth.currentUser.uid}/notebookLimits/${notebookId}`);
+      console.log('🔍 Usuario actual:', userId);
+      console.log('🔄 Ruta de guardado:', `users/${userId}/notebookLimits/${notebookId}`);
       
       // CORRECCIÓN: Usar un solo documento con campos separados
-      const notebookLimitsRef = doc(db, 'users', auth.currentUser.uid, 'notebookLimits', notebookId);
+      const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebookId);
       const currentDate = new Date();
       
       console.log('🔍 Fecha actual para límite del cuaderno:', currentDate.toISOString());
       
       const newLimits = {
-        userId: auth.currentUser.uid,
+        userId: userId,
         notebookId: notebookId,
         lastQuizDate: currentDate,
         quizCountThisWeek: 1,
@@ -795,7 +823,7 @@ const QuizModePage: React.FC = () => {
       console.log('✅ Cuaderno:', notebookId);
       console.log('✅ lastQuizDate:', currentDate.toISOString());
       console.log('✅ quizCountThisWeek: 1');
-      console.log('✅ Ruta del documento:', `users/${auth.currentUser.uid}/notebookLimits/${notebookId}`);
+      console.log('✅ Ruta del documento:', `users/${userId}/notebookLimits/${notebookId}`);
       
       // VERIFICACIÓN: Leer de vuelta para confirmar que se guardó
       const verificationDoc = await getDoc(notebookLimitsRef);

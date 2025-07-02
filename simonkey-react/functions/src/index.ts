@@ -1190,22 +1190,29 @@ export const createSchoolUser = onCall(
         : 'school123';
 
       // Determinar el schoolRole basado en el role proporcionado
+      logger.info("🎯 Role recibido:", { role: userData.role, tipo: typeof userData.role });
+      
       let schoolRole: string;
       switch (userData.role) {
         case 'admin':
           schoolRole = 'admin';
+          logger.info("✅ Asignando rol de admin");
           break;
         case 'teacher':
           schoolRole = 'teacher';
+          logger.info("✅ Asignando rol de teacher");
           break;
         case 'student':
           schoolRole = 'student';
+          logger.info("✅ Asignando rol de student");
           break;
         case 'tutor':
           schoolRole = 'tutor';
+          logger.info("✅ Asignando rol de tutor");
           break;
         default:
           schoolRole = 'student';
+          logger.warn("⚠️ Role no reconocido, asignando student por defecto", { role: userData.role });
       }
 
       // Crear documento solo en colección users
@@ -1745,11 +1752,12 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
         });
         
         // Si el usuario existente es escolar, NO crear nuevo perfil
-        if (existingUserData.subscription === 'SCHOOL') {
+        if (existingUserData.subscription === 'SCHOOL' || existingUserData.subscription === 'school') {
           logger.info("🚫 Usuario escolar existente detectado, NO creando perfil duplicado", { 
             existingUserId: existingUser.id,
             newUserId: userId,
-            email 
+            email,
+            subscription: existingUserData.subscription
           });
           
           // En su lugar, actualizar el usuario existente con el nuevo UID de Google Auth
