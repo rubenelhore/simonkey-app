@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import { db, collection, addDoc, query, where, getDocs, Timestamp } from '../services/firebase';
+import { db, collection, addDoc, query, where, getDocs, Timestamp, doc, updateDoc, deleteDoc } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
 // El tipo correcto para el valor del calendario
@@ -15,7 +15,9 @@ const CalendarPage: React.FC = () => {
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date | null>(null);
   const [newEventTitle, setNewEventTitle] = useState('');
-  const [eventsByDate, setEventsByDate] = useState<Record<string, string[]>>({});
+  const [eventsByDate, setEventsByDate] = useState<Record<string, { id: string, title: string }[]>>({});
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingEventTitle, setEditingEventTitle] = useState('');
   const { user } = useAuth();
 
   const handleDayClick = (date: Date) => {
@@ -44,13 +46,13 @@ const CalendarPage: React.FC = () => {
     const fetchEvents = async () => {
       const q = query(collection(db, 'calendarEvents'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
-      const events: Record<string, string[]> = {};
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      const events: Record<string, { id: string, title: string }[]> = {};
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
         const date = data.date && data.date.toDate ? data.date.toDate() : new Date(data.date);
         const key = date.toDateString();
         if (!events[key]) events[key] = [];
-        events[key].push(data.title);
+        events[key].push({ id: docSnap.id, title: data.title });
       });
       setEventsByDate(events);
     };
@@ -67,12 +69,39 @@ const CalendarPage: React.FC = () => {
       title: newEventTitle.trim(),
       createdAt: Timestamp.now()
     };
-    await addDoc(collection(db, 'calendarEvents'), eventData);
+    const docRef = await addDoc(collection(db, 'calendarEvents'), eventData);
     setEventsByDate(prev => ({
       ...prev,
-      [key]: prev[key] ? [...prev[key], newEventTitle.trim()] : [newEventTitle.trim()]
+      [key]: prev[key] ? [...prev[key], { id: docRef.id, title: newEventTitle.trim() }] : [{ id: docRef.id, title: newEventTitle.trim() }]
     }));
     setShowCreateEventModal(false);
+  };
+
+  // Editar evento
+  const handleEditEvent = (eventId: string, currentTitle: string) => {
+    setEditingEventId(eventId);
+    setEditingEventTitle(currentTitle);
+  };
+
+  const handleSaveEditEvent = async (eventId: string, dateKey: string) => {
+    if (!editingEventTitle.trim()) return;
+    await updateDoc(doc(db, 'calendarEvents', eventId), { title: editingEventTitle.trim() });
+    setEventsByDate(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey].map(ev => ev.id === eventId ? { ...ev, title: editingEventTitle.trim() } : ev)
+    }));
+    setEditingEventId(null);
+    setEditingEventTitle('');
+  };
+
+  const handleDeleteEvent = async (eventId: string, dateKey: string) => {
+    await deleteDoc(doc(db, 'calendarEvents', eventId));
+    setEventsByDate(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey].filter(ev => ev.id !== eventId)
+    }));
+    setEditingEventId(null);
+    setEditingEventTitle('');
   };
 
   // Formato de fecha para mostrar
@@ -116,7 +145,7 @@ const CalendarPage: React.FC = () => {
     Object.entries(eventsByDate).forEach(([dateStr, titles]) => {
       const date = new Date(dateStr);
       if (date >= weekStart && date <= weekEnd) {
-        titles.forEach(title => eventos.push({ date, title }));
+        titles.forEach(title => eventos.push({ date, title: title.title }));
       }
     });
     // Ordenar por fecha
@@ -196,8 +225,8 @@ const CalendarPage: React.FC = () => {
           }}>
             <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#6147FF', marginBottom: 16 }}>Acciones para esta semana</h3>
             {eventosSemana.length === 0 ? (
-              <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0' }}>
-                <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 38, display: 'block', marginBottom: 8 }}>🙈💤</span>
+              <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 28 }}>🙈💤</span>
                 No hay eventos para esta semana
               </div>
             ) : (
@@ -257,7 +286,27 @@ const CalendarPage: React.FC = () => {
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {events.map((event, idx) => (
-                  <li key={idx} style={{ color: '#333', fontSize: 17, marginBottom: 10 }}>{event}</li>
+                  <li key={event.id} style={{ color: '#333', fontSize: 17, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {editingEventId === event.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingEventTitle}
+                          onChange={e => setEditingEventTitle(e.target.value)}
+                          style={{ fontSize: 16, flex: 1, padding: 4, borderRadius: 6, border: '1.5px solid #e0e7ef' }}
+                          autoFocus
+                        />
+                        <button onClick={() => handleSaveEditEvent(event.id, selectedDate.toDateString())} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Guardar"><i className="fas fa-check"></i></button>
+                        <button onClick={() => { setEditingEventId(null); setEditingEventTitle(''); }} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Cancelar"><i className="fas fa-times"></i></button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, textAlign: 'left' }}>{event.title}</span>
+                        <button onClick={() => handleEditEvent(event.id, event.title)} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Editar"><i className="fas fa-pencil-alt"></i></button>
+                        <button onClick={() => handleDeleteEvent(event.id, selectedDate.toDateString())} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Borrar"><i className="fas fa-trash"></i></button>
+                      </>
+                    )}
+                  </li>
                 ))}
               </ul>
             )}
