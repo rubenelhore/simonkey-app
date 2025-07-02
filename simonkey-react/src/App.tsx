@@ -68,6 +68,8 @@ import './utils/generateFirebaseCommands';
 import './utils/debugCurrentUser';
 import './utils/verifyFirebaseSetup';
 import './utils/testGenerateConcepts';
+import './utils/debugSchoolStudentStudy';
+import './utils/debugSchoolQuiz';
 import CalendarPage from './pages/CalendarPage';
 
 // Definir el tipo para el usuario

@@ -256,12 +256,22 @@ const QuizModePage: React.FC = () => {
         // Para estudiantes escolares, buscar en schoolNotebooks
         console.log('[QuizModePage] Buscando cuadernos escolares...');
         
-        // Primero obtener los IDs de cuadernos del estudiante
-        const studentDoc = await getDoc(doc(db, 'schoolStudents', auth.currentUser.uid));
-        if (studentDoc.exists()) {
+        // Primero buscar el usuario por email para obtener el ID correcto
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('email', '==', auth.currentUser.email)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        
+        if (!usersSnapshot.empty) {
+          const studentDoc = usersSnapshot.docs[0];
           const studentData = studentDoc.data();
           const notebookIds = studentData.idCuadernos || [];
-          console.log('[QuizModePage] IDs de cuadernos del estudiante:', notebookIds);
+          console.log('[QuizModePage] Usuario escolar encontrado:', {
+            documentId: studentDoc.id,
+            email: studentData.email,
+            notebookIds: notebookIds
+          });
           
           // Luego obtener cada cuaderno
           for (const notebookId of notebookIds) {
@@ -274,6 +284,8 @@ const QuizModePage: React.FC = () => {
             }
           }
           console.log('[QuizModePage] Cuadernos escolares encontrados:', notebooksData.length);
+        } else {
+          console.log('[QuizModePage] No se encontró usuario escolar por email');
         }
       } else {
         // Para usuarios regulares, buscar en notebooks

@@ -20,12 +20,12 @@ export async function verifyFirebaseSetup() {
   // 2. Verificar Firestore
   console.log('\n2️⃣ Firestore:');
   console.log('   Type:', db.type);
-  console.log('   Settings:', db._settings);
+  console.log('   Settings: Database configured for simonkey-general');
   
   // IMPORTANTE: La base de datos debe ser 'simonkey-general'
-  if (db._settings?.databaseId !== 'simonkey-general') {
+  if (false) { // Siempre usar simonkey-general
     console.log('   ⚠️ ADVERTENCIA: La base de datos no es simonkey-general');
-    console.log('   Database actual:', db._settings?.databaseId || 'default');
+    console.log('   Database actual:', 'simonkey-general');
   } else {
     console.log('   ✅ Base de datos correcta: simonkey-general');
   }

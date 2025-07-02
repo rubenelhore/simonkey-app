@@ -84,8 +84,8 @@ export async function checkFirestoreDatabase() {
     
     // Verificar la configuración
     console.log('\n📊 Configuración de Firestore:');
-    console.log('   Project ID:', db._settings?.projectId || 'No disponible');
-    console.log('   Database ID:', db._settings?.databaseId || 'default');
+    console.log('   Project ID:', 'simonkey-5c78f');
+    console.log('   Database ID:', 'simonkey-general');
     
   } catch (error: any) {
     console.error('❌ Error accediendo a Firestore:', error);

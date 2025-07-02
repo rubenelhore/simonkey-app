@@ -69,9 +69,16 @@ interface StudyStats {
  * Hook personalizado que implementa la lógica del Spaced Repetition System
  * basado en el algoritmo SM-3 (SuperMemo 3) para optimizar el aprendizaje
  */
-export const useStudyService = (userSubscription?: UserSubscriptionType) => {
+export const useStudyService = (userSubscription?: UserSubscriptionType | string) => {
   const [error, setError] = useState<string | null>(null);
-  const isSchoolStudent = userSubscription === UserSubscriptionType.SCHOOL;
+  
+  // Normalizar la comparación para manejar strings y enums
+  const normalizedSubscription = typeof userSubscription === 'string' 
+    ? userSubscription.toLowerCase() 
+    : userSubscription;
+  
+  const isSchoolStudent = normalizedSubscription === UserSubscriptionType.SCHOOL || 
+                         normalizedSubscription === 'school';
   
   console.log('🔍 useStudyService - userSubscription:', userSubscription);
   console.log('🔍 useStudyService - isSchoolStudent:', isSchoolStudent);
@@ -773,7 +780,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType) => {
         console.log('📚 Buscando en cuaderno:', notebookId);
         
         // Use the isSchoolStudent from hook initialization or the passed parameter
-        const isStudent = userSubscription ? userSubscription === UserSubscriptionType.SCHOOL : isSchoolStudent;
+        const normalizedUserSub = typeof userSubscription === 'string' 
+          ? userSubscription.toLowerCase() 
+          : userSubscription;
+        const isStudent = userSubscription 
+          ? (normalizedUserSub === UserSubscriptionType.SCHOOL || normalizedUserSub === 'school')
+          : isSchoolStudent;
         const collectionName = isStudent ? 'schoolConcepts' : 'conceptos';
         
         // Buscar todos los documentos de conceptos del cuaderno
