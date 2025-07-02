@@ -2,12 +2,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import { db, collection, addDoc, query, where, getDocs, Timestamp, doc, updateDoc, deleteDoc } from '../services/firebase';
+import { db, collection, addDoc, query, where, getDocs, Timestamp, doc, updateDoc, deleteDoc, getDoc } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useUserType } from '../hooks/useUserType';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
+import { getNextSmartStudyDate } from '../utils/sm3Algorithm';
+import { Notebook } from '../types/interfaces';
 
 // El tipo correcto para el valor del calendario
 // Puede ser Date, [Date, Date] (rango), o null
 // Usamos 'any' para evitar problemas de tipado con la librería
+// Tipos para eventos de estudio
+interface StudyEvent {
+  id: string;
+  title: string;
+  type: 'quiz' | 'smart' | 'custom';
+  notebookId?: string;
+  notebookTitle?: string;
+}
+
 const CalendarPage: React.FC = () => {
   const [value, setValue] = useState<any>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -15,10 +30,14 @@ const CalendarPage: React.FC = () => {
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date | null>(null);
   const [newEventTitle, setNewEventTitle] = useState('');
-  const [eventsByDate, setEventsByDate] = useState<Record<string, { id: string, title: string }[]>>({});
+  const [eventsByDate, setEventsByDate] = useState<Record<string, StudyEvent[]>>({});
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingEventTitle, setEditingEventTitle] = useState('');
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { isSchoolStudent } = useUserType();
+  const { schoolNotebooks } = useSchoolStudentData();
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
@@ -50,24 +69,284 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  // Cargar eventos del usuario al montar
+  // Cargar notebooks del usuario
   useEffect(() => {
     if (!user) return;
-    const fetchEvents = async () => {
+    const loadNotebooks = async () => {
+      // Para usuarios regulares, usar el UID directamente
+      // Para usuarios escolares, usar los notebooks ya cargados por el hook
+      const userId = user.uid;
+      
+      if (isSchoolStudent && schoolNotebooks && schoolNotebooks.length > 0) {
+        setNotebooks(schoolNotebooks);
+      } else {
+        const notebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', userId)
+        );
+        const snapshot = await getDocs(notebooksQuery);
+        const userNotebooks: Notebook[] = [];
+        snapshot.forEach(doc => {
+          userNotebooks.push({ id: doc.id, ...doc.data() } as Notebook);
+        });
+        setNotebooks(userNotebooks);
+      }
+    };
+    loadNotebooks();
+  }, [user, isSchoolStudent, schoolNotebooks]);
+
+  // Función para calcular próximas fechas de estudio
+  const calculateStudyDates = async (notebook: Notebook, userId: string) => {
+    const studyDates: { quiz?: Date; smart?: Date; quizAvailable?: boolean; smartAvailable?: boolean } = {};
+    
+    console.log(`[CALENDAR] Calculando fechas para cuaderno: ${notebook.title}`);
+    
+    try {
+      // Obtener límites del notebook
+      const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebook.id);
+      const notebookLimitsDoc = await getDoc(notebookLimitsRef);
+      
+      if (notebookLimitsDoc.exists()) {
+        const limits = notebookLimitsDoc.data();
+        
+        // Calcular disponibilidad de quiz
+        studyDates.quizAvailable = false;
+        if (limits.lastQuizDate) {
+          const lastQuiz = limits.lastQuizDate.toDate();
+          const daysSinceLastQuiz = Math.floor((Date.now() - lastQuiz.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceLastQuiz >= 7) {
+            studyDates.quizAvailable = true;
+            studyDates.quiz = new Date(); // Disponible hoy
+          } else {
+            const nextQuiz = new Date(lastQuiz);
+            nextQuiz.setDate(nextQuiz.getDate() + 7);
+            studyDates.quiz = nextQuiz; // Disponible en el futuro
+          }
+        } else {
+          // Primer quiz
+          studyDates.quizAvailable = true;
+          studyDates.quiz = new Date(); // Disponible hoy
+        }
+        
+        // Verificar disponibilidad de estudio inteligente
+        studyDates.smartAvailable = false;
+        
+        // Primero verificar si ya se usó hoy
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (limits.lastSmartStudyDate) {
+          const lastSmart = limits.lastSmartStudyDate.toDate();
+          lastSmart.setHours(0, 0, 0, 0);
+          
+          if (lastSmart.getTime() === today.getTime()) {
+            // Ya se usó hoy, estará disponible mañana
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            studyDates.smart = tomorrow;
+            studyDates.smartAvailable = false;
+          } else {
+            // No se ha usado hoy, verificar si hay conceptos para repasar
+            const learningRef = collection(db, 'users', userId, 'learningData');
+            const learningQuery = query(learningRef, where('notebookId', '==', notebook.id));
+            const learningSnapshot = await getDocs(learningQuery);
+            
+            let hasConceptsToReview = false;
+            learningSnapshot.forEach(doc => {
+              const data = doc.data();
+              if (data.nextReviewDate) {
+                const reviewDate = data.nextReviewDate.toDate();
+                if (reviewDate <= new Date()) {
+                  hasConceptsToReview = true;
+                }
+              }
+            });
+            
+            if (hasConceptsToReview) {
+              studyDates.smartAvailable = true;
+              studyDates.smart = new Date(); // Disponible hoy
+            } else {
+              // No hay conceptos para repasar hoy, buscar próxima fecha
+              let nextSmartDate: Date | null = null;
+              learningSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.nextReviewDate) {
+                  const reviewDate = data.nextReviewDate.toDate();
+                  if (reviewDate > new Date() && (!nextSmartDate || reviewDate < nextSmartDate)) {
+                    nextSmartDate = reviewDate;
+                  }
+                }
+              });
+              
+              if (nextSmartDate) {
+                studyDates.smart = nextSmartDate;
+              }
+            }
+          }
+        } else {
+          // Nunca se ha usado, verificar si hay conceptos
+          const learningRef = collection(db, 'users', userId, 'learningData');
+          const learningQuery = query(learningRef, where('notebookId', '==', notebook.id));
+          const learningSnapshot = await getDocs(learningQuery);
+          
+          if (!learningSnapshot.empty) {
+            studyDates.smartAvailable = true;
+            studyDates.smart = new Date(); // Disponible hoy
+          }
+        }
+      } else {
+        // No hay límites, es un cuaderno nuevo
+        console.log(`[CALENDAR] Cuaderno nuevo sin límites: ${notebook.title}`);
+        
+        // Para cuadernos nuevos, verificar si tienen conceptos
+        // Intentar primero con usuarioId
+        let conceptsQuery = query(
+          collection(db, 'conceptos'),
+          where('cuadernoId', '==', notebook.id),
+          where('usuarioId', '==', userId)
+        );
+        let conceptsSnapshot = await getDocs(conceptsQuery);
+        
+        // Si no encuentra con usuarioId, intentar solo con cuadernoId
+        if (conceptsSnapshot.empty) {
+          console.log(`[CALENDAR] No se encontraron conceptos con usuarioId, intentando solo con cuadernoId`);
+          conceptsQuery = query(
+            collection(db, 'conceptos'),
+            where('cuadernoId', '==', notebook.id)
+          );
+          conceptsSnapshot = await getDocs(conceptsQuery);
+        }
+        
+        let hasConcepts = false;
+        let totalConceptCount = 0;
+        conceptsSnapshot.forEach(doc => {
+          const data = doc.data();
+          console.log(`[CALENDAR] Documento de conceptos encontrado:`, data);
+          if (data.conceptos && Array.isArray(data.conceptos) && data.conceptos.length > 0) {
+            hasConcepts = true;
+            totalConceptCount += data.conceptos.length;
+          }
+        });
+        
+        console.log(`[CALENDAR] Cuaderno ${notebook.title} tiene ${totalConceptCount} conceptos`);
+        
+        if (hasConcepts) {
+          // Si tiene conceptos, tanto quiz como estudio inteligente están disponibles
+          studyDates.quizAvailable = true;
+          studyDates.quiz = new Date();
+          studyDates.smartAvailable = true;
+          studyDates.smart = new Date();
+          console.log(`[CALENDAR] Estudios disponibles hoy para cuaderno nuevo: ${notebook.title}`);
+        } else {
+          console.log(`[CALENDAR] Cuaderno nuevo sin conceptos: ${notebook.title}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating study dates:', error);
+    }
+    
+    console.log(`[CALENDAR] Fechas calculadas para ${notebook.title}:`, studyDates);
+    return studyDates;
+  };
+
+  // Cargar eventos del usuario al montar
+  useEffect(() => {
+    if (!user || notebooks.length === 0) return;
+    
+    const fetchAllEvents = async () => {
+      // Para usuarios escolares, necesitamos obtener el ID efectivo
+      let userId = user.uid;
+      
+      // Si es un estudiante escolar, buscar su ID de documento
+      if (isSchoolStudent) {
+        try {
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('email', '==', user.email)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          if (!usersSnapshot.empty) {
+            userId = usersSnapshot.docs[0].id;
+            console.log(`[CALENDAR] Usuario escolar detectado, usando ID: ${userId}`);
+          }
+        } catch (error) {
+          console.error('[CALENDAR] Error obteniendo ID de usuario escolar:', error);
+        }
+      }
+      
+      const allEvents: Record<string, StudyEvent[]> = {};
+      
+      // 1. Cargar eventos personalizados
       const q = query(collection(db, 'calendarEvents'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
-      const events: Record<string, { id: string, title: string }[]> = {};
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const date = data.date && data.date.toDate ? data.date.toDate() : new Date(data.date);
         const key = date.toDateString();
-        if (!events[key]) events[key] = [];
-        events[key].push({ id: docSnap.id, title: data.title });
+        if (!allEvents[key]) allEvents[key] = [];
+        allEvents[key].push({ 
+          id: docSnap.id, 
+          title: data.title,
+          type: 'custom'
+        });
       });
-      setEventsByDate(events);
+      
+      // 2. Cargar eventos de estudio para cada notebook
+      console.log(`[CALENDAR] Procesando ${notebooks.length} notebooks`);
+      
+      for (const notebook of notebooks) {
+        console.log(`[CALENDAR] Procesando notebook: ${notebook.title} (ID: ${notebook.id})`);
+        const studyDates = await calculateStudyDates(notebook, userId);
+        
+        // Agregar eventos de quiz
+        if (studyDates.quiz) {
+          console.log(`[CALENDAR] Agregando quiz para ${notebook.title} en fecha: ${studyDates.quiz.toDateString()}`);
+          const quizKey = studyDates.quiz.toDateString();
+          if (!allEvents[quizKey]) allEvents[quizKey] = [];
+          
+          // Si el quiz está disponible hoy, mostrar como "Disponible"
+          const quizTitle = studyDates.quizAvailable 
+            ? `📝 Quiz disponible: ${notebook.title}`
+            : `📝 Quiz programado: ${notebook.title}`;
+          
+          allEvents[quizKey].push({
+            id: `quiz-${notebook.id}`,
+            title: quizTitle,
+            type: 'quiz',
+            notebookId: notebook.id,
+            notebookTitle: notebook.title
+          });
+        }
+        
+        // Agregar eventos de estudio inteligente
+        if (studyDates.smart) {
+          console.log(`[CALENDAR] Agregando estudio inteligente para ${notebook.title} en fecha: ${studyDates.smart.toDateString()}`);
+          const smartKey = studyDates.smart.toDateString();
+          if (!allEvents[smartKey]) allEvents[smartKey] = [];
+          
+          // Si el estudio inteligente está disponible hoy, mostrar como "Disponible"
+          const smartTitle = studyDates.smartAvailable
+            ? `🧠 Estudio inteligente disponible: ${notebook.title}`
+            : `🧠 Estudio inteligente programado: ${notebook.title}`;
+          
+          allEvents[smartKey].push({
+            id: `smart-${notebook.id}`,
+            title: smartTitle,
+            type: 'smart',
+            notebookId: notebook.id,
+            notebookTitle: notebook.title
+          });
+        }
+      }
+      
+      console.log('[CALENDAR] Todos los eventos procesados:', allEvents);
+      setEventsByDate(allEvents);
     };
-    fetchEvents();
-  }, [user]);
+    
+    fetchAllEvents().catch(error => {
+      console.error('[CALENDAR] Error cargando eventos:', error);
+    });
+  }, [user, notebooks]);
 
   // Guardar evento en Firestore
   const handleCreateEvent = async () => {
@@ -82,7 +361,7 @@ const CalendarPage: React.FC = () => {
     const docRef = await addDoc(collection(db, 'calendarEvents'), eventData);
     setEventsByDate(prev => ({
       ...prev,
-      [key]: prev[key] ? [...prev[key], { id: docRef.id, title: newEventTitle.trim() }] : [{ id: docRef.id, title: newEventTitle.trim() }]
+      [key]: prev[key] ? [...prev[key], { id: docRef.id, title: newEventTitle.trim(), type: 'custom' }] : [{ id: docRef.id, title: newEventTitle.trim(), type: 'custom' }]
     }));
     setShowCreateEventModal(false);
   };
@@ -126,14 +405,43 @@ const CalendarPage: React.FC = () => {
   // Renderizar tileContent para mostrar punto en días con eventos
   const renderTileContent = ({ date, view }: { date: Date; view: string }) => {
     if (view === 'month' && eventsByDate[date.toDateString()] && eventsByDate[date.toDateString()].length > 0) {
+      const events = eventsByDate[date.toDateString()];
+      const hasQuiz = events.some(e => e.type === 'quiz');
+      const hasSmart = events.some(e => e.type === 'smart');
+      const hasCustom = events.some(e => e.type === 'custom');
+      
       return (
         <div style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: '#6147FF',
+          display: 'flex',
+          gap: 2,
           margin: '4px auto 0 auto',
-        }}></div>
+          justifyContent: 'center'
+        }}>
+          {hasQuiz && (
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#f59e0b', // Naranja para quiz
+            }}></div>
+          )}
+          {hasSmart && (
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#10b981', // Verde para estudio inteligente
+            }}></div>
+          )}
+          {hasCustom && (
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#6147FF', // Morado para eventos personalizados
+            }}></div>
+          )}
+        </div>
       );
     }
     return null;
@@ -162,11 +470,16 @@ const CalendarPage: React.FC = () => {
   const { start: weekStart, end: weekEnd } = getWeekRange();
   // Convertir eventsByDate a lista de eventos con fecha
   const eventosSemana = useMemo(() => {
-    const eventos: { date: Date, title: string }[] = [];
-    Object.entries(eventsByDate).forEach(([dateStr, titles]) => {
+    const eventos: { date: Date, title: string, type: string, notebookId?: string }[] = [];
+    Object.entries(eventsByDate).forEach(([dateStr, events]) => {
       const date = new Date(dateStr);
       if (date >= weekStart && date <= weekEnd) {
-        titles.forEach(title => eventos.push({ date, title: title.title }));
+        events.forEach(event => eventos.push({ 
+          date, 
+          title: event.title, 
+          type: event.type,
+          notebookId: event.notebookId 
+        }));
       }
     });
     // Ordenar por fecha
@@ -217,6 +530,31 @@ const CalendarPage: React.FC = () => {
           <div style={{ marginTop: 32, color: '#888', fontSize: 16, textAlign: 'center' }}>
             Aquí podrás crear, ver y gestionar tus eventos del calendario.
           </div>
+          
+          {/* Leyenda de tipos de eventos */}
+          <div style={{ 
+            marginTop: 40, 
+            padding: 20, 
+            background: '#f8f9fa', 
+            borderRadius: 12, 
+            width: '100%' 
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#6147FF', marginBottom: 12 }}>Tipos de eventos</h3>
+            <div style={{ fontSize: 14, color: '#666' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }}></div>
+                <span>📝 Quiz disponible</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}></div>
+                <span>🧠 Estudio inteligente</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6147FF' }}></div>
+                <span>📅 Evento personalizado</span>
+              </div>
+            </div>
+          </div>
         </aside>
         {/* Calendario principal */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minHeight: 640, maxWidth: '100%', marginRight: 32 }}>
@@ -264,11 +602,40 @@ const CalendarPage: React.FC = () => {
                 </div>
               ) : (
                 <ul style={{ color: '#333', fontSize: 18, margin: 0, padding: 0, listStyle: 'none', width: '100%' }}>
-                  {eventosSemana.map((ev, idx) => (
-                    <li key={idx} style={{ marginBottom: 10 }}>
-                      <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
-                    </li>
-                  ))}
+                  {eventosSemana.map((ev, idx) => {
+                    const getEventIcon = () => {
+                      switch(ev.type) {
+                        case 'quiz': return '📝';
+                        case 'smart': return '🧠';
+                        default: return '📅';
+                      }
+                    };
+                    
+                    return (
+                      <li key={idx} style={{ 
+                        marginBottom: 10,
+                        cursor: ev.type !== 'custom' ? 'pointer' : 'default',
+                        transition: 'color 0.2s'
+                      }}
+                      onClick={() => {
+                        if (ev.type !== 'custom' && ev.notebookId) {
+                          navigate('/study', { state: { selectedNotebookId: ev.notebookId } });
+                        }
+                      }}
+                      onMouseEnter={(e) => {
+                        if (ev.type !== 'custom') {
+                          e.currentTarget.style.color = '#6147FF';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#333';
+                      }}
+                      >
+                        <span style={{ marginRight: 8 }}>{getEventIcon()}</span>
+                        <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
           </div>
@@ -344,29 +711,86 @@ const CalendarPage: React.FC = () => {
               </div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {events.map((event, idx) => (
-                  <li key={event.id} style={{ color: '#333', fontSize: 17, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {editingEventId === event.id ? (
-                      <>
-                        <input
-                          type="text"
-                          value={editingEventTitle}
-                          onChange={e => setEditingEventTitle(e.target.value)}
-                          style={{ fontSize: 16, flex: 1, padding: 4, borderRadius: 6, border: '1.5px solid #e0e7ef' }}
-                          autoFocus
-                        />
-                        <button onClick={() => handleSaveEditEvent(event.id, selectedDate.toDateString())} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Guardar"><i className="fas fa-check"></i></button>
-                        <button onClick={() => { setEditingEventId(null); setEditingEventTitle(''); }} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Cancelar"><i className="fas fa-times"></i></button>
-                      </>
-                    ) : (
-                      <>
-                        <span style={{ flex: 1, textAlign: 'left' }}>{event.title}</span>
-                        <button onClick={() => handleEditEvent(event.id, event.title)} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Editar"><i className="fas fa-pencil-alt"></i></button>
-                        <button onClick={() => handleDeleteEvent(event.id, selectedDate.toDateString())} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Borrar"><i className="fas fa-trash"></i></button>
-                      </>
-                    )}
-                  </li>
-                ))}
+                {events.map((event, idx) => {
+                  const getEventIcon = () => {
+                    switch(event.type) {
+                      case 'quiz': return '📝';
+                      case 'smart': return '🧠';
+                      default: return '📅';
+                    }
+                  };
+                  
+                  const getEventColor = () => {
+                    switch(event.type) {
+                      case 'quiz': return '#f59e0b';
+                      case 'smart': return '#10b981';
+                      default: return '#6147FF';
+                    }
+                  };
+                  
+                  const canEdit = event.type === 'custom';
+                  
+                  return (
+                    <li key={event.id} style={{ 
+                      color: '#333', 
+                      fontSize: 17, 
+                      marginBottom: 10, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8,
+                      cursor: event.type !== 'custom' ? 'pointer' : 'default',
+                      transition: 'background-color 0.2s',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      backgroundColor: 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (event.type !== 'custom') {
+                        e.currentTarget.style.backgroundColor = 'rgba(97, 71, 255, 0.05)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                    onClick={() => {
+                      if (event.type !== 'custom' && event.notebookId) {
+                        navigate('/study', { state: { selectedNotebookId: event.notebookId } });
+                      }
+                    }}
+                    >
+                      {editingEventId === event.id && canEdit ? (
+                        <>
+                          <input
+                            type="text"
+                            value={editingEventTitle}
+                            onChange={e => setEditingEventTitle(e.target.value)}
+                            style={{ fontSize: 16, flex: 1, padding: 4, borderRadius: 6, border: '1.5px solid #e0e7ef' }}
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                          />
+                          <button onClick={(e) => { e.stopPropagation(); handleSaveEditEvent(event.id, selectedDate.toDateString()); }} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Guardar"><i className="fas fa-check"></i></button>
+                          <button onClick={(e) => { e.stopPropagation(); setEditingEventId(null); setEditingEventTitle(''); }} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Cancelar"><i className="fas fa-times"></i></button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 20, marginRight: 8 }}>{getEventIcon()}</span>
+                          <span style={{ flex: 1, textAlign: 'left', color: getEventColor(), fontWeight: event.type !== 'custom' ? 600 : 400 }}>
+                            {event.title}
+                            {event.type !== 'custom' && (
+                              <span style={{ fontSize: 12, color: '#666', display: 'block' }}>Clic para ir al estudio</span>
+                            )}
+                          </span>
+                          {canEdit && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); handleEditEvent(event.id, event.title); }} style={{ color: '#6147FF', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Editar"><i className="fas fa-pencil-alt"></i></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id, selectedDate.toDateString()); }} style={{ color: '#c00', fontWeight: 700, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer' }} title="Borrar"><i className="fas fa-trash"></i></button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

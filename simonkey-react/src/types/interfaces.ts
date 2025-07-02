@@ -307,6 +307,14 @@ export interface UserProfile {
   linkedSchoolUserId?: string;
   linkedAt?: Timestamp;
   updatedAt?: Timestamp;
+  // Campos adicionales para ProfilePage
+  bio?: string;
+  interests?: string[];
+  learningGoal?: string;
+  conceptCount?: number;
+  studyStreak?: number;
+  totalStudyTime?: number;
+  photoURL?: string;
 }
 
 /**

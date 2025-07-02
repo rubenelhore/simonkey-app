@@ -487,7 +487,7 @@ const AppContent: React.FC = () => {
             ) : <Navigate to="/login" replace />
           }
         />
-        <Route path="/calendario" element={<CalendarPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
       </Routes>
       {showMobileNav && <MobileNavigation />}
       {/* Sistema de gestión de cookies - siempre visible */}

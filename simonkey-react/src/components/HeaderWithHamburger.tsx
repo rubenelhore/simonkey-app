@@ -40,7 +40,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const isProfilePage = location.pathname === '/profile';
 
   // Detectar si estamos en la página de calendario
-  const isCalendarPage = location.pathname === '/calendario';
+  const isCalendarPage = location.pathname === '/calendar';
 
   // Función de depuración para verificar y actualizar superadmin
   const checkAndUpdateSuperAdmin = async () => {
@@ -133,7 +133,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleCalendarClick = () => {
     setIsHelpSubmenuOpen(false);
-    navigate('/calendario');
+    navigate('/calendar');
   };
 
   const toggleHelpSubmenu = () => {
