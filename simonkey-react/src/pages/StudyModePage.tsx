@@ -713,6 +713,8 @@ const StudyModePage = () => {
         await studyService.markStudySessionAsValidated(sessionId, false);
         
         // Registrar actividad fallida
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser!.uid;
         await studyService.logStudyActivity(
           userKey,
           'smart_study_failed_validation',

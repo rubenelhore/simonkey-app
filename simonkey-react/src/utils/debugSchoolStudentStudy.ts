@@ -47,11 +47,23 @@ export async function debugSchoolStudentStudy() {
     // 4. Buscar cuadernos asignados
     console.log('\\n📚 Buscando cuadernos asignados...');
     
-    if (userProfile?.idCuadernos && userProfile.idCuadernos.length > 0) {
-      console.log('✅ Cuadernos asignados:', userProfile.idCuadernos);
+    // Para estudiantes escolares, buscar en la colección schoolStudents
+    const studentsQuery = query(
+      collection(db, 'schoolStudents'),
+      where('id', '==', currentUser.uid)
+    );
+    
+    const studentsSnapshot = await getDocs(studentsQuery);
+    
+    if (!studentsSnapshot.empty) {
+      const studentData = studentsSnapshot.docs[0].data();
+      console.log('✅ Datos del estudiante:', studentData);
       
-      // 5. Para cada cuaderno, buscar conceptos
-      for (const notebookId of userProfile.idCuadernos) {
+      if (studentData.idCuadernos && studentData.idCuadernos.length > 0) {
+        console.log('✅ Cuadernos asignados:', studentData.idCuadernos);
+        
+        // 5. Para cada cuaderno, buscar conceptos
+        for (const notebookId of studentData.idCuadernos) {
         console.log(`\\n🔍 Buscando conceptos para cuaderno: ${notebookId}`);
         
         // Buscar en schoolConcepts
@@ -81,6 +93,9 @@ export async function debugSchoolStudentStudy() {
     } else {
       console.log('❌ No hay cuadernos asignados al estudiante');
     }
+  } else {
+    console.log('❌ No se encontró el estudiante en la colección schoolStudents');
+  }
     
     // 6. Verificar hook useStudyService
     console.log('\\n🔧 Verificando hook useStudyService...');

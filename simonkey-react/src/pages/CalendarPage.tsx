@@ -28,6 +28,7 @@ const CalendarPage: React.FC = () => {
   const closeEventModal = () => {
     setShowEventModal(false);
     setSelectedDate(null);
+    setValue(null); // Desmarcar el día seleccionado
   };
 
   const openCreateEventModal = () => {
@@ -38,6 +39,15 @@ const CalendarPage: React.FC = () => {
 
   const closeCreateEventModal = () => {
     setShowCreateEventModal(false);
+  };
+
+  const handleCreateEventFromPopup = () => {
+    if (selectedDate) {
+      setNewEventDate(selectedDate);
+      setNewEventTitle('');
+      setShowEventModal(false);
+      setShowCreateEventModal(true);
+    }
   };
 
   // Cargar eventos del usuario al montar
@@ -102,6 +112,8 @@ const CalendarPage: React.FC = () => {
     }));
     setEditingEventId(null);
     setEditingEventTitle('');
+    // Cerrar el popup después de eliminar el evento
+    closeEventModal();
   };
 
   // Formato de fecha para mostrar
@@ -125,6 +137,15 @@ const CalendarPage: React.FC = () => {
       );
     }
     return null;
+  };
+
+  // Función para agregar atributos a los días
+  const tileClassName = ({ date, view }: { date: Date; view: string }) => {
+    if (view === 'month') {
+      const dayOfWeek = date.getDay();
+      return `day-${dayOfWeek}`;
+    }
+    return '';
   };
 
   // --- Lógica para eventos de la semana actual ---
@@ -158,13 +179,13 @@ const CalendarPage: React.FC = () => {
       <div style={{ minHeight: 'calc(100vh - 80px)', background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)', display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', padding: '0 0' }}>
         {/* Módulo lateral izquierdo */}
         <aside style={{
-          width: 370,
-          minWidth: 270,
-          maxWidth: 400,
+          width: 280,
+          minWidth: 220,
+          maxWidth: 320,
           background: 'white',
           borderRadius: 28,
           boxShadow: '0 2px 8px rgba(97,71,255,0.05)',
-          padding: 40,
+          padding: 32,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -173,18 +194,18 @@ const CalendarPage: React.FC = () => {
           marginRight: 32,
           marginTop: 32,
           marginBottom: 32,
-          minHeight: 700
+          minHeight: 724
         }}>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: 32, color: '#6147FF', letterSpacing: 1 }}>Acciones</h2>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 24, color: '#6147FF', letterSpacing: 1 }}>Acciones</h2>
           <button style={{
             background: 'linear-gradient(90deg, #6147FF 0%, #A685E2 100%)',
             color: 'white',
             border: 'none',
-            borderRadius: 18,
-            padding: '18px 36px',
-            fontSize: 20,
+            borderRadius: 16,
+            padding: '16px 28px',
+            fontSize: 18,
             fontWeight: 600,
-            marginBottom: 24,
+            marginBottom: 20,
             cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(97,71,255,0.08)',
             transition: 'background 0.2s'
@@ -193,78 +214,96 @@ const CalendarPage: React.FC = () => {
           >
             + Crear evento
           </button>
-          <div style={{ marginTop: 40, color: '#888', fontSize: 18, textAlign: 'center' }}>
+          <div style={{ marginTop: 32, color: '#888', fontSize: 16, textAlign: 'center' }}>
             Aquí podrás crear, ver y gestionar tus eventos del calendario.
           </div>
         </aside>
         {/* Calendario principal */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minHeight: 600, maxWidth: '100%', marginRight: 32 }}>
-          <div style={{ width: '100%', maxWidth: 1200, minWidth: 0, height: 520, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginTop: 32 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minHeight: 640, maxWidth: '100%', marginRight: 32 }}>
+          <div style={{ width: '100%', maxWidth: 1400, minWidth: 0, height: 480, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginTop: 32 }}>
             <Calendar
-              onChange={setValue}
+              onChange={(newValue) => {
+                if (!showEventModal) {
+                  setValue(newValue);
+                }
+              }}
               value={showEventModal ? null : value}
               locale="es-ES"
               className="big-calendar formal-calendar"
               onClickDay={handleDayClick}
               tileContent={renderTileContent}
+              tileClassName={tileClassName}
             />
           </div>
           {/* Módulo de acciones para esta semana */}
           <div style={{
             width: '100%',
-            maxWidth: 1200,
-            margin: '32px 0 0 0',
+            maxWidth: 1400,
+            margin: '24px 0 0 0',
             background: 'white',
             borderRadius: 20,
             boxShadow: '0 4px 24px rgba(97,71,255,0.07)',
-            padding: '32px 40px',
+            padding: '40px 48px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
-            minHeight: 160
+            height: 210,
+            overflow: 'hidden',
+            position: 'relative'
           }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#6147FF', marginBottom: 16 }}>Acciones para esta semana</h3>
-            {eventosSemana.length === 0 ? (
-              <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 28 }}>🙈💤</span>
-                No hay eventos para esta semana
-              </div>
-            ) : (
-              <ul style={{ color: '#333', fontSize: 18, margin: 0, padding: 0, listStyle: 'none', width: '100%' }}>
-                {eventosSemana.map((ev, idx) => (
-                  <li key={idx} style={{ marginBottom: 10 }}>
-                    <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h3 style={{ 
+              fontSize: '1.3rem', 
+              fontWeight: 700, 
+              color: '#6147FF', 
+              marginBottom: 16
+            }}>Acciones para esta semana</h3>
+              {eventosSemana.length === 0 ? (
+                <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 28 }}>🙈💤</span>
+                  No hay eventos para esta semana
+                </div>
+              ) : (
+                <ul style={{ color: '#333', fontSize: 18, margin: 0, padding: 0, listStyle: 'none', width: '100%' }}>
+                  {eventosSemana.map((ev, idx) => (
+                    <li key={idx} style={{ marginBottom: 10 }}>
+                      <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
+                    </li>
+                  ))}
+                </ul>
+              )}
           </div>
         </div>
       </div>
       {/* Modal de eventos del día */}
       {showEventModal && selectedDate && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0,0,0,0.25)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: 18,
-            boxShadow: '0 8px 32px rgba(97,71,255,0.12)',
-            padding: '40px 32px 32px 32px',
-            minWidth: 340,
-            maxWidth: 400,
-            textAlign: 'center',
-            position: 'relative',
-          }}>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.25)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={closeEventModal}
+        >
+          <div 
+            style={{
+              background: 'white',
+              borderRadius: 18,
+              boxShadow: '0 8px 32px rgba(97,71,255,0.12)',
+              padding: '40px 32px 32px 32px',
+              minWidth: 340,
+              maxWidth: 400,
+              textAlign: 'center',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button onClick={closeEventModal} style={{
               position: 'absolute',
               top: 16,
@@ -280,8 +319,28 @@ const CalendarPage: React.FC = () => {
               {formatDate(selectedDate)}
             </h2>
             {events.length === 0 ? (
-              <div style={{ color: '#888', fontSize: 18, marginTop: 16 }}>
+              <div style={{ color: '#888', fontSize: 18, marginTop: 16, marginBottom: 20 }}>
                 No tienes eventos agendados para este día
+                <button 
+                  onClick={handleCreateEventFromPopup}
+                  style={{
+                    background: 'linear-gradient(90deg, #6147FF 0%, #A685E2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '8px 20px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(97,71,255,0.08)',
+                    transition: 'background 0.2s',
+                    marginTop: 12,
+                    display: 'block',
+                    margin: '12px auto 0 auto'
+                  }}
+                >
+                  + Crear evento
+                </button>
               </div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -397,8 +456,8 @@ const CalendarPage: React.FC = () => {
           box-shadow: 0 2px 8px rgba(97,71,255,0.05) !important;
           border: 1.5px solid #e0e7ef !important;
           padding: 18px 0 24px 0 !important;
-          min-height: 480px;
-          max-width: 1200px;
+          min-height: 440px;
+          max-width: 1400px;
         }
         .formal-calendar .react-calendar__navigation {
           background: none;
@@ -421,9 +480,9 @@ const CalendarPage: React.FC = () => {
           min-height: 350px;
         }
         .formal-calendar .react-calendar__tile {
-          min-height: 48px;
-          font-size: 1.1rem;
-          border-radius: 8px;
+          min-height: 56px;
+          font-size: 1.2rem;
+          border-radius: 0px;
           color: #333;
           background: none;
           border: 1px solid transparent;
@@ -452,6 +511,10 @@ const CalendarPage: React.FC = () => {
           color: #6147FF;
           font-weight: 500;
           background: none;
+        }
+        .formal-calendar .react-calendar__month-view__days__day.day-6,
+        .formal-calendar .react-calendar__month-view__days__day.day-0 {
+          background-color: #f8f9fa !important;
         }
       `}</style>
     </>
