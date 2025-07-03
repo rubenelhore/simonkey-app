@@ -166,9 +166,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               className="back-button" 
               onClick={onBackClick}
               style={{
-                backgroundColor: themeColor || undefined,
-                color: '#fff'
-              }}
+                '--theme-color': themeColor || '#6147FF'
+              } as React.CSSProperties}
             >
               <i className="fas fa-arrow-left"></i>
             </button>
