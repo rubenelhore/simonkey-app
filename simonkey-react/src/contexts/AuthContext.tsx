@@ -3,7 +3,7 @@ import { User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { checkEmailVerificationStatus, getVerificationState, EmailVerificationState } from '../services/emailVerificationService';
 import { getUserProfile } from '../services/userService';
-import { UserProfile } from '../types/interfaces';
+import { UserProfile, UserSubscriptionType } from '../types/interfaces';
 import { checkAndFixCurrentUser } from '../utils/adminUtils';
 import { useUserType } from '../hooks/useUserType';
 
@@ -125,10 +125,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const isVerified = await checkEmailVerificationStatus(user);
       console.log('🔍 updateVerificationState - isVerified después de checkEmailVerificationStatus:', isVerified);
       
+      // Obtener el ID correcto del usuario (puede ser diferente para usuarios escolares)
+      let userIdToUse = user.uid;
+      if (authState.userProfile?.id && authState.userProfile.id !== user.uid) {
+        console.log('🔍 Usando ID del perfil escolar para verificación:', authState.userProfile.id);
+        userIdToUse = authState.userProfile.id;
+      }
+      
       // Intentar obtener el estado desde Firestore, pero no fallar si hay errores de permisos
       let verificationState;
       try {
-        verificationState = await getVerificationState(user.uid);
+        verificationState = await getVerificationState(userIdToUse);
         console.log('🔍 updateVerificationState - verificationState desde Firestore:', verificationState);
       } catch (firestoreError) {
         console.warn('⚠️ Error obteniendo estado desde Firestore (continuando con estado local):', firestoreError);
@@ -171,7 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const linkedUserDoc = linkedUsersSnapshot.docs[0];
           const linkedUserData = linkedUserDoc.data();
           
-          if (linkedUserData.subscription === 'SCHOOL') {
+          if (linkedUserData.subscription === 'school' || linkedUserData.subscription === 'SCHOOL') {
             linkedSchoolUserId = linkedUserDoc.id;
             console.log('✅ Usuario escolar vinculado encontrado:', {
               schoolUserId: linkedSchoolUserId,
@@ -218,6 +225,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 // Guardar el ID del usuario escolar para futuras referencias
                 linkedSchoolUserId = existingUserCheck.userId;
+                
+                // IMPORTANTE: Actualizar el perfil del usuario escolar con el UID de Google para futuras autenticaciones
+                if (profile && !profile.googleAuthUid) {
+                  console.log('🔗 Vinculando cuenta escolar con Google Auth UID:', user.uid);
+                  const { updateDoc, doc } = await import('firebase/firestore');
+                  const { db } = await import('../services/firebase');
+                  await updateDoc(doc(db, 'users', existingUserCheck.userId), {
+                    googleAuthUid: user.uid,
+                    updatedAt: new Date()
+                  });
+                  profile.googleAuthUid = user.uid;
+                  
+                  // IMPORTANTE: Actualizar linkedSchoolUserId para evitar creación de perfil duplicado
+                  linkedSchoolUserId = existingUserCheck.userId;
+                }
               } else if (existingUserCheck.userData.googleAuthUid === user.uid && existingUserCheck.userId) {
                 console.log('✅ Usuario vinculado encontrado, usando ID del usuario existente:', existingUserCheck.userId);
                 profile = await getUserProfile(existingUserCheck.userId);
@@ -237,18 +259,63 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!profile) {
         console.log('⚠️ No se encontró perfil con los IDs probados');
         
-        // NO crear un perfil nuevo si ya existe un usuario escolar con el mismo email
-        if (linkedSchoolUserId) {
-          console.log('❌ Error: Usuario escolar existe pero no se pudo cargar el perfil');
-          setAuthState(prev => ({
-            ...prev,
-            userProfile: null,
-            loading: false
-          }));
-          return;
+        // IMPORTANTE: Verificar si existe un usuario escolar antes de crear uno nuevo
+        try {
+          const { checkUserExistsByEmail } = await import('../services/userService');
+          
+          if (user.email) {
+            const existingCheck = await checkUserExistsByEmail(user.email);
+            
+            if (existingCheck.exists && existingCheck.userData) {
+              const isSchoolUser = existingCheck.userData.subscription === UserSubscriptionType.SCHOOL;
+              
+              if (isSchoolUser && existingCheck.userId) {
+                console.log('🔍 Usuario escolar encontrado, intentando cargar perfil una vez más...');
+                console.log('🔍 ID del usuario escolar:', existingCheck.userId);
+                console.log('🔍 Datos del usuario escolar:', existingCheck.userData);
+                
+                // Intentar cargar el perfil una vez más con el ID correcto
+                profile = await getUserProfile(existingCheck.userId);
+                
+                if (profile) {
+                  console.log('✅ Perfil escolar cargado exitosamente en segundo intento');
+                  
+                  // Vincular el Google UID si no está vinculado
+                  if (!profile.googleAuthUid) {
+                    console.log('🔗 Vinculando cuenta escolar con Google Auth UID:', user.uid);
+                    const { updateDoc, doc } = await import('firebase/firestore');
+                    const { db } = await import('../services/firebase');
+                    await updateDoc(doc(db, 'users', existingCheck.userId), {
+                      googleAuthUid: user.uid,
+                      updatedAt: new Date()
+                    });
+                    profile.googleAuthUid = user.uid;
+                  }
+                  
+                  setAuthState(prev => ({
+                    ...prev,
+                    userProfile: profile
+                  }));
+                  return profile;
+                } else {
+                  console.log('❌ Error crítico: Usuario escolar existe pero no se pudo cargar el perfil');
+                  // No crear un nuevo perfil - simplemente fallar
+                  setAuthState(prev => ({
+                    ...prev,
+                    userProfile: null,
+                    loading: false
+                  }));
+                  return null;
+                }
+              }
+            }
+          }
+        } catch (checkError) {
+          console.error('Error verificando usuario escolar:', checkError);
         }
         
-        console.log('⚠️ Creando perfil básico...');
+        // Solo crear perfil si NO es un usuario escolar
+        console.log('⚠️ Creando perfil básico (no es usuario escolar)...');
         
         try {
           const { createUserProfile } = await import('../services/userService');

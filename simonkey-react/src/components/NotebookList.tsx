@@ -29,7 +29,7 @@ interface NotebookListProps {
   onDeleteNotebook?: (id: string) => void;
   onEditNotebook?: (id: string, title: string) => void;
   showCreateButton?: boolean;
-  onCreateNotebook?: () => void;
+  onCreateNotebook?: (title?: string, color?: string) => void | Promise<void>;
   isSchoolTeacher?: boolean;
   onColorChange?: (id: string, color: string) => void;
   onAddConcept?: (id: string) => void;
@@ -194,24 +194,29 @@ const NotebookList: React.FC<NotebookListProps> = ({
     }
 
     try {
-      // Si tenemos materiaId en las props, pasarlo a createNotebook
-      const materiaId = (window.location.pathname.match(/\/materias\/([^\/]+)/) || [])[1];
-      const notebook = await createNotebook(
-        user.uid, 
-        newNotebookTitle.trim(),
-        newNotebookColor, // usar el color seleccionado
-        undefined, // categoría
-        materiaId // materiaId si estamos dentro de una materia
-      );
-      console.log('✅ Notebook created:', notebook);
+      // Si es un profesor escolar y tiene función personalizada de crear
+      if (isSchoolTeacher && onCreateNotebook) {
+        await onCreateNotebook(newNotebookTitle.trim(), newNotebookColor);
+      } else {
+        // Si tenemos materiaId en las props, pasarlo a createNotebook
+        const materiaId = (window.location.pathname.match(/\/materias\/([^\/]+)/) || [])[1];
+        const notebook = await createNotebook(
+          user.uid, 
+          newNotebookTitle.trim(),
+          newNotebookColor, // usar el color seleccionado
+          undefined, // categoría
+          materiaId // materiaId si estamos dentro de una materia
+        );
+        console.log('✅ Notebook created:', notebook);
+        
+        if (onCreateNotebook) {
+          onCreateNotebook();
+        }
+      }
       
       setNewNotebookTitle('');
       setNewNotebookColor('#6147FF'); // resetear color
       setShowCreateModal(false);
-      
-      if (onCreateNotebook) {
-        onCreateNotebook();
-      }
     } catch (error) {
       console.error("❌ Error creating notebook:", error);
       setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');

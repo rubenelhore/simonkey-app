@@ -99,6 +99,24 @@ export const checkAndFixCurrentUser = async (): Promise<boolean> => {
     }
     
     console.log(`🔧 checkAndFixCurrentUser - Verificando usuario: ${currentUser.email} (${currentUser.uid})`);
+    
+    // IMPORTANTE: Primero verificar si es un usuario escolar vinculado
+    const { checkUserExistsByEmail } = await import('../services/userService');
+    if (currentUser.email) {
+      const existingCheck = await checkUserExistsByEmail(currentUser.email);
+      
+      if (existingCheck.exists && existingCheck.userData) {
+        const isSchoolUser = existingCheck.userData.subscription === UserSubscriptionType.SCHOOL;
+        
+        if (isSchoolUser && existingCheck.userId) {
+          console.log(`🔧 Usuario escolar detectado con ID: ${existingCheck.userId}`);
+          console.log(`🔧 No es un usuario huérfano - es un usuario escolar vinculado`);
+          return false; // No es huérfano, es un usuario escolar
+        }
+      }
+    }
+    
+    // Si no es usuario escolar, verificar normalmente con el UID de Google
     const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
     
     console.log(`🔧 checkAndFixCurrentUser - Documento existe: ${userDoc.exists()}`);

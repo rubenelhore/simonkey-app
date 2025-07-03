@@ -22,6 +22,7 @@ import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
 import OnboardingComponent from './components/Onboarding/OnboardingComponent';
 import MobileNavigation from './components/Mobile/MobileNavigation';
+import TeacherMobileNavigation from './components/Mobile/TeacherMobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
 import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
@@ -29,7 +30,12 @@ import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
 // Importaciones para el sistema escolar
 import SchoolTeacherNotebooksPage from './pages/SchoolTeacherNotebooksPage';
+import SchoolTeacherMateriasPage from './pages/SchoolTeacherMateriasPage';
+import SchoolTeacherMateriaNotebooksPage from './pages/SchoolTeacherMateriaNotebooksPage';
+import SchoolTeacherAnalyticsPage from './pages/SchoolTeacherAnalyticsPage';
 import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
+import SchoolAdminPage from './pages/SchoolAdminPage';
+import SchoolTutorPage from './pages/SchoolTutorPage';
 // Importaciones del sistema de cookies y privacidad
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
@@ -207,7 +213,7 @@ const AppWrapper: React.FC = () => {
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent, isSuperAdmin, loading: userTypeLoading } = useUserType();
+  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSuperAdmin, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -243,21 +249,32 @@ const AppContent: React.FC = () => {
       if (isAuthenticated) {
         const currentPath = window.location.pathname;
         
-        // USUARIOS ESCOLARES: Ahora tienen acceso completo como usuarios PRO
-        // Solo redirigir profesores a su página específica
-        if (isSchoolTeacher && ['/login', '/signup'].includes(currentPath)) {
-          console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
-          navigate('/school/teacher', { replace: true });
-          return;
+        // USUARIOS ESCOLARES: Redirigir a sus páginas específicas
+        if (['/login', '/signup'].includes(currentPath)) {
+          if (isSchoolTeacher) {
+            console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
+            navigate('/school/teacher', { replace: true });
+            return;
+          }
+          if (isSchoolAdmin) {
+            console.log('🏫 App - Redirigiendo admin escolar desde login a /school/admin');
+            navigate('/school/admin', { replace: true });
+            return;
+          }
+          if (isSchoolTutor) {
+            console.log('🏫 App - Redirigiendo tutor escolar desde login a /school/tutor');
+            navigate('/school/tutor', { replace: true });
+            return;
+          }
         }
         
-        // TODOS LOS USUARIOS (incluidos schoolStudents): Si está en login/signup y verificado, redirigir a notebooks
+        // TODOS LOS USUARIOS: Si está en login/signup y verificado, redirigir a materias
         if (isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
-          navigate('/notebooks', { replace: true });
+          navigate('/materias', { replace: true });
         }
       }
     }
-  }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, navigate]);
+  }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, isSchoolAdmin, isSchoolTutor, navigate]);
 
   if (loading || userTypeLoading) {
     return (
@@ -298,8 +315,9 @@ const AppContent: React.FC = () => {
     );
   }
   
-  // Show mobile navigation for all authenticated users (including school students) except when on school teacher pages
-  const showMobileNav = isAuthenticated && !(isSchoolTeacher && location.pathname.startsWith('/school/teacher'));
+  // Show mobile navigation for all authenticated users except admin and tutor
+  const showMobileNav = isAuthenticated && !isSchoolAdmin && !isSchoolTutor;
+  const showTeacherNav = isAuthenticated && isSchoolTeacher && location.pathname.startsWith('/school/teacher');
 
   return (
     <UserContext.Provider value={{ user: user ? {
@@ -315,8 +333,10 @@ const AppContent: React.FC = () => {
           path="/" 
           element={(() => {
             if (isAuthenticated && isEmailVerified) {
-              // Solo profesores escolares van a su módulo específico
+              // Usuarios escolares van a sus módulos específicos
               if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+              if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
+              if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
               // TODOS los demás usuarios (incluidos schoolStudents) van a notebooks
               return <Navigate to="/notebooks" replace />;
             }
@@ -498,7 +518,31 @@ const AppContent: React.FC = () => {
             isAuthenticated ? (
               <EmailVerificationGuard>
                 <SchoolUserGuard>
-                  <SchoolTeacherNotebooksPage />
+                  <SchoolTeacherMateriasPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/school/teacher/analytics"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolTeacherAnalyticsPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/school/teacher/materias/:materiaId/notebooks"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolTeacherMateriaNotebooksPage />
                 </SchoolUserGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
@@ -508,6 +552,34 @@ const AppContent: React.FC = () => {
         <Route
           path="/school/student"
           element={<Navigate to="/materias" replace />}
+        />
+        
+        {/* Ruta para el panel de administración escolar */}
+        <Route
+          path="/school/admin"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolAdminPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        
+        {/* Ruta para el panel del tutor escolar */}
+        <Route
+          path="/school/tutor"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <SchoolUserGuard>
+                  <SchoolTutorPage />
+                </SchoolUserGuard>
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
         />
         
         {/* Ruta para el panel de control del súper admin */}
@@ -541,7 +613,7 @@ const AppContent: React.FC = () => {
         />
         <Route path="/calendar" element={<CalendarPage />} />
       </Routes>
-      {showMobileNav && <MobileNavigation />}
+      {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') ? <MobileNavigation /> : null)}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
       {/* <AuthDiagnostic /> */}

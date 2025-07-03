@@ -6,14 +6,20 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolStudentData = () => {
   const [schoolNotebooks, setSchoolNotebooks] = useState<SchoolNotebook[] | null>(null);
+  const [schoolSubjects, setSchoolSubjects] = useState<SchoolSubject[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { user, userProfile, effectiveUserId } = useAuth();
 
   useEffect(() => {
+    console.log('🎓 useSchoolStudentData - Hook iniciado');
+    console.log('🎓 user:', user?.uid);
+    console.log('🎓 effectiveUserId:', effectiveUserId);
+    
     if (!user || !effectiveUserId) {
       console.log('👤 No hay usuario autenticado, limpiando datos escolares');
       setSchoolNotebooks([]);
+      setSchoolSubjects([]);
       setLoading(false);
       return;
     }
@@ -77,6 +83,45 @@ export const useSchoolStudentData = () => {
                 console.log('   -', notebook.id, ':', notebook.title);
               });
               setSchoolNotebooks(notebooksList);
+              
+              // IMPORTANTE: También buscar las materias de estos notebooks
+              console.log('🔍 Buscando materias de los notebooks asignados...');
+              const materiaIds = new Set<string>();
+              
+              notebooksList.forEach(notebook => {
+                if (notebook.idMateria) {
+                  materiaIds.add(notebook.idMateria);
+                  console.log('   - Notebook', notebook.id, 'pertenece a materia:', notebook.idMateria);
+                }
+              });
+              
+              console.log('📚 IDs de materias encontradas:', Array.from(materiaIds));
+              
+              if (materiaIds.size > 0) {
+                const materiasQuery = query(
+                  collection(db, 'schoolSubjects'),
+                  where('__name__', 'in', Array.from(materiaIds))
+                );
+                
+                getDocs(materiasQuery).then(materiasSnapshot => {
+                  const subjectsList = materiasSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                  })) as SchoolSubject[];
+                  
+                  console.log('🏫 Materias cargadas desde notebooks directos:', subjectsList.length);
+                  subjectsList.forEach(subject => {
+                    console.log('   -', subject.id, ':', subject.nombre);
+                  });
+                  
+                  setSchoolSubjects(subjectsList);
+                }).catch(error => {
+                  console.error('❌ Error cargando materias:', error);
+                });
+              } else {
+                console.log('⚠️ Los notebooks no tienen idMateria asignado');
+              }
+              
               setLoading(false);
             },
             (err) => {
@@ -90,52 +135,150 @@ export const useSchoolStudentData = () => {
         }
 
         // Método alternativo: Buscar materias donde el estudiante esté asignado
+        console.log('🔄 Iniciando búsqueda de materias...');
         try {
-          // Usar effectiveUserId en lugar de user.uid para estudiantes escolares
+          console.log('🔍 Buscando materias asignadas al estudiante por idEstudiante...');
+          
+          // Primero, cargar TODAS las materias del estudiante
           const subjectsQuery = query(
             collection(db, 'schoolSubjects'),
             where('idEstudiante', '==', effectiveUserId)
           );
-          const subjectsSnapshot = await getDocs(subjectsQuery);
           
-          if (!subjectsSnapshot.empty) {
-            const subjectDoc = subjectsSnapshot.docs[0];
-            const subjectData = subjectDoc.data();
-            console.log('🏫 Materia encontrada:', subjectData.nombre || subjectDoc.id);
-
-            // Buscar cuadernos de esa materia
-            const notebooksQuery = query(
-              collection(db, 'schoolNotebooks'),
-              where('idMateria', '==', subjectDoc.id)
-            );
-
-            const unsubscribe = onSnapshot(
-              notebooksQuery,
-              (snapshot) => {
-                const notebooksList = snapshot.docs.map(doc => ({
+          const unsubscribeSubjects = onSnapshot(
+            subjectsQuery,
+            async (subjectsSnapshot) => {
+              if (!subjectsSnapshot.empty) {
+                // Cargar todas las materias
+                const subjectsList = subjectsSnapshot.docs.map(doc => ({
                   id: doc.id,
-                  ...doc.data(),
-                  color: doc.data().color || '#6147FF'
-                })) as SchoolNotebook[];
+                  ...doc.data()
+                })) as SchoolSubject[];
                 
-                console.log('📚 Cuadernos escolares cargados desde materias:', notebooksList.length, 'cuadernos');
-                notebooksList.forEach(notebook => {
-                  console.log('   -', notebook.id, ':', notebook.title);
+                console.log('🏫 Materias encontradas:', subjectsList.length);
+                subjectsList.forEach(subject => {
+                  console.log('   -', subject.id, ':', subject.nombre, '- data completa:', subject);
                 });
-                setSchoolNotebooks(notebooksList);
+                
+                console.log('🎓 Actualizando estado de schoolSubjects con:', subjectsList);
+                setSchoolSubjects(subjectsList);
+                
+                // Cargar todos los notebooks de todas las materias
+                const allNotebooks: SchoolNotebook[] = [];
+                const subjectIds = subjectsList.map(s => s.id);
+                
+                if (subjectIds.length > 0) {
+                  const notebooksQuery = query(
+                    collection(db, 'schoolNotebooks'),
+                    where('idMateria', 'in', subjectIds)
+                  );
+                  
+                  const notebooksSnapshot = await getDocs(notebooksQuery);
+                  notebooksSnapshot.docs.forEach(doc => {
+                    allNotebooks.push({
+                      id: doc.id,
+                      ...doc.data(),
+                      color: doc.data().color || '#6147FF'
+                    } as SchoolNotebook);
+                  });
+                  
+                  console.log('📚 Cuadernos escolares cargados desde materias:', allNotebooks.length);
+                  setSchoolNotebooks(allNotebooks);
+                }
+                
                 setLoading(false);
-              },
-              (err) => {
-                console.error("❌ Error fetching school notebooks from subjects:", err);
-                setError(err);
-                setLoading(false);
+              } else {
+                // Si no hay materias asignadas por este método, continuar con otros métodos
+                console.log('⚠️ No se encontraron materias asignadas al estudiante');
               }
-            );
+            },
+            (err) => {
+              console.error("❌ Error fetching school subjects:", err);
+              setError(err);
+              setLoading(false);
+            }
+          );
 
-            return unsubscribe;
+          // Si encontramos materias, retornar el unsubscribe
+          const subjectsCheck = await getDocs(subjectsQuery);
+          if (!subjectsCheck.empty) {
+            return unsubscribeSubjects;
           }
         } catch (error) {
-          console.log('⚠️ No se pudo acceder a schoolSubjects');
+          console.log('⚠️ No se pudo acceder a schoolSubjects:', error);
+        }
+
+        // Método alternativo 2: Si tiene notebooks asignados, buscar las materias de esos notebooks
+        if (userData.idCuadernos && userData.idCuadernos.length > 0 && !schoolSubjects?.length) {
+          console.log('🔍 Buscando materias a través de notebooks asignados...');
+          
+          try {
+            // Obtener los notebooks asignados
+            const notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('__name__', 'in', userData.idCuadernos)
+            );
+            
+            const notebooksSnapshot = await getDocs(notebooksQuery);
+            const materiaIds = new Set<string>();
+            const notebooksList: SchoolNotebook[] = [];
+            
+            notebooksSnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              if (data.idMateria) {
+                materiaIds.add(data.idMateria);
+              }
+              notebooksList.push({
+                id: doc.id,
+                ...data,
+                color: data.color || '#6147FF'
+              } as SchoolNotebook);
+            });
+            
+            console.log('📚 IDs de materias encontradas desde notebooks:', Array.from(materiaIds));
+            
+            // Cargar las materias encontradas
+            if (materiaIds.size > 0) {
+              const materiasQuery = query(
+                collection(db, 'schoolSubjects'),
+                where('__name__', 'in', Array.from(materiaIds))
+              );
+              
+              const materiasSnapshot = await getDocs(materiasQuery);
+              const subjectsList = materiasSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              })) as SchoolSubject[];
+              
+              console.log('🏫 Materias cargadas a través de notebooks:', subjectsList.length);
+              subjectsList.forEach(subject => {
+                console.log('   -', subject.id, ':', subject.nombre);
+              });
+              
+              setSchoolSubjects(subjectsList);
+              setSchoolNotebooks(notebooksList);
+              
+              // Crear listener para cambios en las materias
+              const unsubscribeMaterias = onSnapshot(
+                materiasQuery,
+                (snapshot) => {
+                  const updatedSubjects = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                  })) as SchoolSubject[];
+                  setSchoolSubjects(updatedSubjects);
+                },
+                (err) => {
+                  console.error("❌ Error en listener de materias:", err);
+                }
+              );
+              
+              setLoading(false);
+              return unsubscribeMaterias;
+            }
+          } catch (error) {
+            console.error('❌ Error buscando materias desde notebooks:', error);
+          }
         }
 
         // Método final: Usar idNotebook del perfil si existe
@@ -202,5 +345,12 @@ export const useSchoolStudentData = () => {
     };
   }, [user, effectiveUserId]);
 
-  return { schoolNotebooks, loading, error };
+  console.log('🎓 useSchoolStudentData - Retornando:', {
+    schoolNotebooks: schoolNotebooks?.length || 0,
+    schoolSubjects: schoolSubjects?.length || 0,
+    loading,
+    error
+  });
+  
+  return { schoolNotebooks, schoolSubjects, loading, error };
 };

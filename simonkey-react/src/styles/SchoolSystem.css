@@ -1,25 +1,118 @@
 /* Estilos para el sistema escolar de Simonkey */
 
-/* Panel del profesor */
-.teacher-info-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
+/* Admin Teacher Selector */
+.admin-teacher-selector {
+  background: white;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.admin-teacher-selector .selector-icon {
+  font-size: 1.5rem;
+  color: #6147FF;
+}
+
+.teacher-dropdown-btn {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f7f9fc;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #2d3748;
+  transition: all 0.2s ease;
+}
+
+.teacher-dropdown-btn:hover {
+  border-color: #6147FF;
+  background: #f0ebff;
+}
+
+.teacher-dropdown-btn .dropdown-icon {
+  transition: transform 0.2s ease;
+}
+
+.teacher-dropdown-btn .dropdown-icon.open {
+  transform: rotate(180deg);
+}
+
+.teacher-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.teacher-option {
+  padding: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px solid #f0f4f8;
+}
+
+.teacher-option:last-child {
+  border-bottom: none;
+}
+
+.teacher-option:hover {
+  background: #f7f9fc;
+}
+
+.teacher-option.selected {
+  background: #f0ebff;
+  color: #6147FF;
+}
+
+.teacher-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.teacher-email {
+  font-size: 0.875rem;
+  color: #718096;
+}
+
+/* Panel del profesor - Usando el mismo estilo que las tarjetas de la columna izquierda */
+.teacher-info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
 }
 
 .teacher-info-card h3 {
   margin: 0 0 1rem 0;
-  font-size: 1.2rem;
+  color: #333;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
 .teacher-info-card p {
   margin: 0.5rem 0;
+  color: #666;
   font-size: 0.9rem;
-  opacity: 0.9;
+  line-height: 1.5;
 }
 
 /* Dashboard de estudiante */
@@ -321,4 +414,24 @@
   right: 0.5rem;
   font-size: 0.8rem;
   opacity: 0.7;
+}
+
+.back-button-styled {
+  padding: 10px 20px;
+  background-color: #6147FF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.back-button-styled:hover {
+  background-color: #5139e0;
+  transform: translateY(-2px);
 } 

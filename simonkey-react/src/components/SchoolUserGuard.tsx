@@ -7,7 +7,7 @@ interface SchoolUserGuardProps {
 }
 
 const SchoolUserGuard: React.FC<SchoolUserGuardProps> = ({ children }) => {
-  const { isSchoolTeacher, isSchoolStudent, isSchoolUser, userProfile, loading } = useUserType();
+  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSchoolUser, userProfile, loading } = useUserType();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -20,6 +20,8 @@ const SchoolUserGuard: React.FC<SchoolUserGuardProps> = ({ children }) => {
   console.log('  - isSchoolUser:', isSchoolUser);
   console.log('  - isSchoolTeacher:', isSchoolTeacher);
   console.log('  - isSchoolStudent:', isSchoolStudent);
+  console.log('  - isSchoolAdmin:', isSchoolAdmin);
+  console.log('  - isSchoolTutor:', isSchoolTutor);
   console.log('  - userProfile:', userProfile);
   console.log('  - location.pathname:', location.pathname);
 
@@ -28,15 +30,17 @@ const SchoolUserGuard: React.FC<SchoolUserGuardProps> = ({ children }) => {
     console.log('  - loading:', loading);
     console.log('  - isSchoolTeacher:', isSchoolTeacher);
     console.log('  - isSchoolStudent:', isSchoolStudent);
+    console.log('  - isSchoolAdmin:', isSchoolAdmin);
+    console.log('  - isSchoolTutor:', isSchoolTutor);
     
     // SOLO redirigir si loading es false
-    if (!loading && !isSchoolTeacher && !isSchoolStudent) {
+    if (!loading && !isSchoolTeacher && !isSchoolStudent && !isSchoolAdmin && !isSchoolTutor) {
       console.log('❌ SchoolUserGuard - Usuario no autorizado como escolar, redirigiendo a /');
       navigate('/');
-    } else if (!loading && (isSchoolTeacher || isSchoolStudent)) {
+    } else if (!loading && (isSchoolTeacher || isSchoolStudent || isSchoolAdmin || isSchoolTutor)) {
       console.log('✅ SchoolUserGuard - Usuario autorizado como escolar');
     }
-  }, [isSchoolTeacher, isSchoolStudent, loading, navigate]);
+  }, [isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, loading, navigate]);
 
   if (loading) {
     console.log('⏳ SchoolUserGuard - Mostrando loading...');
@@ -49,7 +53,7 @@ const SchoolUserGuard: React.FC<SchoolUserGuardProps> = ({ children }) => {
   }
 
   // Si es usuario escolar válido, renderiza children
-  if (isSchoolTeacher || isSchoolStudent) {
+  if (isSchoolTeacher || isSchoolStudent || isSchoolAdmin || isSchoolTutor) {
     console.log('✅ SchoolUserGuard - Renderizando contenido para usuario escolar');
     return <>{children}</>;
   } else {

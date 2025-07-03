@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import CategoryDropdown from '../components/CategoryDropdown';
 import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 
 interface Materia {
   id: string;
@@ -34,6 +35,12 @@ const Materias: React.FC = () => {
   const navigate = useNavigate();
   const { isSchoolUser, isSchoolStudent } = useUserType();
   const { migrationStatus, migrationMessage } = useAutoMigration();
+  const { schoolSubjects, loading: schoolLoading } = useSchoolStudentData();
+  
+  console.log('📚 Materias.tsx - Estado actual:');
+  console.log('📚 isSchoolStudent:', isSchoolStudent);
+  console.log('📚 schoolSubjects:', schoolSubjects);
+  console.log('📚 schoolLoading:', schoolLoading);
 
   // Estados para el componente de personalización
   const [userData, setUserData] = useState({
@@ -48,9 +55,42 @@ const Materias: React.FC = () => {
     const loadMaterias = async () => {
       if (!user) return;
       
+      // Si es estudiante escolar, usar las materias escolares
+      if (isSchoolStudent) {
+        console.log('📚 Es estudiante escolar, verificando materias...');
+        console.log('📚 schoolSubjects:', schoolSubjects);
+        console.log('📚 schoolLoading:', schoolLoading);
+        
+        if (schoolSubjects && schoolSubjects.length > 0) {
+          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => ({
+            id: subject.id,
+            title: subject.nombre,
+            color: subject.color || '#6147FF',
+            category: subject.category || '',
+            userId: user.uid,
+            createdAt: subject.createdAt?.toDate() || new Date(),
+            updatedAt: subject.updatedAt?.toDate() || new Date(),
+            notebookCount: 0 // Se actualizará después
+          }));
+          
+          console.log('📚 Materias escolares mapeadas:', schoolMateriasData);
+          setMaterias(schoolMateriasData);
+          setLoading(false);
+          return;
+        } else if (!schoolLoading) {
+          console.log('📚 No hay materias escolares, mostrando lista vacía');
+          setMaterias([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Si todavía está cargando, no hacer nada
+        return;
+      }
+      
       setLoading(true);
       try {
-        // Query para obtener las materias del usuario
+        // Query para obtener las materias del usuario regular
         const materiasQuery = query(
           collection(db, 'materias'),
           where('userId', '==', user.uid)
@@ -92,7 +132,7 @@ const Materias: React.FC = () => {
     };
     
     loadMaterias();
-  }, [user, refreshTrigger]);
+  }, [user, refreshTrigger, isSchoolStudent, schoolSubjects, schoolLoading]);
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -107,6 +147,8 @@ const Materias: React.FC = () => {
   }, [userProfile]);
 
   const handleCreate = async (title: string, color: string, category?: string) => {
+    // Los estudiantes escolares no pueden crear materias
+    if (isSchoolStudent) return;
     if (!user) return;
     
     try {
@@ -127,6 +169,8 @@ const Materias: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
+    // Los estudiantes escolares no pueden eliminar materias
+    if (isSchoolStudent) return;
     try {
       // Verificar si hay notebooks en esta materia
       const notebooksQuery = query(
@@ -164,6 +208,8 @@ const Materias: React.FC = () => {
   };
 
   const handleEdit = async (id: string, newTitle: string) => {
+    // Los estudiantes escolares no pueden editar materias
+    if (isSchoolStudent) return;
     try {
       // Verificar si ya existe una materia con ese nombre
       const materiasQuery = query(
@@ -190,6 +236,8 @@ const Materias: React.FC = () => {
   };
 
   const handleColorChange = async (id: string, newColor: string) => {
+    // Los estudiantes escolares no pueden cambiar colores
+    if (isSchoolStudent) return;
     try {
       await updateDoc(doc(db, 'materias', id), {
         color: newColor,
@@ -203,7 +251,12 @@ const Materias: React.FC = () => {
   };
 
   const handleView = (materiaId: string) => {
-    navigate(`/materias/${materiaId}/notebooks`);
+    // Para estudiantes escolares, navegar directamente a notebooks ya que no pueden elegir
+    if (isSchoolStudent) {
+      navigate('/notebooks');
+    } else {
+      navigate(`/materias/${materiaId}/notebooks`);
+    }
   };
 
   const handleCategorySelect = (category: string | null) => {

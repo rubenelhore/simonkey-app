@@ -21,10 +21,10 @@ const SchoolStudentStudyPage = () => {
   const { isSchoolStudent } = useUserType();
   const { schoolNotebooks, loading: notebooksLoading } = useSchoolStudentData();
   
-  // Redirigir automáticamente a la página de notebooks normal
+  // Redirigir automáticamente a la página de materias
   useEffect(() => {
-    console.log('🎓 SchoolStudentStudyPage - Redirigiendo estudiante a /notebooks');
-    navigate('/notebooks', { replace: true });
+    console.log('🎓 SchoolStudentStudyPage - Redirigiendo estudiante a /materias');
+    navigate('/materias', { replace: true });
   }, [navigate]);
   
   const [selectedNotebook, setSelectedNotebook] = useState<SchoolNotebook | null>(null);

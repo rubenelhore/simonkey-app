@@ -28,6 +28,8 @@ export const useUserType = () => {
       isSchoolUser: false,
       isSchoolTeacher: false,
       isSchoolStudent: false,
+      isSchoolAdmin: false,
+      isSchoolTutor: false,
       userProfile: null,
       loading: false // Cambiado de true a false
     };
@@ -42,6 +44,8 @@ export const useUserType = () => {
       isSchoolUser: false,
       isSchoolTeacher: false,
       isSchoolStudent: false,
+      isSchoolAdmin: false,
+      isSchoolTutor: false,
       userProfile: null,
       loading: true
     };
@@ -65,12 +69,17 @@ export const useUserType = () => {
   const isSchoolUser = normalizedSubscription === UserSubscriptionType.SCHOOL;
   const isSchoolTeacher = isSchoolUser && normalizedSchoolRole === SchoolRole.TEACHER;
   const isSchoolStudent = isSchoolUser && normalizedSchoolRole === SchoolRole.STUDENT;
+  const isSchoolAdmin = isSchoolUser && normalizedSchoolRole === SchoolRole.ADMIN;
+  const isSchoolTutor = isSchoolUser && normalizedSchoolRole === SchoolRole.TUTOR;
   
   // Log de los roles calculados
   console.log('useUserType - Roles calculados:');
   console.log('  - isSchoolUser:', isSchoolUser);
   console.log('  - isSchoolTeacher:', isSchoolTeacher);
   console.log('  - isSchoolStudent:', isSchoolStudent);
+  console.log('  - isSchoolAdmin:', isSchoolAdmin);
+  console.log('  - isSchoolTutor:', isSchoolTutor);
+  console.log('  - schoolRole:', schoolRole);
 
   return {
     isSuperAdmin,
@@ -79,6 +88,8 @@ export const useUserType = () => {
     isSchoolUser,
     isSchoolTeacher,
     isSchoolStudent,
+    isSchoolAdmin,
+    isSchoolTutor,
     userProfile,
     loading: false
   };

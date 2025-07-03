@@ -1736,12 +1736,18 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
     if (email) {
       logger.info("🔍 Verificando si existe usuario escolar con el mismo email", { email });
       
-      // Buscar en colección users por email
+      // Buscar en colección users por email (tanto en campo email como googleAuthEmail)
       const existingUsersQuery = db.collection("users").where("email", "==", email);
       const existingUsersSnapshot = await existingUsersQuery.get();
       
-      if (!existingUsersSnapshot.empty) {
-        const existingUser = existingUsersSnapshot.docs[0];
+      // También buscar por googleAuthEmail
+      const existingUsersByGoogleEmailQuery = db.collection("users").where("googleAuthEmail", "==", email);
+      const existingUsersByGoogleEmailSnapshot = await existingUsersByGoogleEmailQuery.get();
+      
+      if (!existingUsersSnapshot.empty || !existingUsersByGoogleEmailSnapshot.empty) {
+        const existingUser = !existingUsersSnapshot.empty 
+          ? existingUsersSnapshot.docs[0] 
+          : existingUsersByGoogleEmailSnapshot.docs[0];
         const existingUserData = existingUser.data();
         
         logger.warn("⚠️ Usuario existente encontrado con el mismo email", { 

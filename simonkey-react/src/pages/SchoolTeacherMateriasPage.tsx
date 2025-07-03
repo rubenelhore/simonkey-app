@@ -1,0 +1,209 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import StreakTracker from '../components/StreakTracker';
+import MateriaItem from '../components/MateriaItem';
+import '../styles/Materias.css';
+import '../styles/SchoolSystem.css';
+
+interface SchoolSubject {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  color?: string;
+  idProfesor: string;
+  idAdmin: string;
+  notebookCount?: number;
+  createdAt?: any;
+}
+
+const SchoolTeacherMateriasPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const [materias, setMaterias] = useState<SchoolSubject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadMaterias = async () => {
+      if (!user || !userProfile) return;
+      
+      setLoading(true);
+      try {
+        // Usar el ID del documento del profesor
+        const teacherId = userProfile.id || user.uid;
+        console.log('📚 Cargando materias para profesor:', teacherId);
+
+        // Query para obtener las materias asignadas al profesor
+        const materiasQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('idProfesor', '==', teacherId)
+        );
+        
+        const snapshot = await getDocs(materiasQuery);
+        const materiasData: SchoolSubject[] = [];
+        
+        // Para cada materia, contar los cuadernos
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          
+          // Contar notebooks de cada materia
+          const notebooksQuery = query(
+            collection(db, 'schoolNotebooks'),
+            where('idMateria', '==', docSnap.id)
+          );
+          const notebooksSnapshot = await getDocs(notebooksQuery);
+          
+          materiasData.push({
+            id: docSnap.id,
+            nombre: data.nombre,
+            descripcion: data.descripcion,
+            color: data.color || '#6147FF',
+            idProfesor: data.idProfesor,
+            idAdmin: data.idAdmin,
+            notebookCount: notebooksSnapshot.size,
+            createdAt: data.createdAt
+          });
+        }
+        
+        // Ordenar por fecha de creación
+        materiasData.sort((a, b) => {
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
+        
+        setMaterias(materiasData);
+        console.log('✅ Materias cargadas:', materiasData.length);
+      } catch (err) {
+        console.error('Error loading materias:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadMaterias();
+  }, [user, userProfile]);
+
+  const handleViewMateria = (materiaId: string) => {
+    navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+  };
+
+  const handleToggleActions = (materiaId: string) => {
+    if (openActionsId === materiaId) {
+      setOpenActionsId(null);
+    } else {
+      setOpenActionsId(materiaId);
+    }
+  };
+
+  const handleColorChange = async (materiaId: string, newColor: string) => {
+    try {
+      // Actualizar el color en la colección schoolSubjects
+      const materiaRef = doc(db, 'schoolSubjects', materiaId);
+      await updateDoc(materiaRef, {
+        color: newColor,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Actualizar el estado local
+      setMaterias(prevMaterias => 
+        prevMaterias.map(materia => 
+          materia.id === materiaId ? { ...materia, color: newColor } : materia
+        )
+      );
+      
+      console.log('Color de la materia actualizado');
+    } catch (error) {
+      console.error('Error actualizando el color de la materia:', error);
+      alert('Error al actualizar el color de la materia');
+    }
+  };
+
+  // Filtrar materias basado en el término de búsqueda
+  const filteredMaterias = materias.filter(materia =>
+    materia.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (materia.descripcion && materia.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  if (loading || authLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Cargando materias...</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <HeaderWithHamburger
+        title="Área del Profesor"
+        subtitle={`Materias Asignadas - ${userProfile?.nombre || 'Profesor'}`}
+      />
+      <main className="materias-main">
+        <div className="left-column">
+          <StreakTracker />
+          <div className="teacher-info-card">
+            <h3>👨‍🏫 Panel del Profesor</h3>
+            <p>• Explora tus materias asignadas</p>
+            <p>• Cambia el color de las materias</p>
+            <p>• Crea y elimina cuadernos</p>
+            <p>• Añade conceptos a los cuadernos</p>
+            <p>• Modifica títulos y colores</p>
+          </div>
+        </div>
+        <div className="materias-list-section">
+          <div className="materia-list-controls">
+            <div className="materia-list-header">
+              <h2>Materias Asignadas</h2>
+              <div className="search-container">
+                <i className="fas fa-search search-icon"></i>
+                <input
+                  type="text"
+                  placeholder="Buscar materia..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          {filteredMaterias.length === 0 ? (
+            <div className="empty-state">
+              <h3>No tienes materias asignadas</h3>
+              <p>Tu cuenta de profesor está configurada correctamente.</p>
+              <p>Contacta al administrador de tu institución para que te asigne materias.</p>
+            </div>
+          ) : (
+            <div className="materia-grid">
+              {filteredMaterias.map(materia => (
+                <MateriaItem
+                  key={materia.id}
+                  id={materia.id}
+                  title={materia.nombre}
+                  color={materia.color}
+                  notebookCount={materia.notebookCount || 0}
+                  onView={handleViewMateria}
+                  onColorChange={handleColorChange}
+                  showActions={openActionsId === materia.id}
+                  onToggleActions={handleToggleActions}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+      <footer className="materias-footer">
+        <p>&copy; {new Date().getFullYear()} Simonkey - Sistema Escolar</p>
+      </footer>
+    </>
+  );
+};
+
+export default SchoolTeacherMateriasPage;

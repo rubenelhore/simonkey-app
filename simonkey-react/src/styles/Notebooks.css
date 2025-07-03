@@ -1,5 +1,22 @@
 /* Notebooks.css - Estilos para la página de notebooks */
 
+/* Layout sin sidebar para profesores */
+.notebooks-main-no-sidebar {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 70px);
+}
+
+.notebooks-list-section-full {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+}
+
+
 /* Variables globales - Usando las variables del index.css global */
 :root {
   --primary-color: var(--primary);
@@ -1691,6 +1708,11 @@ body.modal-open .notebooks-hamburger-btn {
   
   .motivational-text {
     font-size: 0.95rem;
+  }
+  
+  /* Layout sin sidebar para móvil */
+  .notebooks-main-no-sidebar {
+    padding: 1rem;
   }
 }
 
