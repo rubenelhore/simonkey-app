@@ -281,7 +281,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
       {showColorPicker && (
         <div className="color-picker-container">
           <div className="color-picker">
-            {['#6147FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#F7B731', '#5F27CD', '#00D2D3', '#FF9FF3', '#54A0FF', '#48DBFB', '#1ABC9C', '#FF6348'].map(color => (
+            {['#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'].map(color => (
               <button
                 key={color}
                 className="color-option"
