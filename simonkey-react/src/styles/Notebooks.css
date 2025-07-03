@@ -682,7 +682,7 @@ button[type="submit"]:hover {
 
 .color-picker {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   justify-content: center;
 }

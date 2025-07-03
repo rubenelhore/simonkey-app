@@ -335,14 +335,17 @@
 
 /* Color picker en modal */
 .color-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.5rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .color-preset {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   border-radius: 8px;
   border: 3px solid transparent;
   cursor: pointer;
