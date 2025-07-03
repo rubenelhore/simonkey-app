@@ -525,6 +525,7 @@ const Notebooks: React.FC = () => {
             onCloseCategoryModal={() => setShowCategoryModal(false)}
             onClearSelectedCategory={handleClearSelectedCategory}
             onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
+            materiaColor={materiaData?.color}
           />
         </div>
       </main>

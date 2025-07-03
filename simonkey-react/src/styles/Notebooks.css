@@ -432,6 +432,7 @@ body.menu-open {
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: var(--shadow);
+  text-align: left;
 }
 
 .notebooks-list-section h2 {
@@ -622,22 +623,19 @@ button[type="submit"]:hover {
   align-items: center;
   padding: 0.875rem 1rem;
   background: var(--notebook-color, var(--primary-color));
-  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInActions 0.2s ease-out;
   overflow: hidden;
   gap: 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  height: 60px;
 }
 
-@keyframes slideDown {
+@keyframes fadeInActions {
   from {
-    max-height: 0;
     opacity: 0;
-    transform: translateY(-10px);
   }
   to {
-    max-height: 60px;
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1501,6 +1499,60 @@ body .logo2-title-group h1 * {
   color: white;
 }
 
+/* Estilos específicos para create-notebook-modal header */
+.create-notebook-modal .modal-header {
+  background: #6147FF;
+  color: white;
+  justify-content: center;
+  position: relative;
+}
+
+.create-notebook-modal .modal-header h3 {
+  color: white;
+  text-align: center;
+}
+
+/* Color picker grid para cuadernos */
+.color-picker-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.color-preset {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.color-preset:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-preset.selected {
+  border-color: #1f2937;
+  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.2);
+}
+
+.color-preset.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 /* Deshabilitar botón hamburguesa cuando el modal está abierto */
 body.modal-open .notebooks-hamburger-btn {
   opacity: 0.5;
@@ -1642,6 +1694,66 @@ body.modal-open .notebooks-hamburger-btn {
   }
 }
 
+/* Controles de la lista */
+.notebook-list-controls {
+  margin-bottom: 2rem;
+  width: calc(100% + 3rem);
+  margin-left: -1.5rem;
+  padding: 0 1.5rem;
+}
+
+.notebook-list-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* Botón crear cuaderno */
+.notebook-list-header .create-notebook-button {
+  background: linear-gradient(135deg, #6147FF 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  margin: 0 !important;
+}
+
+.notebook-list-header .create-notebook-button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.notebook-list-header .create-notebook-button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.notebook-list-header .create-notebook-button:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.notebook-list-header .create-notebook-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.notebook-list-header .create-notebook-button i {
+  font-size: 1.1rem;
+}
+
 /* Estilos para el contenedor de acciones (crear + buscar) */
 .notebook-actions-container {
   display: flex;
@@ -1661,12 +1773,12 @@ body.modal-open .notebooks-hamburger-btn {
   height: 60px;
 }
 
-.search-container {
-  min-width: 250px;
-  max-width: 250px;
-  flex: none;
-  margin: 0;
-  order: 2;
+/* Buscador */
+.notebook-list-header .search-container {
+  position: relative;
+  flex: 0 1 400px;
+  max-width: 400px;
+  margin-left: auto;
 }
 
 .create-notebook-card {
@@ -1703,25 +1815,30 @@ body.modal-open .notebooks-hamburger-btn {
   border-style: solid;
 }
 
-.search-icon {
-  color: #9ca3af;
+.notebook-list-header .search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
   font-size: 1rem;
-  margin-right: 0.75rem;
-  flex-shrink: 0;
 }
 
-.search-input {
-  flex: 1;
-  border: none;
+.notebook-list-header .search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+}
+
+.notebook-list-header .search-input:focus {
   outline: none;
-  font-size: 1rem;
-  color: #374151;
-  background: transparent;
-  min-width: 0;
-}
-
-.search-input::placeholder {
-  color: #9ca3af;
+  border-color: #6147FF;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.1);
 }
 
 .clear-search-button {

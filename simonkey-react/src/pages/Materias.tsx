@@ -99,9 +99,9 @@ const Materias: React.FC = () => {
     if (userProfile) {
       setUserData({
         nombre: userProfile.nombre || userProfile.displayName || '',
-        apellidos: userProfile.apellidos || '',
-        tipoAprendizaje: userProfile.tipoAprendizaje || 'Visual',
-        intereses: userProfile.intereses || ['']
+        apellidos: '',
+        tipoAprendizaje: 'Visual',
+        intereses: userProfile.interests || ['']
       });
     }
   }, [userProfile]);
@@ -265,7 +265,6 @@ const Materias: React.FC = () => {
           />
         </div>
         <div className="materias-list-section">
-          <h2>{isSchoolStudent ? 'Mis materias escolares' : 'Mis materias'}</h2>
           <MateriaList 
             materias={materias}
             onDeleteMateria={isSchoolStudent ? undefined : handleDelete}

@@ -22,12 +22,13 @@
   min-width: 0;
 }
 
+/* h2 removed for cleaner view
 .materias-list-section h2 {
   font-size: 2rem;
   font-weight: 700;
   color: #333;
-  margin-bottom: 2rem;
-}
+  margin-bottom: 0.5rem;
+} */
 
 /* Controles de la lista */
 .materia-list-controls {
@@ -296,6 +297,29 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
+}
+
+/* Estilos específicos para create-materia-modal */
+.create-materia-modal .modal-header {
+  background: #6147FF;
+  color: white;
+  justify-content: center;
+  position: relative;
+}
+
+.create-materia-modal .modal-header h3 {
+  color: white;
+  text-align: center;
+}
+
+.create-materia-modal .modal-header .close-button {
+  color: white;
+  position: absolute;
+  right: 1rem;
+}
+
+.create-materia-modal .modal-header .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .close-button {

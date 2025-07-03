@@ -39,6 +39,7 @@ const NotebookDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [cuaderno, setCuaderno] = useState<any>(null);
+  const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
   const [cargando, setCargando] = useState<boolean>(false);
@@ -87,6 +88,10 @@ const NotebookDetail = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setCuaderno({ id: docSnap.id, ...data });
+          // Guardar el materiaId si existe
+          if (data.materiaId) {
+            setMateriaId(data.materiaId);
+          }
         } else {
           console.error("No such notebook!");
           navigate('/notebooks');
@@ -624,7 +629,24 @@ const NotebookDetail = () => {
     <div className="notebook-detail-container">
       <header className="notebook-detail-header">
         <div className="header-content">
-          <button onClick={() => navigate('/notebooks')} className="back-button">
+          <button 
+            onClick={() => {
+              // Primero verificar si hay materiaId en la URL
+              const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+              if (materiaMatch) {
+                // Si estamos dentro de una materia en la URL, usar ese ID
+                const urlMateriaId = materiaMatch[1];
+                navigate(`/materias/${urlMateriaId}/notebooks`);
+              } else if (materiaId) {
+                // Si no hay materia en la URL pero el notebook tiene materiaId, usar ese
+                navigate(`/materias/${materiaId}/notebooks`);
+              } else {
+                // Si no hay materiaId en ningún lado, ir a la ruta legacy
+                navigate('/notebooks');
+              }
+            }} 
+            className="back-button"
+          >
             <i className="fas fa-arrow-left"></i>
           </button>
           
@@ -665,7 +687,18 @@ const NotebookDetail = () => {
                       <div 
                         key={`${doc.id}-${conceptIndex}`}
                         className="concept-card"
-                        onClick={() => navigate(`/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`)}
+                        onClick={() => {
+                          // Mantener el contexto de materia si existe
+                          const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+                          if (materiaMatch) {
+                            const urlMateriaId = materiaMatch[1];
+                            navigate(`/materias/${urlMateriaId}/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                          } else if (materiaId) {
+                            navigate(`/materias/${materiaId}/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                          } else {
+                            navigate(`/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                          }
+                        }}
                       >
                         <h4>{concepto.término}</h4>
                       </div>

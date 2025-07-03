@@ -22,6 +22,8 @@ const StudyModePage = () => {
   const { isSchoolStudent, subscription } = useUserType();
   const { schoolNotebooks } = useSchoolStudentData();
   
+  const [materias, setMaterias] = useState<any[]>([]);
+  const [selectedMateria, setSelectedMateria] = useState<any | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>(StudyMode.SMART);
@@ -137,9 +139,9 @@ const StudyModePage = () => {
     }
   }, [location.state, notebooks]);
   
-  // Cargar cuadernos del usuario
+  // Cargar materias del usuario
   useEffect(() => {
-    const fetchNotebooks = async () => {
+    const fetchMaterias = async () => {
       if (!auth.currentUser) {
         navigate('/login');
         return;
@@ -148,58 +150,94 @@ const StudyModePage = () => {
       try {
         setLoading(true);
         
+        // Cargar materias del usuario
+        const materiasQuery = query(
+          collection(db, 'materias'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+        
+        const materiasSnapshot = await getDocs(materiasQuery);
+        const materiasData = materiasSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setMaterias(materiasData);
+        
+        // Restaurar última materia usada
+        const lastMateriaId = localStorage.getItem('lastStudyMateriaId');
+        if (lastMateriaId && materiasData.length > 0) {
+          const lastMateria = materiasData.find(m => m.id === lastMateriaId);
+          if (lastMateria) {
+            setSelectedMateria(lastMateria);
+          }
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error("Error al cargar materias:", error);
+        showFeedback('warning', 'Error al cargar tus materias');
+        setLoading(false);
+      }
+    };
+    
+    fetchMaterias();
+  }, [navigate]);
+  
+  // Cargar notebooks cuando se selecciona una materia
+  useEffect(() => {
+    const fetchNotebooksForMateria = async () => {
+      if (!selectedMateria || !auth.currentUser) {
+        setNotebooks([]);
+        return;
+      }
+      
+      try {
         let notebooksData: Notebook[] = [];
         
         if (isSchoolStudent && schoolNotebooks) {
-          // Use school notebooks for school students
-          notebooksData = schoolNotebooks.map(notebook => ({
-            id: notebook.id,
-            title: notebook.title,
-            color: notebook.color || '#6147FF'
-          }));
-        } else if (!isSchoolStudent) {
-          // Regular notebooks for other users
+          // Filtrar notebooks escolares por materia
+          notebooksData = schoolNotebooks
+            .filter(notebook => notebook.idMateria === selectedMateria.id)
+            .map(notebook => ({
+              id: notebook.id,
+              title: notebook.title,
+              color: notebook.color || '#6147FF',
+              materiaId: notebook.idMateria
+            }));
+        } else {
+          // Regular notebooks filtrados por materia
           const notebooksQuery = query(
             collection(db, 'notebooks'),
-            where('userId', '==', auth.currentUser.uid)
+            where('userId', '==', auth.currentUser.uid),
+            where('materiaId', '==', selectedMateria.id)
           );
           
           const notebooksSnapshot = await getDocs(notebooksQuery);
           notebooksData = notebooksSnapshot.docs.map(doc => ({
             id: doc.id,
             title: doc.data().title,
-            color: doc.data().color || '#6147FF'
+            color: doc.data().color || '#6147FF',
+            materiaId: doc.data().materiaId
           }));
         }
         
         setNotebooks(notebooksData);
         
-        // Restaurar último cuaderno usado
-        const lastNotebookKey = isSchoolStudent ? 
-          `student_${auth.currentUser.uid}_lastStudyNotebookId` : 
-          'lastStudyNotebookId';
-        const lastNotebookId = localStorage.getItem(lastNotebookKey);
-        
-        if (lastNotebookId && notebooksData.length > 0) {
-          const lastNotebook = notebooksData.find(n => n.id === lastNotebookId);
-          if (lastNotebook) {
-            setSelectedNotebook(lastNotebook);
-          }
-        } else if (notebooksData.length === 1) {
-          // Si solo hay un cuaderno, seleccionarlo automáticamente
+        // Si solo hay un cuaderno en la materia, seleccionarlo automáticamente
+        if (notebooksData.length === 1) {
           setSelectedNotebook(notebooksData[0]);
+        } else {
+          setSelectedNotebook(null);
         }
-        
-        setLoading(false);
       } catch (error) {
-        console.error("Error al cargar cuadernos:", error);
-        showFeedback('warning', 'Error al cargar tus cuadernos');
-        setLoading(false);
+        console.error("Error al cargar cuadernos de la materia:", error);
+        showFeedback('warning', 'Error al cargar los cuadernos');
       }
     };
     
-    fetchNotebooks();
-  }, [navigate, isSchoolStudent, schoolNotebooks]);
+    fetchNotebooksForMateria();
+  }, [selectedMateria, isSchoolStudent, schoolNotebooks]);
   
   // Cuando se selecciona un cuaderno, cargar estadísticas de estudio
   useEffect(() => {
@@ -1196,71 +1234,104 @@ const StudyModePage = () => {
           {/* Mostrar selección de cuadernos cuando no hay sesión activa */}
           {!sessionActive && !sessionComplete && (
             <div className="study-notebook-selection">
-              <div className="study-header">
-                <h2>Selecciona un cuaderno para estudiar</h2>
-                <div className="study-subtitle">
-                  Elige el cuaderno que quieres revisar hoy
-                </div>
-              </div>
-              
               {loading ? (
                 <div className="empty-notebooks">
                   <div className="empty-icon">
                     <i className="fas fa-spinner fa-spin"></i>
                   </div>
-                  <h3>Cargando cuadernos...</h3>
+                  <h3>Cargando materias...</h3>
                 </div>
-              ) : notebooks.length === 0 ? (
+              ) : materias.length === 0 ? (
                 <div className="empty-notebooks">
                   <div className="empty-icon">
-                    <i className="fas fa-book-open"></i>
+                    <i className="fas fa-folder-open"></i>
                   </div>
-                  <h3>No tienes cuadernos creados</h3>
-                  <p>Crea tu primer cuaderno para comenzar a estudiar</p>
-                  <button
-                    className="create-notebook-button"
-                    onClick={() => navigate('/notebooks')}
-                  >
-                    <i className="fas fa-plus"></i> Crear mi primer cuaderno
-                  </button>
+                  <h3>No tienes materias creadas</h3>
+                  <p>Crea tu primera materia para comenzar a estudiar</p>
                 </div>
               ) : (
                 <>
-                  {/* Lista de cuadernos */}
-                  <div className="notebooks-section">
-                    <div className="notebooks-list">
-                      {(notebooks as Notebook[]).map((notebook, index) => (
-                        <div
-                          key={notebook.id || index}
-                          className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-                          onClick={() => handleSelectNotebook(notebook)}
-                          style={{ borderColor: notebook.color }}
-                        >
-                          <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
-                            {selectedNotebook?.id === notebook.id && (
-                              <div className="selected-indicator">
-                                <i className="fas fa-check"></i>
-                              </div>
-                            )}
-                          </div>
-                          <div className="notebook-info">
-                            <div className="notebook-title">{notebook.title}</div>
-                          </div>
-                        </div>
+                  {/* Selector de materia */}
+                  <div className="materia-selector-container">
+                    <label htmlFor="materia-select" className="materia-selector-label">
+                      Selecciona una materia:
+                    </label>
+                    <select
+                      id="materia-select"
+                      className="materia-selector"
+                      value={selectedMateria?.id || ''}
+                      onChange={(e) => {
+                        const materia = materias.find(m => m.id === e.target.value);
+                        if (materia) {
+                          setSelectedMateria(materia);
+                          localStorage.setItem('lastStudyMateriaId', materia.id);
+                        }
+                      }}
+                      style={{
+                        borderColor: selectedMateria?.color || '#6147FF'
+                      }}
+                    >
+                      <option value="">-- Selecciona una materia --</option>
+                      {materias.map(materia => (
+                        <option key={materia.id} value={materia.id}>
+                          {materia.title}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   </div>
-                  
-                  {selectedNotebook && (
+
+                  {/* Mostrar cuadernos solo si hay una materia seleccionada */}
+                  {selectedMateria && (
                     <>
-                      {/* Dashboard de estudio */}
-                      <StudyDashboard
-                        notebook={selectedNotebook}
-                        userId={effectiveUserId || auth.currentUser?.uid || ''}
-                        userSubscription={subscription}
-                        onRefresh={refreshDashboardData}
-                        onStartSession={startStudySession}
-                      />
+                      {notebooks.length === 0 ? (
+                        <div className="empty-notebooks">
+                          <div className="empty-icon">
+                            <i className="fas fa-book"></i>
+                          </div>
+                          <h3>No hay cuadernos en esta materia</h3>
+                          <p>Crea cuadernos en {selectedMateria.title} para comenzar a estudiar</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Lista de cuadernos */}
+                          <div className="notebooks-section">
+                            <div className="notebooks-list">
+                              {(notebooks as Notebook[]).map((notebook, index) => (
+                                <div
+                                  key={notebook.id || index}
+                                  className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
+                                  onClick={() => handleSelectNotebook(notebook)}
+                                  style={{ borderColor: notebook.color }}
+                                >
+                                  <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
+                                    {selectedNotebook?.id === notebook.id && (
+                                      <div className="selected-indicator">
+                                        <i className="fas fa-check"></i>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="notebook-info">
+                                    <div className="notebook-title">{notebook.title}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {selectedNotebook && (
+                            <>
+                              {/* Dashboard de estudio */}
+                              <StudyDashboard
+                                notebook={selectedNotebook}
+                                userId={effectiveUserId || auth.currentUser?.uid || ''}
+                                userSubscription={subscription}
+                                onRefresh={refreshDashboardData}
+                                onStartSession={startStudySession}
+                              />
+                            </>
+                          )}
+                        </>
+                      )}
                     </>
                   )}
                 </>

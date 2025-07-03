@@ -126,7 +126,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
     setErrorMessage('');
 
     try {
-      await onCreateMateria(newMateriaTitle.trim(), newMateriaColor, selectedCategory);
+      await onCreateMateria(newMateriaTitle.trim(), newMateriaColor, selectedCategory || undefined);
       
       setNewMateriaTitle('');
       setNewMateriaColor('#6147FF');

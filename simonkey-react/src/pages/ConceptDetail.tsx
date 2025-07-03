@@ -48,6 +48,27 @@ const ConceptDetail: React.FC = () => {
     const savedPreference = localStorage.getItem('autoReadEnabled');
     return savedPreference ? JSON.parse(savedPreference) : true;
   });
+
+  // Helper function para navegar correctamente según el contexto
+  const navigateToNotebook = (notebookId: string) => {
+    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+    if (materiaMatch) {
+      const materiaId = materiaMatch[1];
+      navigate(`/materias/${materiaId}/notebooks/${notebookId}`);
+    } else {
+      navigate(`/notebooks/${notebookId}`);
+    }
+  };
+
+  const navigateToConcept = (notebookId: string, conceptoId: string, index: string) => {
+    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+    if (materiaMatch) {
+      const materiaId = materiaMatch[1];
+      navigate(`/materias/${materiaId}/notebooks/${notebookId}/concepto/${conceptoId}/${index}`);
+    } else {
+      navigate(`/notebooks/${notebookId}/concepto/${conceptoId}/${index}`);
+    }
+  };
   
   // Usar el hook para detectar el tipo de usuario
   const { isSchoolStudent } = useUserType();
@@ -411,7 +432,7 @@ const ConceptDetail: React.FC = () => {
         }
         
         // Redirigir al usuario de vuelta al cuaderno
-        navigate(`/notebooks/${notebookId}`);
+        navigateToNotebook(notebookId || '');
       } catch (error) {
         console.error("Error al eliminar el concepto:", error);
         alert("Ocurrió un error al eliminar el concepto. Por favor, inténtalo de nuevo.");
@@ -551,7 +572,7 @@ const ConceptDetail: React.FC = () => {
       
       console.log('➡️ Navegando al siguiente concepto global:', nextGlobalIndex, 'Documento:', next.conceptoId, 'Índice local:', next.localIndex);
       
-      navigate(`/notebooks/${notebookId}/concepto/${next.conceptoId}/${next.localIndex}`);
+      navigateToConcept(notebookId || '', next.conceptoId, next.localIndex.toString());
     }
   };
 
@@ -564,7 +585,7 @@ const ConceptDetail: React.FC = () => {
       
       console.log('⬅️ Navegando al concepto anterior global:', prevGlobalIndex, 'Documento:', prev.conceptoId, 'Índice local:', prev.localIndex);
       
-      navigate(`/notebooks/${notebookId}/concepto/${prev.conceptoId}/${prev.localIndex}`);
+      navigateToConcept(notebookId || '', prev.conceptoId, prev.localIndex.toString());
     }
   };
 
@@ -721,7 +742,7 @@ const ConceptDetail: React.FC = () => {
         <h2>Error</h2>
         <p>{error || "No se pudo cargar el concepto"}</p>
         <button 
-          onClick={() => navigate(`/notebooks/${notebookId}`)}
+          onClick={() => navigateToNotebook(notebookId || '')}
           className="back-button"
         >
           <i className="fas fa-arrow-left"></i>
@@ -736,7 +757,7 @@ const ConceptDetail: React.FC = () => {
         <div className="header-content">
           <div className="breadcrumb">
             <button 
-              onClick={() => navigate(`/notebooks/${notebookId}`)}
+              onClick={() => navigateToNotebook(notebookId || '')}
               className="back-button"
             >
               <i className="fas fa-arrow-left"></i>

@@ -177,6 +177,7 @@ export interface Notebook {
   color: string;
   category?: string; // Nueva categoría para agrupar cuadernos
   userId?: string;
+  materiaId?: string; // ID de la materia a la que pertenece
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   conceptCount?: number;

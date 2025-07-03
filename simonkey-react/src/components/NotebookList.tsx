@@ -38,6 +38,7 @@ interface NotebookListProps {
   onCloseCategoryModal?: () => void;
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
+  materiaColor?: string;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -53,7 +54,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
   showCategoryModal = false,
   onCloseCategoryModal,
   onClearSelectedCategory,
-  onRefreshCategories
+  onRefreshCategories,
+  materiaColor
 }) => {
   console.log('🔍 DEBUG - NotebookList renderizando con:', {
     notebooksCount: notebooks?.length || 0,
@@ -71,6 +73,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
+  const [newNotebookColor, setNewNotebookColor] = useState('#6147FF');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedNotebooks, setSelectedNotebooks] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +91,11 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [selectedNotebooksToAdd, setSelectedNotebooksToAdd] = useState<string[]>([]);
 
   console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
+
+  // Colores predefinidos para los cuadernos
+  const colorPresets = [
+    '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
+  ];
 
   // Filtrar cuadernos basado en el término de búsqueda
   const filteredNotebooks = notebooks.filter(notebook =>
@@ -156,6 +164,17 @@ const NotebookList: React.FC<NotebookListProps> = ({
     };
   }, [openActionsId]);
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCreateNotebook(e as any);
+    } else if (e.key === 'Escape') {
+      setShowCreateModal(false);
+      setNewNotebookTitle('');
+      setNewNotebookColor('#6147FF');
+      setErrorMessage('');
+    }
+  };
+
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -180,13 +199,14 @@ const NotebookList: React.FC<NotebookListProps> = ({
       const notebook = await createNotebook(
         user.uid, 
         newNotebookTitle.trim(),
-        '#6147FF', // color por defecto
+        newNotebookColor, // usar el color seleccionado
         undefined, // categoría
         materiaId // materiaId si estamos dentro de una materia
       );
       console.log('✅ Notebook created:', notebook);
       
       setNewNotebookTitle('');
+      setNewNotebookColor('#6147FF'); // resetear color
       setShowCreateModal(false);
       
       if (onCreateNotebook) {
@@ -392,15 +412,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
     });
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCreateNotebook(e as any);
-    } else if (e.key === 'Escape') {
-      setShowCreateModal(false);
-      setNewNotebookTitle('');
-      setErrorMessage(''); // Limpiar error al cerrar
-    }
-  };
 
   const handleCategoryKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -590,20 +601,21 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
   return (
     <>
-      {/* Botón de crear cuaderno y buscador */}
-      <div className="notebook-actions-container">
-        <div 
-          className="notebook-item create-notebook-card"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <div className="create-notebook-content">
-            <div className="create-notebook-icon">+</div>
-            <span className="create-notebook-text">Crear nuevo cuaderno</span>
-          </div>
-        </div>
-        
-        <div className="search-container">
-          <div className="search-input-wrapper">
+      <div className="notebook-list-controls">
+        <div className="notebook-list-header">
+          {showCreateButton && (
+            <button 
+              className="create-notebook-button"
+              onClick={() => setShowCreateModal(true)}
+              style={{
+                background: materiaColor ? `linear-gradient(135deg, ${materiaColor} 0%, ${materiaColor} 100%)` : undefined
+              }}
+            >
+              <i className="fas fa-plus"></i>
+              <span>Crear nuevo cuaderno</span>
+            </button>
+          )}
+          <div className="search-container">
             <i className="fas fa-search search-icon"></i>
             <input
               type="text"
@@ -701,7 +713,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onClick={() => {
                   setShowCreateModal(false);
                   setNewNotebookTitle('');
-                  setErrorMessage(''); // Limpiar error al cerrar
+                  setNewNotebookColor('#6147FF');
+                  setErrorMessage('');
                 }}
               >
                 ×
@@ -714,9 +727,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   id="notebookTitle"
                   type="text"
                   value={newNotebookTitle}
-                  onChange={handleTitleChange}
+                  onChange={(e) => setNewNotebookTitle(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Ej: Matemáticas, Historia, etc."
+                  placeholder="Ej: Álgebra, Biología, etc."
                   className="form-control"
                   autoFocus
                   required
@@ -724,7 +737,21 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 />
               </div>
               
-              {/* Mensaje de error */}
+              <div className="form-group">
+                <label>Color del cuaderno</label>
+                <div className="color-picker-grid">
+                  {colorPresets.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`color-preset ${newNotebookColor === color ? 'selected' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setNewNotebookColor(color)}
+                    />
+                  ))}
+                </div>
+              </div>
+
               {errorMessage && (
                 <div className="error-message">
                   <span className="error-icon">⚠️</span>
@@ -739,7 +766,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewNotebookTitle('');
-                    setErrorMessage(''); // Limpiar error al cancelar
+                    setNewNotebookColor('#6147FF');
+                    setErrorMessage('');
                   }}
                   disabled={isSubmitting}
                 >

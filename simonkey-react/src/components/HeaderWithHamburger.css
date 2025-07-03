@@ -150,11 +150,16 @@
   transition: background-color 0.2s, opacity 0.2s, box-shadow 0.2s;
   outline: none;
   position: absolute !important;
-  left: 1rem;
+  left: 8rem;
   top: 50%;
   transform: translateY(-50%) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   margin: 0 !important;
+}
+
+.header-with-hamburger .back-button i {
+  color: var(--theme-color, #6147FF) !important;
+  font-size: 1.2rem;
 }
 
 .header-with-hamburger .back-button:hover {
@@ -316,6 +321,7 @@
   text-align: left;
   font-size: 1rem;
   color: #374151;
+  font-family: 'Poppins', sans-serif;
 }
 
 .side-menu-button:hover {
@@ -337,12 +343,18 @@
 
 .side-menu-button span {
   font-weight: 500;
+  font-family: 'Poppins', sans-serif;
 }
 
 /* Excepción para el botón de logout - mantener color rojo */
+.side-menu-button.logout-button {
+  font-family: 'Poppins', sans-serif;
+}
+
 .side-menu-button.logout-button:hover {
   background-color: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+  transform: translateX(4px);
 }
 
 .side-menu-button.logout-button:hover i {
@@ -656,25 +668,7 @@ body .header-with-hamburger .logo2-title-group h1 * {
   color: #6b7280;
 }
 
-/* Estilos específicos para el botón de ayuda - copiando el estilo de personalización */
-.side-menu-button.help-button:hover {
-  background-color: rgba(97, 71, 255, 0.1);
-  color: var(--primary-color);
-}
-
-.side-menu-button.help-button:hover i {
-  color: var(--primary-color);
-}
-
-/* Estilos específicos para los botones del submenú de ayuda - copiando el estilo de personalización */
-.side-menu-button.submenu-button:hover {
-  background-color: rgba(97, 71, 255, 0.1);
-  color: var(--primary-color);
-}
-
-.side-menu-button.submenu-button:hover i {
-  color: var(--primary-color);
-}
+/* Botón de ayuda y submenú ahora usan el hover base del side-menu-button */
 
 /* Estilos específicos para el modal de upgrade */
 .upgrade-modal-content {
