@@ -136,15 +136,30 @@ const Materias: React.FC = () => {
       const notebooksSnapshot = await getDocs(notebooksQuery);
       
       if (notebooksSnapshot.size > 0) {
-        if (!window.confirm(`Esta materia contiene ${notebooksSnapshot.size} cuaderno(s). ¿Estás seguro de que quieres eliminarla?`)) {
+        const message = `Esta materia contiene ${notebooksSnapshot.size} cuaderno(s).\n\n` +
+                       `¿Qué deseas hacer?\n\n` +
+                       `ACEPTAR: Eliminar la materia Y todos sus cuadernos\n` +
+                       `CANCELAR: No eliminar nada`;
+        
+        if (!window.confirm(message)) {
           return;
+        }
+        
+        // Si el usuario acepta, eliminar todos los cuadernos de esta materia
+        console.log(`Eliminando ${notebooksSnapshot.size} cuadernos de la materia...`);
+        for (const notebookDoc of notebooksSnapshot.docs) {
+          await deleteDoc(doc(db, 'notebooks', notebookDoc.id));
+          console.log(`Cuaderno ${notebookDoc.id} eliminado`);
         }
       }
       
+      // Eliminar la materia
       await deleteDoc(doc(db, 'materias', id));
+      console.log(`Materia ${id} eliminada`);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error deleting materia:', error);
+      alert('Error al eliminar la materia. Por favor, intenta de nuevo.');
     }
   };
 

@@ -72,6 +72,8 @@ import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
 import CalendarPage from './pages/CalendarPage';
 import Materias from './pages/Materias';
+// Importar utilidad de limpieza de notebooks huérfanos
+import './utils/cleanOrphanNotebooks';
 
 // Definir el tipo para el usuario
 interface User {
