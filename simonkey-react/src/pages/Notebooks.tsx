@@ -475,9 +475,8 @@ const Notebooks: React.FC = () => {
       {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main notebooks-main-no-sidebar">
         <div className="notebooks-list-section notebooks-list-section-full">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2>{materiaData ? `Cuadernos de ${materiaData.title}` : isSchoolStudent ? 'Mis cuadernos escolares' : 'Mis cuadernos'}</h2>
-            {isSchoolStudent && (
+          {isSchoolStudent && (
+            <div style={{ marginBottom: '1rem' }}>
               <button 
                 onClick={runStudentDiagnostics}
                 style={{ 
@@ -492,8 +491,8 @@ const Notebooks: React.FC = () => {
               >
                 🔍 Diagnóstico
               </button>
-            )}
-          </div>
+            </div>
+          )}
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,
