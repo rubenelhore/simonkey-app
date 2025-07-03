@@ -9,12 +9,15 @@
 }
 
 .header-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%; /* Ahora ocupa todo el ancho del header */
+  max-width: none; /* Elimina el límite de ancho */
+  margin: 0;
   padding: 0 20px;
   height: 100%;
   display: flex;
   align-items: center;
+  position: relative;
+  justify-content: center; /* Centra el contenido excepto el logo */
 }
 
 .nav {
@@ -30,8 +33,9 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  margin-left: 0;
+  margin-left: 8px; /* Espacio pequeño desde el borde izquierdo */
   height: 100%;
+  /* Sin posicionamiento absoluto */
 }
 
 .logo-img {

@@ -1,239 +1,252 @@
+body {
+  background-color: #f9fafb;
+}
+
+.header {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+.cta {
+  background: linear-gradient(135deg, var(--primary) 0%, #3730A3 100%);
+}
+
 .simonkey-carousel-container {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 0;
-    background-color: transparent;
-  }
-  
-  .simonkey-carousel {
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  }
-  
-  .simonkey-carousel-track-container {
-    overflow: hidden;
-    width: 100%;
-  }
-  
-  .simonkey-carousel-track {
-    display: flex;
-    transition: transform 0.5s ease;
-  }
-  
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 0;
+  background-color: #f9fafb;
+}
+
+.simonkey-carousel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.simonkey-carousel-track-container {
+  overflow: hidden;
+  width: 100%;
+  background-color: #f9fafb;
+}
+
+.simonkey-carousel-track {
+  display: flex;
+  transition: transform 0.5s ease;
+}
+
+.simonkey-carousel-slide {
+  padding: 0 10px;
+  box-sizing: border-box;
+  height: 400px;
+}
+
+.simonkey-carousel-slide-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4,0.2,0.2,1);
+  transform-style: preserve-3d;
+  overflow: visible;
+}
+
+.simonkey-carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.simonkey-carousel-slide:hover .simonkey-carousel-image {
+  transform: scale(1.05);
+}
+
+.simonkey-carousel-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.simonkey-carousel-slide:hover .simonkey-carousel-caption {
+  opacity: 1;
+}
+
+.simonkey-carousel-caption p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.simonkey-carousel-control {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #333;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.simonkey-carousel-control:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.simonkey-carousel-control:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(31, 91, 221);
+}
+
+.simonkey-carousel-prev {
+  left: 16px;
+}
+
+.simonkey-carousel-next {
+  right: 16px;
+}
+
+.simonkey-carousel-indicators {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 15px;
+}
+
+.simonkey-carousel-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.simonkey-carousel-indicator.active {
+  background-color: white;
+  transform: scale(1.2);
+}
+
+.simonkey-carousel-indicator:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
   .simonkey-carousel-slide {
-    padding: 0 10px;
-    box-sizing: border-box;
-    height: 400px;
-  }
-  
-  .simonkey-carousel-slide-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transition: transform 0.6s cubic-bezier(0.4,0.2,0.2,1);
-    transform-style: preserve-3d;
-    overflow: visible;
-  }
-  
-  .simonkey-carousel-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.3s ease;
-  }
-  
-  .simonkey-carousel-slide:hover .simonkey-carousel-image {
-    transform: scale(1.05);
+    height: 300px;
   }
   
   .simonkey-carousel-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  
-  .simonkey-carousel-slide:hover .simonkey-carousel-caption {
-    opacity: 1;
+    padding: 0.75rem;
   }
   
   .simonkey-carousel-caption p {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 500;
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 0.85rem;
   }
   
   .simonkey-carousel-control {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background-color: rgba(255, 255, 255, 0.7);
-    color: #333;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 10;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    width: 35px;
+    height: 35px;
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .simonkey-carousel-slide {
+    height: 200px;
   }
   
-  .simonkey-carousel-control:hover {
-    background-color: rgba(255, 255, 255, 0.9);
-    transform: translateY(-50%) scale(1.1);
-  }
-  
-  .simonkey-carousel-control:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgb(31, 91, 221);
-  }
-  
-  .simonkey-carousel-prev {
-    left: 16px;
-  }
-  
-  .simonkey-carousel-next {
-    right: 16px;
-  }
-  
-  .simonkey-carousel-indicators {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 6px;
-    z-index: 10;
-    flex-wrap: wrap;
-    justify-content: center;
-    padding: 0 15px;
+  .simonkey-carousel-control {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
   }
   
   .simonkey-carousel-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.5);
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    width: 8px;
+    height: 8px;
   }
-  
-  .simonkey-carousel-indicator.active {
-    background-color: white;
-    transform: scale(1.2);
-  }
-  
-  .simonkey-carousel-indicator:hover {
-    background-color: rgba(255, 255, 255, 0.8);
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .simonkey-carousel-slide {
-      height: 300px;
-    }
-    
-    .simonkey-carousel-caption {
-      padding: 0.75rem;
-    }
-    
-    .simonkey-carousel-caption p {
-      font-size: 0.85rem;
-    }
-    
-    .simonkey-carousel-control {
-      width: 35px;
-      height: 35px;
-      font-size: 1.25rem;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .simonkey-carousel-slide {
-      height: 200px;
-    }
-    
-    .simonkey-carousel-control {
-      width: 30px;
-      height: 30px;
-      font-size: 1rem;
-    }
-    
-    .simonkey-carousel-indicator {
-      width: 8px;
-      height: 8px;
-    }
-  }
-  
-  /* Flip card effect */
-  .flip-card {
-    perspective: 1000px;
-    height: 100%;
-  }
-  
-  .flip-card-front, .flip-card-back {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .flip-card-front {
-    z-index: 2;
-    background: white;
-  }
-  
-  .flip-card-back {
-    z-index: 3;
-    background: #fff !important;
-    transform: rotateY(180deg);
-    padding: 2rem 1rem;
-    border: 2px solid #bbb;
-  }
-  
-  .simonkey-carousel-slide-inner.flipped {
-    transform: rotateY(180deg);
-  }
-  
-  .simonkey-carousel-back-content {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #fff !important;
-    z-index: 4;
-  }
+}
+
+/* Flip card effect */
+.flip-card {
+  perspective: 1000px;
+  height: 100%;
+}
+
+.flip-card-front, .flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.flip-card-front {
+  z-index: 2;
+  background: white;
+}
+
+.flip-card-back {
+  z-index: 3;
+  background: #fff !important;
+  transform: rotateY(180deg);
+  padding: 2rem 1rem;
+  border: 2px solid #bbb;
+}
+
+.simonkey-carousel-slide-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.simonkey-carousel-back-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fff !important;
+  z-index: 4;
+}

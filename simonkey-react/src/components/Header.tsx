@@ -39,11 +39,9 @@ const Header: React.FC = () => {
           <div className="nav-top">
             <Link to="/" className="logo" onClick={(e) => {
               e.preventDefault();
-              // If we're already on home page, scroll to top
               if (location.pathname === '/') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               } else {
-                // If we're on another page, navigate to home
                 window.location.href = '/';
               }
               closeMenu();

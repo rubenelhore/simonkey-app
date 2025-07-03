@@ -21,17 +21,14 @@
 
 /* src/components/Hero.css */
 .hero {
-  /* Añadimos padding superior para compensar la altura del header 
-     Ajusta este valor (80px) a la altura exacta de tu header */
-  padding-top: 80px;
-  /* Solución alternativa usando margin-top */
-  /* margin-top: 80px; */
-  
+  padding-top: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 0;
+  height: 700px;
   /* Para mejor experiencia con enlaces de anclaje */
   scroll-margin-top: 80px;
   
   /* Estilos básicos para el hero */
-  min-height: 100vh;
   display: flex;
   align-items: center;
   background-color: #f9fafb;

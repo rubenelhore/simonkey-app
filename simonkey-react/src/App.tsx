@@ -143,16 +143,104 @@ const HomePageContent: React.FC = () => {
     <div>
       <Header />
       <Hero />
+      <section className="about-simonkey" style={{ width: '100%', background: '#f9fafb', padding: '0 0 40px 0', textAlign: 'center', display: 'block' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 48 }}>
+          <div style={{ flex: '0 0 400px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+            <img src="/img/chango-triste-estudiando.jpg" alt="Chango triste estudiando" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 4px 32px rgba(0,0,0,0.13)', marginLeft: 0 }} />
+          </div>
+          <div style={{ flex: 2, minWidth: 0, textAlign: 'left' }}>
+            <div style={{ textAlign: 'center' }}>
+              <AnimatedAprenderTitle />
+              <p style={{ fontSize: '1.2rem', color: '#444', marginBottom: 16, textAlign: 'center' }}>
+                Simonkey es tu asistente inteligente de estudio, diseñado para adaptarse a tu ritmo y necesidades. Utiliza inteligencia artificial para ayudarte a aprender de manera más eficiente, organizar tus conceptos, practicar con quizzes personalizados y mantenerte motivado en tu camino académico.
+              </p>
+              <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center' }}>
+                Con Simonkey puedes crear, repasar y dominar cualquier tema, desde cualquier lugar y en cualquier momento. Nuestra plataforma está pensada para estudiantes, profesores y autodidactas que buscan una experiencia de aprendizaje moderna, flexible y efectiva.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div id="how-it-works">
+        <HowItWorks />
+      </div>
       <SimonkeyCarousel images={images} autoPlayInterval={9000} />
       <div id="features">
         <Features />
       </div>
-      <div id="how-it-works">
-        <HowItWorks />
-      </div>
       <CTA />
       <Footer />
     </div>
+  );
+};
+
+// Componente animado para el título
+const phrases = [
+  { from: 'aburrido', to: 'divertido' },
+  { from: 'difícil', to: 'fácil' },
+  { from: 'estresante', to: 'motivante' },
+  { from: 'confuso', to: 'claro' },
+  { from: 'pesado', to: 'ligero' },
+];
+
+const AnimatedAprenderTitle: React.FC = () => {
+  const [fromText, setFromText] = useState('');
+  const [fromTachado, setFromTachado] = useState(false);
+  const [toText, setToText] = useState('');
+  const [cycle, setCycle] = useState(0);
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCycle(t => t + 1);
+      setPhraseIndex(i => (i + 1) % phrases.length);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    setFromText('');
+    setFromTachado(false);
+    setToText('');
+    let i = 0;
+    let j = 0;
+    let k = phrases[phraseIndex].from.length;
+    // Escribe la palabra "from" letra por letra
+    const escribirFrom = setInterval(() => {
+      setFromText(phrases[phraseIndex].from.slice(0, i + 1));
+      i++;
+      if (i === phrases[phraseIndex].from.length) {
+        clearInterval(escribirFrom);
+        setTimeout(() => {
+          setFromTachado(true);
+          // Elimina la palabra from de derecha a izquierda
+          const borrarFrom = setInterval(() => {
+            k--;
+            setFromText(phrases[phraseIndex].from.slice(0, k));
+            if (k === 0) {
+              clearInterval(borrarFrom);
+              // Escribe la palabra "to" letra por letra
+              const escribirTo = setInterval(() => {
+                setToText(phrases[phraseIndex].to.slice(0, j + 1));
+                j++;
+                if (j === phrases[phraseIndex].to.length) clearInterval(escribirTo);
+              }, 120);
+            }
+          }, 80);
+        }, 400);
+      }
+    }, 120);
+    return () => {
+      clearInterval(escribirFrom);
+    };
+  }, [cycle, phraseIndex]);
+
+  return (
+    <h2 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: 20 }}>
+      Estudiar con Simonkey es{' '}
+      <span style={{ textDecoration: fromTachado ? 'line-through' : 'none', color: fromTachado ? '#e53935' : '#222', marginRight: 8, transition: 'all 0.5s' }}>{fromText}</span>
+      <span style={{ color: '#43a047', fontWeight: 800 }}>{toText}</span>
+    </h2>
   );
 };
 
