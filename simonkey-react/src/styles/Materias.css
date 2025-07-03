@@ -107,6 +107,7 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
+  padding-bottom: 60px; /* Espacio para las acciones expandidas */
 }
 
 /* Tarjeta de materia */
@@ -163,11 +164,10 @@
   transition: transform 0.3s ease;
   border-bottom-left-radius: 14px;
   border-bottom-right-radius: 14px;
+  z-index: 10; /* Asegurar que esté por encima del contenido */
 }
 
-.materia-card:hover .materia-card-actions {
-  transform: translateY(0);
-}
+/* Removemos el hover porque ahora se controla por JavaScript con showActions */
 
 .materia-card-actions button {
   background: transparent;

@@ -213,11 +213,13 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </>
         )}
       </div>
-      {showActions && (
-        <div 
-          className="materia-card-actions"
-          style={{ backgroundColor: materiaColor }}
-        >
+      <div 
+        className="materia-card-actions"
+        style={{ 
+          backgroundColor: materiaColor,
+          transform: showActions ? 'translateY(0)' : 'translateY(100%)'
+        }}
+      >
           <button 
             onClick={handleView} 
             className="action-view" 
@@ -277,7 +279,6 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
             </button>
           )}
         </div>
-      )}
       {showColorPicker && (
         <div className="color-picker-container">
           <div className="color-picker">
