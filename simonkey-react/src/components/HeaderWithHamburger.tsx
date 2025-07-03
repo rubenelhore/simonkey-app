@@ -14,6 +14,7 @@ interface HeaderWithHamburgerProps {
   showBackButton?: boolean;
   onBackClick?: () => void;
   children?: React.ReactNode;
+  themeColor?: string;
 }
 
 const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
@@ -21,7 +22,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   subtitle,
   showBackButton = false,
   onBackClick,
-  children
+  children,
+  themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription } = useUserType();
@@ -149,12 +151,25 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       
       <header
         className="header-with-hamburger"
-        style={{ opacity: 1, color: '#fff', zIndex: 9999, position: 'relative' }}
+        style={{ 
+          opacity: 1, 
+          color: '#fff', 
+          zIndex: 9999, 
+          position: 'relative',
+          backgroundColor: themeColor || undefined
+        }}
       >
         <div className="header-content">
           {/* Botón de retroceso si es necesario - ahora al inicio */}
           {showBackButton && (
-            <button className="back-button" onClick={onBackClick}>
+            <button 
+              className="back-button" 
+              onClick={onBackClick}
+              style={{
+                backgroundColor: themeColor || undefined,
+                color: '#fff'
+              }}
+            >
               <i className="fas fa-arrow-left"></i>
             </button>
           )}

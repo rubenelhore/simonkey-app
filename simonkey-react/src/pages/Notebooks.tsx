@@ -471,6 +471,7 @@ const Notebooks: React.FC = () => {
         subtitle={materiaData ? `Cuadernos de ${materiaData.title}` : `Espacio Personal de ${userData.nombre || 'Simón'}`}
         showBackButton={!!materiaId}
         onBackClick={() => navigate('/materias')}
+        themeColor={materiaData?.color}
       />
       {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main notebooks-main-no-sidebar">
