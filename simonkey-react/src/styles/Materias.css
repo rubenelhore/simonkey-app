@@ -107,7 +107,13 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
-  padding-bottom: 60px; /* Espacio para las acciones expandidas */
+}
+
+/* Wrapper de la tarjeta de materia */
+.materia-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
 }
 
 /* Tarjeta de materia */
@@ -115,13 +121,13 @@
   position: relative;
   background: white;
   border-radius: 16px;
-  overflow: visible; /* Cambiar de hidden a visible para que el color picker se vea */
+  overflow: visible;
   transition: all 0.3s ease;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   border: 2px solid transparent;
 }
 
-.materia-card:hover {
+.materia-card-wrapper:hover .materia-card {
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
@@ -152,30 +158,26 @@
 
 /* Acciones de la tarjeta */
 .materia-card-actions {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: var(--materia-color, #6147FF);
   display: flex;
   justify-content: space-around;
   padding: 0.75rem;
-  transform: translateY(0);
-  transition: all 0.3s ease;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
-  z-index: 10;
-  animation: slideUp 0.3s ease-out;
+  margin-top: -2px; /* Para que se conecte visualmente con la tarjeta */
+  border-radius: 0 0 16px 16px;
+  animation: expandDown 0.3s ease-out;
+  overflow: hidden;
 }
 
-@keyframes slideUp {
+@keyframes expandDown {
   from {
-    transform: translateY(100%);
+    max-height: 0;
     opacity: 0;
+    padding: 0 0.75rem;
   }
   to {
-    transform: translateY(0);
+    max-height: 60px;
     opacity: 1;
+    padding: 0.75rem;
   }
 }
 

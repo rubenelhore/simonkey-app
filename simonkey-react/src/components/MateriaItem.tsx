@@ -149,12 +149,13 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   };
 
   return (
-    <div className="materia-card">
-      <div 
-        className="materia-card-content" 
-        onClick={handleCardClick}
-        style={{ '--materia-color': materiaColor } as React.CSSProperties}
-      >
+    <div className="materia-card-wrapper">
+      <div className="materia-card">
+        <div 
+          className="materia-card-content" 
+          onClick={handleCardClick}
+          style={{ '--materia-color': materiaColor } as React.CSSProperties}
+        >
         {isEditing ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <div style={{ flex: 1 }}>
@@ -212,13 +213,13 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
             </span>
           </>
         )}
+        </div>
       </div>
       {showActions && (
         <div 
           className="materia-card-actions"
           style={{ 
-            backgroundColor: materiaColor,
-            transform: 'translateY(0)'
+            backgroundColor: materiaColor
           }}
         >
           <button 
