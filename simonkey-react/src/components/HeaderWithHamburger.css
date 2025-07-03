@@ -156,7 +156,8 @@
 }
 
 .back-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%); /* Mantener la posición centrada sin movimiento */
 }
 
 .back-button:focus {
