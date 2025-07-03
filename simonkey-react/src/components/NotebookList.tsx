@@ -598,7 +598,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         >
           <div className="create-notebook-content">
             <div className="create-notebook-icon">+</div>
-            <span className="create-notebook-text">Crear nueva materia</span>
+            <span className="create-notebook-text">Crear nuevo cuaderno</span>
           </div>
         </div>
         
@@ -607,7 +607,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             <i className="fas fa-search search-icon"></i>
             <input
               type="text"
-              placeholder="Buscar materia..."
+              placeholder="Buscar cuaderno..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -695,7 +695,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-content create-notebook-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Crear nueva materia</h3>
+              <h3>Crear nuevo cuaderno</h3>
               <button 
                 className="close-button" 
                 onClick={() => {
@@ -750,7 +750,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   className="create-button"
                   disabled={isSubmitting || !newNotebookTitle.trim()}
                 >
-                  {isSubmitting ? 'Creando...' : 'Crear materia'}
+                  {isSubmitting ? 'Creando...' : 'Crear cuaderno'}
                 </button>
               </div>
             </form>

@@ -119,6 +119,17 @@
   gap: 1rem; /* Reducido de 2rem a 1rem */
 }
 
+/* Layout sin sidebar para notebooks dentro de materias */
+.notebooks-main-no-sidebar {
+  grid-template-columns: 1fr;
+  max-width: 1400px;
+  padding: 2rem;
+}
+
+.notebooks-list-section-full {
+  max-width: 100%;
+}
+
 /* Left column that contains create-section and tools-menu */
 .left-column {
   display: flex;
@@ -141,6 +152,10 @@
 @media (max-width: 768px) {
   .notebooks-main {
     grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  
+  .notebooks-main-no-sidebar {
     padding: 1rem;
   }
 
