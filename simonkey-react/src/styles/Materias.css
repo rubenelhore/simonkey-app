@@ -114,6 +114,7 @@
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  position: relative; /* Para que el color picker se posicione relativo a este elemento */
 }
 
 /* Tarjeta de materia */
@@ -210,9 +211,10 @@
 }
 
 /* Color picker */
-.color-picker-container {
+.materia-card-wrapper .color-picker-container {
   position: absolute;
-  bottom: 60px;
+  bottom: auto;
+  top: calc(100% - 70px); /* Posicionarlo justo arriba de las acciones */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
