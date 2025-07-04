@@ -115,14 +115,15 @@ export const useSchoolStudentData = () => {
                   });
                   
                   setSchoolSubjects(subjectsList);
+                  setLoading(false);
                 }).catch(error => {
                   console.error('❌ Error cargando materias:', error);
+                  setLoading(false);
                 });
               } else {
                 console.log('⚠️ Los notebooks no tienen idMateria asignado');
+                setLoading(false);
               }
-              
-              setLoading(false);
             },
             (err) => {
               console.error("❌ Error fetching school notebooks:", err);

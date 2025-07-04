@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserType } from '../hooks/useUserType';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -23,6 +24,7 @@ interface SchoolSubject {
 const SchoolTeacherMateriasPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, userProfile, loading: authLoading } = useAuth();
+  const { isSchoolAdmin } = useUserType();
   const [materias, setMaterias] = useState<SchoolSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,13 +38,23 @@ const SchoolTeacherMateriasPage: React.FC = () => {
       try {
         // Usar el ID del documento del profesor
         const teacherId = userProfile.id || user.uid;
-        console.log('📚 Cargando materias para profesor:', teacherId);
+        console.log('📚 Cargando materias para:', isSchoolAdmin ? 'admin' : 'profesor', teacherId);
 
-        // Query para obtener las materias asignadas al profesor
-        const materiasQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idProfesor', '==', teacherId)
-        );
+        // Query para obtener las materias
+        // Si es admin, mostrar todas las materias de la escuela
+        let materiasQuery;
+        if (isSchoolAdmin && userProfile.schoolData?.idEscuela) {
+          materiasQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idEscuela', '==', userProfile.schoolData.idEscuela)
+          );
+        } else {
+          // Si es profesor, solo las materias asignadas
+          materiasQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idProfesor', '==', teacherId)
+          );
+        }
         
         const snapshot = await getDocs(materiasQuery);
         const materiasData: SchoolSubject[] = [];
@@ -87,7 +99,7 @@ const SchoolTeacherMateriasPage: React.FC = () => {
     };
     
     loadMaterias();
-  }, [user, userProfile]);
+  }, [user, userProfile, isSchoolAdmin]);
 
   const handleViewMateria = (materiaId: string) => {
     navigate(`/school/teacher/materias/${materiaId}/notebooks`);

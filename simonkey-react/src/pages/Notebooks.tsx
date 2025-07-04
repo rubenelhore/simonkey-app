@@ -385,7 +385,11 @@ const Notebooks: React.FC = () => {
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
   if (materiaId) {
-    effectiveNotebooks = effectiveNotebooks.filter(notebook => notebook.materiaId === materiaId);
+    effectiveNotebooks = effectiveNotebooks.filter(notebook => {
+      // Para estudiantes escolares, el campo es 'idMateria', para usuarios regulares es 'materiaId'
+      const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
+      return notebookMateriaId === materiaId;
+    });
   }
 
   const isLoading = isSchoolStudent ? schoolNotebooksLoading : notebooksLoading;

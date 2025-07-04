@@ -35,7 +35,7 @@ const Materias: React.FC = () => {
   const navigate = useNavigate();
   const { isSchoolUser, isSchoolStudent } = useUserType();
   const { migrationStatus, migrationMessage } = useAutoMigration();
-  const { schoolSubjects, loading: schoolLoading } = useSchoolStudentData();
+  const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
   console.log('📚 Materias.tsx - Estado actual:');
   console.log('📚 isSchoolStudent:', isSchoolStudent);
@@ -62,18 +62,26 @@ const Materias: React.FC = () => {
         console.log('📚 schoolLoading:', schoolLoading);
         
         if (schoolSubjects && schoolSubjects.length > 0) {
-          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => ({
-            id: subject.id,
-            title: subject.nombre,
-            color: '#6147FF',
-            category: '',
-            userId: user.uid,
-            createdAt: subject.createdAt?.toDate() || new Date(),
-            updatedAt: subject.createdAt?.toDate() || new Date(),
-            notebookCount: 0 // Se actualizará después
-          }));
+          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
+            // Contar cuántos notebooks tiene esta materia
+            const notebookCount = schoolNotebooks 
+              ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
+              : 0;
+            
+            return {
+              id: subject.id,
+              title: subject.nombre,
+              color: '#6147FF',
+              category: '',
+              userId: user.uid,
+              createdAt: subject.createdAt?.toDate() || new Date(),
+              updatedAt: subject.createdAt?.toDate() || new Date(),
+              notebookCount: notebookCount
+            };
+          });
           
           console.log('📚 Materias escolares mapeadas:', schoolMateriasData);
+          console.log('📚 Notebooks por materia:', schoolMateriasData.map(m => ({ id: m.id, title: m.title, count: m.notebookCount })));
           setMaterias(schoolMateriasData);
           setLoading(false);
           return;
@@ -251,12 +259,8 @@ const Materias: React.FC = () => {
   };
 
   const handleView = (materiaId: string) => {
-    // Para estudiantes escolares, navegar directamente a notebooks ya que no pueden elegir
-    if (isSchoolStudent) {
-      navigate('/notebooks');
-    } else {
-      navigate(`/materias/${materiaId}/notebooks`);
-    }
+    // Todos los usuarios navegan a la misma ruta para ver notebooks de una materia
+    navigate(`/materias/${materiaId}/notebooks`);
   };
 
   const handleCategorySelect = (category: string | null) => {

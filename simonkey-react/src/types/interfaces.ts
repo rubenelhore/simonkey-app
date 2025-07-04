@@ -178,6 +178,7 @@ export interface Notebook {
   category?: string; // Nueva categoría para agrupar cuadernos
   userId?: string;
   materiaId?: string; // ID de la materia a la que pertenece
+  idMateria?: string; // ID de la materia para notebooks escolares
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   conceptCount?: number;
@@ -294,6 +295,10 @@ export interface UserProfile {
   schoolRole?: SchoolRole;
   schoolName?: string;
   idNotebook?: string; // ID del cuaderno asignado al estudiante
+  schoolData?: {
+    idEscuela?: string;
+    nombreEscuela?: string;
+  };
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;
   maxConceptsPerNotebook?: number;
