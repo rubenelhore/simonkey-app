@@ -20,7 +20,7 @@ const StudyModePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isSchoolStudent, subscription } = useUserType();
-  const { schoolNotebooks } = useSchoolStudentData();
+  const { schoolNotebooks, schoolSubjects } = useSchoolStudentData();
   
   const [materias, setMaterias] = useState<any[]>([]);
   const [selectedMateria, setSelectedMateria] = useState<any | null>(null);
@@ -150,22 +150,38 @@ const StudyModePage = () => {
       try {
         setLoading(true);
         
-        // Cargar materias del usuario
-        const materiasQuery = query(
-          collection(db, 'materias'),
-          where('userId', '==', auth.currentUser.uid)
-        );
+        let materiasData: any[] = [];
         
-        const materiasSnapshot = await getDocs(materiasQuery);
-        const materiasData = materiasSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        if (isSchoolStudent && schoolSubjects) {
+          // Para estudiantes escolares, usar las materias escolares
+          console.log('📚 StudyMode - Usando materias escolares:', schoolSubjects);
+          materiasData = schoolSubjects.map(subject => ({
+            id: subject.id,
+            title: subject.nombre,
+            color: '#6147FF',
+            nombre: subject.nombre
+          }));
+        } else {
+          // Para usuarios regulares, cargar materias de la colección regular
+          const materiasQuery = query(
+            collection(db, 'materias'),
+            where('userId', '==', auth.currentUser.uid)
+          );
+          
+          const materiasSnapshot = await getDocs(materiasQuery);
+          materiasData = materiasSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }
         
         setMaterias(materiasData);
         
         // Restaurar última materia usada
-        const lastMateriaId = localStorage.getItem('lastStudyMateriaId');
+        const lastMateriaKey = isSchoolStudent ? 
+          `student_${auth.currentUser.uid}_lastStudyMateriaId` : 
+          'lastStudyMateriaId';
+        const lastMateriaId = localStorage.getItem(lastMateriaKey);
         if (lastMateriaId && materiasData.length > 0) {
           const lastMateria = materiasData.find(m => m.id === lastMateriaId);
           if (lastMateria) {
@@ -182,7 +198,7 @@ const StudyModePage = () => {
     };
     
     fetchMaterias();
-  }, [navigate]);
+  }, [navigate, isSchoolStudent, schoolSubjects]);
   
   // Cargar notebooks cuando se selecciona una materia
   useEffect(() => {
@@ -1246,8 +1262,8 @@ const StudyModePage = () => {
                   <div className="empty-icon">
                     <i className="fas fa-folder-open"></i>
                   </div>
-                  <h3>No tienes materias creadas</h3>
-                  <p>Crea tu primera materia para comenzar a estudiar</p>
+                  <h3>{isSchoolStudent ? 'No tienes materias asignadas' : 'No tienes materias creadas'}</h3>
+                  <p>{isSchoolStudent ? 'Contacta a tu profesor para que te asigne materias' : 'Crea tu primera materia para comenzar a estudiar'}</p>
                 </div>
               ) : (
                 <>
@@ -1264,7 +1280,10 @@ const StudyModePage = () => {
                         const materia = materias.find(m => m.id === e.target.value);
                         if (materia) {
                           setSelectedMateria(materia);
-                          localStorage.setItem('lastStudyMateriaId', materia.id);
+                          const lastMateriaKey = isSchoolStudent ? 
+                            `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
+                            'lastStudyMateriaId';
+                          localStorage.setItem(lastMateriaKey, materia.id);
                         }
                       }}
                       style={{

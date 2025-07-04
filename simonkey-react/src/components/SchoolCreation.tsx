@@ -111,10 +111,6 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         return ['nombre', 'email'];
       case SchoolCategory.PROFESORES:
         return ['nombre', 'email'];
-      case SchoolCategory.MATERIAS:
-        return ['nombre'];
-      case SchoolCategory.CUADERNOS:
-        return ['titulo'];
       case SchoolCategory.ALUMNOS:
         return ['nombre', 'email'];
       case SchoolCategory.TUTORES:
@@ -224,24 +220,6 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           });
           
           data = Array.from(allTeachers.values());
-          break;
-          
-        case SchoolCategory.MATERIAS:
-          // Las materias siguen en su colección separada
-          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
-          data = subjectsSnapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          break;
-          
-        case SchoolCategory.CUADERNOS:
-          // Los cuadernos siguen en su colección separada
-          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
-          data = notebooksSnapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data()
-          }));
           break;
           
         case SchoolCategory.ALUMNOS:
@@ -421,25 +399,6 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           });
           break;
           
-        case SchoolCategory.MATERIAS:
-          // Las materias siguen en su colección separada
-          await addDoc(collection(db, 'schoolSubjects'), {
-            nombre: creationData.informacionBasica.nombre,
-            idProfesor: '', // Se vinculará después
-            createdAt: serverTimestamp()
-          });
-          break;
-          
-        case SchoolCategory.CUADERNOS:
-          // Los cuadernos siguen en su colección separada
-          await addDoc(collection(db, 'schoolNotebooks'), {
-            title: creationData.informacionBasica.titulo,
-            color: '#6147FF', // Color azul/morado por defecto
-            idMateria: '', // Se vinculará después
-            createdAt: serverTimestamp()
-          });
-          break;
-          
         case SchoolCategory.ALUMNOS:
           // Crear usuario en colección users con etiquetas apropiadas
           const functionsStudent = getFunctions();
@@ -535,16 +494,6 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           await deleteDoc(doc(db, 'users', creationData.selectedEntity));
           break;
           
-        case SchoolCategory.MATERIAS:
-          // Las materias siguen en su colección separada
-          await deleteDoc(doc(db, 'schoolSubjects', creationData.selectedEntity));
-          break;
-          
-        case SchoolCategory.CUADERNOS:
-          // Los cuadernos siguen en su colección separada
-          await deleteDoc(doc(db, 'schoolNotebooks', creationData.selectedEntity));
-          break;
-          
         default:
           throw new Error('Categoría no válida');
       }
@@ -568,12 +517,11 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
   };
 
   const getCategoryDisplayName = (category: SchoolCategory) => {
-    const names = {
+    const names: { [key: string]: string } = {
       [SchoolCategory.INSTITUCIONES]: 'Instituciones',
       [SchoolCategory.ADMINS]: 'Administradores',
       [SchoolCategory.PROFESORES]: 'Profesores',
       [SchoolCategory.MATERIAS]: 'Materias',
-      [SchoolCategory.CUADERNOS]: 'Cuadernos',
       [SchoolCategory.ALUMNOS]: 'Alumnos',
       [SchoolCategory.TUTORES]: 'Tutores'
     };
@@ -611,8 +559,6 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
             <option value={SchoolCategory.INSTITUCIONES}>Institución</option>
             <option value={SchoolCategory.ADMINS}>Admin</option>
             <option value={SchoolCategory.PROFESORES}>Profesor</option>
-            <option value={SchoolCategory.MATERIAS}>Materia</option>
-            <option value={SchoolCategory.CUADERNOS}>Cuaderno</option>
             <option value={SchoolCategory.ALUMNOS}>Alumno</option>
             <option value={SchoolCategory.TUTORES}>Tutor</option>
           </select>

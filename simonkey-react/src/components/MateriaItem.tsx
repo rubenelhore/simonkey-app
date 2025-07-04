@@ -13,6 +13,9 @@ interface MateriaItemProps {
   onView: (id: string) => void;
   showActions: boolean;
   onToggleActions: (materiaId: string) => void;
+  teacherName?: string;
+  studentCount?: number;
+  isAdminView?: boolean;
 }
 
 const MateriaItem: React.FC<MateriaItemProps> = ({ 
@@ -26,7 +29,10 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   onColorChange, 
   onView,
   showActions, 
-  onToggleActions 
+  onToggleActions,
+  teacherName,
+  studentCount,
+  isAdminView = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -208,9 +214,20 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
         ) : (
           <>
             <h3>{editableTitle}</h3>
-            <span className="materia-info">
-              {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
-            </span>
+            {isAdminView ? (
+              <div className="materia-admin-info">
+                <span className="materia-teacher">
+                  Profesor: {teacherName || 'Sin asignar'}
+                </span>
+                <span className="materia-students">
+                  {studentCount || 0} estudiante{studentCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            ) : (
+              <span className="materia-info">
+                {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
+              </span>
+            )}
           </>
         )}
         </div>

@@ -42,6 +42,15 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     intereses: ['educación']
   });
   const { isSchoolTeacher } = useUserType();
+  
+  // Debug logs
+  console.log('🔍 SchoolTeacherMateriaNotebooksPage - Debug:', {
+    isSchoolTeacher,
+    user: user?.uid,
+    userProfile,
+    materiaId,
+    notebooksCount: notebooks.length
+  });
 
   // Cargar datos de la materia y sus cuadernos
   useEffect(() => {
@@ -156,6 +165,41 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
       const docRef = await addDoc(collection(db, 'schoolNotebooks'), newNotebook);
       console.log("Cuaderno escolar creado con ID:", docRef.id);
       
+      // SINCRONIZACIÓN AUTOMÁTICA: Asignar el cuaderno a todos los estudiantes de esta materia
+      try {
+        // Buscar todos los estudiantes que tienen esta materia en su array subjectIds
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'student'),
+          where('subjectIds', 'array-contains', materiaId)
+        );
+        
+        const studentsSnapshot = await getDocs(studentsQuery);
+        console.log(`🎯 Encontrados ${studentsSnapshot.size} estudiantes en la materia`);
+        
+        // Actualizar cada estudiante agregando el nuevo cuaderno
+        const updatePromises = studentsSnapshot.docs.map(async (studentDoc) => {
+          const studentData = studentDoc.data();
+          const currentNotebooks = studentData.idCuadernos || [];
+          
+          if (!currentNotebooks.includes(docRef.id)) {
+            currentNotebooks.push(docRef.id);
+            await updateDoc(doc(db, 'users', studentDoc.id), {
+              idCuadernos: currentNotebooks,
+              updatedAt: serverTimestamp()
+            });
+            console.log(`✅ Cuaderno asignado a estudiante: ${studentData.nombre}`);
+          }
+        });
+        
+        await Promise.all(updatePromises);
+        console.log('📚 Sincronización completada: cuaderno asignado a todos los estudiantes');
+      } catch (syncError) {
+        console.error('⚠️ Error sincronizando con estudiantes:', syncError);
+        // No interrumpir el flujo principal si falla la sincronización
+      }
+      
       // Recargar los cuadernos
       const notebooksQuery = query(
         collection(db, 'schoolNotebooks'),
@@ -205,7 +249,40 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
   // Los profesores SÍ pueden eliminar cuadernos
   const handleDelete = async (id: string) => {
     try {
-      // Primero eliminar todos los conceptos del cuaderno
+      // SINCRONIZACIÓN AUTOMÁTICA: Primero remover el cuaderno de todos los estudiantes
+      try {
+        // Buscar todos los estudiantes que tienen este cuaderno
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'student'),
+          where('idCuadernos', 'array-contains', id)
+        );
+        
+        const studentsSnapshot = await getDocs(studentsQuery);
+        console.log(`🎯 Encontrados ${studentsSnapshot.size} estudiantes con este cuaderno`);
+        
+        // Actualizar cada estudiante removiendo el cuaderno
+        const updatePromises = studentsSnapshot.docs.map(async (studentDoc) => {
+          const studentData = studentDoc.data();
+          const currentNotebooks = studentData.idCuadernos || [];
+          const updatedNotebooks = currentNotebooks.filter((nbId: string) => nbId !== id);
+          
+          await updateDoc(doc(db, 'users', studentDoc.id), {
+            idCuadernos: updatedNotebooks,
+            updatedAt: serverTimestamp()
+          });
+          console.log(`✅ Cuaderno removido de estudiante: ${studentData.nombre}`);
+        });
+        
+        await Promise.all(updatePromises);
+        console.log('📚 Sincronización completada: cuaderno removido de todos los estudiantes');
+      } catch (syncError) {
+        console.error('⚠️ Error sincronizando con estudiantes:', syncError);
+        // No interrumpir el flujo principal si falla la sincronización
+      }
+      
+      // Ahora eliminar todos los conceptos del cuaderno
       const conceptsQuery = query(
         collection(db, 'schoolConcepts'),
         where('notebookId', '==', id)
@@ -217,7 +294,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         await deleteDoc(doc(db, 'schoolConcepts', conceptDoc.id));
       }
       
-      // Luego eliminar el cuaderno
+      // Finalmente eliminar el cuaderno
       await deleteDoc(doc(db, 'schoolNotebooks', id));
       console.log("Cuaderno escolar eliminado");
       
@@ -302,14 +379,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
       />
       <main className="notebooks-main-no-sidebar">
         <div className="notebooks-list-section-full">
-          {notebooks.length === 0 ? (
-            <div className="empty-state">
-              <h3>No hay cuadernos en esta materia</h3>
-              <p>Haz clic en el botón "Crear nuevo cuaderno" para agregar el primer cuaderno a esta materia.</p>
-            </div>
-          ) : (
-            <NotebookList 
-              notebooks={notebooks.map((notebook) => ({
+          <NotebookList 
+            notebooks={notebooks.map((notebook) => ({
                 id: notebook.id,
                 title: notebook.title,
                 color: notebook.color,
@@ -334,7 +405,6 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
               isSchoolTeacher={true}
               materiaColor={materia?.color}
             />
-          )}
         </div>
       </main>
       <footer className="notebooks-footer">

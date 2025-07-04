@@ -74,31 +74,48 @@ const SchoolTutorPage: React.FC = () => {
   // Cargar lista de estudiantes vinculados al tutor
   useEffect(() => {
     const loadStudents = async () => {
-      if (!user || !isSchoolTutor) return;
+      if (!user || !userProfile || !isSchoolTutor) return;
 
       try {
         setLoading(true);
-        // Buscar estudiantes vinculados a este tutor
-        const studentsQuery = query(
-          collection(db, 'users'),
-          where('subscription', '==', 'school'),
-          where('schoolRole', '==', 'student'),
-          where('idTutor', '==', user.uid)
-        );
-
-        const studentsSnapshot = await getDocs(studentsQuery);
+        const tutorId = userProfile.id || user.uid;
+        console.log('🔍 Buscando datos del tutor:', tutorId);
+        
+        // Primero, obtener el documento del tutor para acceder a idAlumnos
+        const tutorDoc = await getDoc(doc(db, 'users', tutorId));
+        
+        if (!tutorDoc.exists()) {
+          console.error('No se encontró el documento del tutor');
+          setStudents([]);
+          return;
+        }
+        
+        const tutorData = tutorDoc.data();
+        const studentIds = tutorData.idAlumnos || [];
+        console.log('📚 IDs de estudiantes asignados:', studentIds);
+        
+        if (studentIds.length === 0) {
+          console.log('No hay estudiantes asignados a este tutor');
+          setStudents([]);
+          return;
+        }
+        
+        // Buscar los documentos de cada estudiante
         const studentsData: SchoolStudent[] = [];
+        for (const studentId of studentIds) {
+          const studentDoc = await getDoc(doc(db, 'users', studentId));
+          if (studentDoc.exists()) {
+            const data = studentDoc.data();
+            studentsData.push({
+              id: studentDoc.id,
+              nombre: data.nombre || data.displayName || '',
+              email: data.email || '',
+              idTutor: tutorId
+            });
+          }
+        }
 
-        studentsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          studentsData.push({
-            id: doc.id,
-            nombre: data.nombre || data.displayName || '',
-            email: data.email || '',
-            idTutor: data.idTutor || ''
-          });
-        });
-
+        console.log('👥 Estudiantes encontrados:', studentsData);
         setStudents(studentsData);
         
         // Seleccionar el primer estudiante por defecto
@@ -113,7 +130,7 @@ const SchoolTutorPage: React.FC = () => {
     };
 
     loadStudents();
-  }, [user, isSchoolTutor, selectedStudent]);
+  }, [user, userProfile, isSchoolTutor, selectedStudent]);
 
   // Datos dummy para el estudiante seleccionado
   const materias: Materia[] = [
@@ -292,19 +309,26 @@ const SchoolTutorPage: React.FC = () => {
           
           {showStudentDropdown && (
             <div className="teacher-dropdown">
-              {students.map(student => (
-                <div 
-                  key={student.id}
-                  className={`teacher-option ${selectedStudent === student.id ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedStudent(student.id);
-                    setShowStudentDropdown(false);
-                  }}
-                >
-                  <span className="teacher-name">{student.nombre}</span>
-                  <span className="teacher-email">{student.email}</span>
+              {students.length === 0 ? (
+                <div className="teacher-option no-teachers">
+                  <span className="teacher-name">No hay estudiantes asignados</span>
+                  <span className="teacher-email">Los estudiantes deben ser vinculados por el administrador</span>
                 </div>
-              ))}
+              ) : (
+                students.map(student => (
+                  <div 
+                    key={student.id}
+                    className={`teacher-option ${selectedStudent === student.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedStudent(student.id);
+                      setShowStudentDropdown(false);
+                    }}
+                  >
+                    <span className="teacher-name">{student.nombre}</span>
+                    <span className="teacher-email">{student.email}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

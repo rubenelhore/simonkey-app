@@ -62,7 +62,7 @@ const NotebookDetail = () => {
   const studyService = useStudyService();
   
   // Usar el hook para detectar el tipo de usuario
-  const { isSchoolStudent } = useUserType();
+  const { isSchoolStudent, isSchoolAdmin } = useUserType();
   
   // Log para debug
   console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
@@ -80,8 +80,8 @@ const NotebookDetail = () => {
       
       try {
         // Fetch notebook details
-        // Use schoolNotebooks collection for school students
-        const notebooksCollection = isSchoolStudent ? 'schoolNotebooks' : 'notebooks';
+        // Use schoolNotebooks collection for school students and admins
+        const notebooksCollection = (isSchoolStudent || isSchoolAdmin) ? 'schoolNotebooks' : 'notebooks';
         const docRef = doc(db, notebooksCollection, id);
         const docSnap = await getDoc(docRef);
         
@@ -99,8 +99,8 @@ const NotebookDetail = () => {
         }
         
         // Fetch concept documents for this notebook
-        // Use schoolConcepts collection for school students
-        const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        // Use schoolConcepts collection for school students and admins
+        const conceptsCollection = (isSchoolStudent || isSchoolAdmin) ? 'schoolConcepts' : 'conceptos';
         const q = query(
           collection(db, conceptsCollection),
           where('cuadernoId', '==', id)
@@ -126,7 +126,7 @@ const NotebookDetail = () => {
     };
     
     fetchData();
-  }, [id, navigate, isSchoolStudent]);
+  }, [id, navigate, isSchoolStudent, isSchoolAdmin]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -664,7 +664,7 @@ const NotebookDetail = () => {
             {conceptosDocs.length === 0 ? (
               <div className="empty-state">
                 <p>Aún no hay conceptos en este cuaderno.</p>
-                {!isSchoolStudent ? (
+                {!isSchoolStudent && !isSchoolAdmin ? (
                   <button
                     className="add-first-concept-button"
                     onClick={() => openModalWithTab("upload")}
@@ -672,6 +672,17 @@ const NotebookDetail = () => {
                   >
                     Añadir nuevos conceptos
                   </button>
+                ) : isSchoolAdmin ? (
+                  <p className="school-admin-info" style={{ 
+                    background: '#f0ebff', 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    color: '#4a5568',
+                    textAlign: 'center'
+                  }}>
+                    <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
+                    Como administrador, tienes acceso de solo lectura a los conceptos.
+                  </p>
                 ) : (
                   <p className="school-student-info">
                     <i className="fas fa-info-circle"></i>
@@ -705,8 +716,8 @@ const NotebookDetail = () => {
                     ))
                   )}
                   
-                  {/* Tarjeta para añadir nuevos conceptos - Solo para usuarios no escolares */}
-                  {!isSchoolStudent && (
+                  {/* Tarjeta para añadir nuevos conceptos - Solo para usuarios no escolares ni admin */}
+                  {!isSchoolStudent && !isSchoolAdmin && (
                     <div 
                       className="add-concept-card" 
                       onClick={() => openModalWithTab('upload')}

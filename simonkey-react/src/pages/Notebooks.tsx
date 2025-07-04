@@ -6,7 +6,7 @@ import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
@@ -22,6 +22,8 @@ const Notebooks: React.FC = () => {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
   const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData();
+  const [adminNotebooks, setAdminNotebooks] = useState<any[]>([]);
+  const [adminNotebooksLoading, setAdminNotebooksLoading] = useState(false);
   const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
   const [newNotebookName, setNewNotebookName] = useState('');
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
@@ -30,7 +32,7 @@ const Notebooks: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [materiaData, setMateriaData] = useState<any>(null);
   const navigate = useNavigate();
-  const { isSchoolUser, isSchoolTeacher, isSchoolStudent, isSuperAdmin, subscription } = useUserType();
+  const { isSchoolUser, isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSuperAdmin, subscription } = useUserType();
 
   const isFreeUser = subscription === 'free';
 
@@ -91,9 +93,24 @@ const Notebooks: React.FC = () => {
       if (!materiaId) return;
       
       try {
-        const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
-        if (materiaDoc.exists()) {
-          setMateriaData({ id: materiaDoc.id, ...materiaDoc.data() });
+        // Si es admin escolar, buscar en schoolSubjects
+        if (isSchoolAdmin) {
+          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          if (materiaDoc.exists()) {
+            const data = materiaDoc.data();
+            setMateriaData({ 
+              id: materiaDoc.id, 
+              title: data.nombre,
+              color: data.color || '#6147FF',
+              ...data 
+            });
+          }
+        } else {
+          // Para usuarios regulares, buscar en materias
+          const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+          if (materiaDoc.exists()) {
+            setMateriaData({ id: materiaDoc.id, ...materiaDoc.data() });
+          }
         }
       } catch (error) {
         console.error('Error loading materia:', error);
@@ -101,7 +118,49 @@ const Notebooks: React.FC = () => {
     };
     
     loadMateriaData();
-  }, [materiaId]);
+  }, [materiaId, isSchoolAdmin]);
+
+  // Cargar notebooks para admin escolar
+  useEffect(() => {
+    const loadAdminNotebooks = async () => {
+      if (!isSchoolAdmin || !materiaId) return;
+      
+      setAdminNotebooksLoading(true);
+      try {
+        const notebooksQuery = query(
+          collection(db, 'schoolNotebooks'),
+          where('idMateria', '==', materiaId)
+        );
+        
+        const notebooksSnapshot = await getDocs(notebooksQuery);
+        const notebooksData = notebooksSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          conceptCount: 0 // Por defecto
+        }));
+        
+        // Contar conceptos para cada notebook
+        for (const notebook of notebooksData) {
+          try {
+            const conceptsSnapshot = await getDocs(
+              collection(db, 'schoolNotebooks', notebook.id, 'concepts')
+            );
+            notebook.conceptCount = conceptsSnapshot.size;
+          } catch (error) {
+            console.error(`Error counting concepts for notebook ${notebook.id}:`, error);
+          }
+        }
+        
+        setAdminNotebooks(notebooksData);
+      } catch (error) {
+        console.error('Error loading admin notebooks:', error);
+      } finally {
+        setAdminNotebooksLoading(false);
+      }
+    };
+    
+    loadAdminNotebooks();
+  }, [isSchoolAdmin, materiaId]);
 
   useEffect(() => {
     if (user) {
@@ -375,79 +434,39 @@ const Notebooks: React.FC = () => {
   };
 
   // Determine which notebooks to use based on user type
-  let effectiveNotebooks = isSchoolStudent ? 
-    (schoolNotebooks || []).map(notebook => ({
+  let effectiveNotebooks = [];
+  let isLoading = false;
+  
+  if (isSchoolAdmin) {
+    // Para admin escolar, usar los notebooks cargados específicamente
+    effectiveNotebooks = adminNotebooks.map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || '',
+      conceptCount: notebook.conceptCount || 0
+    }));
+    isLoading = adminNotebooksLoading;
+  } else if (isSchoolStudent) {
+    // Para estudiantes escolares
+    effectiveNotebooks = (schoolNotebooks || []).map(notebook => ({
       ...notebook,
       userId: notebook.userId || user?.uid || '',
       conceptCount: notebook.conceptCount || 0
-    })) : 
-    (notebooks || []);
+    }));
+    isLoading = schoolNotebooksLoading;
+  } else {
+    // Para usuarios regulares
+    effectiveNotebooks = notebooks || [];
+    isLoading = notebooksLoading;
+  }
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
-  if (materiaId) {
+  if (materiaId && !isSchoolAdmin) {
     effectiveNotebooks = effectiveNotebooks.filter(notebook => {
       // Para estudiantes escolares, el campo es 'idMateria', para usuarios regulares es 'materiaId'
       const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
       return notebookMateriaId === materiaId;
     });
   }
-
-  const isLoading = isSchoolStudent ? schoolNotebooksLoading : notebooksLoading;
-  
-  // Función de diagnóstico para estudiantes escolares
-  const runStudentDiagnostics = async () => {
-    console.log('🔍 === DIAGNÓSTICO DE ESTUDIANTE ESCOLAR ===');
-    console.log('👤 Usuario actual:', {
-      uid: user?.uid,
-      email: user?.email,
-      isSchoolStudent,
-      userProfile
-    });
-    
-    if (userProfile && userProfile.id) {
-      try {
-        // Obtener el documento del usuario directamente
-        const userDoc = await getDoc(doc(db, 'users', userProfile.id));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          console.log('📋 Datos del usuario:', {
-            id: userDoc.id,
-            email: userData.email,
-            nombre: userData.nombre,
-            subscription: userData.subscription,
-            schoolRole: userData.schoolRole,
-            idCuadernos: userData.idCuadernos
-          });
-          
-          // Verificar cada cuaderno en idCuadernos
-          if (userData.idCuadernos && userData.idCuadernos.length > 0) {
-            console.log('📚 Verificando cuadernos asignados:');
-            for (const notebookId of userData.idCuadernos) {
-              try {
-                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-                if (notebookDoc.exists()) {
-                  console.log(`  ✅ ${notebookId}:`, notebookDoc.data());
-                } else {
-                  console.log(`  ❌ ${notebookId}: No encontrado en schoolNotebooks`);
-                }
-              } catch (err) {
-                console.error(`  ❌ ${notebookId}: Error al buscar:`, err);
-              }
-            }
-          } else {
-            console.log('❌ No hay cuadernos asignados (idCuadernos vacío o no existe)');
-          }
-        } else {
-          console.log('❌ No se encontró el documento del usuario');
-        }
-      } catch (error) {
-        console.error('❌ Error en diagnóstico:', error);
-      }
-    }
-    
-    console.log('📓 Cuadernos escolares cargados por el hook:', schoolNotebooks);
-    console.log('🔍 === FIN DEL DIAGNÓSTICO ===');
-  };
 
   if (isLoading) {
     return (
@@ -480,22 +499,17 @@ const Notebooks: React.FC = () => {
       {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main notebooks-main-no-sidebar">
         <div className="notebooks-list-section notebooks-list-section-full">
-          {isSchoolStudent && (
-            <div style={{ marginBottom: '1rem' }}>
-              <button 
-                onClick={runStudentDiagnostics}
-                style={{ 
-                  padding: '5px 10px', 
-                  fontSize: '12px',
-                  backgroundColor: '#ff6b6b',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                🔍 Diagnóstico
-              </button>
+          {isSchoolAdmin && (
+            <div className="admin-info-message" style={{
+              background: '#f0ebff',
+              border: '1px solid #6147FF',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '1rem',
+              color: '#4a5568'
+            }}>
+              <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
+              <span>Como administrador, tienes acceso de solo lectura a los cuadernos y conceptos.</span>
             </div>
           )}
           <NotebookList 
@@ -517,13 +531,13 @@ const Notebooks: React.FC = () => {
                   new Date()),
               conceptCount: notebook.conceptCount || 0
             }))} 
-            onDeleteNotebook={isSchoolStudent ? undefined : handleDelete} 
-            onEditNotebook={isSchoolStudent ? undefined : handleEdit}
-            onColorChange={isSchoolStudent ? undefined : handleColorChange}
-            onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
-            onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
-            showCreateButton={!isSchoolStudent}
-            isSchoolTeacher={false} // School students should navigate to regular routes, not school routes
+            onDeleteNotebook={(isSchoolStudent || isSchoolAdmin) ? undefined : handleDelete} 
+            onEditNotebook={(isSchoolStudent || isSchoolAdmin) ? undefined : handleEdit}
+            onColorChange={(isSchoolStudent || isSchoolAdmin) ? undefined : handleColorChange}
+            onCreateNotebook={(isSchoolStudent || isSchoolAdmin) ? undefined : handleCreate}
+            onAddConcept={(isSchoolStudent || isSchoolAdmin) ? undefined : handleAddConcept}
+            showCreateButton={!isSchoolStudent && !isSchoolAdmin}
+            isSchoolTeacher={false} // School students and admins should navigate to regular routes, not school routes
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}
             onCloseCategoryModal={() => setShowCategoryModal(false)}

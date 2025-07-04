@@ -20,7 +20,8 @@ import {
   updateDoc,
   serverTimestamp,
   query,
-  where 
+  where,
+  getDoc
 } from 'firebase/firestore';
 import '../styles/SchoolComponents.css';
 
@@ -43,6 +44,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
   const [entities, setEntities] = useState<{ [key: string]: any[] }>({});
   const [linkableEntities, setLinkableEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedLinkables, setSelectedLinkables] = useState<string[]>([]);
 
   // Cargar entidades según la categoría seleccionada
   const loadEntities = async (category: SchoolCategory) => {
@@ -98,52 +100,35 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           console.log('👥 Total de admins (combinado):', data.length);
           break;
           
-        case SchoolCategory.PROFESORES:
-          // Cargar usuarios con subscription SCHOOL y schoolRole TEACHER
-          const teachersQuery = query(
+        case SchoolCategory.ADMINS_II:
+          // También cargar admins para la nueva categoría
+          const adminsQuery2 = query(
             collection(db, 'users'),
             where('subscription', '==', UserSubscriptionType.SCHOOL),
-            where('schoolRole', '==', SchoolRole.TEACHER)
+            where('schoolRole', '==', SchoolRole.ADMIN)
           );
-          const teachersSnapshot = await getDocs(teachersQuery);
+          const adminsSnapshot2 = await getDocs(adminsQuery2);
           
-          // También buscar con valores en mayúsculas
-          const teachersQueryUppercase = query(
+          const adminsQueryUppercase2 = query(
             collection(db, 'users'),
             where('subscription', '==', 'SCHOOL'),
-            where('schoolRole', '==', 'TEACHER')
+            where('schoolRole', '==', 'ADMIN')
           );
-          const teachersSnapshotUppercase = await getDocs(teachersQueryUppercase);
+          const adminsSnapshotUppercase2 = await getDocs(adminsQueryUppercase2);
           
-          // Combinar resultados únicos
-          const allTeachers = new Map();
-          teachersSnapshot.docs.forEach(doc => {
-            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          const allAdmins2 = new Map();
+          adminsSnapshot2.docs.forEach(doc => {
+            allAdmins2.set(doc.id, { id: doc.id, ...doc.data() });
           });
-          teachersSnapshotUppercase.docs.forEach(doc => {
-            allTeachers.set(doc.id, { id: doc.id, ...doc.data() });
+          adminsSnapshotUppercase2.docs.forEach(doc => {
+            allAdmins2.set(doc.id, { id: doc.id, ...doc.data() });
           });
           
-          data = Array.from(allTeachers.values());
+          data = Array.from(allAdmins2.values());
           break;
           
-        case SchoolCategory.MATERIAS:
-          // Las materias siguen en su colección separada
-          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
-          data = subjectsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          break;
+        // Removido PROFESORES y MATERIAS - ahora se gestionan desde /materias
           
-        case SchoolCategory.CUADERNOS:
-          // Los cuadernos siguen en su colección separada
-          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
-          data = notebooksSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          break;
           
         case SchoolCategory.ALUMNOS:
           // Cargar usuarios con subscription SCHOOL y schoolRole STUDENT
@@ -284,52 +269,34 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
           data = Array.from(allTeachers.values());
           break;
           
-        case SchoolCategory.PROFESORES:
-          // Vincular con Materias
-          const subjectsSnapshot = await getDocs(collection(db, 'schoolSubjects'));
-          data = subjectsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          break;
-          
-        case SchoolCategory.MATERIAS:
-          // Vincular con Cuadernos
-          const notebooksSnapshot = await getDocs(collection(db, 'schoolNotebooks'));
-          data = notebooksSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          break;
-          
-        case SchoolCategory.CUADERNOS:
-          // Vincular con Students
-          const studentsQuery = query(
+        case SchoolCategory.ADMINS_II:
+          // Vincular con Alumnos (sin materias asignadas)
+          const studentsQuery2 = query(
             collection(db, 'users'),
             where('subscription', '==', UserSubscriptionType.SCHOOL),
             where('schoolRole', '==', SchoolRole.STUDENT)
           );
-          const studentsSnapshot = await getDocs(studentsQuery);
+          const studentsSnapshot2 = await getDocs(studentsQuery2);
           
-          // También buscar con valores en mayúsculas
-          const studentsQueryUppercase = query(
+          const studentsQueryUppercase2 = query(
             collection(db, 'users'),
             where('subscription', '==', 'SCHOOL'),
             where('schoolRole', '==', 'STUDENT')
           );
-          const studentsSnapshotUppercase = await getDocs(studentsQueryUppercase);
+          const studentsSnapshotUppercase2 = await getDocs(studentsQueryUppercase2);
           
-          // Combinar resultados únicos
-          const allStudents = new Map();
-          studentsSnapshot.docs.forEach(doc => {
-            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          const allStudents2 = new Map();
+          studentsSnapshot2.docs.forEach(doc => {
+            allStudents2.set(doc.id, { id: doc.id, ...doc.data() });
           });
-          studentsSnapshotUppercase.docs.forEach(doc => {
-            allStudents.set(doc.id, { id: doc.id, ...doc.data() });
+          studentsSnapshotUppercase2.docs.forEach(doc => {
+            allStudents2.set(doc.id, { id: doc.id, ...doc.data() });
           });
           
-          data = Array.from(allStudents.values());
+          data = Array.from(allStudents2.values());
           break;
+          
+        // Removido PROFESORES y MATERIAS - ahora se gestionan desde /materias
           
         case SchoolCategory.ALUMNOS:
           // Vincular con Tutors
@@ -386,6 +353,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
         vincularNombre: ''
       }
     });
+    setSelectedLinkables([]);
 
     loadEntities(category);
     loadLinkableEntities(category);
@@ -405,119 +373,142 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
         especificoNombre: specificEntity?.nombre || specificEntity?.titulo || specificEntity?.title || ''
       }
     }));
+    setSelectedLinkables([]);
   };
 
-  // Manejar cambio de entidad a vincular
-  const handleLinkableChange = (linkableId: string) => {
-    const linkableEntity = linkableEntities.find(e => e.id === linkableId);
-    
-    setLinkingData(prev => ({
-      ...prev,
-      vincular: linkableId,
-      resumen: {
-        ...prev.resumen,
-        vincularNombre: linkableEntity?.nombre || linkableEntity?.titulo || linkableEntity?.title || ''
+  // Manejar cambio de checkbox para selección múltiple
+  const handleLinkableCheckboxChange = (linkableId: string) => {
+    setSelectedLinkables(prev => {
+      if (prev.includes(linkableId)) {
+        return prev.filter(id => id !== linkableId);
+      } else {
+        return [...prev, linkableId];
       }
-    }));
+    });
   };
+
+  // Manejar seleccionar/deseleccionar todos
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedLinkables(linkableEntities.map(e => e.id));
+    } else {
+      setSelectedLinkables([]);
+    }
+  };
+
+  // Función removida - las materias ahora se gestionan desde /materias
 
   // Ejecutar vinculación
   const executeLink = async () => {
-    if (!linkingData.categoria || !linkingData.especifico || !linkingData.vincular) {
-      alert('Por favor completa todos los campos antes de vincular.');
+    if (!linkingData.categoria || !linkingData.especifico || selectedLinkables.length === 0) {
+      alert('Por favor completa todos los campos y selecciona al menos un elemento para vincular.');
       return;
     }
 
     try {
       setLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
       
-      // Determinar la colección y el campo de vinculación
-      let collectionName = '';
-      let linkField = '';
-      let isUserCollection = false;
-      
-      switch (linkingData.categoria) {
-        case SchoolCategory.INSTITUCIONES:
-          // Vincular institución con admin (en colección users)
-          collectionName = 'users';
-          linkField = 'idInstitucion';
-          isUserCollection = true;
-          break;
-        case SchoolCategory.ADMINS:
-          // Vincular admin con teacher (en colección users)
-          collectionName = 'users';
-          linkField = 'idAdmin';
-          isUserCollection = true;
-          break;
-        case SchoolCategory.PROFESORES:
-          // Vincular profesor con materia (en colección schoolSubjects)
-          collectionName = 'schoolSubjects';
-          linkField = 'idProfesor';
-          console.log('📊 Vinculando profesor con materia:', {
-            profesorId: linkingData.especifico,
-            materiaId: linkingData.vincular,
-            campo: linkField
-          });
-          break;
-        case SchoolCategory.MATERIAS:
-          // Vincular materia con cuaderno (en colección schoolNotebooks)
-          collectionName = 'schoolNotebooks';
-          linkField = 'idMateria';
-          break;
-        case SchoolCategory.CUADERNOS:
-          // Vincular cuaderno con estudiante (en colección users)
-          collectionName = 'users';
-          linkField = 'idCuadernos';
-          isUserCollection = true;
-          break;
-        case SchoolCategory.ALUMNOS:
-          // Vincular alumno con tutor (en colección users)
-          collectionName = 'users';
-          linkField = 'idAlumnos';
-          isUserCollection = true;
-          break;
-        default:
-          throw new Error('Categoría no válida para vinculación');
-      }
-
-      // Actualizar la entidad con la vinculación
-      if (linkField === 'idCuadernos' || linkField === 'idAlumnos') {
-        // Para relaciones de muchos a muchos, agregar al array
-        const entityRef = doc(db, collectionName, linkingData.vincular);
-        const currentEntity = linkableEntities.find(e => e.id === linkingData.vincular);
-        const currentArray = currentEntity[linkField] || [];
-        
-        if (!currentArray.includes(linkingData.especifico)) {
-          currentArray.push(linkingData.especifico);
-          await updateDoc(entityRef, {
-            [linkField]: currentArray,
-            updatedAt: serverTimestamp()
-          });
+      // Procesar cada entidad seleccionada
+      for (const linkableId of selectedLinkables) {
+        try {
+          switch (linkingData.categoria) {
+            case SchoolCategory.INSTITUCIONES:
+              // Vincular institución con admins
+              await updateDoc(doc(db, 'users', linkableId), {
+                idInstitucion: linkingData.especifico,
+                updatedAt: serverTimestamp()
+              });
+              break;
+              
+            case SchoolCategory.ADMINS:
+              // Vincular admin con profesores
+              await updateDoc(doc(db, 'users', linkableId), {
+                idAdmin: linkingData.especifico,
+                updatedAt: serverTimestamp()
+              });
+              break;
+              
+            case SchoolCategory.ADMINS_II:
+              // Vincular admin con alumnos (establecer idAdmin e idInstitucion)
+              const adminId = linkingData.especifico;
+              
+              // Obtener datos del admin para obtener la institución
+              const adminDoc = await getDoc(doc(db, 'users', adminId));
+              if (!adminDoc.exists()) {
+                throw new Error('Admin no encontrado');
+              }
+              
+              const adminData = adminDoc.data();
+              const institutionId = adminData.idInstitucion || '';
+              
+              // Actualizar el alumno con el admin y la institución
+              await updateDoc(doc(db, 'users', linkableId), {
+                idAdmin: adminId,
+                idInstitucion: institutionId,
+                updatedAt: serverTimestamp()
+              });
+              break;
+              
+            case SchoolCategory.ALUMNOS:
+              // Vincular alumno con tutor (agregar alumno al array idAlumnos del tutor)
+              const tutorRef = doc(db, 'users', linkableId);
+              const tutorDoc = await getDoc(tutorRef);
+              
+              if (tutorDoc.exists()) {
+                const tutorData = tutorDoc.data();
+                const currentAlumnos = tutorData.idAlumnos || [];
+                
+                if (!currentAlumnos.includes(linkingData.especifico)) {
+                  currentAlumnos.push(linkingData.especifico);
+                  
+                  await updateDoc(tutorRef, {
+                    idAlumnos: currentAlumnos,
+                    updatedAt: serverTimestamp()
+                  });
+                }
+              }
+              break;
+            
+            default:
+              throw new Error('Categoría no válida para vinculación');
+          }
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Error vinculando entidad ${linkableId}:`, error);
+          errorCount++;
         }
+      }
+      
+      // Mostrar mensaje de resultado
+      let message = '';
+      if (successCount > 0 && errorCount === 0) {
+        message = `✅ Se vincularon exitosamente ${successCount} elemento(s).`;
+      } else if (successCount > 0 && errorCount > 0) {
+        message = `⚠️ Se vincularon ${successCount} elemento(s) exitosamente, pero ${errorCount} fallaron.`;
       } else {
-        // Para relaciones uno a uno
-        const entityRef = doc(db, collectionName, linkingData.vincular);
-        await updateDoc(entityRef, {
-          [linkField]: linkingData.especifico,
-          updatedAt: serverTimestamp()
-        });
+        message = `❌ Error al vincular los elementos. Por favor, intenta de nuevo.`;
       }
-
-      alert('Vinculación realizada exitosamente');
       
-      // Limpiar formulario
-      setLinkingData({
-        categoria: '',
-        especifico: '',
-        vincular: '',
-        resumen: {
+      alert(message);
+      
+      // Limpiar formulario si todo fue exitoso
+      if (successCount > 0) {
+        setLinkingData({
           categoria: '',
-          especificoNombre: '',
-          vincularNombre: ''
-        }
-      });
-      
-      onRefresh();
+          especifico: '',
+          vincular: '',
+          resumen: {
+            categoria: '',
+            especificoNombre: '',
+            vincularNombre: ''
+          }
+        });
+        setSelectedLinkables([]);
+        onRefresh();
+      }
     } catch (error) {
       console.error('Error ejecutando vinculación:', error);
       alert('Error al realizar la vinculación. Por favor, intenta de nuevo.');
@@ -527,12 +518,12 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
   };
 
   const getCategoryDisplayName = (category: SchoolCategory) => {
-    const names = {
+    const names: { [key: string]: string } = {
       [SchoolCategory.INSTITUCIONES]: 'Instituciones',
       [SchoolCategory.ADMINS]: 'Administradores',
+      [SchoolCategory.ADMINS_II]: 'Administradores II',
       [SchoolCategory.PROFESORES]: 'Profesores',
       [SchoolCategory.MATERIAS]: 'Materias',
-      [SchoolCategory.CUADERNOS]: 'Cuadernos',
       [SchoolCategory.ALUMNOS]: 'Alumnos',
       [SchoolCategory.TUTORES]: 'Tutores'
     };
@@ -540,12 +531,12 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
   };
 
   const getLinkableCategoryName = (category: SchoolCategory) => {
-    const names = {
+    const names: { [key: string]: string } = {
       [SchoolCategory.INSTITUCIONES]: 'Administrador',
       [SchoolCategory.ADMINS]: 'Profesor',
+      [SchoolCategory.ADMINS_II]: 'Alumno',
       [SchoolCategory.PROFESORES]: 'Materia',
-      [SchoolCategory.MATERIAS]: 'Cuaderno',
-      [SchoolCategory.CUADERNOS]: 'Alumno',
+      [SchoolCategory.MATERIAS]: 'Alumno',
       [SchoolCategory.ALUMNOS]: 'Tutor',
       [SchoolCategory.TUTORES]: 'Tutor'
     };
@@ -571,14 +562,13 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
             className="form-select"
           >
             <option value="">Selecciona una categoría</option>
-            <option value={SchoolCategory.INSTITUCIONES}>Instituciones</option>
-            <option value={SchoolCategory.ADMINS}>Administradores</option>
-            <option value={SchoolCategory.PROFESORES}>Profesores</option>
-            <option value={SchoolCategory.MATERIAS}>Materias</option>
-            <option value={SchoolCategory.CUADERNOS}>Cuadernos</option>
-            <option value={SchoolCategory.ALUMNOS}>Alumnos</option>
+            <option value={SchoolCategory.INSTITUCIONES}>Admin</option>
+            <option value={SchoolCategory.ADMINS}>Profesor</option>
+            <option value={SchoolCategory.ADMINS_II}>Alumno</option>
+            <option value={SchoolCategory.ALUMNOS}>Tutor</option>
           </select>
         </div>
+
 
         {/* Sección 2: Específico */}
         {linkingData.categoria && (
@@ -613,29 +603,87 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
             <label className="form-label">
               <i className="fas fa-link"></i> Vincular con {getLinkableCategoryName(linkingData.categoria)}
             </label>
-            <select
-              value={linkingData.vincular}
-              onChange={(e) => handleLinkableChange(e.target.value)}
-              className="form-select"
-              disabled={!linkableEntities.length}
-            >
-              <option value="">
-                {linkableEntities.length ? 
-                  `Selecciona ${getLinkableCategoryName(linkingData.categoria).toLowerCase()}` : 
-                  'Cargando...'
-                }
-              </option>
-              {linkableEntities.map(entity => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.nombre || entity.titulo || entity.title || 'Sin nombre'} - {entity.id}
-                </option>
-              ))}
-            </select>
+            <div className="linkable-list-container" style={{
+              border: '1px solid #e0e0e0',
+              borderRadius: '8px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              backgroundColor: '#f9f9f9',
+              padding: '12px'
+            }}>
+              {!linkableEntities.length ? (
+                <p style={{ textAlign: 'center', color: '#666', margin: '20px 0' }}>
+                  <i className="fas fa-spinner fa-spin"></i> Cargando...
+                </p>
+              ) : (
+                <>
+                  {/* Seleccionar todos */}
+                  <label className="linkable-checkbox-item" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '10px',
+                    marginBottom: '8px',
+                    backgroundColor: '#e3f2fd',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    border: '1px solid #1976d2'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedLinkables.length === linkableEntities.length && linkableEntities.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      style={{ marginRight: '10px' }}
+                    />
+                    <strong>Seleccionar todos ({linkableEntities.length})</strong>
+                  </label>
+                  
+                  {/* Lista de entidades */}
+                  {linkableEntities.map(entity => (
+                    <label key={entity.id} className="linkable-checkbox-item" style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '10px',
+                      marginBottom: '6px',
+                      backgroundColor: 'white',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLinkables.includes(entity.id)}
+                        onChange={() => handleLinkableCheckboxChange(entity.id)}
+                        style={{ marginRight: '10px' }}
+                      />
+                      <span style={{ flex: 1 }}>
+                        {entity.nombre || entity.titulo || entity.title || 'Sin nombre'}
+                      </span>
+                      <span style={{ fontSize: '0.85em', color: '#666' }}>
+                        {entity.email || entity.id}
+                      </span>
+                    </label>
+                  ))}
+                </>
+              )}
+            </div>
+            {selectedLinkables.length > 0 && (
+              <p style={{ 
+                marginTop: '8px', 
+                fontSize: '0.9em', 
+                color: '#1976d2',
+                fontWeight: 500
+              }}>
+                <i className="fas fa-check-circle"></i> {selectedLinkables.length} elemento(s) seleccionado(s)
+              </p>
+            )}
           </div>
         )}
 
         {/* Botón de Vincular */}
-        {linkingData.vincular && (
+        {selectedLinkables.length > 0 && (
           <div className="form-section">
             <button
               onClick={executeLink}
@@ -656,7 +704,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
         )}
 
         {/* Sección 4: Resumen */}
-        {linkingData.resumen.categoria && linkingData.resumen.especificoNombre && linkingData.resumen.vincularNombre && linkingData.categoria && (
+        {linkingData.categoria && linkingData.especifico && selectedLinkables.length > 0 && (
           <div className="form-section summary-section">
             <label className="form-label">
               <i className="fas fa-clipboard-list"></i> Resumen de la Operación
@@ -669,7 +717,7 @@ const SchoolLinking: React.FC<SchoolLinkingProps> = ({ onRefresh }) => {
                 <strong>Específico:</strong> {linkingData.resumen.especificoNombre}
               </div>
               <div className="summary-item">
-                <strong>Vinculación:</strong> {getLinkableCategoryName(linkingData.categoria)}: {linkingData.resumen.vincularNombre}
+                <strong>Elementos a vincular:</strong> {selectedLinkables.length} {getLinkableCategoryName(linkingData.categoria)}(s) seleccionado(s)
               </div>
             </div>
           </div>

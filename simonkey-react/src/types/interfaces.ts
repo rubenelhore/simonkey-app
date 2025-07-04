@@ -299,6 +299,11 @@ export interface UserProfile {
     idEscuela?: string;
     nombreEscuela?: string;
   };
+  // Campos para estudiantes escolares
+  subjectIds?: string[];
+  idCuadernos?: string[];
+  idInstitucion?: string;
+  idAdmin?: string;
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;
   maxConceptsPerNotebook?: number;
@@ -407,6 +412,7 @@ export interface SchoolSubject {
   nombre: string;
   idProfesor: string;
   idMateria?: string; // Campo opcional que debe coincidir con el ID del documento
+  color?: string;
   createdAt: Timestamp;
 }
 
@@ -427,6 +433,8 @@ export interface SchoolStudent {
   password: string; // Siempre "1234" temporal
   subscription: UserSubscriptionType.SCHOOL;
   idCuadernos: string[]; // Array de IDs de cuadernos (uno o más)
+  subjectIds?: string[]; // Array de IDs de materias asignadas
+  institutionId?: string; // ID de la institución educativa
   createdAt: Timestamp;
 }
 
@@ -450,9 +458,9 @@ export interface SchoolTutor {
 export enum SchoolCategory {
   INSTITUCIONES = 'instituciones',
   ADMINS = 'admins',
+  ADMINS_II = 'admins_ii',
   PROFESORES = 'profesores',
   MATERIAS = 'materias',
-  CUADERNOS = 'cuadernos',
   ALUMNOS = 'alumnos',
   TUTORES = 'tutores'
 }

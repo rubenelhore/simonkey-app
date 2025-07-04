@@ -59,7 +59,10 @@ const NotebookList: React.FC<NotebookListProps> = ({
 }) => {
   console.log('🔍 DEBUG - NotebookList renderizando con:', {
     notebooksCount: notebooks?.length || 0,
-    notebooks: notebooks
+    notebooks: notebooks,
+    showCreateButton,
+    isSchoolTeacher,
+    onCreateNotebook: !!onCreateNotebook
   });
 
   // Verificar si notebooks es null o undefined

@@ -716,6 +716,7 @@ const SuperAdminPage: React.FC = () => {
           >
             <i className="fas fa-plus-circle"></i> Creación Escolar
           </button>
+          {/* Temporalmente oculto
           <button 
             className={`tab-button ${activeTab === 'schoolSync' ? 'active' : ''}`}
             onClick={() => setActiveTab('schoolSync')}
@@ -723,6 +724,7 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-sync-alt"></i>
             Sync Escolar
           </button>
+          */}
           <button 
             className={`tab-button ${activeTab === 'schoolVerification' ? 'active' : ''}`}
             onClick={() => setActiveTab('schoolVerification')}
@@ -932,7 +934,7 @@ const SuperAdminPage: React.FC = () => {
             <SchoolCreation onRefresh={loadData} />
           )}
 
-          {/* Tab de Sincronización Escolar */}
+          {/* Tab de Sincronización Escolar - Temporalmente oculto
           {activeTab === 'schoolSync' && (
             <div className="school-sync-tab">
               <div className="tab-header">
@@ -1132,7 +1134,6 @@ const SuperAdminPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Nueva herramienta de migración */}
               <SchoolMigrationTool />
 
               {syncResults && (
@@ -1207,30 +1208,13 @@ const SuperAdminPage: React.FC = () => {
               </div>
             </div>
           )}
+          */}
 
           {/* Tab de Verificación de Vinculación */}
           {activeTab === 'schoolVerification' && (
             <div className="school-verification-tab">
               <div className="tab-header">
                 <h2>🔗 Verificación de Vinculación Escolar</h2>
-                <div className="header-actions">
-                  <button 
-                    className="test-button"
-                    onClick={handleCheckCollections}
-                    title="Verificar estado de colecciones"
-                  >
-                    <i className="fas fa-database"></i>
-                    Verificar Colecciones
-                  </button>
-                  <button 
-                    className="test-button"
-                    onClick={handleCreateTestData}
-                    title="Crear datos de prueba"
-                  >
-                    <i className="fas fa-plus"></i>
-                    Crear Datos de Prueba
-                  </button>
-                </div>
               </div>
               <SchoolLinkingVerification />
             </div>

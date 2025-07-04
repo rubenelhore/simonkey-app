@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, Timestamp, getDoc } from 'firebase/firestore';
 import '../styles/Materias.css';
+import '../styles/AdminMaterias.css';
 import StreakTracker from '../components/StreakTracker';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -33,11 +34,13 @@ const Materias: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
-  const { isSchoolUser, isSchoolStudent } = useUserType();
+  const { isSchoolUser, isSchoolStudent, isSchoolAdmin } = useUserType();
   const { migrationStatus, migrationMessage } = useAutoMigration();
   const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
   console.log('📚 Materias.tsx - Estado actual:');
+  console.log('📚 user:', user);
+  console.log('📚 userProfile:', userProfile);
   console.log('📚 isSchoolStudent:', isSchoolStudent);
   console.log('📚 schoolSubjects:', schoolSubjects);
   console.log('📚 schoolLoading:', schoolLoading);
@@ -49,6 +52,13 @@ const Materias: React.FC = () => {
     tipoAprendizaje: 'Visual',
     intereses: ['tecnología']
   });
+
+  // Estados para la vista de admin
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [selectedTeacher, setSelectedTeacher] = useState<string>('');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [adminMaterias, setAdminMaterias] = useState<any[]>([]);
 
   // Cargar materias del usuario
   useEffect(() => {
@@ -71,7 +81,7 @@ const Materias: React.FC = () => {
             return {
               id: subject.id,
               title: subject.nombre,
-              color: '#6147FF',
+              color: subject.color || '#6147FF',
               category: '',
               userId: user.uid,
               createdAt: subject.createdAt?.toDate() || new Date(),
@@ -154,22 +164,199 @@ const Materias: React.FC = () => {
     }
   }, [userProfile]);
 
+  // Cargar profesores y estudiantes para admin
+  useEffect(() => {
+    const loadAdminData = async () => {
+      if (!isSchoolAdmin || !userProfile) return;
+      
+      try {
+        const adminId = userProfile.id || user?.uid;
+        
+        // Cargar profesores asignados al admin
+        const teachersQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'teacher'),
+          where('idAdmin', '==', adminId)
+        );
+        
+        const teachersSnapshot = await getDocs(teachersQuery);
+        const teachersData = teachersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setTeachers(teachersData);
+        
+        // Cargar estudiantes asignados al admin
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'student'),
+          where('idAdmin', '==', adminId)
+        );
+        
+        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentsData = studentsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setStudents(studentsData);
+      } catch (error) {
+        console.error('Error loading admin data:', error);
+      }
+    };
+    
+    loadAdminData();
+  }, [isSchoolAdmin, userProfile, user]);
+
+  // Cargar y filtrar materias según profesor y estudiantes seleccionados
+  useEffect(() => {
+    const loadFilteredMaterias = async () => {
+      if (!isSchoolAdmin || !userProfile) return;
+      
+      try {
+        const adminId = userProfile.id || user?.uid;
+        let materiasQuery;
+        
+        // Si hay un profesor seleccionado, filtrar por profesor
+        if (selectedTeacher) {
+          materiasQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idProfesor', '==', selectedTeacher),
+            where('idAdmin', '==', adminId)
+          );
+        } else {
+          // Si no hay profesor seleccionado, mostrar todas las materias del admin
+          materiasQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idAdmin', '==', adminId)
+          );
+        }
+        
+        const materiasSnapshot = await getDocs(materiasQuery);
+        let materiasData = await Promise.all(
+          materiasSnapshot.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            
+            // Obtener todos los estudiantes que tienen esta materia
+            const studentsWithMateriaQuery = query(
+              collection(db, 'users'),
+              where('subscription', '==', 'school'),
+              where('schoolRole', '==', 'student'),
+              where('subjectIds', 'array-contains', docSnap.id)
+            );
+            
+            const studentsWithMateriaSnapshot = await getDocs(studentsWithMateriaQuery);
+            const studentIds = studentsWithMateriaSnapshot.docs.map(doc => doc.id);
+            
+            // Contar cuántos de los estudiantes seleccionados tienen esta materia
+            const matchingStudentCount = selectedStudents.filter(studentId => 
+              studentIds.includes(studentId)
+            ).length;
+            
+            // Obtener el nombre del profesor
+            const teacherDoc = await getDoc(doc(db, 'users', data.idProfesor));
+            const teacherName = teacherDoc.exists() ? teacherDoc.data().nombre : 'Sin profesor';
+            
+            return {
+              id: docSnap.id,
+              title: data.nombre,
+              color: data.color || '#6147FF',
+              teacherName,
+              teacherId: data.idProfesor,
+              studentCount: studentIds.length,
+              matchingStudentCount,
+              studentIds,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date(),
+              notebookCount: 0 // Para compatibilidad con MateriaItem
+            };
+          })
+        );
+        
+        // Si hay estudiantes seleccionados, filtrar solo las materias que incluyan TODOS los estudiantes seleccionados
+        if (selectedStudents.length > 0) {
+          materiasData = materiasData.filter(materia => {
+            // La materia debe incluir TODOS los estudiantes seleccionados
+            return selectedStudents.every(studentId => materia.studentIds.includes(studentId));
+          });
+        }
+        
+        // Ordenar por fecha de creación descendente
+        materiasData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        
+        setAdminMaterias(materiasData);
+      } catch (error) {
+        console.error('Error loading filtered materias:', error);
+      }
+    };
+    
+    loadFilteredMaterias();
+  }, [isSchoolAdmin, userProfile, user, selectedTeacher, selectedStudents, refreshTrigger]);
+
   const handleCreate = async (title: string, color: string, category?: string) => {
     // Los estudiantes escolares no pueden crear materias
     if (isSchoolStudent) return;
     if (!user) return;
     
     try {
-      await addDoc(collection(db, 'materias'), {
-        title,
-        color,
-        category: category || '', // Asegurar que no sea undefined
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      
-      setRefreshTrigger(prev => prev + 1);
+      if (isSchoolAdmin) {
+        // Para admin: crear materia escolar y asignar a profesor/estudiantes
+        if (!selectedTeacher) {
+          alert('Por favor selecciona un profesor para la materia');
+          return;
+        }
+        
+        const adminId = userProfile?.id || user.uid;
+        
+        // Crear la materia escolar
+        const materiaRef = await addDoc(collection(db, 'schoolSubjects'), {
+          nombre: title,
+          color,
+          idProfesor: selectedTeacher,
+          idAdmin: adminId,
+          idEscuela: userProfile?.idInstitucion || '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        // Asignar la materia a los estudiantes seleccionados
+        if (selectedStudents.length > 0) {
+          for (const studentId of selectedStudents) {
+            const studentRef = doc(db, 'users', studentId);
+            const studentDoc = await getDoc(studentRef);
+            
+            if (studentDoc.exists()) {
+              const studentData = studentDoc.data();
+              const currentSubjectIds = studentData.subjectIds || [];
+              
+              if (!currentSubjectIds.includes(materiaRef.id)) {
+                await updateDoc(studentRef, {
+                  subjectIds: [...currentSubjectIds, materiaRef.id],
+                  updatedAt: serverTimestamp()
+                });
+              }
+            }
+          }
+        }
+        
+        // Recargar datos del admin
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        // Para usuarios regulares
+        await addDoc(collection(db, 'materias'), {
+          title,
+          color,
+          category: category || '',
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        setRefreshTrigger(prev => prev + 1);
+      }
     } catch (error) {
       console.error('Error creating materia:', error);
       throw error;
@@ -293,6 +480,137 @@ const Materias: React.FC = () => {
     );
   }
 
+  if (isSchoolAdmin) {
+    // Vista especial para admin
+    return (
+      <>
+        <HeaderWithHamburger
+          title="Gestión de Materias"
+          subtitle={`Administrador: ${userData.nombre || 'Admin'}`}
+        />
+        <main className="materias-main admin-view">
+          <div className="admin-controls-section">
+            {/* Selector de profesor */}
+            <div className="admin-control-group">
+              <label className="admin-control-label">Seleccionar Profesor</label>
+              <select 
+                className="admin-select"
+                value={selectedTeacher}
+                onChange={(e) => setSelectedTeacher(e.target.value)}
+              >
+                <option value="">-- Selecciona un profesor --</option>
+                {teachers.map(teacher => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.nombre} - {teacher.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Lista de estudiantes con checkboxes */}
+            <div className="admin-control-group">
+              <label className="admin-control-label">Seleccionar Estudiantes</label>
+              <div className="students-selection-grid">
+                {students.length === 0 ? (
+                  <p className="no-students-message">No hay estudiantes asignados</p>
+                ) : (
+                  <>
+                    <div className="select-all-container">
+                      <label className="student-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.length === students.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudents(students.map(s => s.id));
+                            } else {
+                              setSelectedStudents([]);
+                            }
+                          }}
+                        />
+                        <span>Seleccionar todos ({students.length})</span>
+                      </label>
+                    </div>
+                    <div className="students-checkbox-list">
+                      {students.map(student => (
+                        <label key={student.id} className="student-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudents.includes(student.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedStudents([...selectedStudents, student.id]);
+                              } else {
+                                setSelectedStudents(selectedStudents.filter(id => id !== student.id));
+                              }
+                            }}
+                          />
+                          <span className="student-info">
+                            <span className="student-name">{student.nombre}</span>
+                            <span className="student-email">{student.email}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {selectedStudents.length > 0 && (
+                <p className="selected-count">{selectedStudents.length} estudiante(s) seleccionado(s)</p>
+              )}
+            </div>
+          </div>
+
+          {/* Lista de materias */}
+          <div className="materias-list-section">
+            {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 ? (
+              <div className="no-materias-message">
+                <i className="fas fa-info-circle"></i>
+                <p>No hay materias que incluyan al profesor seleccionado y todos los estudiantes seleccionados.</p>
+                <p className="hint">Crea una nueva materia para asignarla a estos estudiantes.</p>
+              </div>
+            ) : (
+              <MateriaList 
+                materias={adminMaterias}
+                onDeleteMateria={handleDelete}
+                onEditMateria={handleEdit}
+                onColorChange={handleColorChange}
+                onCreateMateria={handleCreate}
+                onViewMateria={handleView}
+                showCreateButton={!!selectedTeacher}
+                selectedCategory={null}
+                showCategoryModal={false}
+                onCloseCategoryModal={() => {}}
+                onClearSelectedCategory={() => {}}
+                onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
+                isAdminView={true}
+              />
+            )}
+          </div>
+        </main>
+
+        {/* Mobile Navigation */}
+        <nav className="admin-mobile-nav">
+          <button 
+            className="nav-item active"
+            onClick={() => navigate('/materias')}
+          >
+            <i className="fas fa-book"></i>
+            <span>Materias</span>
+          </button>
+          <button 
+            className="nav-item"
+            onClick={() => navigate('/school/admin')}
+          >
+            <i className="fas fa-chart-line"></i>
+            <span>Analítica</span>
+          </button>
+        </nav>
+      </>
+    );
+  }
+
+  // Vista normal para usuarios regulares y estudiantes
   return (
     <>
       <HeaderWithHamburger

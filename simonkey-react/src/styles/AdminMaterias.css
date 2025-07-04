@@ -1,0 +1,222 @@
+/* Admin Controls Section */
+.admin-controls-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.admin-control-group {
+  margin-bottom: 1.5rem;
+}
+
+.admin-control-group:last-child {
+  margin-bottom: 0;
+}
+
+.admin-control-label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.admin-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.admin-select:focus {
+  outline: none;
+  border-color: #6147FF;
+}
+
+/* Students Selection Grid */
+.students-selection-grid {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.no-students-message {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+}
+
+.select-all-container {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.students-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.student-checkbox-label {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.student-checkbox-label:hover {
+  background-color: #f3f4f6;
+}
+
+.student-checkbox-label input[type="checkbox"] {
+  margin-right: 0.75rem;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.student-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.student-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.student-email {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.selected-count {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #6147FF;
+  font-weight: 500;
+}
+
+/* Admin View Materia Info */
+.materia-admin-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.materia-teacher {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.materia-students {
+  font-size: 0.875rem;
+  color: #888;
+}
+
+/* Admin Mobile Navigation */
+.admin-mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0.5rem 0;
+  z-index: 1000;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.admin-mobile-nav .nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.admin-mobile-nav .nav-item:hover {
+  color: #6147FF;
+}
+
+.admin-mobile-nav .nav-item.active {
+  color: #6147FF;
+}
+
+.admin-mobile-nav .nav-item i {
+  font-size: 1.25rem;
+}
+
+.admin-mobile-nav .nav-item span {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Vista Admin específica en Materias */
+.materias-main.admin-view {
+  flex-direction: column;
+  padding-bottom: 80px; /* Espacio para mobile nav */
+}
+
+/* No materias message */
+.no-materias-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-top: 2rem;
+}
+
+.no-materias-message i {
+  font-size: 3rem;
+  color: #6147FF;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.no-materias-message p {
+  margin: 0.5rem 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.no-materias-message .hint {
+  color: #888;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .materias-main.admin-view {
+    padding: 1rem;
+  }
+  
+  .admin-controls-section {
+    padding: 1.5rem;
+  }
+}

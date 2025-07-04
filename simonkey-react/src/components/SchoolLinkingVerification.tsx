@@ -29,7 +29,6 @@ interface SelectionState {
   admin: SchoolAdmin | null;
   teacher: SchoolTeacher | null;
   subject: SchoolSubject | null;
-  notebook: SchoolNotebook | null;
   student: SchoolStudent | null;
   tutor: SchoolTutor | null;
 }
@@ -51,7 +50,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     admin: null,
     teacher: null,
     subject: null,
-    notebook: null,
     student: null,
     tutor: null
   });
@@ -267,10 +265,10 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
         );
       }
 
-      // Filtrar estudiantes por cuaderno seleccionado
-      if (selection.notebook) {
+      // Filtrar estudiantes por materia seleccionada
+      if (selection.subject) {
         filteredStudents = availableOptions.students.filter(student => 
-          student.idCuadernos && student.idCuadernos.includes(selection.notebook!.id)
+          student.subjectIds && student.subjectIds.includes(selection.subject!.id)
         );
       }
 
@@ -306,29 +304,21 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
           newSelection.admin = null;
           newSelection.teacher = null;
           newSelection.subject = null;
-          newSelection.notebook = null;
           newSelection.student = null;
           newSelection.tutor = null;
           break;
         case 'admin':
           newSelection.teacher = null;
           newSelection.subject = null;
-          newSelection.notebook = null;
           newSelection.student = null;
           newSelection.tutor = null;
           break;
         case 'teacher':
           newSelection.subject = null;
-          newSelection.notebook = null;
           newSelection.student = null;
           newSelection.tutor = null;
           break;
         case 'subject':
-          newSelection.notebook = null;
-          newSelection.student = null;
-          newSelection.tutor = null;
-          break;
-        case 'notebook':
           newSelection.student = null;
           newSelection.tutor = null;
           break;
@@ -353,8 +343,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
         return `${entity.nombre} (${entity.id})`;
       case 'subject':
         return `${entity.nombre} (${entity.id})`;
-      case 'notebook':
-        return `${entity.title} (${entity.id})`;
       case 'student':
         return `${entity.nombre} (${entity.id})`;
       case 'tutor':
@@ -403,33 +391,23 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
               color: '#f5576c'
             });
             
-            if (selection.notebook) {
+            if (selection.student) {
               tree.push({
                 level: 5,
-                type: 'notebook',
-                name: getEntityDisplayName(selection.notebook, 'notebook'),
-                icon: '📖',
-                color: '#4facfe'
+                type: 'student',
+                name: getEntityDisplayName(selection.student, 'student'),
+                icon: '👨‍🎓',
+                color: '#43e97b'
               });
               
-              if (selection.student) {
+              if (selection.tutor) {
                 tree.push({
                   level: 6,
-                  type: 'student',
-                  name: getEntityDisplayName(selection.student, 'student'),
-                  icon: '👨‍🎓',
-                  color: '#43e97b'
+                  type: 'tutor',
+                  name: getEntityDisplayName(selection.tutor, 'tutor'),
+                  icon: '👨‍👩‍👧‍👦',
+                  color: '#fa709a'
                 });
-                
-                if (selection.tutor) {
-                  tree.push({
-                    level: 7,
-                    type: 'tutor',
-                    name: getEntityDisplayName(selection.tutor, 'tutor'),
-                    icon: '👨‍👩‍👧‍👦',
-                    color: '#fa709a'
-                  });
-                }
               }
             }
           }
@@ -446,7 +424,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
       admin: null,
       teacher: null,
       subject: null,
-      notebook: null,
       student: null,
       tutor: null
     });
@@ -642,31 +619,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
               </select>
             </div>
 
-            {/* Cuaderno */}
-            <div className="selection-item">
-              <label className="selection-label">
-                📖 Cuaderno ({availableOptions.notebooks.length})
-              </label>
-              <select
-                value={selection.notebook?.id || ''}
-                onChange={(e) => {
-                  const selected = availableOptions.notebooks.find(notebook => notebook.id === e.target.value);
-                  handleSelectionChange('notebook', selected || null);
-                }}
-                className="selection-select"
-                disabled={!selection.subject}
-              >
-                <option value="">
-                  {selection.subject ? 'Seleccionar cuaderno...' : 'Primero selecciona una materia'}
-                </option>
-                {availableOptions.notebooks.map(notebook => (
-                  <option key={notebook.id} value={notebook.id}>
-                    {notebook.title} ({notebook.id})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Alumno */}
             <div className="selection-item">
               <label className="selection-label">
@@ -679,10 +631,10 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
                   handleSelectionChange('student', selected || null);
                 }}
                 className="selection-select"
-                disabled={!selection.notebook}
+                disabled={!selection.subject}
               >
                 <option value="">
-                  {selection.notebook ? 'Seleccionar alumno...' : 'Primero selecciona un cuaderno'}
+                  {selection.subject ? 'Seleccionar alumno...' : 'Primero selecciona una materia'}
                 </option>
                 {availableOptions.students.map(student => (
                   <option key={student.id} value={student.id}>
@@ -724,18 +676,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
               onClick={clearAllSelections}
             >
               🗑️ Limpiar Selecciones
-            </button>
-            <button 
-              className="refresh-button"
-              onClick={loadInitialData}
-            >
-              🔄 Actualizar Datos
-            </button>
-            <button 
-              className="refresh-button"
-              onClick={runDiagnostics}
-            >
-              🔍 Diagnóstico
             </button>
           </div>
         </div>

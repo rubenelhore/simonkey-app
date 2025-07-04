@@ -1799,6 +1799,101 @@ export const fixStudentProfileSimple = async () => {
   }
 };
 
+/**
+ * Actualiza todos los estudiantes existentes con las nuevas etiquetas subjectIds e institutionId
+ * Solo puede ser ejecutado por un superadmin
+ */
+export const updateAllStudentTags = async () => {
+  console.log('🏫 Iniciando actualización masiva de etiquetas de estudiantes...');
+  
+  try {
+    // Verificar que el usuario actual sea superadmin
+    const { auth, db } = await import('../services/firebase');
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.error('❌ Debes estar autenticado');
+      return;
+    }
+    
+    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    if (!userDoc.exists()) {
+      console.error('❌ Usuario no encontrado');
+      return;
+    }
+    
+    const userData = userDoc.data();
+    if (userData.email !== 'rubenelhorellanos@gmail.com') {
+      console.error('❌ Solo el superadmin puede ejecutar esta función');
+      return;
+    }
+    
+    // Importar y ejecutar la función de actualización
+    const { updateExistingStudentTags } = await import('./updateStudentTags');
+    const result = await updateExistingStudentTags();
+    
+    console.log('✅ Actualización completada:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Error en la actualización:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verifica las etiquetas de un estudiante específico
+ */
+export const checkStudentTags = async (studentEmail?: string) => {
+  console.log('🔍 Verificando etiquetas de estudiante...');
+  
+  try {
+    const { auth, db } = await import('../services/firebase');
+    
+    if (studentEmail) {
+      // Buscar por email
+      const studentsQuery = query(
+        collection(db, 'users'),
+        where('email', '==', studentEmail),
+        where('subscription', '==', 'school'),
+        where('schoolRole', '==', 'student')
+      );
+      
+      const snapshot = await getDocs(studentsQuery);
+      if (snapshot.empty) {
+        console.error('❌ Estudiante no encontrado');
+        return;
+      }
+      
+      const studentDoc = snapshot.docs[0];
+      const studentData = studentDoc.data();
+      
+      console.log('📋 Datos del estudiante:', {
+        id: studentDoc.id,
+        nombre: studentData.nombre,
+        email: studentData.email,
+        idCuadernos: studentData.idCuadernos || [],
+        subjectIds: studentData.subjectIds || [],
+        institutionId: studentData.institutionId || 'No definido'
+      });
+      
+      return studentData;
+    } else {
+      // Verificar el usuario actual si es estudiante
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.error('❌ Debes estar autenticado');
+        return;
+      }
+      
+      const { verifyStudentTags } = await import('./updateStudentTags');
+      return await verifyStudentTags(currentUser.uid);
+    }
+  } catch (error) {
+    console.error('❌ Error verificando estudiante:', error);
+    throw error;
+  }
+};
+
 // Hacer las funciones disponibles globalmente
 if (typeof window !== 'undefined') {
   (window as any).quickFix = quickFix;
@@ -1822,6 +1917,8 @@ if (typeof window !== 'undefined') {
   (window as any).fixStudentNotebooksAlternative = fixStudentNotebooksAlternative;
   (window as any).superAdminFixStudentNotebooks = superAdminFixStudentNotebooks;
   (window as any).fixStudentProfileSimple = fixStudentProfileSimple;
+  (window as any).updateAllStudentTags = updateAllStudentTags;
+  (window as any).checkStudentTags = checkStudentTags;
   console.log('🔧 Función quickFix() disponible en la consola');
   console.log('🔧 Función fixSchoolUserProfileHierarchy() disponible en la consola para corregir el perfil escolar');
   console.log('🔧 Función diagnoseSchoolHierarchy() disponible en la consola para diagnosticar jerarquía');
@@ -1841,7 +1938,9 @@ if (typeof window !== 'undefined') {
   console.log('🔧 Función superAdminDiagnoseAndCleanAccounts() disponible en la consola para diagnosticar y limpiar cuentas duplicadas');
   console.log('🔧 Función superAdminCleanDuplicateIDs() disponible en la consola para limpiar cuentas duplicadas con el mismo ID');
   console.log('🔧 Función fixStudentNotebooksAlternative() disponible en la consola para arreglar el problema de carga de cuadernos del estudiante');
-  console.log('�� Función superAdminFixStudentNotebooks() disponible en la consola para arreglar el problema de cuadernos del estudiante');
+  console.log('🔧 Función superAdminFixStudentNotebooks() disponible en la consola para arreglar el problema de cuadernos del estudiante');
   console.log('🔧 Función fixStudentProfileSimple() disponible en la consola para arreglar el perfil del estudiante');
+  console.log('🏫 Función updateAllStudentTags() disponible en la consola para actualizar etiquetas de estudiantes (solo superadmin)');
+  console.log('🔍 Función checkStudentTags(email?) disponible en la consola para verificar etiquetas de un estudiante');
   console.log('💡 Ejecuta: window.quickFix() para solucionar problemas de autenticación');
 } 

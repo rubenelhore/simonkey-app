@@ -1,5 +1,10 @@
 /* Estilos para el sistema escolar de Simonkey */
 
+/* Ajustar padding cuando hay mobile navigation */
+.progress-layout.with-mobile-nav {
+  padding-bottom: 80px;
+}
+
 /* Admin Teacher Selector */
 .admin-teacher-selector {
   background: white;
@@ -90,6 +95,16 @@
 .teacher-email {
   font-size: 0.875rem;
   color: #718096;
+}
+
+.teacher-option.no-teachers {
+  cursor: default;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.teacher-option.no-teachers:hover {
+  background: transparent;
 }
 
 /* Panel del profesor - Usando el mismo estilo que las tarjetas de la columna izquierda */

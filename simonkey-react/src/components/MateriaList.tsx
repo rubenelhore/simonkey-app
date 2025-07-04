@@ -14,6 +14,8 @@ interface Materia {
   createdAt: Date;
   updatedAt: Date;
   notebookCount?: number;
+  teacherName?: string;
+  studentCount?: number;
 }
 
 interface MateriaListProps {
@@ -29,6 +31,7 @@ interface MateriaListProps {
   onCloseCategoryModal?: () => void;
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
+  isAdminView?: boolean;
 }
 
 const MateriaList: React.FC<MateriaListProps> = ({ 
@@ -43,7 +46,8 @@ const MateriaList: React.FC<MateriaListProps> = ({
   showCategoryModal = false,
   onCloseCategoryModal,
   onClearSelectedCategory,
-  onRefreshCategories
+  onRefreshCategories,
+  isAdminView = false
 }) => {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -380,6 +384,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 onView={onViewMateria}
                 showActions={openActionsId === materia.id}
                 onToggleActions={handleToggleActions}
+                teacherName={materia.teacherName}
+                studentCount={materia.studentCount}
+                isAdminView={isAdminView}
               />
             ))}
           </div>

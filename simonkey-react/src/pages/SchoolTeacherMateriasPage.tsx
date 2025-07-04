@@ -113,28 +113,8 @@ const SchoolTeacherMateriasPage: React.FC = () => {
     }
   };
 
-  const handleColorChange = async (materiaId: string, newColor: string) => {
-    try {
-      // Actualizar el color en la colección schoolSubjects
-      const materiaRef = doc(db, 'schoolSubjects', materiaId);
-      await updateDoc(materiaRef, {
-        color: newColor,
-        updatedAt: serverTimestamp()
-      });
-      
-      // Actualizar el estado local
-      setMaterias(prevMaterias => 
-        prevMaterias.map(materia => 
-          materia.id === materiaId ? { ...materia, color: newColor } : materia
-        )
-      );
-      
-      console.log('Color de la materia actualizado');
-    } catch (error) {
-      console.error('Error actualizando el color de la materia:', error);
-      alert('Error al actualizar el color de la materia');
-    }
-  };
+  // Los profesores no pueden cambiar el color de las materias
+  // Esta funcionalidad está reservada para administradores
 
   // Filtrar materias basado en el término de búsqueda
   const filteredMaterias = materias.filter(materia =>
@@ -163,16 +143,14 @@ const SchoolTeacherMateriasPage: React.FC = () => {
           <div className="teacher-info-card">
             <h3>👨‍🏫 Panel del Profesor</h3>
             <p>• Explora tus materias asignadas</p>
-            <p>• Cambia el color de las materias</p>
             <p>• Crea y elimina cuadernos</p>
             <p>• Añade conceptos a los cuadernos</p>
-            <p>• Modifica títulos y colores</p>
+            <p>• Modifica títulos y colores de cuadernos</p>
           </div>
         </div>
         <div className="materias-list-section">
           <div className="materia-list-controls">
             <div className="materia-list-header">
-              <h2>Materias Asignadas</h2>
               <div className="search-container">
                 <i className="fas fa-search search-icon"></i>
                 <input
@@ -202,7 +180,7 @@ const SchoolTeacherMateriasPage: React.FC = () => {
                   color={materia.color}
                   notebookCount={materia.notebookCount || 0}
                   onView={handleViewMateria}
-                  onColorChange={handleColorChange}
+                  onColorChange={undefined}
                   showActions={openActionsId === materia.id}
                   onToggleActions={handleToggleActions}
                 />

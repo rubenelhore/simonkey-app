@@ -23,6 +23,7 @@ import { db } from '../services/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import '../styles/ProgressPage.css';
 import '../styles/SchoolSystem.css';
+import '../styles/AdminMaterias.css';
 
 interface SchoolTeacher {
   id: string;
@@ -74,16 +75,20 @@ const SchoolAdminPage: React.FC = () => {
   // Cargar lista de profesores
   useEffect(() => {
     const loadTeachers = async () => {
-      if (!user || !isSchoolAdmin) return;
+      if (!user || !userProfile || !isSchoolAdmin) return;
 
       try {
         setLoading(true);
+        // Usar el ID del documento del admin, no el UID de Firebase Auth
+        const adminId = userProfile.id || user.uid;
+        console.log('🔍 Buscando profesores con idAdmin:', adminId);
+        
         // Buscar profesores asociados a este admin
         const teachersQuery = query(
           collection(db, 'users'),
           where('subscription', '==', 'school'),
           where('schoolRole', '==', 'teacher'),
-          where('idAdmin', '==', user.uid)
+          where('idAdmin', '==', adminId)
         );
 
         const teachersSnapshot = await getDocs(teachersQuery);
@@ -99,6 +104,7 @@ const SchoolAdminPage: React.FC = () => {
           });
         });
 
+        console.log('👥 Profesores encontrados:', teachersData);
         setTeachers(teachersData);
         
         // Seleccionar el primer profesor por defecto
@@ -113,7 +119,7 @@ const SchoolAdminPage: React.FC = () => {
     };
 
     loadTeachers();
-  }, [user, isSchoolAdmin, selectedTeacher]);
+  }, [user, userProfile, isSchoolAdmin, selectedTeacher]);
 
   // Datos dummy adaptados para el profesor seleccionado
   const materias: Materia[] = [
@@ -277,7 +283,7 @@ const SchoolAdminPage: React.FC = () => {
   return (
     <>
       <HeaderWithHamburger title="Panel de Administración" subtitle="Analítica de Profesores" />
-      <div className="progress-layout">
+      <div className="progress-layout with-mobile-nav">
         <div className="admin-teacher-selector">
           <FontAwesomeIcon icon={faUserGraduate} className="selector-icon" />
           <button 
@@ -290,19 +296,26 @@ const SchoolAdminPage: React.FC = () => {
           
           {showTeacherDropdown && (
             <div className="teacher-dropdown">
-              {teachers.map(teacher => (
-                <div 
-                  key={teacher.id}
-                  className={`teacher-option ${selectedTeacher === teacher.id ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedTeacher(teacher.id);
-                    setShowTeacherDropdown(false);
-                  }}
-                >
-                  <span className="teacher-name">{teacher.nombre}</span>
-                  <span className="teacher-email">{teacher.email}</span>
+              {teachers.length === 0 ? (
+                <div className="teacher-option no-teachers">
+                  <span className="teacher-name">No hay profesores asignados</span>
+                  <span className="teacher-email">Crea profesores desde la sección de vinculación</span>
                 </div>
-              ))}
+              ) : (
+                teachers.map(teacher => (
+                  <div 
+                    key={teacher.id}
+                    className={`teacher-option ${selectedTeacher === teacher.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedTeacher(teacher.id);
+                      setShowTeacherDropdown(false);
+                    }}
+                  >
+                    <span className="teacher-name">{teacher.nombre}</span>
+                    <span className="teacher-email">{teacher.email}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -508,6 +521,24 @@ const SchoolAdminPage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Mobile Navigation */}
+      <nav className="admin-mobile-nav">
+        <button 
+          className="nav-item"
+          onClick={() => navigate('/materias')}
+        >
+          <i className="fas fa-book"></i>
+          <span>Materias</span>
+        </button>
+        <button 
+          className="nav-item active"
+          onClick={() => navigate('/school/admin')}
+        >
+          <i className="fas fa-chart-line"></i>
+          <span>Analítica</span>
+        </button>
+      </nav>
     </>
   );
 };
