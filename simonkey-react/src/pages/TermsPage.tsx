@@ -1,10 +1,9 @@
 import React from 'react';
-import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/LegalPages.css';
 
 const TermsPage: React.FC = () => {
   return (
-    <HeaderWithHamburger title="Términos de Servicio" subtitle="Condiciones de uso de la plataforma">
+    <div style={{ paddingTop: '80px' }}>
       <div className="legal-page-container">
         <div className="legal-content">
           <div className="legal-header">
@@ -347,31 +346,10 @@ const TermsPage: React.FC = () => {
             <p>
               Si tiene preguntas sobre estos Términos de Servicio o necesita soporte:
             </p>
-            
-            <div className="contact-info">
-              <div className="contact-method">
-                <h4>📧 Soporte General</h4>
-                <p><strong>support@simonkey.com</strong></p>
-                <p>Para consultas técnicas y soporte general</p>
-              </div>
-              
-              <div className="contact-method">
-                <h4>⚖️ Asuntos Legales</h4>
-                <p><strong>legal@simonkey.com</strong></p>
-                <p>Para consultas sobre términos, derechos de autor y aspectos legales</p>
-              </div>
-              
-              <div className="contact-method">
-                <h4>🏢 Contacto Corporativo</h4>
-                <p>
-                  <strong>Simonkey</strong><br/>
-                  [Dirección de la empresa]<br/>
-                  [Ciudad, Código Postal]<br/>
-                  [País]<br/>
-                  <strong>Teléfono:</strong> [+XX XXX XXX XXX]
-                </p>
-              </div>
-            </div>
+            <p>
+              <strong>📧 Soporte y Asuntos en General</strong><br/>
+              ruben@simonkey.ai
+            </p>
           </section>
 
           <div className="legal-footer">
@@ -385,7 +363,7 @@ const TermsPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </HeaderWithHamburger>
+    </div>
   );
 };
 

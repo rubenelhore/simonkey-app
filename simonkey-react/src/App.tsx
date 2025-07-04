@@ -28,6 +28,10 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
+import ExamplesPage from './pages/ExamplesPage';
+import FAQPage from './pages/FAQPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
 // Importaciones para el sistema escolar
 import SchoolTeacherNotebooksPage from './pages/SchoolTeacherNotebooksPage';
 import SchoolTeacherMateriasPage from './pages/SchoolTeacherMateriasPage';
@@ -146,16 +150,13 @@ const HomePageContent: React.FC = () => {
       <section className="about-simonkey" style={{ width: '100%', background: '#f9fafb', padding: '0 0 40px 0', textAlign: 'center', display: 'block' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 48 }}>
           <div style={{ flex: '0 0 400px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <img src="/img/chango-triste-estudiando.jpg" alt="Chango triste estudiando" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 4px 32px rgba(0,0,0,0.13)', marginLeft: 0 }} />
+            <img src="/img/chango-feliz.png" alt="Chango feliz" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 4px 32px rgba(0,0,0,0.13)', marginLeft: 0 }} />
           </div>
           <div style={{ flex: 2, minWidth: 0, textAlign: 'left' }}>
             <div style={{ textAlign: 'center' }}>
               <AnimatedAprenderTitle />
-              <p style={{ fontSize: '1.2rem', color: '#444', marginBottom: 16, textAlign: 'center' }}>
-                Simonkey es tu asistente inteligente de estudio, diseñado para adaptarse a tu ritmo y necesidades. Utiliza inteligencia artificial para ayudarte a aprender de manera más eficiente, organizar tus conceptos, practicar con quizzes personalizados y mantenerte motivado en tu camino académico.
-              </p>
-              <p style={{ fontSize: '1.1rem', color: '#555', textAlign: 'center' }}>
-                Con Simonkey puedes crear, repasar y dominar cualquier tema, desde cualquier lugar y en cualquier momento. Nuestra plataforma está pensada para estudiantes, profesores y autodidactas que buscan una experiencia de aprendizaje moderna, flexible y efectiva.
+              <p style={{ fontSize: '1.125rem', color: '#6B7280', marginBottom: 16, textAlign: 'center' }}>
+                Simonkey es tu asistente inteligente de estudio, diseñado para adaptarse a tu ritmo y necesidades. <span style={{ color: '#4F46E5', fontWeight: 600 }}>Utiliza inteligencia artificial para ayudarte a aprender</span> de manera más eficiente, organizar tus conceptos, practicar con quizzes personalizados y mantenerte motivado en tu camino académico.
               </p>
             </div>
           </div>
@@ -164,7 +165,7 @@ const HomePageContent: React.FC = () => {
       <div id="how-it-works">
         <HowItWorks />
       </div>
-      <SimonkeyCarousel images={images} autoPlayInterval={9000} />
+      {/* <SimonkeyCarousel images={images} autoPlayInterval={9000} /> */}
       <div id="features">
         <Features />
       </div>
@@ -239,7 +240,7 @@ const AnimatedAprenderTitle: React.FC = () => {
     <h2 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: 20 }}>
       Estudiar con Simonkey es{' '}
       <span style={{ textDecoration: fromTachado ? 'line-through' : 'none', color: fromTachado ? '#e53935' : '#222', marginRight: 8, transition: 'all 0.5s' }}>{fromText}</span>
-      <span style={{ color: '#43a047', fontWeight: 800 }}>{toText}</span>
+      <span style={{ color: '#4F46E5', fontWeight: 800 }}>{toText}</span>
     </h2>
   );
 };
@@ -329,7 +330,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!loading && !userTypeLoading) {
       // Si no está autenticado y no está en una página pública, redirigir a login
-      if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms'].includes(window.location.pathname)) {
+      if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms', '/examples', '/faq', '/about', '/contact'].includes(window.location.pathname)) {
         navigate('/login', { replace: true });
       }
       
@@ -440,6 +441,12 @@ const AppContent: React.FC = () => {
         {/* Rutas legales - disponibles para todos */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        
+        {/* Nuevas rutas informativas - disponibles para todos */}
+        <Route path="/examples" element={<ExamplesPage />} />
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         
         {/* Rutas protegidas - requieren autenticación Y verificación de email */}
         {/* Nueva ruta principal: Materias */}

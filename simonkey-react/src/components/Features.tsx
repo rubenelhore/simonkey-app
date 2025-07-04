@@ -5,7 +5,7 @@ const Features: React.FC = () => {
   return (
     <section className="features">
       <div className="container">
-        <h2 className="section-title">Características</h2>
+        <h2 className="section-title features-title">Características</h2>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">

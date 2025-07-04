@@ -65,11 +65,11 @@ const Materias: React.FC = () => {
           const schoolMateriasData: Materia[] = schoolSubjects.map(subject => ({
             id: subject.id,
             title: subject.nombre,
-            color: subject.color || '#6147FF',
-            category: subject.category || '',
+            color: '#6147FF',
+            category: '',
             userId: user.uid,
             createdAt: subject.createdAt?.toDate() || new Date(),
-            updatedAt: subject.updatedAt?.toDate() || new Date(),
+            updatedAt: subject.createdAt?.toDate() || new Date(),
             notebookCount: 0 // Se actualizará después
           }));
           

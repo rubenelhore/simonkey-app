@@ -11,16 +11,15 @@ const Hero: React.FC = () => {
               Tu estudio, tu ritmo con <span className="highlight">tu asistente IA</span>
             </h1>
             <p className="hero-subtitle">
-              Con Simonkey, el estudio se adapta a ti, no tú al estudio.{' '}
-              <span style={{ color: '#4F46E5', fontWeight: 600 }}>Aprende con mayor fluidez</span>, recuerda{' '}
-              <span style={{ color: '#4F46E5', fontWeight: 600 }}>sin frustraciones</span> y domina cualquier tema{' '}
-              <span style={{ color: '#4F46E5', fontWeight: 600 }}>a tu manera</span>.
+              Con Simonkey, estudiar es más <span style={{ color: '#4F46E5', fontWeight: 600 }}>efectivo y divertido</span>. 
+              Recibe <span style={{ color: '#4F46E5', fontWeight: 600 }}>insights al instante</span> para mejorar tu rendimiento 
+              y mantén la motivación <span style={{ color: '#4F46E5', fontWeight: 600 }}>compitiendo por el primer lugar</span> en tu grupo con nuestra tabla de desempeño.
             </p>
             <div className="hero-buttons">
-              <a href="/signup" className="btn btn-primary">
+              <a href="/signup" className="btn btn-primary" style={{ lineHeight: 1 }}>
                 Comenzar Gratis
               </a>
-              <a href="#how-it-works" className="btn btn-outline">
+              <a href="#how-it-works" className="btn btn-outline hero-btn-centered">
                 Cómo Funciona
               </a>
             </div>

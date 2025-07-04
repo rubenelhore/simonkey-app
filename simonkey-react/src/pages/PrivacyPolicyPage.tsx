@@ -1,10 +1,9 @@
 import React from 'react';
-import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/LegalPages.css';
 
 const PrivacyPolicyPage: React.FC = () => {
   return (
-    <HeaderWithHamburger title="Política de Privacidad" subtitle="Cómo protegemos tu información personal">
+    <div style={{ paddingTop: '80px' }}>
       <div className="legal-page-container">
         <div className="legal-content">
           <div className="legal-header">
@@ -324,37 +323,7 @@ const PrivacyPolicyPage: React.FC = () => {
 
           <section className="legal-section">
             <h2>11. Contacto</h2>
-            <p>Si tienes preguntas sobre esta Política de Privacidad o el tratamiento de tus datos personales:</p>
-            
-            <div className="contact-info">
-              <div className="contact-method">
-                <h4>📧 Email</h4>
-                <p><strong>privacy@simonkey.com</strong></p>
-                <p>Para consultas sobre privacidad y protección de datos</p>
-              </div>
-              
-              <div className="contact-method">
-                <h4>📮 Correo Postal</h4>
-                <p>
-                  <strong>Simonkey - Departamento de Privacidad</strong><br/>
-                  [Tu dirección completa]<br/>
-                  [Ciudad, Código Postal]<br/>
-                  [País]
-                </p>
-              </div>
-              
-              <div className="contact-method">
-                <h4>⚖️ Autoridad de Control</h4>
-                <p>
-                  Tienes derecho a presentar una queja ante la autoridad de protección de datos de tu país 
-                  si consideras que hemos violado tus derechos de privacidad.
-                </p>
-                <p>
-                  <strong>España:</strong> Agencia Española de Protección de Datos (AEPD)<br/>
-                  <strong>Web:</strong> www.aepd.es
-                </p>
-              </div>
-            </div>
+            <p>Si tienes preguntas sobre esta Política de Privacidad o el tratamiento de tus datos personales: EMAIL: ruben@simonkey.ai</p>
           </section>
 
           <div className="legal-footer">
@@ -365,7 +334,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </HeaderWithHamburger>
+    </div>
   );
 };
 
