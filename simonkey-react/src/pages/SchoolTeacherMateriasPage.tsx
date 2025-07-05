@@ -30,6 +30,13 @@ const SchoolTeacherMateriasPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
+  // Log para depuración
+  console.log('🎯 SchoolTeacherMateriasPage - Estado inicial:');
+  console.log('  - user:', user);
+  console.log('  - userProfile:', userProfile);
+  console.log('  - authLoading:', authLoading);
+  console.log('  - isSchoolAdmin:', isSchoolAdmin);
+
   useEffect(() => {
     const loadMaterias = async () => {
       if (!user || !userProfile) return;
@@ -123,6 +130,7 @@ const SchoolTeacherMateriasPage: React.FC = () => {
   );
 
   if (loading || authLoading) {
+    console.log('🔄 SchoolTeacherMateriasPage - Mostrando loading spinner');
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -130,6 +138,10 @@ const SchoolTeacherMateriasPage: React.FC = () => {
       </div>
     );
   }
+
+  console.log('🎨 SchoolTeacherMateriasPage - Renderizando componente principal');
+  console.log('  - materias:', materias);
+  console.log('  - filteredMaterias:', filteredMaterias);
 
   return (
     <>

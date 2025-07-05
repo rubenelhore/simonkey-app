@@ -369,7 +369,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
               email: creationData.informacionBasica.email,
               nombre: creationData.informacionBasica.nombre,
               role: 'admin',
-              password: '1234',
+              // No enviar password para que use school123 por defecto
               additionalData: {
                 idInstitucion: '' // Se vinculará después
               }
@@ -391,7 +391,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
               email: creationData.informacionBasica.email,
               nombre: creationData.informacionBasica.nombre,
               role: 'teacher',
-              password: '1234',
+              // No enviar password para que use school123 por defecto
               additionalData: {
                 idAdmin: '' // Se vinculará después
               }
@@ -409,7 +409,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
               email: creationData.informacionBasica.email,
               nombre: creationData.informacionBasica.nombre,
               role: 'student',
-              password: '1234',
+              // No enviar password para que use school123 por defecto
               additionalData: {
                 idCuadernos: [] // Se vinculará después
               }
@@ -427,7 +427,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
               email: creationData.informacionBasica.email,
               nombre: creationData.informacionBasica.nombre,
               role: 'tutor',
-              password: '1234',
+              // No enviar password para que use school123 por defecto
               additionalData: {
                 idAlumnos: [] // Se vinculará después
               }

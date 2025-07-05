@@ -122,7 +122,8 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
   }
 
   // Si no está verificado y no está en la página de verificación, no mostrar contenido
-  if (!isEmailVerified && location.pathname !== '/verify-email') {
+  // EXCEPTO para usuarios escolares que pueden acceder sin verificación
+  if (!isEmailVerified && location.pathname !== '/verify-email' && !isSchoolUser) {
     return null;
   }
 

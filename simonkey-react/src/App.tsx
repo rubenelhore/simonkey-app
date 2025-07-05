@@ -48,6 +48,9 @@ import TermsPage from './pages/TermsPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
+// Importar el nuevo componente de cambio de contraseña
+import ChangePasswordRequired from './pages/ChangePasswordRequired';
+import PasswordChangeGuard from './components/Guards/PasswordChangeGuard';
 // Importar el guard de verificación de email
 import EmailVerificationGuard from './components/EmailVerificationGuard';
 // Importar el guard para usuarios escolares
@@ -421,13 +424,16 @@ const AppContent: React.FC = () => {
         <Route 
           path="/" 
           element={(() => {
-            if (isAuthenticated && isEmailVerified) {
-              // Usuarios escolares van a sus módulos específicos
+            if (isAuthenticated) {
+              // Usuarios escolares van a sus módulos específicos (sin requerir verificación de email)
               if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
               if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
               if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
-              // TODOS los demás usuarios (incluidos schoolStudents) van a notebooks
-              return <Navigate to="/notebooks" replace />;
+              if (isSchoolStudent) return <Navigate to="/materias" replace />;
+              // Usuarios regulares requieren verificación
+              if (isEmailVerified) {
+                return <Navigate to="/notebooks" replace />;
+              }
             }
             // Usuarios no autenticados ven la página de inicio
             return <HomePage />;
@@ -442,6 +448,16 @@ const AppContent: React.FC = () => {
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         
+        {/* Ruta para cambio de contraseña obligatorio */}
+        <Route
+          path="/change-password-required"
+          element={
+            isAuthenticated ? (
+              <ChangePasswordRequired />
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        
         {/* Nuevas rutas informativas - disponibles para todos */}
         <Route path="/examples" element={<ExamplesPage />} />
         <Route path="/faq" element={<FAQPage />} />
@@ -455,13 +471,15 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <>
-                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
-                    setHasCompletedOnboarding(true);
-                    localStorage.setItem('hasCompletedOnboarding', 'true');
-                  }} />}
-                  <Materias />
-                </>
+                <PasswordChangeGuard>
+                  <>
+                    {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                      setHasCompletedOnboarding(true);
+                      localStorage.setItem('hasCompletedOnboarding', 'true');
+                    }} />}
+                    <Materias />
+                  </>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -612,9 +630,11 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolTeacherMateriasPage />
-                </SchoolUserGuard>
+                <PasswordChangeGuard>
+                  <SchoolUserGuard>
+                    <SchoolTeacherMateriasPage />
+                  </SchoolUserGuard>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -624,9 +644,11 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolTeacherAnalyticsPage />
-                </SchoolUserGuard>
+                <PasswordChangeGuard>
+                  <SchoolUserGuard>
+                    <SchoolTeacherAnalyticsPage />
+                  </SchoolUserGuard>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -636,9 +658,11 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolTeacherMateriaNotebooksPage />
-                </SchoolUserGuard>
+                <PasswordChangeGuard>
+                  <SchoolUserGuard>
+                    <SchoolTeacherMateriaNotebooksPage />
+                  </SchoolUserGuard>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -655,9 +679,11 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolAdminPage />
-                </SchoolUserGuard>
+                <PasswordChangeGuard>
+                  <SchoolUserGuard>
+                    <SchoolAdminPage />
+                  </SchoolUserGuard>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }
@@ -669,9 +695,11 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolTutorPage />
-                </SchoolUserGuard>
+                <PasswordChangeGuard>
+                  <SchoolUserGuard>
+                    <SchoolTutorPage />
+                  </SchoolUserGuard>
+                </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }

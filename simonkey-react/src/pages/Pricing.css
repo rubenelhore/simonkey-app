@@ -177,12 +177,18 @@
   .feature-list {
     list-style: none;
     margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   
   .feature-item {
     display: flex;
     align-items: flex-start;
     margin-bottom: 15px;
+    width: 100%;
+    max-width: 280px;
+    justify-content: flex-start;
   }
   
   .feature-icon {
@@ -194,6 +200,8 @@
   .feature-text {
     font-size: 16px;
     color: #4B5563;
+    flex: 1;
+    text-align: left;
   }
   
   .feature-text.prominent {
@@ -291,12 +299,12 @@
     padding: 80px 0;
   }
   
-  .faq-title {
+  .faq .faq-title {
     text-align: center;
     font-size: 36px;
     font-weight: 700;
     margin-bottom: 60px;
-    color: var(--dark);
+    color: #4F46E5 !important;
   }
   
   .faq-list {

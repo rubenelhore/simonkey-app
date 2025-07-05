@@ -22,29 +22,11 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
   const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
-  const { isAuthenticated, isEmailVerified, loading: authLoading } = useAuth();
+  const { isAuthenticated, isEmailVerified, loading: authLoading, userProfile } = useAuth();
   
-  // REDACTADO: Lógica de redirección movida a App.tsx y SchoolUserGuard
-  /*
-  useEffect(() => {
-    console.log("🔍 LoginPage - Verificando autenticación");
-    console.log("🔍 LoginPage - Estado de autenticación:", { isAuthenticated, isEmailVerified, authLoading });
-    
-    if (!authLoading && isAuthenticated && isEmailVerified) {
-      // User is signed in and verified, redirect to notebooks
-      console.log("✅ LoginPage - Usuario ya autenticado y verificado, redirigiendo a notebooks");
-      navigate('/notebooks', { replace: true });
-    } else if (!authLoading && isAuthenticated && !isEmailVerified) {
-      // User is signed in but not verified, redirect to verification
-      console.log("⚠️ LoginPage - Usuario autenticado pero no verificado, redirigiendo a verificación");
-      navigate('/verify-email', { replace: true });
-    } else if (!authLoading && !isAuthenticated) {
-      console.log("❌ LoginPage - Usuario no autenticado, permaneciendo en login");
-    } else {
-      console.log("⏳ LoginPage - Cargando estado de autenticación...");
-    }
-  }, [isAuthenticated, isEmailVerified, authLoading, navigate]);
-  */
+  // No redirigir automáticamente si el usuario ya está autenticado
+  // Esto permite que usuarios logueados puedan ver la página de login
+  // para cerrar sesión o cambiar de cuenta
 
   // Mostrar error de Google Auth si existe
   useEffect(() => {
@@ -83,8 +65,9 @@ const LoginPage: React.FC = () => {
         return;
       }
       
-      // Usuario válido, la redirección se manejará en App.tsx o los guards
-      // navigate('/notebooks', { replace: true });
+      // Usuario válido, redirigir a home para que App.tsx maneje el routing
+      console.log("🚀 Login exitoso, redirigiendo a home...");
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error("Error en login:", error);
       let errorMessage = "Error al iniciar sesión";

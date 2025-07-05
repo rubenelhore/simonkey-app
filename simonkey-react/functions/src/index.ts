@@ -1181,13 +1181,49 @@ export const createSchoolUser = onCall(
         );
       }
 
-      // Generar ID único
-      const userId = `school_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Obtener password válido
+      // Obtener password válido y detectar si es la contraseña por defecto
       const passwordToUse = userData.password && userData.password.length >= 6 
         ? userData.password 
         : 'school123';
+      
+      // Marcar si necesita cambiar contraseña (cuando usa la contraseña por defecto)
+      const requiresPasswordChange = !userData.password || userData.password === 'school123';
+      
+      logger.info("🔐 Verificación de contraseña por defecto", {
+        providedPassword: userData.password,
+        usingDefaultPassword: passwordToUse === 'school123',
+        requiresPasswordChange: requiresPasswordChange
+      });
+
+      // Crear usuario en Firebase Auth primero
+      let authUser;
+      try {
+        authUser = await admin.auth().createUser({
+          email: userData.email,
+          password: passwordToUse,
+          displayName: userData.nombre,
+          emailVerified: false
+        });
+        logger.info("✅ Usuario creado en Firebase Auth", { uid: authUser.uid, email: userData.email });
+      } catch (authError: any) {
+        logger.error("❌ Error creando usuario en Auth", { error: authError.message });
+        
+        // Si el email ya existe, dar un mensaje más claro
+        if (authError.code === 'auth/email-already-exists') {
+          throw new HttpsError(
+            "already-exists",
+            `El email ${userData.email} ya está en uso. Por favor usa otro email o elimina el usuario existente desde Firebase Console.`
+          );
+        }
+        
+        throw new HttpsError(
+          "already-exists",
+          `Error creando usuario: ${authError.message}`
+        );
+      }
+
+      // Usar el UID de Firebase Auth como userId
+      const userId = authUser.uid;
 
       // Determinar el schoolRole basado en el role proporcionado
       logger.info("🎯 Role recibido:", { role: userData.role, tipo: typeof userData.role });
@@ -1231,6 +1267,7 @@ export const createSchoolUser = onCall(
         maxNotebooks: userData.role === 'teacher' ? 999 : 0,
         maxConceptsPerNotebook: userData.role === 'teacher' ? 999 : 0,
         canDeleteAndRecreate: false,
+        requiresPasswordChange: requiresPasswordChange,
         ...userData.additionalData
       });
 

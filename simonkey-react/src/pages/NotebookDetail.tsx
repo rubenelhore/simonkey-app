@@ -62,7 +62,7 @@ const NotebookDetail = () => {
   const studyService = useStudyService();
   
   // Usar el hook para detectar el tipo de usuario
-  const { isSchoolStudent, isSchoolAdmin } = useUserType();
+  const { isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   
   // Log para debug
   console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
@@ -631,19 +631,22 @@ const NotebookDetail = () => {
         <div className="header-content">
           <button 
             onClick={() => {
-              // Primero verificar si hay materiaId en la URL
-              const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-              if (materiaMatch) {
-                // Si estamos dentro de una materia en la URL, usar ese ID
-                const urlMateriaId = materiaMatch[1];
-                navigate(`/materias/${urlMateriaId}/notebooks`);
-              } else if (materiaId) {
-                // Si no hay materia en la URL pero el notebook tiene materiaId, usar ese
-                navigate(`/materias/${materiaId}/notebooks`);
-              } else {
-                // Si no hay materiaId en ningún lado, ir a la ruta legacy
-                navigate('/notebooks');
+              // Si es profesor escolar, ir a su página de notebooks
+              if (isSchoolTeacher) {
+                // Verificar si estamos en una ruta de profesor
+                const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
+                if (teacherMateriaMatch) {
+                  const materiaId = teacherMateriaMatch[1];
+                  navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+                } else {
+                  // Si no hay materiaId, ir a la página principal del profesor
+                  navigate('/school/teacher');
+                }
+                return;
               }
+              
+              // Para estudiantes y usuarios regulares, siempre ir a /notebooks
+              navigate('/notebooks');
             }} 
             className="back-button"
           >

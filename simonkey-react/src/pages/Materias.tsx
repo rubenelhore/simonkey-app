@@ -34,7 +34,7 @@ const Materias: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
-  const { isSchoolUser, isSchoolStudent, isSchoolAdmin } = useUserType();
+  const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   const { migrationStatus, migrationMessage } = useAutoMigration();
   const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
@@ -288,6 +288,8 @@ const Materias: React.FC = () => {
         materiasData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         
         setAdminMaterias(materiasData);
+        console.log('📊 Admin materias cargadas:', materiasData.length, 'materias');
+        console.log('📊 Admin materias detalle:', materiasData);
       } catch (error) {
         console.error('Error loading filtered materias:', error);
       }
@@ -367,10 +369,16 @@ const Materias: React.FC = () => {
     // Los estudiantes escolares no pueden eliminar materias
     if (isSchoolStudent) return;
     try {
+      // Determinar la colección correcta según el tipo de usuario
+      const isSchoolMateria = isSchoolAdmin || isSchoolTeacher;
+      const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
+      const notebooksCollection = isSchoolMateria ? 'schoolNotebooks' : 'notebooks';
+      const notebookField = isSchoolMateria ? 'idMateria' : 'materiaId';
+      
       // Verificar si hay notebooks en esta materia
       const notebooksQuery = query(
-        collection(db, 'notebooks'),
-        where('materiaId', '==', id)
+        collection(db, notebooksCollection),
+        where(notebookField, '==', id)
       );
       const notebooksSnapshot = await getDocs(notebooksQuery);
       
@@ -387,14 +395,33 @@ const Materias: React.FC = () => {
         // Si el usuario acepta, eliminar todos los cuadernos de esta materia
         console.log(`Eliminando ${notebooksSnapshot.size} cuadernos de la materia...`);
         for (const notebookDoc of notebooksSnapshot.docs) {
-          await deleteDoc(doc(db, 'notebooks', notebookDoc.id));
+          await deleteDoc(doc(db, notebooksCollection, notebookDoc.id));
           console.log(`Cuaderno ${notebookDoc.id} eliminado`);
         }
       }
       
+      // Si es admin escolar, también necesitamos eliminar la referencia de la materia de los estudiantes
+      if (isSchoolAdmin) {
+        console.log('🗑️ Eliminando referencias de materia de los estudiantes...');
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subjectIds', 'array-contains', id)
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
+        
+        for (const studentDoc of studentsSnapshot.docs) {
+          const studentData = studentDoc.data();
+          const updatedSubjectIds = (studentData.subjectIds || []).filter((subId: string) => subId !== id);
+          await updateDoc(doc(db, 'users', studentDoc.id), {
+            subjectIds: updatedSubjectIds
+          });
+          console.log(`Materia removida del estudiante ${studentDoc.id}`);
+        }
+      }
+      
       // Eliminar la materia
-      await deleteDoc(doc(db, 'materias', id));
-      console.log(`Materia ${id} eliminada`);
+      await deleteDoc(doc(db, materiaCollection, id));
+      console.log(`Materia ${id} eliminada de la colección ${materiaCollection}`);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error deleting materia:', error);
@@ -481,6 +508,7 @@ const Materias: React.FC = () => {
   }
 
   if (isSchoolAdmin) {
+    console.log('🎯 Renderizando vista admin con adminMaterias:', adminMaterias.length);
     // Vista especial para admin
     return (
       <>

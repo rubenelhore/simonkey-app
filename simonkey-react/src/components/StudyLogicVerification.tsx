@@ -247,24 +247,43 @@ const StudyLogicVerification: React.FC = () => {
 
   // Cargar cuadernos
   const loadNotebooks = async () => {
-    console.log('Loading notebooks for:', { accountType, selectedUser, selectedSubject });
+    console.log('Loading notebooks for:', { accountType, selectedUser, selectedSubject, selectedStudent });
     setLoading(true);
     try {
       let notebooksData: Notebook[] = [];
       
-      if (accountType === 'school' && selectedSubject) {
-        // Cargar cuadernos escolares de la materia seleccionada
-        console.log('Loading school notebooks for subject:', selectedSubject);
-        const notebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('idMateria', '==', selectedSubject),
-          orderBy('name')
-        );
-        const notebooksSnap = await getDocs(notebooksQuery);
-        notebooksData = notebooksSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Notebook));
+      if (accountType === 'school' && selectedStudent) {
+        // Para estudiantes escolares, cargar cuadernos asignados al estudiante
+        console.log('Loading school notebooks for student:', selectedStudent);
+        
+        // Primero obtener el perfil del estudiante para obtener sus idCuadernos
+        const studentDoc = await getDoc(doc(db, 'users', selectedStudent));
+        if (studentDoc.exists()) {
+          const studentData = studentDoc.data();
+          console.log('Student data:', studentData);
+          console.log('Student idCuadernos:', studentData.idCuadernos);
+          
+          if (studentData.idCuadernos && studentData.idCuadernos.length > 0) {
+            // Cargar cada cuaderno por ID
+            for (const notebookId of studentData.idCuadernos) {
+              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+              if (notebookDoc.exists()) {
+                const notebookData = notebookDoc.data();
+                // Si se seleccionó una materia, filtrar por ella
+                if (!selectedSubject || notebookData.idMateria === selectedSubject) {
+                  notebooksData.push({
+                    id: notebookDoc.id,
+                    ...notebookData,
+                    name: notebookData.name || notebookData.title || 'Sin nombre'
+                  } as Notebook);
+                }
+              }
+            }
+          }
+        }
+        
+        // Ordenar por nombre
+        notebooksData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       } else if ((accountType === 'free' || accountType === 'pro') && selectedUser) {
         // Cargar cuadernos del usuario seleccionado
         console.log('Loading user notebooks for user:', selectedUser);
@@ -325,10 +344,10 @@ const StudyLogicVerification: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedSubject || ((accountType === 'free' || accountType === 'pro') && selectedUser)) {
+    if ((accountType === 'school' && selectedStudent) || ((accountType === 'free' || accountType === 'pro') && selectedUser)) {
       loadNotebooks();
     }
-  }, [selectedSubject, selectedUser, accountType]);
+  }, [selectedSubject, selectedStudent, selectedUser, accountType]);
 
   // Cargar conceptos del cuaderno seleccionado
   useEffect(() => {
@@ -673,7 +692,7 @@ const StudyLogicVerification: React.FC = () => {
       )}
 
       {/* Selector de cuaderno */}
-      {((accountType === 'school' && selectedSubject) || 
+      {((accountType === 'school' && selectedStudent) || 
         ((accountType === 'free' || accountType === 'pro') && selectedUser)) && (
         <div className="verification-section">
           <h3>Cuaderno</h3>

@@ -433,11 +433,19 @@ const SchoolNotebookDetail = () => {
                     onChange={handleFileChange}
                     disabled={cargando}
                     className="file-input"
+                    style={{ display: 'none' }}
                   />
+                  <label htmlFor="pdf-upload" className="file-input-label">
+                    <div className="file-input-content">
+                      <i className="fas fa-cloud-upload-alt"></i>
+                      <p>Haz clic aquí para seleccionar archivos</p>
+                      <span>o arrastra y suelta archivos aquí</span>
+                    </div>
+                  </label>
                   <div className="selected-files">
                     {archivos.length > 0 && (
                       <>
-                        <p><strong>Archivos seleccionados:</strong></p>
+                        <p><strong>{archivos.length === 1 ? 'Archivo seleccionado:' : 'Archivos seleccionados:'}</strong></p>
                         <ul>
                           {archivos.map((file, index) => (
                             <li key={index}>{file.name}</li>

@@ -288,6 +288,7 @@ export interface UserProfile {
   displayName: string;
   birthdate: string;
   password?: string; // Campo opcional para almacenar contraseña
+  requiresPasswordChange?: boolean; // Indica si el usuario debe cambiar su contraseña por defecto
   createdAt: Timestamp;
   subscription: UserSubscriptionType;
   notebookCount: number;

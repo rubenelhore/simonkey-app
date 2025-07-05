@@ -21,7 +21,7 @@ const Pricing: React.FC = () => {
       {/* Pricing Hero Section */}
       <section className="pricing-hero">
         <div className="container">
-          <h1 className="pricing-title">Planes simples, transparentes y a tu medida</h1>
+          <h1 className="pricing-title">Planes simples, transparentes e <i>inteligentes</i></h1>
           <p className="pricing-subtitle">
             Elige el plan que mejor se adapte a tus necesidades de estudio. Sin sorpresas, sin complicaciones.
           </p>
