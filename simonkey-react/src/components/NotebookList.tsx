@@ -220,9 +220,16 @@ const NotebookList: React.FC<NotebookListProps> = ({
       setNewNotebookTitle('');
       setNewNotebookColor('#6147FF'); // resetear color
       setShowCreateModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error creating notebook:", error);
-      setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');
+      // Mostrar el mensaje de error específico
+      if (error?.message) {
+        setErrorMessage(error.message);
+      } else if (typeof error === 'string') {
+        setErrorMessage(error);
+      } else {
+        setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');
+      }
     } finally {
       setIsSubmitting(false);
     }

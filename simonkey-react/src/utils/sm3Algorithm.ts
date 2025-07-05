@@ -25,7 +25,11 @@ export interface SM3Result {
 export const calculateSM3Interval = (params: SM3Params): SM3Result => {
   const { quality, repetitions, easeFactor, interval } = params;
   
-  console.log('🔍 SM-3 Input:', { quality, repetitions, easeFactor, interval });
+  console.log('🧮🧮🧮 ALGORITMO SM-3 INICIADO 🧮🧮🧮');
+  console.log('Quality recibido:', quality);
+  console.log('Repetitions actuales:', repetitions);
+  console.log('EaseFactor actual:', easeFactor);
+  console.log('Interval actual:', interval);
   
   let newInterval: number;
   let newEaseFactor: number;
@@ -67,13 +71,12 @@ export const calculateSM3Interval = (params: SM3Params): SM3Result => {
     repetitions: newRepetitions
   };
   
-  console.log('🔍 SM-3 Output:', {
-    newInterval,
-    newEaseFactor,
-    nextReviewDate: nextReviewDate.toISOString(),
-    newRepetitions,
-    daysFromNow: newInterval
-  });
+  console.log('🧮🧮🧮 RESULTADO SM-3 🧮🧮🧮');
+  console.log('Nuevo intervalo:', newInterval, 'días');
+  console.log('Nuevo EaseFactor:', newEaseFactor);
+  console.log('Nuevas repeticiones:', newRepetitions);
+  console.log('Próxima fecha de repaso:', nextReviewDate.toLocaleDateString());
+  console.log('🧮🧮🧮 FIN ALGORITMO SM-3 🧮🧮🧮');
 
   return result;
 };

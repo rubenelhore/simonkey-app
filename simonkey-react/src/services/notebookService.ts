@@ -30,6 +30,7 @@ export const createNotebook = async (userId: string, title: string, color: strin
   );
 
   if (existingNotebook) {
+    console.log('🚫 Notebook already exists:', { existingNotebook, normalizedTitle });
     throw new Error('Ya existe un cuaderno con ese nombre. Por favor, elige otro nombre.');
   }
 

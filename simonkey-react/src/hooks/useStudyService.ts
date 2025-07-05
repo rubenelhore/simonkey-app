@@ -694,15 +694,22 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         console.log('📝 updateConceptResponse - using effectiveUserId:', effectiveUserId);
         
         // Convertir ResponseQuality a calidad SM-3 (0-5)
-        // MODIFICACIÓN: Usar calidad 2 para intervalos más cortos y repasos más frecuentes
-        const sm3Quality = quality === ResponseQuality.MASTERED ? 2 : 2; // Cambiado de 4 a 2
+        // REVIEW_LATER = 2 (respuesta incorrecta, repaso al día siguiente)
+        // MASTERED = 4 (respuesta correcta, intervalos progresivos: 1, 6, x*EF días)
+        const sm3Quality = quality === ResponseQuality.MASTERED ? 4 : 2;
         
-        console.log('🔍 updateConceptResponse:', {
-          conceptId,
-          originalQuality: quality,
-          sm3Quality: sm3Quality,
-          reason: 'Usando calidad 2 para intervalos más cortos y repasos más frecuentes'
-        });
+        console.log('🎯🎯🎯 CALIDAD DE RESPUESTA 🎯🎯🎯');
+        console.log('Concepto ID:', conceptId);
+        console.log('Quality recibido:', quality);
+        console.log('Es MASTERED?:', quality === ResponseQuality.MASTERED);
+        console.log('Es REVIEW_LATER?:', quality === ResponseQuality.REVIEW_LATER);
+        console.log('ResponseQuality.MASTERED =', ResponseQuality.MASTERED);
+        console.log('ResponseQuality.REVIEW_LATER =', ResponseQuality.REVIEW_LATER);
+        console.log('SM3 Quality asignado:', sm3Quality);
+        console.log('Razón:', quality === ResponseQuality.MASTERED ? 
+          'MASTERED: Usando calidad 4 para intervalos progresivos' : 
+          'REVIEW_LATER: Usando calidad 2 para repaso al día siguiente');
+        console.log('🎯🎯🎯 FIN CALIDAD DE RESPUESTA 🎯🎯🎯');
         
         // Obtener datos de aprendizaje actuales
         const learningRef = doc(db, 'users', effectiveUserId, 'learningData', conceptId);

@@ -14,18 +14,30 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onNotebookCreated, onCancel
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !title.trim() || isSubmitting) return;
+    
+    setError(null); // Clear any previous errors
     
     try {
       setIsSubmitting(true);
       await createNotebook(user.uid, title);
       setTitle(''); // Clear the form
       onNotebookCreated(); // Refresh the notebook list
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating notebook:", error);
+      
+      // Mostrar el mensaje de error específico
+      if (error?.message) {
+        setError(error.message);
+      } else if (typeof error === 'string') {
+        setError(error);
+      } else {
+        setError('Error al crear el cuaderno. Por favor, intenta de nuevo.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -33,10 +45,27 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onNotebookCreated, onCancel
 
   return (
     <form onSubmit={handleSubmit} className="notebook-form">
+      {error && (
+        <div style={{
+          backgroundColor: '#fee',
+          color: '#c33',
+          padding: '10px',
+          borderRadius: '5px',
+          marginBottom: '10px',
+          fontSize: '14px',
+          fontFamily: "'Poppins', sans-serif",
+          border: '1px solid #fcc'
+        }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
       <input
         type="text"
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => {
+          setTitle(e.target.value);
+          setError(null); // Clear error when user starts typing
+        }}
         placeholder="Ingresa el nombre"
         required
         style={{ fontFamily: "'Poppins', sans-serif" }}

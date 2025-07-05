@@ -1,0 +1,327 @@
+/* Study Logic Verification Styles */
+.study-logic-verification {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.verification-section {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.verification-section h3 {
+  font-size: 1.3rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Account Type Selector */
+.account-type-selector {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.type-button {
+  flex: 1;
+  min-width: 150px;
+  padding: 1rem 2rem;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.type-button:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.type-button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.type-button i {
+  font-size: 1.2rem;
+}
+
+/* School Selectors */
+.school-selectors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector-group label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.form-select {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background-color: white;
+  color: #333;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Concepts Table */
+.concepts-table {
+  overflow-x: auto;
+  margin-top: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.concepts-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.concepts-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.concepts-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.concepts-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f3f5;
+  font-size: 0.95rem;
+}
+
+.concepts-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.concepts-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Status specific rows */
+.concepts-table tr.status-nuevo {
+  background-color: rgba(108, 117, 125, 0.05);
+}
+
+.concepts-table tr.status-pendiente {
+  background-color: rgba(220, 53, 69, 0.05);
+}
+
+.concepts-table tr.status-programado {
+  background-color: rgba(40, 167, 69, 0.05);
+}
+
+/* Table columns */
+.concept-name {
+  font-weight: 600;
+  color: #333;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.concept-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.next-study-date {
+  font-weight: 500;
+  color: #495057;
+}
+
+.study-status {
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.nuevo {
+  background-color: #6c757d;
+  color: white;
+}
+
+.status-badge.pendiente {
+  background-color: #dc3545;
+  color: white;
+}
+
+.status-badge.programado {
+  background-color: #28a745;
+  color: white;
+}
+
+.interval, .repetitions {
+  text-align: center;
+  color: #6c757d;
+}
+
+/* Concepts Summary */
+.concepts-summary {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.concepts-summary p {
+  margin: 0;
+  font-size: 1rem;
+  color: #495057;
+}
+
+.concepts-summary strong {
+  color: #333;
+  font-size: 1.2rem;
+  margin-left: 0.5rem;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+  color: #667eea;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .study-logic-verification {
+    padding: 1rem;
+  }
+
+  .verification-section {
+    padding: 1.5rem;
+  }
+
+  .account-type-selector {
+    flex-direction: column;
+  }
+
+  .type-button {
+    min-width: 100%;
+  }
+
+  .school-selectors {
+    grid-template-columns: 1fr;
+  }
+
+  .concepts-table {
+    font-size: 0.85rem;
+  }
+
+  .concepts-table th,
+  .concepts-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .concept-name {
+    max-width: 150px;
+  }
+
+  .concepts-summary {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+  margin: 0;
+}

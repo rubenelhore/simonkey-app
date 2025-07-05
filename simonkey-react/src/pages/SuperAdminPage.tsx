@@ -25,6 +25,7 @@ import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
 import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
 import SchoolMigrationTool from '../components/SchoolMigrationTool';
+import StudyLogicVerification from '../components/StudyLogicVerification';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
@@ -860,6 +861,13 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-search"></i>
             Verificación de Vinculación
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'studyLogic' ? 'active' : ''}`}
+            onClick={() => setActiveTab('studyLogic')}
+          >
+            <i className="fas fa-brain"></i>
+            Verificación de Lógica de Estudio
+          </button>
         </nav>
 
         <div className="tab-content">
@@ -1438,6 +1446,19 @@ const SuperAdminPage: React.FC = () => {
                 <h2>🔗 Verificación de Vinculación Escolar</h2>
               </div>
               <SchoolLinkingVerification />
+            </div>
+          )}
+
+          {/* Tab de Verificación de Lógica de Estudio */}
+          {activeTab === 'studyLogic' && (
+            <div className="study-logic-tab">
+              <div className="tab-header">
+                <h2>🧠 Verificación de Lógica de Estudio</h2>
+                <p className="tab-description">
+                  Monitorea las fechas de estudio de los conceptos según el algoritmo SM-3
+                </p>
+              </div>
+              <StudyLogicVerification />
             </div>
           )}
 
