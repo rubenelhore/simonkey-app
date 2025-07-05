@@ -22,30 +22,98 @@
   font-family: 'Poppins', sans-serif;
 }
 
-/* Header del mini quiz */
+/* Header del mini quiz - DEPRECATED */
 .mini-quiz-header {
-  background: white;
-  border-bottom: 1px solid var(--mini-quiz-border);
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: none; /* Ocultando el header antiguo */
 }
 
-.mini-quiz-header .header-content {
+/* Nueva información inline del quiz */
+.quiz-info-inline {
   display: flex;
   align-items: center;
-  justify-content: center;
-  max-width: 1200px;
-  margin: 0 auto;
+  justify-content: space-between;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  gap: 20px;
 }
 
-.mini-quiz-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
+.quiz-progress-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: var(--mini-quiz-text-medium);
+  font-weight: 500;
+}
+
+.progress-bar-small {
+  height: 4px;
+  background: #e5e5ea;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-small .progress-fill {
+  height: 100%;
+  background: var(--mini-quiz-primary);
+  transition: width 0.3s ease;
+}
+
+.quiz-timer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--mini-quiz-text-dark);
-  display: flex;
-  align-items: center;
-  gap: 12px;
+}
+
+.quiz-timer-info.warning {
+  color: var(--mini-quiz-warning);
+}
+
+.quiz-timer-info.critical {
+  color: var(--mini-quiz-critical);
+}
+
+.quiz-score-info {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--mini-quiz-primary);
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+  .quiz-info-inline {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .quiz-progress-info {
+    width: 100%;
+    order: 3;
+  }
+  
+  .quiz-timer-info,
+  .quiz-score-info {
+    flex: 1;
+  }
+  
+  .quiz-timer-info {
+    font-size: 14px;
+  }
+  
+  .quiz-score-info {
+    font-size: 16px;
+    text-align: right;
+  }
 }
 
 .mode-badge.mini-quiz {

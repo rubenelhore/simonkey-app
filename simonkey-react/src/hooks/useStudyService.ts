@@ -251,7 +251,10 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           ? limits.lastSmartStudyDate.toDate() 
           : limits.lastSmartStudyDate;
         
+        const lastQuizPassed = limits.lastQuizPassed !== undefined ? limits.lastQuizPassed : true;
+        
         console.log('🔍 lastSmartStudyDate procesado (por cuaderno):', lastSmartStudyDate);
+        console.log('🔍 lastQuizPassed:', lastQuizPassed);
         
         if (!lastSmartStudyDate) {
           console.log('✅ No hay fecha de último estudio inteligente para este cuaderno, disponible');
@@ -265,11 +268,22 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         today.setHours(0, 0, 0, 0);
         lastStudy.setHours(0, 0, 0, 0);
         
-        const isAvailable = today.getTime() !== lastStudy.getTime();
+        // Si el último quiz falló, bloquear hasta el día siguiente
+        const isNewDay = today.getTime() !== lastStudy.getTime();
+        
+        if (!lastQuizPassed) {
+          // Si el quiz falló, solo permitir si es un nuevo día
+          console.log('❌ Último quiz fallido. Solo disponible en un nuevo día:', isNewDay);
+          return isNewDay;
+        }
+        
+        // Si el quiz pasó, usar la lógica normal
+        const isAvailable = isNewDay;
         
         console.log('🔍 Cálculo de disponibilidad de estudio inteligente (por cuaderno):', {
           today: today.toISOString(),
           lastStudy: lastStudy.toISOString(),
+          lastQuizPassed: lastQuizPassed,
           isAvailable: isAvailable
         });
         
@@ -311,11 +325,11 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
    * Actualizar uso de estudio inteligente (límite de frecuencia) - POR CUADERNO
    */
   const updateSmartStudyUsage = useCallback(
-    async (userId: string, notebookId: string): Promise<void> => {
+    async (userId: string, notebookId: string, quizPassed: boolean = true): Promise<void> => {
       try {
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
-        console.log('🔄 Actualizando límites de estudio inteligente por cuaderno para cuaderno:', notebookId);
+        console.log('🔄 Actualizando límites de estudio inteligente por cuaderno para cuaderno:', notebookId, 'Quiz pasado:', quizPassed);
         // CORRECCIÓN: Usar un solo documento con campos separados
         const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
         await setDoc(notebookLimitsRef, {
@@ -323,6 +337,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           notebookId,
           lastSmartStudyDate: new Date(),
           smartStudyCountToday: 1,
+          lastQuizPassed: quizPassed, // Guardar si el quiz fue aprobado o no
           updatedAt: serverTimestamp()
         }, { merge: true });
         console.log('✅ Límites de estudio inteligente por cuaderno actualizados');

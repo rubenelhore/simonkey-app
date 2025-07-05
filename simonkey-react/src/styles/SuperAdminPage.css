@@ -1115,3 +1115,259 @@
     opacity: 1;
   }
 } 
+
+/* Estilos para la sección de mensajes */
+.messages-tab {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.messages-container {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  height: calc(100vh - 250px);
+}
+
+.messages-list {
+  border-right: 1px solid #eee;
+  overflow-y: auto;
+  background: #f8f9fa;
+}
+
+.messages-list h3 {
+  padding: 20px;
+  margin: 0;
+  background: white;
+  border-bottom: 1px solid #eee;
+  font-size: 18px;
+  color: #333;
+}
+
+.no-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.no-messages i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.messages-items {
+  padding: 0;
+}
+
+.message-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.message-item:hover {
+  background: #f0f7ff;
+}
+
+.message-item.unread {
+  background: #fff9e6;
+  font-weight: 500;
+}
+
+.message-item.selected {
+  background: #e8f0fe;
+  border-left: 3px solid #667eea;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.message-from {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff3b30;
+  border-radius: 50%;
+}
+
+.message-date {
+  font-size: 13px;
+  color: #666;
+}
+
+.message-subject {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.message-preview {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-detail {
+  padding: 0;
+  background: white;
+  overflow-y: auto;
+}
+
+.message-detail-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.close-detail {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-detail:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.message-detail-content {
+  padding: 24px 32px;
+}
+
+.message-detail-content h3 {
+  margin: 0 0 20px 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.message-info {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.message-info p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.message-info strong {
+  color: #333;
+  margin-right: 8px;
+}
+
+.message-body {
+  background: white;
+  padding: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.message-body p {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.message-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.message-actions .btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-actions .btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.message-actions .btn-primary:hover {
+  background: #5a67d8;
+}
+
+.message-actions .btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.message-actions .btn-secondary:hover {
+  background: #5a6268;
+}
+
+.message-actions .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.message-actions .btn-danger:hover {
+  background: #c82333;
+}
+
+/* Badge de mensajes no leídos en el tab */
+.unread-badge {
+  background-color: #ff3b30;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 8px;
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .messages-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  
+  .messages-list {
+    border-right: none;
+    border-bottom: 1px solid #eee;
+    max-height: 300px;
+  }
+  
+  .message-detail {
+    min-height: 400px;
+  }
+}

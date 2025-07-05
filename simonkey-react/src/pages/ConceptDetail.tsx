@@ -71,10 +71,10 @@ const ConceptDetail: React.FC = () => {
   };
   
   // Usar el hook para detectar el tipo de usuario
-  const { isSchoolStudent } = useUserType();
+  const { isSchoolUser } = useUserType();
   
   // Log para debug
-  console.log('🎓 ConceptDetail - isSchoolStudent:', isSchoolStudent);
+  console.log('🎓 ConceptDetail - isSchoolUser:', isSchoolUser);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,9 +85,9 @@ const ConceptDetail: React.FC = () => {
       }
   
       try {
-        // Use school collections for school students
-        const notebooksCollection = isSchoolStudent ? 'schoolNotebooks' : 'notebooks';
-        const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        // Use school collections for all school users (students, teachers, admins)
+        const notebooksCollection = isSchoolUser ? 'schoolNotebooks' : 'notebooks';
+        const conceptsCollection = isSchoolUser ? 'schoolConcepts' : 'conceptos';
         
         const cuadernoRef = doc(db, notebooksCollection, notebookId);
         const conceptoRef = doc(db, conceptsCollection, conceptoId);
@@ -117,7 +117,7 @@ const ConceptDetail: React.FC = () => {
         
         // IMPORTANTE: NO actualizar el total aquí para school students
         // El listener se encargará de contar TODOS los conceptos de TODOS los documentos
-        if (!isSchoolStudent) {
+        if (!isSchoolUser) {
           setTotalConcepts(conceptos.length);
         }
         
@@ -192,7 +192,7 @@ const ConceptDetail: React.FC = () => {
     };
     
     fetchData();
-  }, [notebookId, conceptoId, index, autoReadEnabled, isSchoolStudent]);
+  }, [notebookId, conceptoId, index, autoReadEnabled, isSchoolUser]);
 
   // Nuevo useEffect para actualizar totalConcepts cuando cambien los parámetros
   useEffect(() => {
@@ -200,7 +200,7 @@ const ConceptDetail: React.FC = () => {
       if (!notebookId) return;
       
       try {
-        if (isSchoolStudent) {
+        if (isSchoolUser) {
           // Para estudiantes escolares, contar TODOS los conceptos de TODOS los documentos
           const conceptsCollection = 'schoolConcepts';
           const q = query(
@@ -236,7 +236,7 @@ const ConceptDetail: React.FC = () => {
     };
 
     updateTotalConcepts();
-  }, [conceptoId, notebookId, isSchoolStudent]);
+  }, [conceptoId, notebookId, isSchoolUser]);
 
   // Listener en tiempo real para detectar cambios en TODOS los documentos de conceptos del cuaderno
   useEffect(() => {
@@ -245,7 +245,7 @@ const ConceptDetail: React.FC = () => {
     console.log('🔍 Iniciando listener para TODOS los conceptos del cuaderno:', notebookId);
     
     // Crear query para todos los documentos de conceptos del cuaderno
-    const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+    const conceptsCollection = isSchoolUser ? 'schoolConcepts' : 'conceptos';
     const conceptosQuery = query(
       collection(db, conceptsCollection),
       where('cuadernoId', '==', notebookId)
@@ -283,7 +283,7 @@ const ConceptDetail: React.FC = () => {
       console.log('🔍 Desconectando listener para cuaderno:', notebookId);
       unsubscribe();
     };
-  }, [notebookId, isSchoolStudent]);
+  }, [notebookId, isSchoolUser]);
 
   useEffect(() => {
     if (cuaderno && cuaderno.color) {
@@ -356,7 +356,7 @@ const ConceptDetail: React.FC = () => {
       if (!conceptoId) return;
       
       // Use the correct collection for school students
-      const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      const conceptsCollection = isSchoolUser ? 'schoolConcepts' : 'conceptos';
       const conceptoRef = doc(db, conceptsCollection, conceptoId);
       const conceptoSnap = await getDoc(conceptoRef);
       
@@ -392,7 +392,7 @@ const ConceptDetail: React.FC = () => {
     if (!notebookId || !conceptoId || !concepto) return;
     
     // Prevent school students from deleting concepts
-    if (isSchoolStudent) {
+    if (isSchoolUser) {
       alert('Como estudiante escolar, no puedes eliminar conceptos.');
       return;
     }
@@ -443,7 +443,7 @@ const ConceptDetail: React.FC = () => {
 
   const handleEditConcept = () => {
     // Prevent school students from editing concepts
-    if (isSchoolStudent) {
+    if (isSchoolUser) {
       alert('Como estudiante escolar, no puedes editar conceptos.');
       return;
     }
@@ -458,7 +458,7 @@ const ConceptDetail: React.FC = () => {
     if (!editedConcept || !notebookId || !conceptoId) return;
     
     // Prevent school students from saving edits
-    if (isSchoolStudent) {
+    if (isSchoolUser) {
       alert('Como estudiante escolar, no puedes guardar cambios en conceptos.');
       return;
     }
@@ -504,7 +504,7 @@ const ConceptDetail: React.FC = () => {
     if (!notebookId || !conceptoId || !concepto) return;
     
     // Prevent school students from saving notes
-    if (isSchoolStudent) {
+    if (isSchoolUser) {
       alert('Como estudiante escolar, no puedes guardar notas personales.');
       return;
     }
@@ -613,7 +613,7 @@ const ConceptDetail: React.FC = () => {
         );
         
         // IMPORTANTE: Actualizar totalConcepts incluso cuando usamos conceptos precargados
-        const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        const conceptsCollection = isSchoolUser ? 'schoolConcepts' : 'conceptos';
         const conceptoRef = doc(db, conceptsCollection, conceptoId as string);
         const conceptoSnap = await getDoc(conceptoRef);
         if (conceptoSnap.exists()) {
@@ -816,7 +816,7 @@ const ConceptDetail: React.FC = () => {
                 </div>
                 
                 {/* Solo mostrar acciones de edición para usuarios no escolares */}
-                {!isSchoolStudent && (
+                {!isSchoolUser && (
                   <div className="concept-actions">
                     <button 
                       className="edit-concept-button"

@@ -29,7 +29,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { isSuperAdmin, subscription } = useUserType();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isHelpSubmenuOpen, setIsHelpSubmenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -94,13 +93,11 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const toggleMenu = () => {
     setMobileMenuOpen(!isMobileMenuOpen);
     if (isMobileMenuOpen) {
-      setIsHelpSubmenuOpen(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      setIsHelpSubmenuOpen(false);
       await signOut(auth);
       navigate('/');
     } catch (error) {
@@ -110,7 +107,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleOpenUpgradeModal = () => {
     setMobileMenuOpen(false);
-    setIsHelpSubmenuOpen(false);
     setIsUpgradeModalOpen(true);
   };
 
@@ -119,27 +115,24 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   };
 
   const handleProfileClick = () => {
-    setIsHelpSubmenuOpen(false);
     navigate('/profile');
   };
 
   const handleVoiceSettingsClick = () => {
-    setIsHelpSubmenuOpen(false);
     navigate('/settings/voice');
   };
 
   const handleSuperAdminClick = () => {
-    setIsHelpSubmenuOpen(false);
     navigate('/super-admin');
   };
 
   const handleCalendarClick = () => {
-    setIsHelpSubmenuOpen(false);
     navigate('/calendar');
   };
 
-  const toggleHelpSubmenu = () => {
-    setIsHelpSubmenuOpen(!isHelpSubmenuOpen);
+  const handleHelpClick = () => {
+    navigate('/contact');
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -236,22 +229,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               <i className="fas fa-calendar-alt"></i>
               <span>Calendario</span>
             </button>
-            <button className="side-menu-button help-button" onClick={toggleHelpSubmenu}>
+            <button className="side-menu-button help-button" onClick={handleHelpClick}>
               <i className="fas fa-question-circle"></i> 
               <span>Ayuda</span>
             </button>
-            {isHelpSubmenuOpen && (
-              <div className="help-submenu">
-                <button className="side-menu-button submenu-button">
-                  <i className="fas fa-headset"></i> 
-                  <span>Soporte</span>
-                </button>
-                <button className="side-menu-button submenu-button">
-                  <i className="fas fa-book"></i> 
-                  <span>Guía de usuario</span>
-                </button>
-              </div>
-            )}
             {isFreeUser && (
               <button className="side-menu-button upgrade-pro-button" onClick={handleOpenUpgradeModal}>
                 <i className="fas fa-star"></i>

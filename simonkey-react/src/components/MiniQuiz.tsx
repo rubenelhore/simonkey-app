@@ -576,45 +576,27 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
     return (
       <div className="mini-quiz-session-container">
-        {/* Header con progreso y timer */}
-        <div className="mini-quiz-header">
-          <div className="mini-quiz-progress">
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <div className="progress-text">
-              Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}
-            </div>
-          </div>
-          
-          {/* Timer */}
-          <div className={`mini-quiz-timer ${timerClass}`}>
-            <div className="timer-display">
-              <i className="fas fa-clock"></i>
-              <span className="timer-text">{formattedTime}</span>
-            </div>
-            <div className="timer-progress">
-              <div 
-                className="timer-progress-fill" 
-                style={{ 
-                  width: `${progress}%`,
-                  backgroundColor: timerColor
-                }}
-              ></div>
-            </div>
-          </div>
-          
-          <div className="mini-quiz-score">
-            <span className="score-label">Puntuación:</span>
-            <span className="score-value">{score}/10</span>
-          </div>
-        </div>
+        {/* Moviendo el contenido del header directamente al contenedor de la pregunta */}
 
         {/* Pregunta */}
         <div className="mini-quiz-question-container">
+          {/* Info del quiz integrada en el contenedor */}
+          <div className="quiz-info-inline">
+            <div className="quiz-progress-info">
+              <span className="progress-text">Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}</span>
+              <div className="progress-bar-small">
+                <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+              </div>
+            </div>
+            <div className={`quiz-timer-info ${timerClass}`}>
+              <i className="fas fa-clock"></i>
+              <span>{formattedTime}</span>
+            </div>
+            <div className="quiz-score-info">
+              <span>{score}/10</span>
+            </div>
+          </div>
+          
           <div className="question-definition">
             <h3>Definición:</h3>
             <p>{question.definition}</p>

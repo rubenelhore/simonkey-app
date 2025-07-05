@@ -563,28 +563,27 @@ const Materias: React.FC = () => {
 
           {/* Lista de materias */}
           <div className="materias-list-section">
-            {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 ? (
+            <MateriaList 
+              materias={adminMaterias}
+              onDeleteMateria={handleDelete}
+              onEditMateria={handleEdit}
+              onColorChange={handleColorChange}
+              onCreateMateria={handleCreate}
+              onViewMateria={handleView}
+              showCreateButton={!!selectedTeacher && selectedStudents.length > 0}
+              selectedCategory={null}
+              showCategoryModal={false}
+              onCloseCategoryModal={() => {}}
+              onClearSelectedCategory={() => {}}
+              onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
+              isAdminView={true}
+            />
+            {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 && (
               <div className="no-materias-message">
                 <i className="fas fa-info-circle"></i>
                 <p>No hay materias que incluyan al profesor seleccionado y todos los estudiantes seleccionados.</p>
                 <p className="hint">Crea una nueva materia para asignarla a estos estudiantes.</p>
               </div>
-            ) : (
-              <MateriaList 
-                materias={adminMaterias}
-                onDeleteMateria={handleDelete}
-                onEditMateria={handleEdit}
-                onColorChange={handleColorChange}
-                onCreateMateria={handleCreate}
-                onViewMateria={handleView}
-                showCreateButton={!!selectedTeacher}
-                selectedCategory={null}
-                showCategoryModal={false}
-                onCloseCategoryModal={() => {}}
-                onClearSelectedCategory={() => {}}
-                onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
-                isAdminView={true}
-              />
             )}
           </div>
         </main>

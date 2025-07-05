@@ -49,10 +49,25 @@ interface User {
   maxNotebooks?: number;
 }
 
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: Date;
+  read: boolean;
+  status: 'pending' | 'responded' | 'archived';
+  userId?: string | null;
+}
+
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, userProfile, loading: userTypeLoading } = useUserType();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('schoolLinking');
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncLoading, setSyncLoading] = useState(false);
@@ -165,6 +180,43 @@ const SuperAdminPage: React.FC = () => {
     return () => {
       console.log('🔍 SuperAdminPage - Limpiando listener de usuarios');
       usersUnsubscribe();
+    };
+  }, [isSuperAdmin]);
+
+  // Listener en tiempo real para mensajes de contacto
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+
+    console.log('📨 SuperAdminPage - Configurando listener para mensajes de contacto');
+
+    const messagesUnsubscribe = onSnapshot(
+      query(collection(db, 'contactMessages'), where('status', '!=', 'archived')),
+      (snapshot) => {
+        const messagesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date()
+        })) as ContactMessage[];
+        
+        // Ordenar por fecha de creación descendente (más recientes primero)
+        messagesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        
+        setMessages(messagesData);
+        
+        // Contar mensajes no leídos
+        const unread = messagesData.filter(msg => !msg.read).length;
+        setUnreadCount(unread);
+        
+        console.log(`📨 Total mensajes: ${messagesData.length}, No leídos: ${unread}`);
+      },
+      (error) => {
+        console.error('Error al cargar mensajes:', error);
+      }
+    );
+
+    return () => {
+      console.log('📨 Limpiando listener de mensajes');
+      messagesUnsubscribe();
     };
   }, [isSuperAdmin]);
 
@@ -665,6 +717,64 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
+  // Funciones para manejar mensajes
+  const handleMarkAsRead = async (messageId: string) => {
+    try {
+      await updateDoc(doc(db, 'contactMessages', messageId), {
+        read: true,
+        readAt: serverTimestamp()
+      });
+      console.log('✅ Mensaje marcado como leído');
+    } catch (error) {
+      console.error('Error al marcar mensaje como leído:', error);
+    }
+  };
+
+  const handleArchiveMessage = async (messageId: string) => {
+    try {
+      await updateDoc(doc(db, 'contactMessages', messageId), {
+        status: 'archived',
+        archivedAt: serverTimestamp()
+      });
+      setSelectedMessage(null);
+      showNotification('Mensaje archivado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al archivar mensaje:', error);
+      showNotification('Error al archivar mensaje', 'error');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este mensaje permanentemente?')) {
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'contactMessages', messageId));
+      setSelectedMessage(null);
+      showNotification('Mensaje eliminado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al eliminar mensaje:', error);
+      showNotification('Error al eliminar mensaje', 'error');
+    }
+  };
+
+  const formatMessageDate = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) {
+      return `Hoy ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (days === 1) {
+      return `Ayer ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (days < 7) {
+      return `Hace ${days} días`;
+    } else {
+      return date.toLocaleDateString('es-ES');
+    }
+  };
+
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -698,12 +808,14 @@ const SuperAdminPage: React.FC = () => {
 
       <div className="super-admin-content">
         <nav className="admin-tabs">
+          {/* Ocultado por ahora - gestión directa en Firebase
           <button 
             className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
           >
             <i className="fas fa-users"></i> Usuarios
           </button>
+          */}
           <button 
             className={`tab-button ${activeTab === 'schoolLinking' ? 'active' : ''}`}
             onClick={() => setActiveTab('schoolLinking')}
@@ -715,6 +827,22 @@ const SuperAdminPage: React.FC = () => {
             onClick={() => setActiveTab('schoolCreation')}
           >
             <i className="fas fa-plus-circle"></i> Creación Escolar
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'messages' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('messages');
+              // Marcar mensajes como leídos cuando se abre la pestaña
+              messages.filter(m => !m.read && selectedMessage?.id === m.id).forEach(m => {
+                handleMarkAsRead(m.id);
+              });
+            }}
+          >
+            <i className="fas fa-envelope"></i> 
+            Mensajes
+            {unreadCount > 0 && (
+              <span className="unread-badge">{unreadCount}</span>
+            )}
           </button>
           {/* Temporalmente oculto
           <button 
@@ -932,6 +1060,99 @@ const SuperAdminPage: React.FC = () => {
           {/* Tab de Creación Escolar */}
           {activeTab === 'schoolCreation' && (
             <SchoolCreation onRefresh={loadData} />
+          )}
+
+          {/* Tab de Mensajes */}
+          {activeTab === 'messages' && (
+            <div className="messages-tab">
+              <div className="messages-container">
+                <div className="messages-list">
+                  <h3>Mensajes de Contacto</h3>
+                  {messages.length === 0 ? (
+                    <div className="no-messages">
+                      <i className="fas fa-inbox"></i>
+                      <p>No hay mensajes</p>
+                    </div>
+                  ) : (
+                    <div className="messages-items">
+                      {messages.map(message => (
+                        <div 
+                          key={message.id} 
+                          className={`message-item ${!message.read ? 'unread' : ''} ${selectedMessage?.id === message.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedMessage(message);
+                            if (!message.read) {
+                              handleMarkAsRead(message.id);
+                            }
+                          }}
+                        >
+                          <div className="message-header">
+                            <div className="message-from">
+                              <strong>{message.name}</strong>
+                              {!message.read && <span className="unread-dot"></span>}
+                            </div>
+                            <div className="message-date">{formatMessageDate(message.createdAt)}</div>
+                          </div>
+                          <div className="message-subject">{message.subject}</div>
+                          <div className="message-preview">{message.message.substring(0, 80)}...</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {selectedMessage && (
+                  <div className="message-detail">
+                    <div className="message-detail-header">
+                      <button 
+                        className="close-detail"
+                        onClick={() => setSelectedMessage(null)}
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                    <div className="message-detail-content">
+                      <h3>Detalle del Mensaje</h3>
+                      <div className="message-info">
+                        <p><strong>De:</strong> {selectedMessage.name}</p>
+                        <p><strong>Email:</strong> <a href={`mailto:${selectedMessage.email}`}>{selectedMessage.email}</a></p>
+                        <p><strong>Asunto:</strong> {
+                          selectedMessage.subject === 'soporte' ? 'Soporte técnico' :
+                          selectedMessage.subject === 'ventas' ? 'Información de precios' :
+                          selectedMessage.subject === 'feedback' ? 'Sugerencias' :
+                          selectedMessage.subject === 'otro' ? 'Otro' :
+                          selectedMessage.subject
+                        }</p>
+                        <p><strong>Fecha:</strong> {selectedMessage.createdAt.toLocaleString('es-ES')}</p>
+                      </div>
+                      <div className="message-body">
+                        <p>{selectedMessage.message}</p>
+                      </div>
+                      <div className="message-actions">
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => window.location.href = `mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
+                        >
+                          <i className="fas fa-reply"></i> Responder por Email
+                        </button>
+                        <button 
+                          className="btn btn-secondary"
+                          onClick={() => handleArchiveMessage(selectedMessage.id)}
+                        >
+                          <i className="fas fa-archive"></i> Archivar
+                        </button>
+                        <button 
+                          className="btn btn-danger"
+                          onClick={() => handleDeleteMessage(selectedMessage.id)}
+                        >
+                          <i className="fas fa-trash"></i> Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Tab de Sincronización Escolar - Temporalmente oculto

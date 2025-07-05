@@ -508,14 +508,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
 
   return (
     <div className="school-linking-verification">
-      <div className="verification-header">
-        <h2>🔗 Verificación de Vinculación Escolar</h2>
-        <p className="verification-description">
-          Visualiza las conexiones jerárquicas entre las diferentes entidades del sistema escolar.
-          Selecciona elementos en orden para construir el árbol de vinculación.
-        </p>
-      </div>
-
       <div className="verification-content">
         {/* Selectores jerárquicos */}
         <div className="selection-panel">
@@ -710,48 +702,6 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
               ))}
             </div>
           )}
-        </div>
-
-        {/* Información de estadísticas */}
-        <div className="statistics-panel">
-          <h3>📊 Estadísticas del Sistema</h3>
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-icon">🏫</span>
-              <span className="stat-label">Instituciones</span>
-              <span className="stat-value">{entityCounts.institutions}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">👨‍💼</span>
-              <span className="stat-label">Administradores</span>
-              <span className="stat-value">{entityCounts.admins}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">👨‍🏫</span>
-              <span className="stat-label">Profesores</span>
-              <span className="stat-value">{entityCounts.teachers}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">📚</span>
-              <span className="stat-label">Materias</span>
-              <span className="stat-value">{entityCounts.subjects}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">📖</span>
-              <span className="stat-label">Cuadernos</span>
-              <span className="stat-value">{entityCounts.notebooks}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">👨‍🎓</span>
-              <span className="stat-label">Alumnos</span>
-              <span className="stat-value">{entityCounts.students}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">👨‍👩‍👧‍👦</span>
-              <span className="stat-label">Tutores</span>
-              <span className="stat-value">{entityCounts.tutors}</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

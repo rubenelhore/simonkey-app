@@ -719,6 +719,7 @@ const StudyModePage = () => {
         // Mostrar Mini Quiz para validar el estudio inteligente
         setShowMiniQuiz(true);
         setSessionActive(false);
+        // NO marcar sessionComplete aquí para evitar mostrar la pantalla de resumen prematuramente
         return; // No completar la sesión aún
       }
       
@@ -767,7 +768,7 @@ const StudyModePage = () => {
         console.log('✅ Mini Quiz aprobado. Validando estudio inteligente...');
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-        await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id);
+        await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id, true);
         setStudySessionValidated(true);
         
         // Marcar la sesión como validada en Firestore
@@ -798,7 +799,10 @@ const StudyModePage = () => {
           `Estudio inteligente falló validación con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
         );
         
-        showFeedback('warning', `Tu calificación fue de ${score}/10. Necesitas al menos 8/10 para validar el estudio inteligente.`);
+        // Guardar que el quiz falló para bloquear hasta mañana
+        await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id, false);
+        
+        showFeedback('warning', `Tu calificación fue de ${score}/10. Necesitas al menos 8/10 para validar el estudio inteligente. Podrás intentar nuevamente mañana.`);
       }
       
       // Completar la sesión (con o sin validación)
@@ -1424,7 +1428,7 @@ const StudyModePage = () => {
             </div>
           )}
           
-          {sessionComplete && (
+          {sessionComplete && !showMiniQuiz && (
             <div className="study-mode-container smart session-complete-bg">
               <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
               <div className="session-complete-card">

@@ -26,6 +26,19 @@
     pointer-events: none;
   }
   
+  /* Transition state to hide content during concept change */
+  .swipeable-card.transitioning .card-inner {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+  }
+  
+  /* Ensure lock display is visible when not transitioning */
+  .swipeable-card:not(.transitioning) .lock-display {
+    opacity: 1;
+    transition: opacity 0.3s ease-in;
+  }
+  
   .card-inner {
     position: relative;
     width: 100%;

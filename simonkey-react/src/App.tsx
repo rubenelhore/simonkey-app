@@ -708,7 +708,7 @@ const AppContent: React.FC = () => {
         />
         <Route path="/calendar" element={<CalendarPage />} />
       </Routes>
-      {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') ? <MobileNavigation /> : null)}
+      {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') && location.pathname !== '/super-admin' ? <MobileNavigation /> : null)}
       {/* Sistema de gestión de cookies - siempre visible */}
       <CookieManager />
       {/* <AuthDiagnostic /> */}

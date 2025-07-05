@@ -31,23 +31,36 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   const [lockTimer, setLockTimer] = useState<number>(5);
   const [isLocked, setIsLocked] = useState(false);
   const [canEvaluate, setCanEvaluate] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [responseCount, setResponseCount] = useState(0);
   
   // Reset flipped state when concept changes
   useEffect(() => {
-    setFlipped(false);
-    setIsLocked(false);
-    setCanEvaluate(false);
-    setLockTimer(5);
-  }, [concept.id]);
+    // Start transition to hide content
+    setIsTransitioning(true);
+    
+    // Wait a bit before resetting states to prevent flash of content
+    setTimeout(() => {
+      setFlipped(false);
+      setCanEvaluate(false);
+      setLockTimer(5);
+      
+      // End transition after states are reset
+      setTimeout(() => {
+        setIsTransitioning(false);
+        // Set isLocked after transition completes for reviewMode
+        if (reviewMode) {
+          setIsLocked(true);
+        }
+      }, 50);
+    }, 100);
+  }, [concept.id, reviewMode, responseCount]);
   
   // Manejar candado de 5 segundos para estudio inteligente
   useEffect(() => {
-    // Solo activar el candado si estamos en modo inteligente
-    if (reviewMode) {
-      console.log('🔒 Activando candado de 5 segundos...');
-      setIsLocked(true);
-      setCanEvaluate(false);
-      setLockTimer(5);
+    // Solo activar el candado si estamos en modo inteligente y está bloqueado
+    if (reviewMode && isLocked && !isTransitioning) {
+      console.log('🔒 Iniciando timer de candado...');
       
       const timer = setInterval(() => {
         setLockTimer(prev => {
@@ -72,7 +85,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
         clearInterval(timer);
       };
     }
-  }, [reviewMode, concept.id]); // Depender de reviewMode y concept.id
+  }, [reviewMode, isLocked, isTransitioning, concept.id]); // Depender de isLocked e isTransitioning
   
   // Log del estado del candado
   useEffect(() => {
@@ -102,10 +115,18 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
       setExitDirection(direction);
       setIsExiting(true);
       
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Ensure card is facing front before transitioning
+        if (flipped) {
+          setFlipped(false);
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
         if (direction === 'right') {
           onResponse(ResponseQuality.MASTERED);
         } else {
+          // Increment response count to force reset if it's the same concept
+          setResponseCount(prev => prev + 1);
           onResponse(ResponseQuality.REVIEW_LATER);
         }
       }, 300);
@@ -189,14 +210,30 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
       <div className="evaluation-buttons">
         <button 
           className="eval-button review-later"
-          onClick={() => onResponse(ResponseQuality.REVIEW_LATER)}
+          onClick={async () => {
+            // Ensure card is facing front before transitioning
+            if (flipped) {
+              setFlipped(false);
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            // Increment response count to force reset if it's the same concept
+            setResponseCount(prev => prev + 1);
+            onResponse(ResponseQuality.REVIEW_LATER);
+          }}
         >
           <i className="fas fa-redo"></i>
           <span>Revisar después</span>
         </button>
         <button 
           className="eval-button mastered"
-          onClick={() => onResponse(ResponseQuality.MASTERED)}
+          onClick={async () => {
+            // Ensure card is facing front before transitioning
+            if (flipped) {
+              setFlipped(false);
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            onResponse(ResponseQuality.MASTERED);
+          }}
         >
           <i className="fas fa-check-double"></i>
           <span>Dominado</span>
@@ -208,7 +245,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   return (
     <div className="swipeable-card-container">
       <div
-        className={`swipeable-card ${flipped ? 'flipped' : ''} ${isLocked ? 'locked' : ''}`}
+        className={`swipeable-card ${flipped ? 'flipped' : ''} ${isLocked ? 'locked' : ''} ${isTransitioning ? 'transitioning' : ''}`}
         style={getCardStyle()}
         {...handlers}
       >

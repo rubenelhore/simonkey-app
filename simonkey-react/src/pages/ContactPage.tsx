@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
 import './ContactPage.css';
 
 const ContactPage: React.FC = () => {
+  const { user, userProfile } = useAuth();
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -11,6 +16,17 @@ const ContactPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+
+  // Actualizar nombre y email cuando el usuario esté autenticado
+  useEffect(() => {
+    if (user && userProfile) {
+      setFormData(prev => ({
+        ...prev,
+        name: userProfile.nombre || userProfile.displayName || '',
+        email: user.email || ''
+      }));
+    }
+  }, [user, userProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -23,9 +39,19 @@ const ContactPage: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulamos el envío del formulario
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Guardar mensaje en Firestore
+      await addDoc(collection(db, 'contactMessages'), {
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        createdAt: serverTimestamp(),
+        read: false, // Para marcar como no leído
+        status: 'pending', // pending, responded, archived
+        userId: user?.uid || null // Guardar el ID del usuario si está autenticado
+      });
+
       setSubmitMessage('¡Gracias por contactarnos! Te responderemos en menos de 24 horas.');
       setFormData({
         name: '',
@@ -36,7 +62,12 @@ const ContactPage: React.FC = () => {
       
       // Limpiar mensaje después de 5 segundos
       setTimeout(() => setSubmitMessage(''), 5000);
-    }, 1500);
+    } catch (error) {
+      console.error('Error al enviar mensaje:', error);
+      setSubmitMessage('Hubo un error al enviar tu mensaje. Por favor intenta de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactMethods = [
@@ -80,6 +111,8 @@ const ContactPage: React.FC = () => {
                   onChange={handleChange}
                   required
                   placeholder="Juan Pérez"
+                  disabled={!!user}
+                  style={user ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                 />
               </div>
 
@@ -93,6 +126,8 @@ const ContactPage: React.FC = () => {
                   onChange={handleChange}
                   required
                   placeholder="juan@ejemplo.com"
+                  disabled={!!user}
+                  style={user ? { backgroundColor: '#f5f5f5', cursor: 'not-allowed' } : {}}
                 />
               </div>
 
