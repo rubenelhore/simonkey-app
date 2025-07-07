@@ -672,8 +672,38 @@
   transition: transform 0.3s ease;
 }
 
+/* Hover deshabilitado para stat-items */
 .stat-item:hover {
-  transform: translateY(-5px);
+  transform: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+  border-color: var(--border-color) !important;
+  background: white !important;
+  cursor: default !important;
+}
+
+.stat-item:hover .stat-icon,
+.stat-item:hover .stat-value,
+.stat-item:hover .stat-label {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+/* Mantener colores originales en hover */
+.stat-item:hover .stat-icon {
+  background: linear-gradient(135deg, var(--quiz-primary), var(--quiz-secondary)) !important;
+}
+
+.stat-item:hover .stat-icon i {
+  color: white !important;
+}
+
+.stat-item:hover .stat-value {
+  color: var(--text-dark) !important;
+}
+
+.stat-item:hover .stat-label {
+  color: var(--text-medium) !important;
 }
 
 .stat-icon {
@@ -720,6 +750,20 @@
 
 .stat-item.bonus .stat-value {
   color: var(--quiz-warning);
+}
+
+/* Hover deshabilitado también para bonus */
+.stat-item.bonus:hover {
+  border-color: var(--quiz-warning) !important;
+  background: linear-gradient(135deg, rgba(255, 149, 0, 0.1), rgba(255, 140, 0, 0.1)) !important;
+}
+
+.stat-item.bonus:hover .stat-icon {
+  background: linear-gradient(135deg, var(--quiz-warning), #FF8C00) !important;
+}
+
+.stat-item.bonus:hover .stat-value {
+  color: var(--quiz-warning) !important;
 }
 
 .results-actions {

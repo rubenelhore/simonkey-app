@@ -366,7 +366,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
     try {
       setSessionActive(false);
-      setSessionComplete(true);
       stop();
       
       // Usar questionsRef.current como fallback si questions está vacío
@@ -799,7 +798,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       <div className="mini-quiz-main">
         {showIntro && renderMiniQuizIntro()}
         {sessionActive && renderCurrentQuestion()}
-        {sessionComplete && renderMiniQuizResults()}
       </div>
     </div>
   );

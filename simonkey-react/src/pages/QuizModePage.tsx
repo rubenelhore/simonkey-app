@@ -55,6 +55,7 @@ const QuizModePage: React.FC = () => {
   const [maxScore, setMaxScore] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(600);
   const [finalScore, setFinalScore] = useState<number>(0);
+  const [highestScore, setHighestScore] = useState<number>(0);
   
   // Estado de UI
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -470,6 +471,50 @@ const QuizModePage: React.FC = () => {
   };
 
   // Función para iniciar el quiz después de la introducción
+  // Función para obtener el score histórico más alto
+  const getHighestScore = async (notebookId: string): Promise<number> => {
+    try {
+      if (!auth.currentUser) return 0;
+      
+      // Obtener el ID efectivo del usuario
+      const effectiveUserData = await getEffectiveUserId();
+      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
+      // Primero intentar obtener de quizStats (más confiable)
+      const quizStatsRef = doc(db, 'users', userId, 'quizStats', notebookId);
+      const quizStatsDoc = await getDoc(quizStatsRef);
+      
+      if (quizStatsDoc.exists()) {
+        const stats = quizStatsDoc.data();
+        const maxScore = stats.maxScore || 0;
+        console.log('🏆 Score más alto desde quizStats:', maxScore);
+        return maxScore;
+      }
+      
+      // Si no existe en quizStats, buscar en quizResults como fallback
+      const quizResultsQuery = query(
+        collection(db, 'users', userId, 'quizResults'),
+        where('notebookId', '==', notebookId)
+      );
+      
+      const quizResultsDocs = await getDocs(quizResultsQuery);
+      let highest = 0;
+      
+      quizResultsDocs.forEach(doc => {
+        const data = doc.data();
+        if (data.finalScore && data.finalScore > highest) {
+          highest = data.finalScore;
+        }
+      });
+      
+      console.log('🏆 Score histórico más alto desde quizResults:', highest);
+      return highest;
+    } catch (error) {
+      console.error('Error obteniendo score histórico:', error);
+      return 0;
+    }
+  };
+  
   const beginQuizSession = async (notebookToUse?: Notebook) => {
     const notebook = notebookToUse || selectedNotebook;
     if (!notebook) {
@@ -481,6 +526,10 @@ const QuizModePage: React.FC = () => {
     
     try {
       console.log('Iniciando sesión de quiz...');
+      
+      // Obtener el score histórico más alto
+      const highest = await getHighestScore(notebook.id);
+      setHighestScore(highest);
       setLoading(true);
       
       console.log('Generando preguntas...');
@@ -710,6 +759,7 @@ const QuizModePage: React.FC = () => {
         accuracy: session.accuracy,
         timeBonus: session.timeBonus,
         finalScore: session.finalScore,
+        completed: true,
         createdAt: Timestamp.now()
       };
 
@@ -1181,15 +1231,13 @@ const QuizModePage: React.FC = () => {
             <div className="stat-label">Tiempo total</div>
           </div>
           
-          {quizSession.timeBonus > 0 && (
-            <div className="stat-item bonus">
-              <div className="stat-icon">
-                <i className="fas fa-bolt"></i>
-              </div>
-              <div className="stat-value">+{quizSession.timeBonus}</div>
-              <div className="stat-label">Bonus por tiempo</div>
+          <div className="stat-item bonus">
+            <div className="stat-icon">
+              <i className="fas fa-trophy"></i>
             </div>
-          )}
+            <div className="stat-value">{Math.max(highestScore, finalScore)}</div>
+            <div className="stat-label">Score más alto</div>
+          </div>
         </div>
       </div>
     );

@@ -573,9 +573,37 @@ const StudyModePage = () => {
       setReviewedConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
       
       if (quality === ResponseQuality.MASTERED) {
-        setMasteredConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
+        setMasteredConceptIds(prev => {
+          const newSet = new Set(Array.from(prev).concat([conceptId]));
+          console.log(`✅ Concepto ${conceptId} agregado a masteredConceptIds. Total dominados: ${newSet.size}`);
+          return newSet;
+        });
+        // Si el concepto estaba en reviewing, quitarlo porque ahora está dominado
+        setReviewingConceptIds(prev => {
+          const newSet = new Set(prev);
+          const wasInReviewing = newSet.has(conceptId);
+          newSet.delete(conceptId);
+          if (wasInReviewing) {
+            console.log(`🔄 Concepto ${conceptId} removido de reviewingConceptIds porque ahora está dominado`);
+          }
+          return newSet;
+        });
       } else {
-        setReviewingConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
+        setReviewingConceptIds(prev => {
+          const newSet = new Set(Array.from(prev).concat([conceptId]));
+          console.log(`📝 Concepto ${conceptId} agregado a reviewingConceptIds. Total en repaso: ${newSet.size}`);
+          return newSet;
+        });
+        // Si el concepto estaba en mastered, quitarlo porque ahora necesita repaso
+        setMasteredConceptIds(prev => {
+          const newSet = new Set(prev);
+          const wasInMastered = newSet.has(conceptId);
+          newSet.delete(conceptId);
+          if (wasInMastered) {
+            console.log(`⚠️ Concepto ${conceptId} removido de masteredConceptIds porque necesita repaso`);
+          }
+          return newSet;
+        });
       }
       
       // Obtener el concepto actual
@@ -670,6 +698,13 @@ const StudyModePage = () => {
   
   // Completar la sesión de estudio
   const completeStudySession = async () => {
+    // Log del estado final de los Sets
+    console.log('📊 RESUMEN FINAL DE LA SESIÓN:');
+    console.log(`   - Conceptos únicos revisados: ${reviewedConceptIds.size}`);
+    console.log(`   - Conceptos dominados: ${masteredConceptIds.size}`);
+    console.log(`   - Conceptos en repaso: ${reviewingConceptIds.size}`);
+    console.log(`   - Total conceptos en el cuaderno: ${allConcepts.length}`);
+    
     if (!sessionId || !auth.currentUser) {
       // Si es una sesión de repaso inmediato, solo mostrar feedback y volver al resumen
       if (allConcepts.length > 0 && sessionReviewQueue.length === 0 && !sessionActive) {
@@ -700,6 +735,9 @@ const StudyModePage = () => {
         sessionId,
         {
           ...metrics,
+          conceptsReviewed: reviewedConceptIds.size,
+          mastered: masteredConceptIds.size,
+          reviewing: reviewingConceptIds.size,
           endTime
         }
       );
@@ -729,7 +767,7 @@ const StudyModePage = () => {
         await studyService.logStudyActivity(
           auth.currentUser.uid,
           'session_completed',
-          `Sesión de estudio libre completada: ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+          `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
         
         setSessionComplete(true);
@@ -778,7 +816,7 @@ const StudyModePage = () => {
         await studyService.logStudyActivity(
           userKey,
           'smart_study_validated',
-          `Estudio inteligente validado con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+          `Estudio inteligente validado con Mini Quiz: ${score}/10. ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
         
         showFeedback('success', `¡Excelente! Has aprobado el Mini Quiz con ${score}/10. Tu estudio inteligente ha sido validado.`);
@@ -796,7 +834,7 @@ const StudyModePage = () => {
         await studyService.logStudyActivity(
           userKey,
           'smart_study_failed_validation',
-          `Estudio inteligente falló validación con Mini Quiz: ${score}/10. ${metrics.conceptsReviewed} conceptos revisados, ${metrics.mastered} dominados`
+          `Estudio inteligente falló validación con Mini Quiz: ${score}/10. ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
         
         // Guardar que el quiz falló para bloquear hasta mañana
@@ -913,8 +951,8 @@ const StudyModePage = () => {
   // Cálculo de progreso de la sesión
   const sessionProgress = useMemo(() => {
     if (metrics.totalConcepts === 0) return 0;
-    return (metrics.conceptsReviewed / metrics.totalConcepts) * 100;
-  }, [metrics.conceptsReviewed, metrics.totalConcepts]);
+    return (reviewedConceptIds.size / metrics.totalConcepts) * 100;
+  }, [reviewedConceptIds.size, metrics.totalConcepts]);
   
   // Funciones para cambiar el modo de estudio
   const handleModeChange = (mode: StudyMode) => {
@@ -1454,12 +1492,12 @@ const StudyModePage = () => {
                 <div className="session-complete-stats">
                   <div className="session-complete-stat-card concepts">
                     <div className="session-complete-stat-icon"><i className="fas fa-book"></i></div>
-                    <div className="session-complete-stat-value">{metrics.conceptsReviewed}</div>
+                    <div className="session-complete-stat-value">{reviewedConceptIds.size}</div>
                     <div className="session-complete-stat-label">Conceptos revisados</div>
                   </div>
                   <div className="session-complete-stat-card mastered">
                     <div className="session-complete-stat-icon"><i className="fas fa-star"></i></div>
-                    <div className="session-complete-stat-value">{metrics.mastered}</div>
+                    <div className="session-complete-stat-value">{masteredConceptIds.size}</div>
                     <div className="session-complete-stat-label">Dominados</div>
                   </div>
                   <div className="session-complete-stat-card time">

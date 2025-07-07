@@ -113,6 +113,9 @@ export const createInitialLearningData = (conceptId: string): LearningData => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Establecer a inicio del día para que coincida con la lógica de comparación
   
+  console.log('🆕 Creando datos de aprendizaje iniciales para concepto:', conceptId);
+  console.log('📅 Fecha inicial de repaso:', today.toLocaleDateString());
+  
   return {
     conceptId,
     easeFactor: 2.5,        // Factor de facilidad inicial
@@ -146,22 +149,33 @@ export const getConceptsReadyForReview = (
   console.log('🔍 DEBUG getConceptsReadyForReview:', {
     totalConcepts: learningDataArray.length,
     today: today.toISOString(),
+    todayFormatted: today.toLocaleDateString(),
     learningData: learningDataArray.map(data => ({
       conceptId: data.conceptId,
       nextReviewDate: data.nextReviewDate.toISOString(),
+      nextReviewFormatted: new Date(data.nextReviewDate).toLocaleDateString(),
       reviewDateNormalized: new Date(data.nextReviewDate).setHours(0, 0, 0, 0),
       todayNormalized: today.getTime(),
-      isReady: new Date(data.nextReviewDate).setHours(0, 0, 0, 0) <= today.getTime()
+      isReady: new Date(data.nextReviewDate).setHours(0, 0, 0, 0) <= today.getTime(),
+      daysUntilReview: Math.ceil((new Date(data.nextReviewDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     }))
   });
   
   const readyConcepts = learningDataArray.filter(data => {
     const reviewDate = new Date(data.nextReviewDate);
     reviewDate.setHours(0, 0, 0, 0);
-    return reviewDate <= today;
+    const isReady = reviewDate <= today;
+    
+    if (!isReady) {
+      const daysUntil = Math.ceil((reviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`⏳ Concepto ${data.conceptId} no está listo. Faltan ${daysUntil} días para su próximo repaso.`);
+    }
+    
+    return isReady;
   });
   
-  console.log('✅ Conceptos listos para repaso:', readyConcepts.length);
+  console.log('✅ Conceptos listos para repaso HOY:', readyConcepts.length);
+  console.log('🚫 Conceptos NO listos para repaso:', learningDataArray.length - readyConcepts.length);
   
   return readyConcepts;
 };

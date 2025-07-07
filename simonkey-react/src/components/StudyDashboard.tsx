@@ -688,12 +688,18 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             <h4>Score General</h4>
           </div>
           <div className="card-content">
-            <div 
-              className="score-value"
-              style={{ color: getScoreColor(dashboardData.generalScore) }}
-            >
-              {formatScore(dashboardData.generalScore)}
-            </div>
+            {dashboardData.totalConcepts === 0 ? (
+              <div className="no-concepts-message">
+                No hay conceptos
+              </div>
+            ) : (
+              <div 
+                className="score-value"
+                style={{ color: getScoreColor(dashboardData.generalScore) }}
+              >
+                {formatScore(dashboardData.generalScore)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -702,21 +708,28 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
           className="dashboard-card study-card"
           onClick={() => onStartSession && dashboardData.isSmartStudyAvailable && onStartSession(StudyMode.SMART)}
           style={{ 
-            cursor: onStartSession && dashboardData.isSmartStudyAvailable ? 'pointer' : 'default',
+            cursor: dashboardData.isSmartStudyAvailable ? 'pointer' : 'not-allowed',
             opacity: dashboardData.isSmartStudyAvailable ? 1 : 0.6
           }}
+          title={!dashboardData.isSmartStudyAvailable ? `Disponible ${formatDate(dashboardData.nextSmartStudyDate)}` : ''}
         >
           <div className="card-header">
             <h4>Estudio Inteligente</h4>
             <span className="session-count">#{dashboardData.completedSmartSessions}</span>
           </div>
           <div className="card-content">
-            <div className={`date-value ${dashboardData.isSmartStudyAvailable ? 'available-text' : ''}`}>
-              {dashboardData.isSmartStudyAvailable 
-                ? 'Disponible'
-                : formatDate(dashboardData.nextSmartStudyDate)
-              }
-            </div>
+            {dashboardData.totalConcepts === 0 ? (
+              <div className="no-concepts-message">
+                No hay conceptos para repasar
+              </div>
+            ) : (
+              <div className={`date-value ${dashboardData.isSmartStudyAvailable ? 'available-text' : ''}`}>
+                {dashboardData.isSmartStudyAvailable 
+                  ? 'Disponible'
+                  : formatDate(dashboardData.nextSmartStudyDate)
+                }
+              </div>
+            )}
           </div>
         </div>
 
@@ -756,18 +769,25 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
             position: 'relative',
             zIndex: 10
           }}
+          title={!dashboardData.isQuizAvailable ? `Disponible ${formatDate(dashboardData.nextQuizDate)}` : ''}
         >
           <div className="card-header" onClick={() => console.log('[QUIZ CLICK] Header clicked!')}>
             <h4 onClick={() => console.log('[QUIZ CLICK] H4 clicked!')}>Quiz</h4>
             <span className="max-score">Max: {dashboardData.maxQuizScore}pts</span>
           </div>
           <div className="card-content">
-            <div className={`date-value ${dashboardData.isQuizAvailable ? 'available-text' : ''}`}>
-              {dashboardData.isQuizAvailable 
-                ? 'Disponible'
-                : formatDate(dashboardData.nextQuizDate)
-              }
-            </div>
+            {dashboardData.totalConcepts === 0 ? (
+              <div className="no-concepts-message">
+                No hay conceptos para repasar
+              </div>
+            ) : (
+              <div className={`date-value ${dashboardData.isQuizAvailable ? 'available-text' : ''}`}>
+                {dashboardData.isQuizAvailable 
+                  ? 'Disponible'
+                  : formatDate(dashboardData.nextQuizDate)
+                }
+              </div>
+            )}
           </div>
         </div>
 
@@ -776,24 +796,31 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
           className="dashboard-card free-study-card"
           onClick={() => onStartSession && dashboardData.isFreeStudyAvailable && onStartSession(StudyMode.FREE)}
           style={{ 
-            cursor: onStartSession && dashboardData.isFreeStudyAvailable ? 'pointer' : 'default',
+            cursor: dashboardData.isFreeStudyAvailable ? 'pointer' : 'not-allowed',
             opacity: dashboardData.isFreeStudyAvailable ? 1 : 0.6
           }}
+          title={!dashboardData.isFreeStudyAvailable && dashboardData.nextFreeStudyDate ? `Disponible ${formatDate(dashboardData.nextFreeStudyDate)}` : ''}
         >
           <div className="card-header">
             <h4>Estudio Libre</h4>
             <span className="session-count">#{dashboardData.completedFreeSessions}</span>
           </div>
           <div className="card-content">
-            <div 
-              className={`availability-status ${dashboardData.isFreeStudyAvailable ? 'available-text' : ''}`}
-              style={{ color: dashboardData.isFreeStudyAvailable ? undefined : getAvailabilityColor(dashboardData.isFreeStudyAvailable) }}
-            >
-              {dashboardData.isFreeStudyAvailable 
-                ? 'Disponible' 
-                : (dashboardData.nextFreeStudyDate ? formatDate(dashboardData.nextFreeStudyDate) : '')
-              }
-            </div>
+            {dashboardData.totalConcepts === 0 ? (
+              <div className="no-concepts-message">
+                No hay conceptos para repasar
+              </div>
+            ) : (
+              <div 
+                className={`availability-status ${dashboardData.isFreeStudyAvailable ? 'available-text' : ''}`}
+                style={{ color: dashboardData.isFreeStudyAvailable ? undefined : getAvailabilityColor(dashboardData.isFreeStudyAvailable) }}
+              >
+                {dashboardData.isFreeStudyAvailable 
+                  ? 'Disponible' 
+                  : (dashboardData.nextFreeStudyDate ? formatDate(dashboardData.nextFreeStudyDate) : '')
+                }
+              </div>
+            )}
           </div>
         </div>
       </div>

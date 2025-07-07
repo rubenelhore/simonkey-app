@@ -656,23 +656,38 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
         
-        const learningRef = collection(db, 'users', effectiveUserId, 'learningData');
-        const learningQuery = query(
-          learningRef,
-          where('notebookId', '==', notebookId)
-        );
+        console.log('🔍 getLearningDataForNotebook - effectiveUserId:', effectiveUserId);
+        console.log('🔍 getLearningDataForNotebook - notebookId:', notebookId);
         
-        const learningSnapshot = await getDocs(learningQuery);
+        // Primero obtener todos los conceptos del cuaderno
+        const allConcepts = await getAllConceptsFromNotebook(userId, notebookId);
+        console.log('📚 Total conceptos en el cuaderno:', allConcepts.length);
+        
         const learningData: LearningData[] = [];
         
-        learningSnapshot.forEach(doc => {
-          const data = doc.data();
-          learningData.push({
-            ...data,
-            nextReviewDate: data.nextReviewDate?.toDate() || new Date(),
-            lastReviewDate: data.lastReviewDate?.toDate() || new Date()
-          } as LearningData);
-        });
+        // Para cada concepto, buscar sus datos de aprendizaje
+        for (const concept of allConcepts) {
+          const learningRef = doc(db, 'users', effectiveUserId, 'learningData', concept.id);
+          const learningDoc = await getDoc(learningRef);
+          
+          if (learningDoc.exists()) {
+            const data = learningDoc.data();
+            learningData.push({
+              ...data,
+              conceptId: concept.id,
+              nextReviewDate: data.nextReviewDate?.toDate() || new Date(),
+              lastReviewDate: data.lastReviewDate?.toDate() || new Date()
+            } as LearningData);
+          }
+        }
+        
+        console.log('📊 Datos de aprendizaje encontrados:', learningData.length);
+        console.log('📊 Detalle de datos de aprendizaje:', learningData.map(d => ({
+          conceptId: d.conceptId,
+          nextReviewDate: d.nextReviewDate.toLocaleDateString(),
+          interval: d.interval,
+          repetitions: d.repetitions
+        })));
         
         return learningData;
       } catch (err) {
@@ -680,7 +695,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         return [];
       }
     },
-    []
+    [getEffectiveUserIdForService]
   );
   
   /**
@@ -782,10 +797,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           !conceptsWithLearningData.has(concept.id)
         );
         console.log('🆕 Conceptos nuevos sin datos de aprendizaje:', newConcepts.length);
+        console.log('🆕 IDs de conceptos nuevos:', newConcepts.map(c => ({ id: c.id, término: c.término })));
         
-        // 5. Obtener conceptos con datos de aprendizaje listos para repaso
+        // 5. Obtener conceptos con datos de aprendizaje listos para repaso HOY
         const readyForReview = getConceptsReadyForReview(learningData);
-        console.log('✅ Conceptos con datos de aprendizaje listos para repaso:', readyForReview.length);
+        console.log('✅ Conceptos con datos de aprendizaje listos para repaso HOY:', readyForReview.length);
+        console.log('✅ IDs de conceptos listos para HOY:', readyForReview.map(d => d.conceptId));
         
         // 6. Si hay conceptos listos para repaso, obtenerlos
         let conceptsForReview: Concept[] = [];
@@ -795,13 +812,15 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           conceptsForReview = conceptsForReview.filter(concept => concept.id && concept.término);
         }
         
-        // 7. Combinar conceptos nuevos + conceptos listos para repaso
+        // 7. IMPORTANTE: Para estudio inteligente, solo mostrar conceptos que:
+        //    - Son nuevos (sin datos de aprendizaje) O
+        //    - Tienen nextReviewDate <= HOY
         const allReviewableConcepts = [...newConcepts, ...conceptsForReview];
         
-        console.log('🎯 Total de conceptos disponibles para estudio inteligente:', allReviewableConcepts.length);
+        console.log('🎯 🚨 ESTUDIO INTELIGENTE - Conceptos disponibles para HOY:', allReviewableConcepts.length);
         console.log('📋 Desglose:', {
           conceptosNuevos: newConcepts.length,
-          conceptosParaRepaso: conceptsForReview.length,
+          conceptosListosParaRepaso: conceptsForReview.length,
           total: allReviewableConcepts.length
         });
         

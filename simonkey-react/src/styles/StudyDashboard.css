@@ -112,16 +112,18 @@
   border-color: #6147FF;
 }
 
-.card-header {
+.study-dashboard .dashboard-card .card-header {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 0 !important;
   min-height: 28px; /* Prevent layout shift */
 }
 
-.card-header h4 {
-  margin: 0;
+.study-dashboard .dashboard-card .card-header h4 {
+  margin: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
   font-size: 1.1rem;
   font-weight: 700;
   font-family: 'Poppins', sans-serif !important;
@@ -172,16 +174,21 @@
   color: #22c55e;
 }
 
-.score-value {
-  font-size: 1.4rem;
-  font-weight: 700;
+.score-card .card-header h4 {
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+}
+
+.study-dashboard .score-card .card-content .score-value {
+  font-size: 3rem !important;
+  font-weight: 800 !important;
   font-family: 'Poppins', sans-serif !important;
   margin-bottom: 6px;
-  color: #22c55e;
+  color: #22c55e !important;
 }
 
 .score-description {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: #6b7280;
 }
 
@@ -193,6 +200,10 @@
 
 .study-card .card-icon {
   color: #3b82f6;
+}
+
+.study-card .card-content {
+  padding-top: 20px;
 }
 
 .date-value {
@@ -218,6 +229,10 @@
   color: #f59e0b;
 }
 
+.quiz-card .card-content {
+  padding-top: 20px;
+}
+
 /* Free Study Card */
 .free-study-card {
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
@@ -226,6 +241,10 @@
 
 .free-study-card .card-icon {
   color: #8b5cf6;
+}
+
+.free-study-card .card-content {
+  padding-top: 20px;
 }
 
 .availability-status {
@@ -239,6 +258,17 @@
 .availability-description {
   font-size: 0.75rem;
   color: #6b7280;
+}
+
+/* Mensaje cuando no hay conceptos */
+.no-concepts-message {
+  font-size: 0.95rem;
+  color: #9ca3af;
+  text-align: center;
+  font-style: italic;
+  font-family: 'Poppins', sans-serif !important;
+  line-height: 1.4;
+  padding: 8px 4px;
 }
 
 /* Información del Mini Quiz */

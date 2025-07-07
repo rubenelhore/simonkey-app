@@ -11,7 +11,7 @@
     align-items: center;
     min-width: 200px;
     max-width: 90%;
-    z-index: 1000;
+    z-index: 1300;
     animation: slideIn 0.3s ease forwards;
   }
   
