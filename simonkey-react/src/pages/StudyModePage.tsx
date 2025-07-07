@@ -48,6 +48,11 @@ const StudyModePage = () => {
     startTime: new Date()
   });
   
+  // Estado para tracking de resultados finales de conceptos (evitar múltiples updates SM-3)
+  const [conceptFinalResults, setConceptFinalResults] = useState<Map<string, ResponseQuality>>(new Map());
+  // Estado para tracking de conceptos ya procesados en primera pasada
+  const [conceptsFirstPass, setConceptsFirstPass] = useState<Set<string>>(new Set());
+  
   // Estado de UI 
   const [loading, setLoading] = useState<boolean>(true);
   const [sessionActive, setSessionActive] = useState<boolean>(false);
@@ -513,6 +518,8 @@ const StudyModePage = () => {
       setReviewedConceptIds(new Set());
       setMasteredConceptIds(new Set());
       setReviewingConceptIds(new Set());
+      setConceptFinalResults(new Map());
+      setConceptsFirstPass(new Set());
       
       // Iniciar timer de sesión
       setSessionTimer(Date.now());
@@ -555,12 +562,24 @@ const StudyModePage = () => {
       const effectiveUserData = await getEffectiveUserId();
       const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      // Actualizar respuesta usando SM-3
-      await studyService.updateConceptResponse(
-        userKey,
-        conceptId,
-        quality
-      );
+      // IMPORTANTE: NO actualizar SM-3 inmediatamente para evitar múltiples actualizaciones
+      // Verificar si es la primera vez que vemos este concepto
+      const isFirstPass = !conceptsFirstPass.has(conceptId);
+      
+      if (isFirstPass) {
+        // Marcar como visto en primera pasada
+        setConceptsFirstPass(prev => new Set(prev).add(conceptId));
+        
+        // Solo guardar el resultado si es la primera vez
+        setConceptFinalResults(prev => {
+          const newMap = new Map(prev);
+          newMap.set(conceptId, quality);
+          console.log(`📝 Primera pasada - Guardando resultado para concepto ${conceptId}: ${quality}`);
+          return newMap;
+        });
+      } else {
+        console.log(`🔄 Repaso inmediato - NO actualizando resultado para concepto ${conceptId}`);
+      }
       
       // Actualizar métricas locales
       setMetrics(prev => ({
@@ -743,6 +762,23 @@ const StudyModePage = () => {
         }
       );
       
+      // IMPORTANTE: Actualizar SM-3 con los resultados finales de la primera pasada
+      const effectiveUserData = await getEffectiveUserId();
+      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
+      console.log('🎯 Actualizando SM-3 con resultados finales de primera pasada...');
+      console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
+      
+      // Actualizar cada concepto con su resultado de primera pasada
+      for (const [conceptId, quality] of conceptFinalResults) {
+        try {
+          await studyService.updateConceptResponse(userKey, conceptId, quality);
+          console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
+        } catch (error) {
+          console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+        }
+      }
+      
       // Actualizar KPIs del usuario
       try {
         console.log('📊 Actualizando KPIs del usuario después de completar sesión de estudio...');
@@ -811,11 +847,13 @@ const StudyModePage = () => {
     if (!auth.currentUser || !selectedNotebook || !sessionId) return;
     
     try {
+      // Obtener userKey al inicio
+      const effectiveUserData = await getEffectiveUserId();
+      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
       if (passed) {
         // Si pasó el Mini Quiz, validar el estudio inteligente
         console.log('✅ Mini Quiz aprobado. Validando estudio inteligente...');
-        const effectiveUserData = await getEffectiveUserId();
-        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id, true);
         setStudySessionValidated(true);
         
@@ -839,8 +877,6 @@ const StudyModePage = () => {
         await studyService.markStudySessionAsValidated(sessionId, false);
         
         // Registrar actividad fallida
-        const effectiveUserData = await getEffectiveUserId();
-        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         await studyService.logStudyActivity(
           userKey,
           'smart_study_failed_validation',
@@ -861,6 +897,20 @@ const StudyModePage = () => {
       const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
       if (totalRepetitions > 0) {
         showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
+      }
+      
+      // IMPORTANTE: Actualizar SM-3 con los resultados finales después del Mini Quiz
+      console.log('🎯 Actualizando SM-3 después del Mini Quiz...');
+      console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
+      
+      // Actualizar cada concepto con su resultado de primera pasada
+      for (const [conceptId, quality] of conceptFinalResults) {
+        try {
+          await studyService.updateConceptResponse(userKey, conceptId, quality);
+          console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
+        } catch (error) {
+          console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+        }
       }
       
       // Actualizar KPIs del usuario después del Mini Quiz
@@ -936,6 +986,8 @@ const StudyModePage = () => {
     setUniqueConceptsCount(0);
     setSessionId(null);
     setSessionTimer(null);
+    setConceptFinalResults(new Map());
+    setConceptsFirstPass(new Set());
     setMetrics({
       totalConcepts: 0,
       conceptsReviewed: 0,
