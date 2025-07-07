@@ -338,7 +338,12 @@
   font-weight: 600;
   color: #374151;
   border-bottom: 2px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
   white-space: nowrap;
+}
+
+.notebooks-table th:last-child {
+  border-right: none;
 }
 
 .notebooks-table tbody tr {
@@ -353,6 +358,11 @@
 .notebooks-table td {
   padding: 12px;
   color: #111827;
+  border-right: 1px solid #e5e7eb;
+}
+
+.notebooks-table td:last-child {
+  border-right: none;
 }
 
 .notebook-name {
@@ -383,6 +393,62 @@
 }
 
 .percentage.mastery {
+  color: #f59e0b;
+}
+
+/* Concepts List Styles */
+.concepts-list {
+  max-width: 200px;
+}
+
+.concepts-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.concept-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.concept-item.top {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.concept-item.low {
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.concept-name {
+  flex: 1;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.concept-percentage {
+  font-weight: 600;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.concept-item.top .concept-percentage {
+  color: #10b981;
+}
+
+.concept-item.low .concept-percentage {
   color: #f59e0b;
 }
 

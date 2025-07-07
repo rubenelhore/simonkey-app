@@ -30,6 +30,9 @@ import './utils/testAuthToken';
 // Importar función de copia a base de datos default
 import './utils/copyUserToDefaultDb';
 
+// Importar función de prueba de KPIs
+import './utils/testKpiService';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

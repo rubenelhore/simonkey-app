@@ -22,6 +22,7 @@ import {
 } from '../utils/quizTimer';
 import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
+import { kpiService } from '../services/kpiService';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
@@ -832,6 +833,15 @@ const QuizModePage: React.FC = () => {
       }
       
       console.log('✅ Estadísticas del cuaderno actualizadas');
+      
+      // Actualizar KPIs del usuario después del quiz
+      try {
+        console.log('📊 Actualizando KPIs del usuario después del quiz...');
+        await kpiService.updateUserKPIs(userId);
+      } catch (kpiError) {
+        console.error('Error actualizando KPIs:', kpiError);
+        // No fallar el quiz por error en KPIs
+      }
     } catch (error) {
       console.error('❌ Error saving quiz results:', error);
       throw error; // Re-lanzar el error para que se maneje en completeQuizSession

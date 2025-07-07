@@ -12,7 +12,11 @@ import {
   faBook,
   faLightbulb,
   faArrowUp,
-  faArrowDown
+  faArrowDown,
+  faPercent,
+  faStopwatch,
+  faUserClock,
+  faGraduationCap
 } from '@fortawesome/free-solid-svg-icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import '../styles/ProgressPage.css';
@@ -22,9 +26,9 @@ interface Materia {
   nombre: string;
 }
 
-interface PositionData {
-  semana: string;
-  posicion: number;
+interface ScoreData {
+  cuaderno: string;
+  scorePromedio: number;
 }
 
 interface StudyTimeData {
@@ -32,18 +36,20 @@ interface StudyTimeData {
   tiempo: number;
 }
 
+interface ConceptoRanking {
+  nombre: string;
+  porcentajeDominio: number;
+}
+
 interface CuadernoData {
   id: string;
   nombre: string;
-  score: number;
-  posicion: number;
-  totalAlumnos: number;
-  conceptos: number;
-  tiempoEstudio: number;
-  estudiosInteligentes: number;
-  porcentajeExito: number;
   porcentajeDominio: number;
-  estudiosLibres: number;
+  tiempoEfectivo: number; // minutos promedio por alumno por concepto
+  tiempoActivo: number; // minutos promedio por alumno por semana
+  estudioPromedio: number; // número de estudios inteligentes promedio por alumno por semana
+  topConceptos: ConceptoRanking[];
+  lowConceptos: ConceptoRanking[];
 }
 
 const SchoolTeacherAnalyticsPage: React.FC = () => {
@@ -69,15 +75,12 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
     { posicion: 8, nombre: 'Laura Jiménez', score: 1780 },
   ];
 
-  const positionHistoryData: PositionData[] = [
-    { semana: 'Sem 1', posicion: 65 },
-    { semana: 'Sem 2', posicion: 62 },
-    { semana: 'Sem 3', posicion: 58 },
-    { semana: 'Sem 4', posicion: 55 },
-    { semana: 'Sem 5', posicion: 52 },
-    { semana: 'Sem 6', posicion: 48 },
-    { semana: 'Sem 7', posicion: 45 },
-    { semana: 'Sem 8', posicion: 43 },
+  // Datos dummy para score promedio por cuaderno
+  const scorePromedioData: ScoreData[] = [
+    { cuaderno: 'Álgebra', scorePromedio: 340 },
+    { cuaderno: 'Cálculo', scorePromedio: 288 },
+    { cuaderno: 'Geometría', scorePromedio: 410 },
+    { cuaderno: 'Estadística', scorePromedio: 243 },
   ];
 
   const studyTimeData: StudyTimeData[] = [
@@ -94,61 +97,98 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
     {
       id: '1',
       nombre: 'Álgebra Lineal',
-      score: 8500,
-      posicion: 3,
-      totalAlumnos: 25,
-      conceptos: 48,
-      tiempoEstudio: 5400,
-      estudiosInteligentes: 180,
-      porcentajeExito: 82,
       porcentajeDominio: 75,
-      estudiosLibres: 120,
+      tiempoEfectivo: 15, // 15 minutos promedio por concepto
+      tiempoActivo: 180, // 180 minutos promedio por semana
+      estudioPromedio: 4.2, // 4.2 estudios inteligentes promedio por semana
+      topConceptos: [
+        { nombre: 'Matrices', porcentajeDominio: 92 },
+        { nombre: 'Determinantes', porcentajeDominio: 88 },
+        { nombre: 'Vectores', porcentajeDominio: 85 },
+        { nombre: 'Sistemas lineales', porcentajeDominio: 83 },
+        { nombre: 'Espacios vectoriales', porcentajeDominio: 81 }
+      ],
+      lowConceptos: [
+        { nombre: 'Transformaciones lineales', porcentajeDominio: 45 },
+        { nombre: 'Eigenvalores', porcentajeDominio: 48 },
+        { nombre: 'Diagonalización', porcentajeDominio: 52 },
+        { nombre: 'Producto interno', porcentajeDominio: 55 },
+        { nombre: 'Ortogonalización', porcentajeDominio: 58 }
+      ]
     },
     {
       id: '2',
       nombre: 'Cálculo Diferencial',
-      score: 7200,
-      posicion: 5,
-      totalAlumnos: 30,
-      conceptos: 36,
-      tiempoEstudio: 4200,
-      estudiosInteligentes: 150,
-      porcentajeExito: 78,
       porcentajeDominio: 68,
-      estudiosLibres: 95,
+      tiempoEfectivo: 18,
+      tiempoActivo: 140,
+      estudioPromedio: 3.5,
+      topConceptos: [
+        { nombre: 'Límites básicos', porcentajeDominio: 90 },
+        { nombre: 'Derivadas simples', porcentajeDominio: 87 },
+        { nombre: 'Regla de la cadena', porcentajeDominio: 82 },
+        { nombre: 'Optimización', porcentajeDominio: 79 },
+        { nombre: 'Tangentes', porcentajeDominio: 77 }
+      ],
+      lowConceptos: [
+        { nombre: 'Series de Taylor', porcentajeDominio: 42 },
+        { nombre: 'Integrales implícitas', porcentajeDominio: 46 },
+        { nombre: 'Aplicaciones físicas', porcentajeDominio: 50 },
+        { nombre: 'Problemas de tasa', porcentajeDominio: 53 },
+        { nombre: 'Derivadas parciales', porcentajeDominio: 56 }
+      ]
     },
     {
       id: '3',
       nombre: 'Geometría Analítica',
-      score: 9100,
-      posicion: 2,
-      totalAlumnos: 22,
-      conceptos: 42,
-      tiempoEstudio: 6300,
-      estudiosInteligentes: 210,
-      porcentajeExito: 88,
       porcentajeDominio: 82,
-      estudiosLibres: 140,
+      tiempoEfectivo: 12,
+      tiempoActivo: 210,
+      estudioPromedio: 5.1,
+      topConceptos: [
+        { nombre: 'Rectas', porcentajeDominio: 95 },
+        { nombre: 'Circunferencias', porcentajeDominio: 92 },
+        { nombre: 'Parábolas', porcentajeDominio: 89 },
+        { nombre: 'Elipses', porcentajeDominio: 86 },
+        { nombre: 'Hipérbolas', porcentajeDominio: 84 }
+      ],
+      lowConceptos: [
+        { nombre: 'Rotación de ejes', porcentajeDominio: 60 },
+        { nombre: 'Superficies 3D', porcentajeDominio: 62 },
+        { nombre: 'Coordenadas polares', porcentajeDominio: 65 },
+        { nombre: 'Ecuaciones paramétricas', porcentajeDominio: 68 },
+        { nombre: 'Transformaciones', porcentajeDominio: 70 }
+      ]
     },
     {
       id: '4',
       nombre: 'Estadística',
-      score: 6800,
-      posicion: 8,
-      totalAlumnos: 28,
-      conceptos: 30,
-      tiempoEstudio: 3600,
-      estudiosInteligentes: 120,
-      porcentajeExito: 72,
       porcentajeDominio: 62,
-      estudiosLibres: 85,
+      tiempoEfectivo: 20,
+      tiempoActivo: 120,
+      estudioPromedio: 2.8,
+      topConceptos: [
+        { nombre: 'Media y mediana', porcentajeDominio: 88 },
+        { nombre: 'Varianza', porcentajeDominio: 82 },
+        { nombre: 'Distribución normal', porcentajeDominio: 78 },
+        { nombre: 'Correlación', porcentajeDominio: 75 },
+        { nombre: 'Probabilidad básica', porcentajeDominio: 73 }
+      ],
+      lowConceptos: [
+        { nombre: 'Pruebas de hipótesis', porcentajeDominio: 38 },
+        { nombre: 'ANOVA', porcentajeDominio: 42 },
+        { nombre: 'Regresión múltiple', porcentajeDominio: 45 },
+        { nombre: 'Intervalos de confianza', porcentajeDominio: 48 },
+        { nombre: 'Distribuciones especiales', porcentajeDominio: 51 }
+      ]
     },
   ];
 
-  const globalScore = cuadernosData.reduce((acc, c) => acc + c.score, 0);
-  const globalPercentil = 85; // Percentil promedio de la clase
-  const globalStudyTime = cuadernosData.reduce((acc, c) => acc + c.tiempoEstudio, 0);
-  const globalSmartStudies = cuadernosData.reduce((acc, c) => acc + c.estudiosInteligentes, 0);
+  // Métricas globales (promedio de todos los cuadernos)
+  const globalDominioConceptos = Math.round(cuadernosData.reduce((acc, c) => acc + c.porcentajeDominio, 0) / cuadernosData.length);
+  const globalTiempoEfectivo = Math.round(cuadernosData.reduce((acc, c) => acc + c.tiempoEfectivo, 0) / cuadernosData.length);
+  const globalTiempoActivo = Math.round(cuadernosData.reduce((acc, c) => acc + c.tiempoActivo, 0) / cuadernosData.length);
+  const globalEstudioPromedio = (cuadernosData.reduce((acc, c) => acc + c.estudioPromedio, 0) / cuadernosData.length).toFixed(1);
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -158,7 +198,6 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
 
   // Generar insights para profesores
   const generateInsights = () => {
-    const avgSuccessRate = cuadernosData.reduce((acc, c) => acc + c.porcentajeExito, 0) / cuadernosData.length;
     const avgMasteryRate = cuadernosData.reduce((acc, c) => acc + c.porcentajeDominio, 0) / cuadernosData.length;
     const totalStudents = 25; // Número promedio de estudiantes
     const activeStudents = Math.floor(totalStudents * 0.85); // 85% de estudiantes activos
@@ -168,9 +207,9 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
         id: 1,
         type: 'class-performance',
         title: 'Rendimiento de la Clase',
-        content: `El promedio de éxito de tu clase es ${avgSuccessRate.toFixed(0)}%, con un dominio promedio del ${avgMasteryRate.toFixed(0)}%.`,
+        content: `El dominio promedio de conceptos en tu clase es del ${avgMasteryRate.toFixed(0)}%, con un tiempo efectivo de ${globalTiempoEfectivo} minutos por concepto.`,
         icon: faChartLine,
-        color: avgSuccessRate > 75 ? 'green' : 'orange'
+        color: avgMasteryRate > 75 ? 'green' : 'orange'
       },
       {
         id: 2,
@@ -193,15 +232,15 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
       <div className="progress-layout">
         <div className="progress-modules-row">
           <div className="progress-module-col">
-            {/* Módulo 1: Score Total de la Clase */}
+            {/* Módulo 1: % Dominio de Conceptos Global */}
             <div className="progress-module kpi-module">
               <div className="kpi-icon icon-trophy">
-                <FontAwesomeIcon icon={faTrophy} />
+                <FontAwesomeIcon icon={faPercent} />
               </div>
               <div className="kpi-content">
-                <h3>Score Total Clase</h3>
-                <p className="kpi-value">{globalScore.toLocaleString()}</p>
-                <span className="kpi-label">puntos acumulados</span>
+                <h3>Dominio de Conceptos</h3>
+                <p className="kpi-value">{globalDominioConceptos}%</p>
+                <span className="kpi-label">promedio global</span>
               </div>
             </div>
 
@@ -254,39 +293,39 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
 
           <div className="progress-modules-right">
             <div className="progress-modules-right-row">
-              {/* Módulo 2: Percentil Promedio de la Clase */}
+              {/* Módulo 2: Tiempo Efectivo de Estudio */}
               <div className="progress-module kpi-module">
                 <div className="kpi-icon icon-percentil">
-                  <FontAwesomeIcon icon={faBullseye} />
+                  <FontAwesomeIcon icon={faStopwatch} />
                 </div>
                 <div className="kpi-content">
-                  <h3>Percentil Promedio</h3>
-                  <p className="kpi-value">{globalPercentil}°</p>
-                  <span className="kpi-label">percentil clase</span>
+                  <h3>Tiempo Efectivo</h3>
+                  <p className="kpi-value">{globalTiempoEfectivo} min</p>
+                  <span className="kpi-label">por concepto</span>
                 </div>
               </div>
 
-              {/* Módulo 3: Tiempo de Estudio Total */}
+              {/* Módulo 3: Tiempo Activo de Estudio */}
               <div className="progress-module kpi-module">
                 <div className="kpi-icon icon-time">
-                  <FontAwesomeIcon icon={faClock} />
+                  <FontAwesomeIcon icon={faUserClock} />
                 </div>
                 <div className="kpi-content">
-                  <h3>Tiempo Total Estudio</h3>
-                  <p className="kpi-value">{formatTime(globalStudyTime)}</p>
-                  <span className="kpi-label">tiempo acumulado</span>
+                  <h3>Tiempo Activo</h3>
+                  <p className="kpi-value">{formatTime(globalTiempoActivo)}</p>
+                  <span className="kpi-label">por alumno/semana</span>
                 </div>
               </div>
 
-              {/* Módulo 4: Estudios Inteligentes Totales */}
+              {/* Módulo 4: Estudios Promedio */}
               <div className="progress-module kpi-module">
                 <div className="kpi-icon icon-brain">
-                  <FontAwesomeIcon icon={faBrain} />
+                  <FontAwesomeIcon icon={faGraduationCap} />
                 </div>
                 <div className="kpi-content">
-                  <h3>Estudios Inteligentes</h3>
-                  <p className="kpi-value">{globalSmartStudies}</p>
-                  <span className="kpi-label">sesiones totales</span>
+                  <h3>Estudios Promedio</h3>
+                  <p className="kpi-value">{globalEstudioPromedio}</p>
+                  <span className="kpi-label">por alumno/semana</span>
                 </div>
               </div>
             </div>
@@ -296,22 +335,15 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
               {/* Gráficos */}
               <div className="charts-container">
                 <div className="chart-section">
-                  <h3><FontAwesomeIcon icon={faChartLine} className="chart-icon" /> Promedio de Calificaciones</h3>
+                  <h3><FontAwesomeIcon icon={faChartLine} className="chart-icon" /> Score Promedio por Cuaderno</h3>
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={positionHistoryData}>
+                    <BarChart data={scorePromedioData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="semana" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="posicion" 
-                        stroke="#8B5CF6" 
-                        strokeWidth={2}
-                        dot={{ fill: '#8B5CF6' }}
-                        name="Promedio %"
-                      />
-                    </LineChart>
+                      <XAxis dataKey="cuaderno" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => `${value} pts`} />
+                      <Bar dataKey="scorePromedio" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
 
@@ -337,30 +369,42 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Cuaderno</th>
-                        <th>Score Total</th>
-                        <th>Ranking</th>
-                        <th>Conceptos</th>
-                        <th>Tiempo Total</th>
-                        <th>E. Inteligentes</th>
-                        <th>% Éxito</th>
                         <th>% Dominio</th>
-                        <th>E. Libres</th>
+                        <th>Tiempo Efectivo</th>
+                        <th>Tiempo Activo</th>
+                        <th>Estudio Promedio</th>
+                        <th>Top 5 Conceptos</th>
+                        <th>Low 5 Conceptos</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cuadernosData.map((cuaderno) => (
                         <tr key={cuaderno.id}>
                           <td className="notebook-name">{cuaderno.nombre}</td>
-                          <td className="score-cell">{cuaderno.score.toLocaleString()}</td>
-                          <td className="position-cell">
-                            Top {cuaderno.posicion}
-                          </td>
-                          <td>{cuaderno.conceptos}</td>
-                          <td>{formatTime(cuaderno.tiempoEstudio)}</td>
-                          <td className="smart-studies">{cuaderno.estudiosInteligentes}</td>
-                          <td className="percentage success">{cuaderno.porcentajeExito}%</td>
                           <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
-                          <td>{cuaderno.estudiosLibres}</td>
+                          <td>{cuaderno.tiempoEfectivo} min</td>
+                          <td>{formatTime(cuaderno.tiempoActivo)}</td>
+                          <td className="smart-studies">{cuaderno.estudioPromedio}</td>
+                          <td>
+                            <div className="concepts-wrapper">
+                              {cuaderno.topConceptos.map((concepto, idx) => (
+                                <div key={idx} className="concept-item top">
+                                  <span className="concept-name">{concepto.nombre}</span>
+                                  <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="concepts-wrapper">
+                              {cuaderno.lowConceptos.map((concepto, idx) => (
+                                <div key={idx} className="concept-item low">
+                                  <span className="concept-name">{concepto.nombre}</span>
+                                  <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -26,6 +26,7 @@ import SchoolCreation from '../components/SchoolCreation';
 import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
 import SchoolMigrationTool from '../components/SchoolMigrationTool';
 import StudyLogicVerification from '../components/StudyLogicVerification';
+import DashboardVerification from '../components/DashboardVerification';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
@@ -868,6 +869,13 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-brain"></i>
             Verificación de Lógica de Estudio
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'dashboardLogic' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboardLogic')}
+          >
+            <i className="fas fa-chart-pie"></i>
+            Verificación de Lógica de Dashboards
+          </button>
         </nav>
 
         <div className="tab-content">
@@ -1459,6 +1467,19 @@ const SuperAdminPage: React.FC = () => {
                 </p>
               </div>
               <StudyLogicVerification />
+            </div>
+          )}
+
+          {/* Tab de Verificación de Lógica de Dashboards */}
+          {activeTab === 'dashboardLogic' && (
+            <div className="dashboard-logic-tab">
+              <div className="tab-header">
+                <h2>📊 Verificación de Lógica de Dashboards</h2>
+                <p className="tab-description">
+                  Visualiza todos los datos y KPIs que conforman el dashboard de cada usuario
+                </p>
+              </div>
+              <DashboardVerification />
             </div>
           )}
 

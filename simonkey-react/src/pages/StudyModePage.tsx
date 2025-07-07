@@ -15,6 +15,7 @@ import Confetti from 'react-confetti';
 import { useUserType } from '../hooks/useUserType';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
+import { kpiService } from '../services/kpiService';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -742,6 +743,15 @@ const StudyModePage = () => {
         }
       );
       
+      // Actualizar KPIs del usuario
+      try {
+        console.log('📊 Actualizando KPIs del usuario después de completar sesión de estudio...');
+        await kpiService.updateUserKPIs(auth.currentUser.uid);
+      } catch (kpiError) {
+        console.error('Error actualizando KPIs:', kpiError);
+        // No fallar la sesión por error en KPIs
+      }
+      
       // IMPORTANTE: Actualizar límites de estudio libre al COMPLETAR la sesión
       if (studyMode === StudyMode.FREE && selectedNotebook) {
         console.log('🔄 Actualizando límites de estudio libre al completar sesión...');
@@ -851,6 +861,15 @@ const StudyModePage = () => {
       const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
       if (totalRepetitions > 0) {
         showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
+      }
+      
+      // Actualizar KPIs del usuario después del Mini Quiz
+      try {
+        console.log('📊 Actualizando KPIs del usuario después del Mini Quiz...');
+        await kpiService.updateUserKPIs(auth.currentUser.uid);
+      } catch (kpiError) {
+        console.error('Error actualizando KPIs:', kpiError);
+        // No fallar por error en KPIs
       }
       
       // Esperar un momento para asegurar que los datos se propaguen en Firestore
