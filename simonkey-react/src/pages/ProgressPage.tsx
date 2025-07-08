@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -12,9 +12,13 @@ import {
   faBook,
   faLightbulb,
   faArrowUp,
-  faArrowDown
+  faArrowDown,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { kpiService } from '../services/kpiService';
+import { auth, db } from '../services/firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import '../styles/ProgressPage.css';
 
 interface Materia {
@@ -47,48 +51,520 @@ interface CuadernoData {
 }
 
 const ProgressPage: React.FC = () => {
-  const [selectedMateria, setSelectedMateria] = useState<string>('matematicas');
+  const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [kpisData, setKpisData] = useState<any>(null);
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [cuadernosReales, setCuadernosReales] = useState<CuadernoData[]>([]);
 
-  // Datos dummy
-  const materias: Materia[] = [
-    { id: 'matematicas', nombre: 'Matemáticas' },
-    { id: 'fisica', nombre: 'Física' },
-    { id: 'quimica', nombre: 'Química' },
-    { id: 'biologia', nombre: 'Biología' },
-  ];
+  // Cargar datos reales de KPIs al montar el componente
+  useEffect(() => {
+    loadKPIsData();
+  }, []);
 
-  const rankingData = [
-    { posicion: 1, nombre: 'Juan Pérez', score: 2450 },
-    { posicion: 2, nombre: 'María García', score: 2380 },
-    { posicion: 3, nombre: 'Carlos López', score: 2290 },
-    { posicion: 4, nombre: 'Ana Martínez', score: 2150 },
-    { posicion: 5, nombre: 'Luis Rodríguez', score: 2050 },
-    { posicion: 6, nombre: 'Tú', score: 1980 },
-    { posicion: 7, nombre: 'Elena Sánchez', score: 1920 },
-    { posicion: 8, nombre: 'Pedro Gómez', score: 1850 },
-  ];
+  // Actualizar cuadernos cuando cambie la materia seleccionada
+  useEffect(() => {
+    if (kpisData && selectedMateria) {
+      processCuadernosData();
+    }
+  }, [selectedMateria, kpisData]);
 
-  const positionHistoryData: PositionData[] = [
-    { semana: 'Sem 1', posicion: 8 },
-    { semana: 'Sem 2', posicion: 7 },
-    { semana: 'Sem 3', posicion: 9 },
-    { semana: 'Sem 4', posicion: 6 },
-    { semana: 'Sem 5', posicion: 6 },
-    { semana: 'Sem 6', posicion: 5 },
-    { semana: 'Sem 7', posicion: 6 },
-    { semana: 'Sem 8', posicion: 6 },
-  ];
+  // Calcular ranking cuando cambien los cuadernos o la materia
+  useEffect(() => {
+    calculateRanking();
+    calculatePositionHistory();
+    calculateWeeklyStudyTime();
+  }, [cuadernosReales, selectedMateria, kpisData]);
 
-  const studyTimeData: StudyTimeData[] = [
-    { dia: 'Lun', tiempo: 45 },
-    { dia: 'Mar', tiempo: 60 },
-    { dia: 'Mié', tiempo: 30 },
-    { dia: 'Jue', tiempo: 75 },
-    { dia: 'Vie', tiempo: 50 },
-    { dia: 'Sáb', tiempo: 90 },
-    { dia: 'Dom', tiempo: 40 },
-  ];
+  const loadKPIsData = async () => {
+    if (!auth.currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('[ProgressPage] Cargando KPIs para usuario:', auth.currentUser.uid);
+      
+      // Obtener KPIs del usuario
+      const kpis = await kpiService.getUserKPIs(auth.currentUser.uid);
+      console.log('[ProgressPage] KPIs obtenidos:', kpis);
+      
+      if (!kpis) {
+        console.log('[ProgressPage] No hay KPIs, actualizando...');
+        // Si no hay KPIs, intentar actualizarlos
+        await kpiService.updateUserKPIs(auth.currentUser.uid);
+        const updatedKpis = await kpiService.getUserKPIs(auth.currentUser.uid);
+        setKpisData(updatedKpis);
+      } else {
+        setKpisData(kpis);
+      }
+      
+      // Cargar materias basándose en los cuadernos del usuario
+      await loadMaterias();
+      
+    } catch (error) {
+      console.error('[ProgressPage] Error cargando KPIs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMaterias = async () => {
+    if (!auth.currentUser) return;
+    
+    try {
+      // Primero, intentar obtener materias directamente
+      const materiasQuery = query(
+        collection(db, 'materias'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      const materiasSnap = await getDocs(materiasQuery);
+      
+      console.log('[ProgressPage] Materias directas encontradas:', materiasSnap.size);
+      
+      const materiasArray: Materia[] = [];
+      
+      if (materiasSnap.size > 0) {
+        // Si hay materias en la colección materias
+        materiasSnap.forEach((doc: any) => {
+          const data = doc.data();
+          console.log('[ProgressPage] Materia data:', { id: doc.id, data });
+          materiasArray.push({
+            id: doc.id,
+            nombre: data.nombre || data.title || 'Sin nombre'
+          });
+        });
+      } else {
+        // Si no hay materias directas, intentar extraerlas de los cuadernos
+        console.log('[ProgressPage] No hay materias directas, buscando en cuadernos...');
+        
+        const notebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+        const notebooksSnap = await getDocs(notebooksQuery);
+        
+        console.log('[ProgressPage] Cuadernos encontrados:', notebooksSnap.size);
+        
+        // Extraer materias únicas de los cuadernos
+        const materiasMap = new Map<string, string>();
+        
+        notebooksSnap.forEach((doc: any) => {
+          const data = doc.data();
+          console.log('[ProgressPage] Notebook completo:', { id: doc.id, ...data });
+          
+          // Buscar el ID de la materia en diferentes campos posibles
+          const materiaId = data.materiaId || data.subjectId || data.subject?.id || null;
+          
+          // Buscar el nombre de la materia en diferentes campos posibles
+          const materiaNombre = data.materiaNombre || 
+                               data.subjectName || 
+                               data.materia || 
+                               data.subject?.nombre || 
+                               data.subject?.name ||
+                               data.subject ||
+                               null;
+          
+          console.log('[ProgressPage] Materia extraída:', { materiaId, materiaNombre });
+          
+          // Si encontramos nombre pero no ID, usar el nombre como ID
+          if (materiaNombre && !materiaId) {
+            const generatedId = materiaNombre.toLowerCase().replace(/\s+/g, '-');
+            materiasMap.set(generatedId, materiaNombre);
+          } else if (materiaId && materiaNombre) {
+            materiasMap.set(materiaId, materiaNombre);
+          } else if (materiaNombre && typeof materiaNombre === 'string') {
+            // Si solo tenemos el nombre como string
+            const generatedId = materiaNombre.toLowerCase().replace(/\s+/g, '-');
+            materiasMap.set(generatedId, materiaNombre);
+          }
+        });
+        
+        // Convertir a array
+        Array.from(materiasMap).forEach(([id, nombre]) => {
+          materiasArray.push({ id, nombre });
+        });
+        
+        // Si no se encontraron materias pero hay cuadernos, crear una materia "General"
+        if (materiasArray.length === 0 && notebooksSnap.size > 0) {
+          console.log('[ProgressPage] No se encontraron materias, creando materia General...');
+          materiasArray.push({
+            id: 'general',
+            nombre: 'Todos los Cuadernos'
+          });
+        }
+      }
+      
+      console.log('[ProgressPage] Materias finales:', materiasArray);
+      console.log('[ProgressPage] Total de materias encontradas:', materiasArray.length);
+      materiasArray.forEach(m => console.log(`[ProgressPage] - Materia: ${m.nombre} (ID: ${m.id})`));
+      
+      setMaterias(materiasArray);
+      
+      // Seleccionar la primera materia por defecto
+      if (materiasArray.length > 0 && !selectedMateria) {
+        setSelectedMateria(materiasArray[0].id);
+      }
+    } catch (error) {
+      console.error('[ProgressPage] Error cargando materias:', error);
+    }
+  };
+
+  const processCuadernosData = async () => {
+    if (!auth.currentUser || !kpisData || !selectedMateria) return;
+    
+    try {
+      let notebooksSnap;
+      
+      // Si la materia es "general", obtener todos los cuadernos
+      if (selectedMateria === 'general') {
+        const allNotebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+        notebooksSnap = await getDocs(allNotebooksQuery);
+      } else {
+        // Obtener TODOS los cuadernos y filtrar manualmente
+        const allNotebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', auth.currentUser.uid)
+        );
+        const allNotebooksSnap = await getDocs(allNotebooksQuery);
+        
+        // Filtrar manualmente los cuadernos que pertenecen a la materia seleccionada
+        const filteredDocs: any[] = [];
+        allNotebooksSnap.forEach((doc: any) => {
+          const data = doc.data();
+          
+          // Verificar si el cuaderno pertenece a la materia seleccionada
+          const notebookMateriaId = data.materiaId || data.subjectId || data.subject?.id;
+          const notebookMateriaNombre = data.materiaNombre || 
+                                       data.subjectName || 
+                                       data.materia || 
+                                       data.subject?.nombre || 
+                                       data.subject?.name ||
+                                       data.subject;
+          
+          // Comparar por ID o por nombre normalizado
+          if (notebookMateriaId === selectedMateria || 
+              (notebookMateriaNombre && notebookMateriaNombre.toLowerCase().replace(/\s+/g, '-') === selectedMateria) ||
+              notebookMateriaNombre === materias.find(m => m.id === selectedMateria)?.nombre) {
+            filteredDocs.push(doc);
+          }
+        });
+        
+        // Crear un snapshot falso con los documentos filtrados
+        notebooksSnap = {
+          docs: filteredDocs,
+          size: filteredDocs.length,
+          empty: filteredDocs.length === 0,
+          forEach: (callback: any) => filteredDocs.forEach(callback)
+        } as any;
+      }
+      
+      console.log('[ProgressPage] Cuadernos encontrados para procesar:', notebooksSnap.size);
+      
+      const cuadernosTemp: CuadernoData[] = [];
+      
+      notebooksSnap.forEach((doc: any) => {
+        const notebookData = doc.data();
+        const notebookId = doc.id;
+        const kpiCuaderno = kpisData.cuadernos?.[notebookId];
+        
+        if (kpiCuaderno) {
+          // Usar datos reales de KPIs
+          cuadernosTemp.push({
+            id: notebookId,
+            nombre: notebookData.title || 'Sin nombre',
+            score: kpiCuaderno.scoreCuaderno || 0,
+            posicion: kpiCuaderno.posicionRanking || 1,
+            totalAlumnos: 1, // Por ahora, esto vendría del salón si es usuario escolar
+            conceptos: kpiCuaderno.numeroConceptos || 0,
+            tiempoEstudio: kpiCuaderno.tiempoEstudioLocal || 0,
+            estudiosInteligentes: kpiCuaderno.estudiosInteligentesLocal || 0,
+            porcentajeExito: kpiCuaderno.porcentajeExitoEstudiosInteligentes || 0,
+            porcentajeDominio: kpiCuaderno.porcentajeDominioConceptos || 0,
+            estudiosLibres: kpiCuaderno.estudiosLibresLocal || 0
+          });
+        }
+      });
+      
+      console.log('[ProgressPage] Cuadernos procesados:', cuadernosTemp);
+      setCuadernosReales(cuadernosTemp);
+    } catch (error) {
+      console.error('[ProgressPage] Error procesando cuadernos:', error);
+    }
+  };
+
+  const calculateRanking = async () => {
+    if (!auth.currentUser || !selectedMateria) return;
+
+    try {
+      // Calcular el score total del usuario actual para la materia seleccionada
+      let userScore = 0;
+      
+      if (selectedMateria === 'general') {
+        // Si es general, usar el score global
+        userScore = kpisData?.global?.scoreGlobal || 0;
+      } else {
+        // Sumar los scores de todos los cuadernos de la materia
+        userScore = cuadernosReales.reduce((total, cuaderno) => total + cuaderno.score, 0);
+      }
+
+      console.log('[ProgressPage] Score del usuario para ranking:', userScore);
+
+      // Por ahora, como solo hay un usuario, establecerlo como #1
+      const ranking = [
+        { 
+          posicion: 1, 
+          nombre: 'Tú', 
+          score: userScore 
+        }
+      ];
+
+      // TODO: En el futuro, aquí se podría buscar otros usuarios del mismo salón
+      // si el usuario es de tipo escolar y comparar scores
+
+      setRankingData(ranking);
+    } catch (error) {
+      console.error('[ProgressPage] Error calculando ranking:', error);
+      // En caso de error, mostrar al usuario como #1 con su score
+      setRankingData([
+        { 
+          posicion: 1, 
+          nombre: 'Tú', 
+          score: cuadernosReales.reduce((total, cuaderno) => total + cuaderno.score, 0) 
+        }
+      ]);
+    }
+  };
+
+  const calculatePositionHistory = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      // Obtener las últimas 8 semanas
+      const weeksData: PositionData[] = [];
+      const today = new Date();
+      
+      // Calcular el inicio de la semana actual
+      const currentWeekStart = new Date(today);
+      currentWeekStart.setDate(today.getDate() - today.getDay());
+      currentWeekStart.setHours(0, 0, 0, 0);
+      
+      // Generar datos para las últimas 8 semanas
+      for (let i = 7; i >= 0; i--) {
+        const weekStart = new Date(currentWeekStart);
+        weekStart.setDate(weekStart.getDate() - (i * 7));
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        
+        // Formatear la fecha como "DD/MM"
+        const day = weekStart.getDate().toString().padStart(2, '0');
+        const month = (weekStart.getMonth() + 1).toString().padStart(2, '0');
+        const weekLabel = `${day}/${month}`;
+        
+        // Por ahora, siempre mostrar posición 1 para evitar el error de índice
+        // TODO: Crear el índice en Firebase y luego restaurar la consulta original
+        const position = 1;
+        
+        weeksData.push({
+          semana: weekLabel,
+          posicion: position
+        });
+      }
+      
+      console.log('[ProgressPage] Historial de posiciones:', weeksData);
+      setPositionHistoryData(weeksData);
+      
+    } catch (error) {
+      console.error('[ProgressPage] Error calculando historial de posiciones:', error);
+      // En caso de error, mostrar datos por defecto
+      const defaultData: PositionData[] = [];
+      const today = new Date();
+      const currentWeekStart = new Date(today);
+      currentWeekStart.setDate(today.getDate() - today.getDay());
+      currentWeekStart.setHours(0, 0, 0, 0);
+      
+      for (let i = 7; i >= 0; i--) {
+        const weekStart = new Date(currentWeekStart);
+        weekStart.setDate(weekStart.getDate() - (i * 7));
+        const day = weekStart.getDate().toString().padStart(2, '0');
+        const month = (weekStart.getMonth() + 1).toString().padStart(2, '0');
+        
+        defaultData.push({
+          semana: `${day}/${month}`,
+          posicion: 1
+        });
+      }
+      setPositionHistoryData(defaultData);
+    }
+  };
+
+  const calculateWeeklyStudyTime = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      // Inicializar estructura de datos para cada día de la semana
+      const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const studyTimeByDay = new Map<number, number>();
+      
+      // Inicializar todos los días con 0 minutos
+      for (let i = 0; i < 7; i++) {
+        studyTimeByDay.set(i, 0);
+      }
+
+      // Obtener la fecha de inicio de la semana actual
+      const today = new Date();
+      const currentWeekStart = new Date(today);
+      currentWeekStart.setDate(today.getDate() - today.getDay());
+      currentWeekStart.setHours(0, 0, 0, 0);
+      
+      const currentWeekEnd = new Date(currentWeekStart);
+      currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+
+      console.log('[ProgressPage] Buscando sesiones desde:', currentWeekStart.toISOString());
+      console.log('[ProgressPage] Hasta:', currentWeekEnd.toISOString());
+      
+      // Obtener todas las sesiones de estudio del usuario (sin filtro de fecha para evitar índice)
+      const studySessionsQuery = query(
+        collection(db, 'studySessions'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      
+      const allSessionsSnap = await getDocs(studySessionsQuery);
+      
+      // Filtrar manualmente por fecha
+      const sessionsThisWeek: any[] = [];
+      allSessionsSnap.forEach((doc: any) => {
+        const session = doc.data();
+        const sessionDate = session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime);
+        
+        if (sessionDate >= currentWeekStart && sessionDate < currentWeekEnd) {
+          sessionsThisWeek.push({ id: doc.id, ...session });
+        }
+      });
+      
+      const sessionsSnap = {
+        size: sessionsThisWeek.length,
+        docs: sessionsThisWeek,
+        forEach: (callback: any) => sessionsThisWeek.forEach(session => callback({ data: () => session }))
+      } as any;
+      
+      console.log('[ProgressPage] Sesiones de la semana encontradas:', sessionsSnap.size);
+      
+      // Si no hay sesiones en studySessions, buscar en actividades
+      if (sessionsSnap.size === 0) {
+        console.log('[ProgressPage] No hay sesiones en studySessions, buscando en activities...');
+        
+        // Buscar en actividades de tipo estudio
+        const activitiesQuery = query(
+          collection(db, 'activities'),
+          where('userId', '==', auth.currentUser.uid),
+          where('type', 'in', ['study_session', 'study', 'intelligent_study', 'free_study']),
+          where('timestamp', '>=', currentWeekStart),
+          where('timestamp', '<', currentWeekEnd)
+        );
+        
+        const activitiesSnap = await getDocs(activitiesQuery);
+        console.log('[ProgressPage] Actividades de estudio encontradas:', activitiesSnap.size);
+        
+        // Procesar actividades como sesiones
+        activitiesSnap.forEach((doc: any) => {
+          const activity = doc.data();
+          const activityDate = activity.timestamp.toDate ? activity.timestamp.toDate() : new Date(activity.timestamp);
+          const dayOfWeek = activityDate.getDay();
+          
+          // Estimar 5 minutos por actividad de estudio para ser más realista
+          const estimatedDuration = 5;
+          
+          const currentTime = studyTimeByDay.get(dayOfWeek) || 0;
+          studyTimeByDay.set(dayOfWeek, currentTime + estimatedDuration);
+          
+          console.log(`[ProgressPage] Actividad agregada: ${activity.type} en día ${weekDays[dayOfWeek]} (+${estimatedDuration}min)`);
+        });
+      } else {
+        // Procesar cada sesión y acumular tiempo por día
+        sessionsSnap.forEach((doc: any) => {
+          const session = doc.data();
+          console.log('[ProgressPage] Procesando sesión:', { id: doc.id, ...session });
+          
+          let sessionDuration = 0;
+          
+          // Calcular duración de la sesión
+          if (session.metrics?.timeSpent) {
+            // timeSpent viene en minutos
+            sessionDuration = Math.round(session.metrics.timeSpent);
+          } else if (session.metrics?.sessionDuration) {
+            sessionDuration = Math.round(session.metrics.sessionDuration / 60); // Convertir a minutos
+          } else if (session.startTime && session.endTime) {
+            const start = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
+            const end = session.endTime.toDate ? session.endTime.toDate() : new Date(session.endTime);
+            sessionDuration = Math.round((end.getTime() - start.getTime()) / 60000); // Convertir a minutos
+          } else {
+            // Si no hay información de duración, estimar 5 minutos
+            sessionDuration = 5;
+            console.log('[ProgressPage] No hay duración, estimando 5 minutos');
+          }
+          
+          // Obtener el día de la semana de la sesión
+          const sessionDate = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
+          const dayOfWeek = sessionDate.getDay();
+          
+          console.log(`[ProgressPage] Sesión del ${weekDays[dayOfWeek]} con duración: ${sessionDuration} minutos`);
+          
+          // Si es para la materia seleccionada o es vista general
+          if (selectedMateria === 'general' || 
+              (session.notebookId && cuadernosReales.some(c => c.id === session.notebookId))) {
+            const currentTime = studyTimeByDay.get(dayOfWeek) || 0;
+            studyTimeByDay.set(dayOfWeek, currentTime + sessionDuration);
+            console.log(`[ProgressPage] Tiempo acumulado para ${weekDays[dayOfWeek]}: ${currentTime + sessionDuration} minutos`);
+          }
+        });
+      }
+      
+      // También buscar en los KPIs si hay tiempo de estudio reciente
+      if (kpisData?.global?.tiempoEstudioGlobal > 0 && Array.from(studyTimeByDay.values()).every(time => time === 0)) {
+        console.log('[ProgressPage] Usando tiempo de KPIs como respaldo...');
+        // Si hay tiempo global pero no sesiones específicas, distribuir el tiempo en el día actual
+        const todayIndex = today.getDay();
+        const currentTime = studyTimeByDay.get(todayIndex) || 0;
+        // Usar solo 5 minutos como estimación para que sea coherente con sesiones futuras
+        const estimatedTodayTime = 5;
+        studyTimeByDay.set(todayIndex, currentTime + estimatedTodayTime);
+        console.log(`[ProgressPage] Agregando ${estimatedTodayTime} minutos estimados para hoy`);
+      }
+
+      // Convertir a formato del gráfico
+      const chartData: StudyTimeData[] = [];
+      for (let i = 0; i < 7; i++) {
+        chartData.push({
+          dia: weekDays[i],
+          tiempo: studyTimeByDay.get(i) || 0
+        });
+      }
+      
+      console.log('[ProgressPage] Tiempo de estudio por día:', chartData);
+      setStudyTimeData(chartData);
+      
+    } catch (error) {
+      console.error('[ProgressPage] Error calculando tiempo de estudio semanal:', error);
+      // En caso de error, mostrar datos vacíos
+      const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const emptyData = weekDays.map(dia => ({ dia, tiempo: 0 }));
+      setStudyTimeData(emptyData);
+    }
+  };
+
+  // Calcular el ranking real basado en los datos actuales
+  const [rankingData, setRankingData] = useState<Array<{posicion: number, nombre: string, score: number}>>([]);
+
+  const [positionHistoryData, setPositionHistoryData] = useState<PositionData[]>([]);
+
+  const [studyTimeData, setStudyTimeData] = useState<StudyTimeData[]>([]);
 
   const cuadernosData: CuadernoData[] = [
     {
@@ -145,10 +621,11 @@ const ProgressPage: React.FC = () => {
     },
   ];
 
-  const globalScore = cuadernosData.reduce((acc, c) => acc + c.score, 0);
-  const globalPercentil = 75; // Dummy
-  const globalStudyTime = cuadernosData.reduce((acc, c) => acc + c.tiempoEstudio, 0);
-  const globalSmartStudies = cuadernosData.reduce((acc, c) => acc + c.estudiosInteligentes, 0);
+  // Usar datos reales si están disponibles, si no usar valores por defecto
+  const globalScore = kpisData?.global?.scoreGlobal || 0;
+  const globalPercentil = kpisData?.global?.percentilPromedioGlobal || 0;
+  const globalStudyTime = kpisData?.global?.tiempoEstudioGlobal || 0;
+  const globalSmartStudies = kpisData?.global?.estudiosInteligentesGlobal || 0;
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -156,69 +633,145 @@ const ProgressPage: React.FC = () => {
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
-  // Generar insights aleatorios (2 de 4 posibles)
+  // Generar insights basados en datos reales
   const generateInsights = () => {
+    // Usar cuadernosReales si hay datos, si no usar array vacío
+    const cuadernosToUse = cuadernosReales.length > 0 ? cuadernosReales : [];
+    
     // Encontrar el día con más y menos tiempo de estudio
-    const maxDay = studyTimeData.reduce((max, day) => day.tiempo > max.tiempo ? day : max);
-    const minDay = studyTimeData.reduce((min, day) => day.tiempo < min.tiempo ? day : min);
+    const maxDay = studyTimeData.length > 0 && studyTimeData.some(d => d.tiempo > 0)
+      ? studyTimeData.reduce((max, day) => day.tiempo > max.tiempo ? day : max)
+      : null;
+    const minDay = studyTimeData.length > 0 && studyTimeData.some(d => d.tiempo > 0)
+      ? studyTimeData.filter(d => d.tiempo > 0).reduce((min, day) => day.tiempo < min.tiempo ? day : min)
+      : null;
     
-    // Encontrar el cuaderno con peor ranking
-    const worstNotebook = cuadernosData.reduce((worst, notebook) => 
-      (notebook.posicion / notebook.totalAlumnos) > (worst.posicion / worst.totalAlumnos) ? notebook : worst
-    );
+    // Encontrar el cuaderno con menor % de dominio
+    const worstDominioNotebook = cuadernosToUse.length > 0 
+      ? cuadernosToUse.reduce((worst, notebook) => 
+          notebook.porcentajeDominio < worst.porcentajeDominio ? notebook : worst
+        )
+      : null;
     
-    // Simular datos de semanas anteriores
-    const thisWeekStudyTime = globalStudyTime;
-    const lastWeekStudyTime = globalStudyTime - 45; // Dummy
-    const studyTimeDiff = thisWeekStudyTime - lastWeekStudyTime;
+    // Encontrar el cuaderno con mejor % de éxito
+    const bestSuccessNotebook = cuadernosToUse.length > 0 
+      ? cuadernosToUse.reduce((best, notebook) => 
+          notebook.porcentajeExito > best.porcentajeExito ? notebook : best
+        )
+      : null;
     
-    const thisWeekSmartStudies = globalSmartStudies;
-    const lastWeekSmartStudies = globalSmartStudies - 3; // Dummy
-    const smartStudiesDiff = thisWeekSmartStudies - lastWeekSmartStudies;
+    // Calcular tiempo total de estudio esta semana
+    const totalWeekTime = studyTimeData.reduce((total, day) => total + day.tiempo, 0);
     
-    const allInsights = [
-      {
+    // Calcular promedio de éxito en estudios inteligentes
+    const avgSuccess = cuadernosToUse.length > 0
+      ? Math.round(cuadernosToUse.reduce((sum, nb) => sum + nb.porcentajeExito, 0) / cuadernosToUse.length)
+      : 0;
+    
+    const allInsights = [];
+    
+    // Insight sobre día más productivo
+    if (maxDay && maxDay.tiempo > 0) {
+      allInsights.push({
         id: 1,
         type: 'study-day',
-        title: Math.random() > 0.5 ? 'Día más productivo' : 'Día menos productivo',
-        content: Math.random() > 0.5 
-          ? `El día de la semana que más estudias es ${maxDay.dia} con un promedio de ${maxDay.tiempo} minutos.`
-          : `El día de la semana que menos estudias es ${minDay.dia} con solo ${minDay.tiempo} minutos.`,
+        title: 'Día más productivo',
+        content: `Tu día más productivo de la semana es ${maxDay.dia} con ${maxDay.tiempo} minutos de estudio.`,
         icon: faCalendarAlt,
-        color: Math.random() > 0.5 ? 'green' : 'orange'
-      },
-      {
+        color: 'green'
+      });
+    }
+    
+    // Insight sobre tiempo total de estudio
+    if (totalWeekTime > 0) {
+      allInsights.push({
         id: 2,
         type: 'study-time',
-        title: 'Progreso semanal',
-        content: `Tu tiempo de estudio de la semana pasada fue de ${formatTime(thisWeekStudyTime)}, que fue ${Math.abs(studyTimeDiff)} minutos ${studyTimeDiff > 0 ? 'más' : 'menos'} que la semana anterior.`,
-        icon: studyTimeDiff > 0 ? faArrowUp : faArrowDown,
-        color: studyTimeDiff > 0 ? 'blue' : 'orange'
-      },
-      {
+        title: 'Tiempo semanal',
+        content: `Has estudiado ${formatTime(totalWeekTime)} esta semana. ${totalWeekTime > 300 ? '¡Excelente dedicación!' : 'Intenta aumentar tu tiempo de estudio.'}`,
+        icon: faClock,
+        color: totalWeekTime > 300 ? 'blue' : 'orange'
+      });
+    }
+    
+    // Insight sobre área de oportunidad
+    if (worstDominioNotebook) {
+      allInsights.push({
         id: 3,
         type: 'opportunity',
         title: 'Área de oportunidad',
-        content: `Tu cuaderno con mayor área de oportunidad es "${worstNotebook.nombre}" (posición ${worstNotebook.posicion}/${worstNotebook.totalAlumnos}).`,
+        content: `Tu cuaderno "${worstDominioNotebook.nombre}" tiene ${worstDominioNotebook.porcentajeDominio}% de dominio. Dedícale más tiempo para mejorar.`,
         icon: faBook,
         color: 'orange'
-      },
-      {
+      });
+    }
+    
+    // Insight sobre mejor desempeño
+    if (bestSuccessNotebook && bestSuccessNotebook.porcentajeExito > 80) {
+      allInsights.push({
         id: 4,
+        type: 'success',
+        title: 'Mejor desempeño',
+        content: `¡Felicidades! Tu cuaderno "${bestSuccessNotebook.nombre}" tiene ${bestSuccessNotebook.porcentajeExito}% de éxito en estudios inteligentes.`,
+        icon: faTrophy,
+        color: 'purple'
+      });
+    }
+    
+    // Insight sobre estudios inteligentes
+    if (globalSmartStudies > 0) {
+      allInsights.push({
+        id: 5,
         type: 'smart-studies',
-        title: 'Estudios inteligentes',
-        content: `El número de estudios inteligentes de la semana pasada fue de ${thisWeekSmartStudies}, ${Math.abs(smartStudiesDiff)} ${smartStudiesDiff > 0 ? 'más' : 'menos'} que la semana anterior.`,
+        title: 'Estudios validados',
+        content: `Has completado ${globalSmartStudies} estudios inteligentes con un promedio de ${avgSuccess}% de éxito.`,
         icon: faBrain,
-        color: smartStudiesDiff > 0 ? 'purple' : 'orange'
-      }
-    ];
+        color: avgSuccess > 80 ? 'green' : 'blue'
+      });
+    }
+    
+    // Si no hay insights basados en datos, mostrar mensajes motivacionales
+    if (allInsights.length === 0) {
+      allInsights.push(
+        {
+          id: 6,
+          type: 'welcome',
+          title: 'Comienza tu viaje',
+          content: 'Completa tu primer estudio inteligente para empezar a ver tus estadísticas personalizadas.',
+          icon: faLightbulb,
+          color: 'blue'
+        },
+        {
+          id: 7,
+          type: 'motivation',
+          title: 'Establece una rutina',
+          content: 'Estudiar un poco cada día es más efectivo que sesiones largas esporádicas.',
+          icon: faChartLine,
+          color: 'green'
+        }
+      );
+    }
 
-    // Seleccionar 2 insights aleatorios
-    const shuffled = [...allInsights].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 2);
+    // Seleccionar 2 insights (priorizando los basados en datos reales)
+    const insightsToShow = allInsights.slice(0, 2);
+    return insightsToShow;
   };
 
   const insights = generateInsights();
+
+  if (loading && !kpisData) {
+    return (
+      <>
+        <HeaderWithHamburger title="Progreso" />
+        <div className="progress-layout">
+          <div className="loading-container">
+            <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+            <p>Cargando tus datos de progreso...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -240,48 +793,70 @@ const ProgressPage: React.FC = () => {
 
             {/* Módulo Lateral: Selector de Materias y Ranking */}
             <div className="progress-side-module">
-              <div className="materia-selector">
-                <button 
-                  className="materia-dropdown-btn"
-                  onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
-                >
-                  <span>{materias.find(m => m.id === selectedMateria)?.nombre}</span>
-                  <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
-                </button>
+              {materias.length === 0 ? (
+                <div className="no-materias-message">
+                  <p>No hay materias disponibles. Crea cuadernos y asígnalos a materias para ver el progreso.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="materia-dropdown-container">
+                    <button 
+                      className="materia-dropdown-btn"
+                      onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
+                      type="button"
+                    >
+                      <span>{materias.find(m => m.id === selectedMateria)?.nombre || 'Seleccionar materia'}</span>
+                      <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
+                    </button>
                 
-                {showMateriaDropdown && (
-                  <div className="materia-dropdown">
-                    {materias.map(materia => (
-                      <div 
-                        key={materia.id}
-                        className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedMateria(materia.id);
-                          setShowMateriaDropdown(false);
-                        }}
-                      >
-                        {materia.nombre}
+                    {showMateriaDropdown && (
+                      <div className="materia-dropdown">
+                        {materias.length === 0 ? (
+                          <div className="materia-option">No hay materias disponibles</div>
+                        ) : (
+                          materias.map(materia => (
+                            <div 
+                              key={materia.id}
+                              className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
+                              onClick={() => {
+                                console.log('[ProgressPage] Materia seleccionada:', materia);
+                                setSelectedMateria(materia.id);
+                                setShowMateriaDropdown(false);
+                              }}
+                            >
+                              {materia.nombre}
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
               <div className="ranking-table">
                 <h4>Tabla de Posiciones</h4>
                 <div className="ranking-list">
-                  {rankingData.map((student) => (
-                    <div 
-                      key={student.posicion} 
-                      className={`ranking-item ${student.nombre === 'Tú' ? 'current-user' : ''}`}
-                    >
-                      <span className="ranking-position">#{student.posicion}</span>
-                      <span className="ranking-name">{student.nombre}</span>
-                      <span className="ranking-score">{student.score}</span>
+                  {rankingData.length > 0 ? (
+                    rankingData.map((student) => (
+                      <div 
+                        key={student.posicion} 
+                        className={`ranking-item ${student.nombre === 'Tú' ? 'current-user' : ''}`}
+                      >
+                        <span className="ranking-position">#{student.posicion}</span>
+                        <span className="ranking-name">{student.nombre}</span>
+                        <span className="ranking-score">{student.score.toLocaleString()}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="ranking-item current-user">
+                      <span className="ranking-position">#1</span>
+                      <span className="ranking-name">Tú</span>
+                      <span className="ranking-score">0</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -331,17 +906,32 @@ const ProgressPage: React.FC = () => {
                 <div className="chart-section">
                   <h3><FontAwesomeIcon icon={faChartLine} className="chart-icon" /> Posicionamiento Histórico</h3>
                   <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={positionHistoryData}>
+                    <LineChart data={positionHistoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="semana" />
-                      <YAxis reversed domain={[1, 10]} />
-                      <Tooltip />
+                      <XAxis 
+                        dataKey="semana" 
+                        tick={{ fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis 
+                        reversed 
+                        domain={[1, 5]} 
+                        ticks={[1, 2, 3, 4, 5]}
+                        label={{ value: 'Posición', angle: -90, position: 'insideLeft' }}
+                      />
+                      <Tooltip 
+                        formatter={(value: any) => [`Posición #${value}`, 'Ranking']}
+                        labelFormatter={(label) => `Semana del ${label}`}
+                      />
                       <Line 
                         type="monotone" 
                         dataKey="posicion" 
                         stroke="#8B5CF6" 
-                        strokeWidth={2}
-                        dot={{ fill: '#8B5CF6' }}
+                        strokeWidth={3}
+                        dot={{ fill: '#8B5CF6', r: 6 }}
+                        activeDot={{ r: 8 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -350,12 +940,25 @@ const ProgressPage: React.FC = () => {
                 <div className="chart-section">
                   <h3><FontAwesomeIcon icon={faCalendarAlt} className="chart-icon" /> Tiempo de Estudio Semanal</h3>
                   <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={studyTimeData}>
+                    <BarChart data={studyTimeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="dia" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => `${value} min`} />
-                      <Bar dataKey="tiempo" fill="#10B981" radius={[8, 8, 0, 0]} />
+                      <YAxis 
+                        label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
+                        tickFormatter={(value) => `${value}m`}
+                      />
+                      <Tooltip 
+                        formatter={(value: any) => [`${value} minutos`, 'Tiempo de estudio']}
+                        labelFormatter={(label) => `${label}`}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb' }}
+                      />
+                      <Bar 
+                        dataKey="tiempo" 
+                        fill="#10B981" 
+                        radius={[8, 8, 0, 0]}
+                        animationDuration={800}
+                      >
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -380,21 +983,29 @@ const ProgressPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {cuadernosData.map((cuaderno) => (
-                        <tr key={cuaderno.id}>
-                          <td className="notebook-name">{cuaderno.nombre}</td>
-                          <td className="score-cell">{cuaderno.score}</td>
-                          <td className="position-cell">
-                            {cuaderno.posicion}/{cuaderno.totalAlumnos}
+                      {cuadernosReales.length > 0 ? (
+                        cuadernosReales.map((cuaderno) => (
+                          <tr key={cuaderno.id}>
+                            <td className="notebook-name">{cuaderno.nombre}</td>
+                            <td className="score-cell">{cuaderno.score}</td>
+                            <td className="position-cell">
+                              {cuaderno.posicion}/{cuaderno.totalAlumnos}
+                            </td>
+                            <td>{cuaderno.conceptos}</td>
+                            <td>{formatTime(cuaderno.tiempoEstudio)}</td>
+                            <td className="smart-studies">{cuaderno.estudiosInteligentes}</td>
+                            <td className="percentage success">{cuaderno.porcentajeExito}%</td>
+                            <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
+                            <td>{cuaderno.estudiosLibres}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={9} className="no-data">
+                            {loading ? 'Cargando datos...' : 'No hay datos disponibles para esta materia'}
                           </td>
-                          <td>{cuaderno.conceptos}</td>
-                          <td>{formatTime(cuaderno.tiempoEstudio)}</td>
-                          <td className="smart-studies">{cuaderno.estudiosInteligentes}</td>
-                          <td className="percentage success">{cuaderno.porcentajeExito}%</td>
-                          <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
-                          <td>{cuaderno.estudiosLibres}</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>

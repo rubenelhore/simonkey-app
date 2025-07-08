@@ -133,10 +133,10 @@
   flex-direction: column;
 }
 
-/* Materia Selector */
-.materia-selector {
+.materia-dropdown-container {
   position: relative;
   margin-bottom: 24px;
+  width: 100%;
 }
 
 .materia-dropdown-btn {
@@ -180,8 +180,9 @@
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  overflow: hidden;
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .materia-option {
@@ -190,6 +191,11 @@
   transition: background 0.2s;
   font-size: 15px;
   color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.materia-option:last-child {
+  border-bottom: none;
 }
 
 .materia-option:hover {
@@ -397,7 +403,7 @@
 }
 
 /* Concepts List Styles */
-.concepts-list {
+.progress-page .concepts-list {
   max-width: 200px;
 }
 
@@ -639,6 +645,46 @@
   font-size: 14px;
   color: #4b5563;
   line-height: 1.5;
+}
+
+/* Loading state */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+  color: #6b7280;
+}
+
+.loading-container p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* No data messages */
+.no-data {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.no-materias-message {
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.no-data-message {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #6b7280;
 }
 
 /* Responsive adjustments for insights */

@@ -455,14 +455,48 @@ const SchoolStudentStudyPage = () => {
     try {
       const studentKey = `student_${auth.currentUser.uid}`;
       
-      // Finalizar sesión con identificador específico del estudiante
+      // Preparar datos detallados de conceptos para KPIs
+      const conceptsResults: any[] = [];
+      let conceptsDominados = 0;
+      let conceptosNoDominados = 0;
+      
+      // Contar conceptos dominados y no dominados
+      allConcepts.forEach(concept => {
+        const isMastered = masteredConceptIds.has(concept.id);
+        if (isMastered) {
+          conceptsDominados++;
+        } else {
+          conceptosNoDominados++;
+        }
+        conceptsResults.push({
+          conceptId: concept.id,
+          mastered: isMastered
+        });
+      });
+      
+      // Finalizar sesión con identificador específico del estudiante y datos detallados
       await studyService.completeStudySession(
         sessionId,
-        metrics
+        metrics,
+        {
+          conceptsDominados,
+          conceptosNoDominados,
+          conceptsResults,
+          studyMode
+        }
       );
       
       setSessionActive(false);
       setSessionComplete(true);
+      
+      // Actualizar KPIs después de completar la sesión
+      try {
+        const { kpiService } = await import('../services/kpiService');
+        console.log('🎓 Actualizando KPIs del estudiante después de la sesión...');
+        await kpiService.updateUserKPIs(studentKey);
+      } catch (kpiError) {
+        console.error('Error actualizando KPIs del estudiante:', kpiError);
+      }
       
       // Mostrar confetti de celebración
       setTimeout(() => {

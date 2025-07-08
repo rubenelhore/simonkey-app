@@ -465,6 +465,21 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
           }
         }
         
+        // Si el estudio no está disponible pero la próxima fecha es hoy,
+        // significa que ya se usó hoy, así que mostrar mañana
+        if (!isSmartStudyAvailable && smartStudyReason === 'Ya usado hoy') {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const nextDate = new Date(nextSmartStudyDate);
+          nextDate.setHours(0, 0, 0, 0);
+          
+          if (today.getTime() === nextDate.getTime()) {
+            // Si la próxima fecha calculada es hoy pero ya se usó, cambiar a mañana
+            nextSmartStudyDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            console.log('📅 Ajustando fecha: Ya se usó hoy, próximo estudio mañana');
+          }
+        }
+        
         console.log('🎯 Resumen de estudio inteligente:', {
           isAvailable: isSmartStudyAvailable,
           reason: smartStudyReason,

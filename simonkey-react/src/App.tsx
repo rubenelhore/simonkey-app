@@ -28,6 +28,14 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
+// Importar utilidad para corregir tiempos de sesiones
+import './utils/fixStudySessionsTime';
+// Importar utilidad para debug de tiempos
+import './utils/debugStudyTime';
+// Importar utilidad para ajustar tiempos
+import './utils/adjustStudyTimes';
+// Importar utilidad de KPIs para depuración
+import './utils/forceUpdateKPIs';
 import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';

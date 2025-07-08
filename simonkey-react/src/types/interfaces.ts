@@ -152,6 +152,7 @@ export interface MiniQuizSession {
   finalScore: number;           // Calificación base 10
   passed: boolean;              // Si aprobó (≥8/10)
   timeRemaining?: number;       // Tiempo restante al finalizar
+  totalTime?: number;           // Tiempo total usado en segundos
 }
 
 /**

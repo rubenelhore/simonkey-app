@@ -275,10 +275,10 @@
 
 .notebook-detail-main {
   flex: 1;
-  max-width: 1200px;
-  margin: 2rem auto;
+  width: 100%;
+  margin: 2rem 0;
   padding: 0 2rem;
-  display: block; /* Cambiado de grid a block para ocupar el ancho completo */
+  display: block;
 }
 
 .sidebar-container {
@@ -299,8 +299,10 @@
   background-color: var(--card-background);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 1.5rem;
-  width: 100%; /* Asegurar que tome el ancho completo */
+  padding: 2rem;
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
 }
 
 .concepts-section h2 {
@@ -351,6 +353,7 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  width: 100%;
 }
 
 .concept-group {
@@ -367,7 +370,7 @@
 /* Optimized concept cards grid layout */
 .concept-cards {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
   width: 100%;
 }
@@ -891,32 +894,6 @@
   cursor: not-allowed;
 }
 
-/* Botón flotante para añadir (visible en móvil) */
-.floating-add-button {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background-color: var(--notebook-color);
-  color: white;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.floating-add-button:hover {
-  background-color: var(--notebook-color-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
 
 /* Spinner de carga */
 .loading-container {
@@ -981,9 +958,6 @@
     font-size: 0.7rem;
   }
 
-  .floating-add-button {
-    display: flex;  /* Mantenemos el botón flotante en móvil */
-  }
 
   .breadcrumb h1 {
     font-size: 1.3rem;
@@ -1025,16 +999,13 @@
 }
 
 /* Media queries para pantallas más grandes */
-@media (min-width: 1025px) and (max-width: 1439px) {
-  .concept-cards {
-    grid-template-columns: repeat(5, 1fr); /* 4 columnas en pantallas normales */
+@media (min-width: 1025px) {
+  .notebook-detail-main {
+    padding: 0 3rem;
   }
-}
-
-/* Media queries para pantallas muy grandes */
-@media (min-width: 1440px) {
-  .concept-cards {
-    grid-template-columns: repeat(5, 1fr); /* 5 columnas en pantallas grandes */
+  
+  .concepts-section {
+    padding: 2.5rem;
   }
 }
 

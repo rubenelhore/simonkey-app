@@ -515,13 +515,6 @@ const SchoolNotebookDetail = () => {
         document.body
       )}
       
-      {/* Botón flotante para añadir conceptos (visible en móvil) */}
-      <button 
-        className="floating-add-button"
-        onClick={() => openModalWithTab('upload')}
-      >
-        <i className="fas fa-plus"></i>
-      </button>
     </div>
   );
 };

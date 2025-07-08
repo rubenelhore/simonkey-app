@@ -429,32 +429,59 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
    * Finaliza una sesión de estudio y guarda métricas
    */
   const completeStudySession = useCallback(
-    async (sessionId: string, metrics: any): Promise<void> => {
+    async (sessionId: string, metrics: any, detailedResults?: any): Promise<void> => {
       try {
         const sessionRef = doc(db, 'studySessions', sessionId);
         
-        await updateDoc(sessionRef, {
-          endTime: new Date(),
-          metrics,
-          completedAt: serverTimestamp()
-        });
-        
-        // Obtener datos de la sesión
+        // Obtener datos de la sesión para saber el modo
         const sessionDoc = await getDoc(sessionRef);
         if (!sessionDoc.exists()) throw new Error('Session not found');
         
         const sessionData = sessionDoc.data();
         
+        // Calcular tiempo total de la sesión
+        const startTime = sessionData.startTime.toDate ? sessionData.startTime.toDate() : new Date(sessionData.startTime);
+        const endTime = new Date();
+        const sessionDuration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000); // en segundos
+        
+        // Preparar datos detallados de conceptos
+        const conceptsDetails = detailedResults?.conceptsResults || [];
+        
+        await updateDoc(sessionRef, {
+          endTime,
+          metrics: {
+            ...metrics,
+            sessionDuration, // Duración total de la sesión en segundos
+            timeSpent: Math.round(sessionDuration / 60), // Duración en minutos
+            conceptsDominados: detailedResults?.conceptsDominados || 0,
+            conceptosNoDominados: detailedResults?.conceptosNoDominados || 0,
+            conceptsDetails, // Array con detalles de cada concepto
+          },
+          completedAt: serverTimestamp()
+        });
+        
         // Actualizar estadísticas del usuario
         await updateUserStats(sessionData.userId, {
           totalSessionsCompleted: increment(1),
-          totalTimeStudied: increment(metrics.timeSpent),
-          totalConceptsReviewed: increment(metrics.conceptsReviewed)
+          totalTimeStudied: increment(sessionDuration),
+          totalConceptsReviewed: increment(metrics.conceptsReviewed),
+          totalConceptsMastered: increment(detailedResults?.conceptsDominados || 0),
+          totalConceptsNotMastered: increment(detailedResults?.conceptosNoDominados || 0)
         });
         
         // Si se completaron suficientes conceptos, actualizar streak
         if (metrics.conceptsReviewed >= 5) {
           await updateStreak(sessionData.userId);
+        }
+        
+        // Actualizar KPIs después de completar la sesión
+        try {
+          const { kpiService } = await import('../services/kpiService');
+          console.log('[StudyService] Actualizando KPIs después de completar sesión...');
+          await kpiService.updateUserKPIs(sessionData.userId);
+        } catch (kpiError) {
+          console.error('[StudyService] Error actualizando KPIs:', kpiError);
+          // No lanzar error, ya que los KPIs se pueden actualizar más tarde
         }
       } catch (err) {
         console.error('Error completing study session:', err);

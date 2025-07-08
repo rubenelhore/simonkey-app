@@ -49,6 +49,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const [finalScore, setFinalScore] = useState<number>(0);
   const [passed, setPassed] = useState<boolean>(false);
   const [showIntro, setShowIntro] = useState<boolean>(true);
+  const [sessionStartTime] = useState<Date>(new Date());
 
   // Usar useRef para guardar las preguntas y evitar que se pierdan
   const questionsRef = useRef<QuizQuestion[]>([]);
@@ -423,6 +424,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setFinalScore(currentScoreRef.current);
       setPassed(currentScoreRef.current >= 8);
       
+      // Calcular tiempo total usado
+      const totalTimeUsed = 30 - timeRemainingValue;
+      
       // Guardar resultados del mini quiz
       await saveMiniQuizResults({
         id: `mini-quiz-${Date.now()}`,
@@ -431,14 +435,15 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         notebookTitle,
         questions: currentQuestions,
         responses,
-        startTime: new Date(),
+        startTime: sessionStartTime,
         endTime: new Date(),
         score: correctAnswers,
         maxScore: totalQuestions, // SIEMPRE sobre el total
         accuracy,
         finalScore: currentScoreRef.current,
         passed: currentScoreRef.current >= 8,
-        timeRemaining: timeRemainingValue
+        timeRemaining: timeRemainingValue,
+        totalTime: totalTimeUsed
       });
       
       console.log('[MINI QUIZ] Mini quiz completado:', {
@@ -502,6 +507,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         finalScore: session.finalScore || 0,
         passed: session.passed || false,
         timeRemaining: session.timeRemaining || 0,
+        totalTime: session.totalTime || 0,
         createdAt: Timestamp.now()
       };
 
@@ -553,6 +559,15 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       await setDoc(miniQuizResultsRef, finalCleanData);
       
       console.log('[MINI QUIZ] Resultados guardados exitosamente');
+      
+      // Actualizar KPIs después de guardar el mini quiz
+      try {
+        const { kpiService } = await import('../services/kpiService');
+        console.log('[MINI QUIZ] Actualizando KPIs después del mini quiz...');
+        await kpiService.updateUserKPIs(userId);
+      } catch (kpiError) {
+        console.error('[MINI QUIZ] Error actualizando KPIs:', kpiError);
+      }
     } catch (error) {
       console.error('[MINI QUIZ] Error saving results:', error);
     }
@@ -784,16 +799,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
   return (
     <div className="mini-quiz-container">
-      <div className="mini-quiz-header">
-        <div className="header-content">
-          <h1>
-            Mini Quiz - {notebookTitle}
-            <span className="mode-badge mini-quiz">
-              Mini Quiz
-            </span>
-          </h1>
-        </div>
-      </div>
       
       <div className="mini-quiz-main">
         {showIntro && renderMiniQuizIntro()}

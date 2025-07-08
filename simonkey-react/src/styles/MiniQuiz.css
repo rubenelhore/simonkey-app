@@ -584,10 +584,11 @@
   color: white;
 }
 
+/* Hover effect disabled per user request
 .action-button.primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
-}
+} */
 
 @keyframes bounceIn {
   0% {
@@ -687,7 +688,7 @@
 /* Estilos para la introducción del mini quiz */
 .mini-quiz-intro {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 80px auto 0;
   padding: 2rem;
   background: white;
   border-radius: 12px;

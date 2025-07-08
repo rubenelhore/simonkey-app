@@ -645,8 +645,15 @@ const NotebookDetail = () => {
                 return;
               }
               
-              // Para estudiantes y usuarios regulares, siempre ir a /notebooks
-              navigate('/notebooks');
+              // Para usuarios regulares, verificar si vienen de una materia
+              const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+              if (materiaMatch) {
+                const urlMateriaId = materiaMatch[1];
+                navigate(`/materias/${urlMateriaId}/notebooks`);
+              } else {
+                // Si no hay materiaId en la URL, ir a /notebooks
+                navigate('/notebooks');
+              }
             }} 
             className="back-button"
           >
@@ -861,15 +868,6 @@ const NotebookDetail = () => {
         document.body
       )}
       
-      {/* Botón flotante para añadir conceptos (visible en móvil) - Solo para usuarios no escolares */}
-      {!isSchoolStudent && (
-        <button 
-          className="floating-add-button"
-          onClick={() => openModalWithTab('upload')}
-        >
-          <i className="fas fa-plus"></i>
-        </button>
-      )}
     </div>
   );
 };

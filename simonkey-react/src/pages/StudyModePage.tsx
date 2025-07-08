@@ -646,7 +646,7 @@ const StudyModePage = () => {
         newReviewQueue = [...sessionReviewQueue, currentConcept];
         console.log('🔄 Concepto agregado a cola de repaso inmediato:', currentConcept.término);
         console.log('📋 Nueva cola de repaso:', newReviewQueue.length);
-        showFeedback('info', `"${currentConcept.término}" se agregó a tu cola de repaso. Te lo preguntaremos de nuevo.`);
+        // Mensaje eliminado por solicitud del usuario
       } else if (quality === ResponseQuality.MASTERED && currentConcept) {
         // Si dominó el concepto, verificar si estaba en la cola de repaso y eliminarlo
         const wasInReviewQueue = sessionReviewQueue.some(c => c.id === conceptId);
@@ -713,7 +713,7 @@ const StudyModePage = () => {
     setCurrentConcepts([nextConcept]);
     
     console.log('🔄 Mostrando concepto de repaso inmediato:', nextConcept.término);
-    showFeedback('info', `Repasando: "${nextConcept.término}"`);
+    // Mensaje eliminado por solicitud del usuario
   };
   
   // Completar la sesión de estudio
@@ -728,7 +728,7 @@ const StudyModePage = () => {
     if (!sessionId || !auth.currentUser) {
       // Si es una sesión de repaso inmediato, solo mostrar feedback y volver al resumen
       if (allConcepts.length > 0 && sessionReviewQueue.length === 0 && !sessionActive) {
-        showFeedback('success', '¡Repaso inmediato completado! ¡Ahora sí, lo tienes mucho más claro!');
+        // Mensaje eliminado por solicitud del usuario
         setSessionComplete(true);
         setSessionActive(false);
         return;
@@ -750,7 +750,18 @@ const StudyModePage = () => {
     }));
     
     try {
-      // Guardar estadísticas en Firestore
+      // Preparar datos detallados de conceptos para KPIs
+      const conceptsResults = Array.from(conceptFinalResults.entries()).map(([conceptId, quality]) => ({
+        conceptId,
+        mastered: quality === ResponseQuality.MASTERED,
+        quality
+      }));
+      
+      // Contar conceptos dominados y no dominados
+      const conceptsDominados = conceptsResults.filter(c => c.mastered).length;
+      const conceptosNoDominados = conceptsResults.filter(c => !c.mastered).length;
+      
+      // Guardar estadísticas en Firestore con datos detallados
       await studyService.completeStudySession(
         sessionId,
         {
@@ -759,6 +770,12 @@ const StudyModePage = () => {
           mastered: masteredConceptIds.size,
           reviewing: reviewingConceptIds.size,
           endTime
+        },
+        {
+          conceptsDominados,
+          conceptosNoDominados,
+          conceptsResults,
+          studyMode
         }
       );
       
@@ -819,11 +836,7 @@ const StudyModePage = () => {
         setSessionComplete(true);
         setSessionActive(false);
         
-        // Mostrar mensaje especial si hubo repasos inmediatos
-        const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
-        if (totalRepetitions > 0) {
-          showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
-        }
+        // Mensaje eliminado por solicitud del usuario
       }
       
     } catch (error) {
@@ -867,7 +880,7 @@ const StudyModePage = () => {
           `Estudio inteligente validado con Mini Quiz: ${score}/10. ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
         
-        showFeedback('success', `¡Excelente! Has aprobado el Mini Quiz con ${score}/10. Tu estudio inteligente ha sido validado.`);
+        // Mensaje eliminado por solicitud del usuario
       } else {
         // Si no pasó el Mini Quiz, NO validar el estudio inteligente
         console.log('❌ Mini Quiz fallido. Estudio inteligente NO validado.');
@@ -886,7 +899,7 @@ const StudyModePage = () => {
         // Guardar que el quiz falló para bloquear hasta mañana
         await studyService.updateSmartStudyUsage(userKey, selectedNotebook.id, false);
         
-        showFeedback('warning', `Tu calificación fue de ${score}/10. Necesitas al menos 8/10 para validar el estudio inteligente. Podrás intentar nuevamente mañana.`);
+        // Mensaje eliminado por solicitud del usuario
       }
       
       // Completar la sesión (con o sin validación)
@@ -896,7 +909,7 @@ const StudyModePage = () => {
       // Mostrar mensaje especial si hubo repasos inmediatos
       const totalRepetitions = reviewedConceptIds.size - uniqueConceptsCount;
       if (totalRepetitions > 0) {
-        showFeedback('success', `¡Excelente perseverancia! Repasaste ${totalRepetitions} conceptos hasta dominarlos.`);
+        // Mensaje eliminado por solicitud del usuario
       }
       
       // IMPORTANTE: Actualizar SM-3 con los resultados finales después del Mini Quiz
@@ -922,10 +935,14 @@ const StudyModePage = () => {
         // No fallar por error en KPIs
       }
       
-      // Esperar un momento para asegurar que los datos se propaguen en Firestore
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Esperar más tiempo para asegurar que los datos se propaguen completamente en Firestore
+      await new Promise(resolve => setTimeout(resolve, 2500));
       
       // Refrescar datos del dashboard para mostrar el progreso actualizado
+      await refreshDashboardData();
+      
+      // Forzar una segunda actualización para garantizar sincronización
+      await new Promise(resolve => setTimeout(resolve, 500));
       await refreshDashboardData();
       
     } catch (error) {
