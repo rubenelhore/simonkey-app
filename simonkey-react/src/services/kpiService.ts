@@ -1,4 +1,5 @@
-import { db } from './firebase';
+import { db, functions } from './firebase';
+import { rankingService } from './rankingService';
 import { 
   doc, 
   setDoc, 
@@ -11,6 +12,7 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 interface DashboardKPIs {
   global: {
@@ -47,6 +49,15 @@ interface DashboardKPIs {
       conceptosDominadosMateria: number;
       conceptosNoDominadosMateria: number;
     };
+  };
+  tiempoEstudioSemanal?: {
+    domingo: number;
+    lunes: number;
+    martes: number;
+    miercoles: number;
+    jueves: number;
+    viernes: number;
+    sabado: number;
   };
   ultimaActualizacion: Timestamp;
 }
@@ -96,19 +107,67 @@ export class KPIService {
       }
       console.log(`[KPIService] Resultados de quiz encontrados: ${quizResultsSnap.size}`);
 
+      // Verificar si es un usuario escolar - primero obtener datos del usuario
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      let isSchoolUser = false;
+      let userData: any = null;
+      
+      if (userDoc.exists()) {
+        userData = userDoc.data();
+        // Un usuario es escolar si tiene subscription SCHOOL o si su ID empieza con school_
+        isSchoolUser = userData.subscription === 'school' || userId.startsWith('school_');
+        console.log(`[KPIService] Usuario encontrado - subscription: ${userData.subscription}, schoolRole: ${userData.schoolRole}`);
+      }
+      
+      console.log(`[KPIService] Es usuario escolar: ${isSchoolUser}`);
+      
       // Obtener información de los cuadernos del usuario
-      const notebooksQuery = query(
-        collection(db, 'notebooks'),
-        where('userId', '==', userId)
-      );
-      const notebooksSnap = await getDocs(notebooksQuery);
+      let notebooksSnap;
+      if (isSchoolUser) {
+        // Para usuarios escolares, los cuadernos se obtienen diferente
+        console.log('[KPIService] Buscando cuadernos escolares para usuario:', userId);
+        
+        // Usar los datos del usuario que ya obtuvimos
+        if (userData) {
+          const idCuadernos = userData.idCuadernos || [];
+          console.log('[KPIService] idCuadernos del usuario:', idCuadernos);
+          
+          // Obtener los cuadernos específicos
+          const notebooks: any[] = [];
+          for (const cuadernoId of idCuadernos) {
+            const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
+            if (notebookDoc.exists()) {
+              notebooks.push(notebookDoc);
+            }
+          }
+          
+          notebooksSnap = {
+            docs: notebooks,
+            size: notebooks.length,
+            forEach: (callback: any) => notebooks.forEach(callback)
+          };
+        } else {
+          notebooksSnap = { docs: [], size: 0, forEach: () => {} };
+        }
+      } else {
+        // Para usuarios regulares, buscar en notebooks
+        const notebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', userId)
+        );
+        notebooksSnap = await getDocs(notebooksQuery);
+      }
 
       // Obtener conceptos por cuaderno
       const conceptsByNotebook = new Map<string, number>();
       for (const notebookDoc of notebooksSnap.docs) {
         const notebookId = notebookDoc.id;
+        // Determinar la colección de conceptos según el tipo de usuario
+        const conceptsCollectionName = isSchoolUser ? 'schoolConcepts' : 'conceptos';
+        console.log(`[KPIService] Buscando conceptos en colección: ${conceptsCollectionName} para cuaderno ${notebookId}`);
+        
         const conceptsQuery = query(
-          collection(db, 'conceptos'),
+          collection(db, conceptsCollectionName),
           where('cuadernoId', '==', notebookId)
         );
         const conceptsSnap = await getDocs(conceptsQuery);
@@ -121,6 +180,7 @@ export class KPIService {
           }
         });
         
+        console.log(`[KPIService] Cuaderno ${notebookId}: ${totalConcepts} conceptos encontrados`);
         conceptsByNotebook.set(notebookId, totalConcepts);
       }
 
@@ -134,22 +194,87 @@ export class KPIService {
         },
         cuadernos: {},
         materias: {},
+        tiempoEstudioSemanal: {
+          domingo: 0,
+          lunes: 0,
+          martes: 0,
+          miercoles: 0,
+          jueves: 0,
+          viernes: 0,
+          sabado: 0
+        },
         ultimaActualizacion: Timestamp.now()
       };
 
       // Mapeo de cuadernos a materias
       const notebooksMap = new Map<string, any>();
       const notebookToMateria = new Map<string, string>();
+      
+      // Procesar cuadernos y extraer materias
+      console.log(`[KPIService] Procesando ${notebooksSnap.size} cuadernos...`);
       notebooksSnap.forEach(doc => {
         const data = doc.data();
         notebooksMap.set(doc.id, { id: doc.id, ...data });
-        if (data.materiaId) {
-          notebookToMateria.set(doc.id, data.materiaId);
+        // Para cuadernos escolares el campo es 'idMateria', para regulares es 'materiaId'
+        // También incluimos 'subjectId' para compatibilidad
+        const materiaId = data.idMateria || data.materiaId || data.subjectId;
+        console.log(`[KPIService] Cuaderno ${doc.id} (${data.title}): idMateria=${data.idMateria}, materiaId=${data.materiaId}, subjectId=${data.subjectId} => ${materiaId}`);
+        if (materiaId) {
+          notebookToMateria.set(doc.id, materiaId);
         }
       });
+      
+      console.log(`[KPIService] Mapeo cuaderno->materia:`, Array.from(notebookToMateria.entries()));
+      
+      // Si es usuario escolar, obtener las materias directamente de los cuadernos
+      let subjectsMap = new Map<string, any>();
+      if (isSchoolUser) {
+        console.log('[KPIService] Usuario escolar detectado, obteniendo materias de los cuadernos...');
+        
+        // Obtener IDs únicos de materias de los cuadernos
+        const uniqueMateriaIds = new Set<string>();
+        notebookToMateria.forEach((materiaId) => {
+          uniqueMateriaIds.add(materiaId);
+        });
+        
+        console.log('[KPIService] Materias únicas encontradas en cuadernos:', Array.from(uniqueMateriaIds));
+        
+        // Cargar las materias desde schoolSubjects
+        for (const materiaId of uniqueMateriaIds) {
+          const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          if (subjectDoc.exists()) {
+            subjectsMap.set(materiaId, { id: materiaId, ...subjectDoc.data() });
+            console.log(`[KPIService] Materia cargada: ${materiaId} - ${subjectDoc.data().nombre || subjectDoc.data().name}`);
+          } else {
+            console.log(`[KPIService] Advertencia: Materia ${materiaId} no encontrada en schoolSubjects`);
+          }
+        }
+      }
 
       // Procesar sesiones de estudio por cuaderno
       const cuadernoStats = new Map<string, any>();
+      
+      // Inicializar estructura para tiempo de estudio semanal
+      const weeklyStudyTime = {
+        domingo: 0,
+        lunes: 0,
+        martes: 0,
+        miercoles: 0,
+        jueves: 0,
+        viernes: 0,
+        sabado: 0
+      };
+      
+      // Obtener la fecha de inicio de la semana actual
+      const today = new Date();
+      const currentWeekStart = new Date(today);
+      currentWeekStart.setDate(today.getDate() - today.getDay());
+      currentWeekStart.setHours(0, 0, 0, 0);
+      
+      const currentWeekEnd = new Date(currentWeekStart);
+      currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+      
+      console.log(`[KPIService] Calculando tiempo semanal desde ${currentWeekStart.toISOString()} hasta ${currentWeekEnd.toISOString()}`);
       
       studySessionsSnap.forEach(sessionDoc => {
         const session = sessionDoc.data();
@@ -199,6 +324,23 @@ export class KPIService {
         }
         
         stats.sesionesTotales++;
+        
+        // Agregar tiempo al estudio semanal si la sesión es de esta semana
+        if (session.startTime) {
+          const sessionDate = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
+          
+          if (sessionDate >= currentWeekStart && sessionDate < currentWeekEnd) {
+            const dayOfWeek = sessionDate.getDay();
+            const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+            
+            // Convertir segundos a minutos
+            const sessionMinutes = Math.round(sessionDuration / 60);
+            weeklyStudyTime[dayName] += sessionMinutes;
+            
+            console.log(`[KPIService] Agregando ${sessionMinutes} minutos al ${dayName}`);
+          }
+        }
 
         // Procesar conceptos dominados/no dominados
         if (session.metrics?.conceptsDominados !== undefined) {
@@ -226,7 +368,8 @@ export class KPIService {
           finalScore: result.finalScore,
           maxScore: result.maxScore,
           correctAnswers: result.correctAnswers,
-          timeBonus: result.timeBonus
+          timeBonus: result.timeBonus,
+          timestamp: result.timestamp
         });
         
         if (!notebookId) return;
@@ -245,6 +388,23 @@ export class KPIService {
         // Sumar tiempo del quiz
         if (result.totalTime) {
           stats.totalTime += result.totalTime;
+          
+          // Agregar tiempo al estudio semanal si el quiz es de esta semana
+          if (result.timestamp) {
+            const quizDate = result.timestamp.toDate ? result.timestamp.toDate() : new Date(result.timestamp);
+            
+            if (quizDate >= currentWeekStart && quizDate < currentWeekEnd) {
+              const dayOfWeek = quizDate.getDay();
+              const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+              const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+              
+              // Convertir segundos a minutos
+              const quizMinutes = Math.round(result.totalTime / 60);
+              weeklyStudyTime[dayName] += quizMinutes;
+              
+              console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz al ${dayName}`);
+            }
+          }
         }
       });
 
@@ -272,6 +432,23 @@ export class KPIService {
         // Sumar tiempo del mini quiz
         if (result.totalTime) {
           stats.totalTime += result.totalTime;
+          
+          // Agregar tiempo al estudio semanal si el mini quiz es de esta semana
+          if (result.timestamp) {
+            const miniQuizDate = result.timestamp.toDate ? result.timestamp.toDate() : new Date(result.timestamp);
+            
+            if (miniQuizDate >= currentWeekStart && miniQuizDate < currentWeekEnd) {
+              const dayOfWeek = miniQuizDate.getDay();
+              const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+              const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+              
+              // Convertir segundos a minutos
+              const miniQuizMinutes = Math.round(result.totalTime / 60);
+              weeklyStudyTime[dayName] += miniQuizMinutes;
+              
+              console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz al ${dayName}`);
+            }
+          }
         }
         
         // Contar mini quizzes exitosos
@@ -283,9 +460,9 @@ export class KPIService {
 
       // Obtener información del salón para ranking (si existe)
       let classroomUsers: string[] = [];
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (userDoc.exists() && userDoc.data().classroomId) {
-        const classroomId = userDoc.data().classroomId;
+      // Ya tenemos userDoc y userData desde arriba
+      if (userData && userData.classroomId) {
+        const classroomId = userData.classroomId;
         const classroomUsersQuery = query(
           collection(db, 'users'),
           where('classroomId', '==', classroomId)
@@ -431,8 +608,11 @@ export class KPIService {
 
         // Agregar a KPIs de materia si existe
         const materiaId = notebookToMateria.get(notebookId);
+        console.log(`[KPIService] Procesando materia para cuaderno ${notebookId}: ${materiaId}`);
+        
         if (materiaId) {
           if (!kpis.materias![materiaId]) {
+            console.log(`[KPIService] Creando entrada para materia ${materiaId}`);
             kpis.materias![materiaId] = {
               scoreMateria: 0,
               percentilMateria: 0,
@@ -448,6 +628,10 @@ export class KPIService {
           kpis.materias![materiaId].estudiosInteligentesMateria += stats.estudiosInteligentesTotal;
           kpis.materias![materiaId].conceptosDominadosMateria += stats.conceptosDominados;
           kpis.materias![materiaId].conceptosNoDominadosMateria += stats.conceptosNoDominados;
+          
+          console.log(`[KPIService] Materia ${materiaId} actualizada con score: ${kpis.materias![materiaId].scoreMateria}`);
+        } else {
+          console.log(`[KPIService] Cuaderno ${notebookId} no tiene materia asignada`);
         }
       }
 
@@ -479,13 +663,83 @@ export class KPIService {
             : 0;
         }
       }
+      
+      // Agregar el tiempo de estudio semanal a los KPIs
+      kpis.tiempoEstudioSemanal = weeklyStudyTime;
+      console.log('[KPIService] Tiempo de estudio semanal calculado:', weeklyStudyTime);
+      
+      // Calcular el total de minutos de la semana
+      const totalMinutosSemana = Object.values(weeklyStudyTime).reduce((sum, minutes) => sum + minutes, 0);
+      console.log(`[KPIService] Total de minutos esta semana: ${totalMinutosSemana}`);
 
-      // Guardar KPIs en Firestore
+      // Guardar KPIs en Firestore (primera fase - sin rankings)
       const kpisDocRef = doc(db, 'users', userId, 'kpis', 'dashboard');
       await setDoc(kpisDocRef, kpis);
 
       console.log(`[KPIService] KPIs actualizados exitosamente para usuario: ${userId}`);
       console.log(`[KPIService] KPIs guardados:`, kpis);
+      
+      // Agregar logs para debug del tiempo semanal
+      console.log('[KPIService] === RESUMEN DE TIEMPO SEMANAL ===');
+      Object.entries(weeklyStudyTime).forEach(([dia, minutos]) => {
+        console.log(`[KPIService] ${dia}: ${minutos} minutos (${Math.round(minutos / 60 * 10) / 10} horas)`);
+      });
+      console.log('[KPIService] ================================');
+      
+      // Si es usuario escolar, calcular rankings reales
+      if (isSchoolUser) {
+        console.log(`[KPIService] Calculando rankings para usuario escolar...`);
+        try {
+          const rankings = await (rankingService as any).calculateStudentRankings(userId);
+          
+          // Actualizar KPIs con rankings reales por cuaderno
+          for (const [notebookId, ranking] of Object.entries(rankings.notebookRankings)) {
+            if (kpis.cuadernos[notebookId]) {
+              kpis.cuadernos[notebookId].posicionRanking = (ranking as any).position;
+              kpis.cuadernos[notebookId].percentilCuaderno = (ranking as any).percentile;
+              console.log(`[KPIService] Cuaderno ${notebookId}: Posición ${(ranking as any).position}/${(ranking as any).totalStudents}, Percentil ${(ranking as any).percentile}%`);
+            }
+          }
+          
+          // Actualizar KPIs con rankings reales por materia
+          for (const [subjectId, ranking] of Object.entries(rankings.subjectRankings)) {
+            if (kpis.materias && kpis.materias[subjectId]) {
+              kpis.materias[subjectId].percentilMateria = (ranking as any).percentile;
+              console.log(`[KPIService] Materia ${subjectId}: Posición ${(ranking as any).position}/${(ranking as any).totalStudents}, Percentil ${(ranking as any).percentile}%`);
+            }
+          }
+          
+          // Actualizar percentil global
+          kpis.global.percentilPromedioGlobal = rankings.globalPercentile;
+          console.log(`[KPIService] Percentil global actualizado: ${rankings.globalPercentile}%`);
+          
+          // Guardar KPIs actualizados con rankings
+          await setDoc(kpisDocRef, kpis);
+          console.log(`[KPIService] KPIs actualizados con rankings reales`);
+          
+          // Actualizar rankings pre-calculados de la institución
+          if (userData?.idInstitucion) {
+            console.log(`[KPIService] Actualizando rankings pre-calculados para institución: ${userData.idInstitucion}`);
+            try {
+              // Llamar a la Cloud Function de forma asíncrona (no esperamos)
+              const updateRankings = httpsCallable(functions, 'updateInstitutionRankings');
+              updateRankings({ institutionId: userData.idInstitucion })
+                .then(result => {
+                  console.log('[KPIService] Rankings pre-calculados actualizados:', result.data);
+                })
+                .catch(error => {
+                  console.error('[KPIService] Error actualizando rankings pre-calculados:', error);
+                });
+            } catch (error) {
+              console.error('[KPIService] Error llamando función de rankings:', error);
+            }
+          }
+          
+        } catch (rankingError) {
+          console.error('[KPIService] Error calculando rankings:', rankingError);
+          // Los KPIs ya se guardaron sin rankings, así que continuamos
+        }
+      }
 
     } catch (error) {
       console.error('[KPIService] Error actualizando KPIs:', error);

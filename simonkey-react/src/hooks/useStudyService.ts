@@ -449,6 +449,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         
         await updateDoc(sessionRef, {
           endTime,
+          concepts: detailedResults?.concepts || [], // Guardar array de conceptos estudiados
           metrics: {
             ...metrics,
             sessionDuration, // Duración total de la sesión en segundos

@@ -16,6 +16,7 @@ import { useUserType } from '../hooks/useUserType';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
+import { rankingUpdateService } from '../services/rankingUpdateService';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -750,6 +751,14 @@ const StudyModePage = () => {
     }));
     
     try {
+      // DEBUG: Verificar estado de conceptos
+      console.log('🔍 [DEBUG] Estado de conceptos al completar sesión:');
+      console.log('  - allConcepts.length:', allConcepts.length);
+      console.log('  - conceptFinalResults.size:', conceptFinalResults.size);
+      console.log('  - masteredConceptIds.size:', masteredConceptIds.size);
+      console.log('  - reviewedConceptIds.size:', reviewedConceptIds.size);
+      console.log('  - sessionId:', sessionId);
+      
       // Preparar datos detallados de conceptos para KPIs
       const conceptsResults = Array.from(conceptFinalResults.entries()).map(([conceptId, quality]) => ({
         conceptId,
@@ -760,6 +769,11 @@ const StudyModePage = () => {
       // Contar conceptos dominados y no dominados
       const conceptsDominados = conceptsResults.filter(c => c.mastered).length;
       const conceptosNoDominados = conceptsResults.filter(c => !c.mastered).length;
+      
+      console.log('📊 [DEBUG] Conteos calculados:');
+      console.log('  - conceptsDominados:', conceptsDominados);
+      console.log('  - conceptosNoDominados:', conceptosNoDominados);
+      console.log('  - conceptsResults.length:', conceptsResults.length);
       
       // Guardar estadísticas en Firestore con datos detallados
       await studyService.completeStudySession(
@@ -772,6 +786,7 @@ const StudyModePage = () => {
           endTime
         },
         {
+          concepts: allConcepts, // Pasar array completo de conceptos
           conceptsDominados,
           conceptosNoDominados,
           conceptsResults,
@@ -779,27 +794,42 @@ const StudyModePage = () => {
         }
       );
       
-      // IMPORTANTE: Actualizar SM-3 con los resultados finales de la primera pasada
-      const effectiveUserData = await getEffectiveUserId();
-      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      
-      console.log('🎯 Actualizando SM-3 con resultados finales de primera pasada...');
-      console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
-      
-      // Actualizar cada concepto con su resultado de primera pasada
-      for (const [conceptId, quality] of conceptFinalResults) {
-        try {
-          await studyService.updateConceptResponse(userKey, conceptId, quality);
-          console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
-        } catch (error) {
-          console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+      // IMPORTANTE: Solo actualizar SM-3 si es estudio inteligente
+      // Los estudios libres NO deben afectar al algoritmo de espaciamiento
+      if (studyMode === StudyMode.SMART) {
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        console.log('🎯 Actualizando SM-3 con resultados finales de primera pasada (Estudio Inteligente)...');
+        console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
+        
+        // Actualizar cada concepto con su resultado de primera pasada
+        for (const [conceptId, quality] of conceptFinalResults) {
+          try {
+            await studyService.updateConceptResponse(userKey, conceptId, quality);
+            console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
+          } catch (error) {
+            console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+          }
         }
+      } else {
+        console.log('📚 Estudio Libre completado - NO se actualiza el algoritmo SM-3');
+        console.log('ℹ️ Los estudios libres no afectan al espaciamiento de conceptos');
       }
       
       // Actualizar KPIs del usuario
       try {
         console.log('📊 Actualizando KPIs del usuario después de completar sesión de estudio...');
-        await kpiService.updateUserKPIs(auth.currentUser.uid);
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        console.log('📊 Usando ID efectivo para KPIs:', userKey);
+        await kpiService.updateUserKPIs(userKey);
+        
+        // Actualizar rankings si es estudio inteligente (afecta scores)
+        if (studyMode === StudyMode.SMART) {
+          console.log('🏆 Actualizando rankings después de estudio inteligente...');
+          await rankingUpdateService.updateRankingsForStudent(userKey);
+        }
       } catch (kpiError) {
         console.error('Error actualizando KPIs:', kpiError);
         // No fallar la sesión por error en KPIs
@@ -827,8 +857,10 @@ const StudyModePage = () => {
       // Para estudio libre, completar normalmente
       if (studyMode === StudyMode.FREE) {
         // Registrar actividad
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         await studyService.logStudyActivity(
-          auth.currentUser.uid,
+          userKey,
           'session_completed',
           `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
@@ -929,7 +961,8 @@ const StudyModePage = () => {
       // Actualizar KPIs del usuario después del Mini Quiz
       try {
         console.log('📊 Actualizando KPIs del usuario después del Mini Quiz...');
-        await kpiService.updateUserKPIs(auth.currentUser.uid);
+        console.log('📊 Usando userKey para KPIs:', userKey);
+        await kpiService.updateUserKPIs(userKey);
       } catch (kpiError) {
         console.error('Error actualizando KPIs:', kpiError);
         // No fallar por error en KPIs

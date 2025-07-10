@@ -57,11 +57,11 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   // Usar useRef para guardar el score actual y evitar que se pierda
   const currentScoreRef = useRef<number>(0);
 
-  // Configuración del timer para mini quiz (30 segundos)
+  // Configuración del timer para mini quiz (45 segundos)
   const timerConfig = {
-    totalTime: 30,
-    warningThreshold: 15,
-    criticalThreshold: 8,
+    totalTime: 45,
+    warningThreshold: 20,
+    criticalThreshold: 10,
     autoSubmit: true
   };
 
@@ -86,8 +86,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       console.log('[MINI QUIZ] Tiempo agotado!');
       handleTimeUp();
     },
-    onWarning: () => console.log('¡Advertencia! Menos de 15 segundos'),
-    onCritical: () => console.log('¡Crítico! Menos de 8 segundos')
+    onWarning: () => console.log('¡Advertencia! Menos de 20 segundos'),
+    onCritical: () => console.log('¡Crítico! Menos de 10 segundos')
   });
 
   // Manejar tiempo agotado
@@ -425,7 +425,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setPassed(currentScoreRef.current >= 8);
       
       // Calcular tiempo total usado
-      const totalTimeUsed = 30 - timeRemainingValue;
+      const totalTimeUsed = 45 - timeRemainingValue;
       
       // Guardar resultados del mini quiz
       await saveMiniQuizResults({
@@ -759,7 +759,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           <div className="intro-section">
             <h3>¿Cómo funciona?</h3>
             <ul>
-              <li><i className="fas fa-clock"></i> Tienes <strong>30 segundos</strong> para responder</li>
+              <li><i className="fas fa-clock"></i> Tienes <strong>45 segundos</strong> para responder</li>
               <li><i className="fas fa-star"></i> Necesitas una calificación de <strong>8/10 o mayor</strong></li>
               <li><i className="fas fa-check-circle"></i> Si apruebas, tu estudio inteligente se valida</li>
               <li><i className="fas fa-redo"></i> Si no apruebas, puedes intentar mañana</li>

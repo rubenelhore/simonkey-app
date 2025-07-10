@@ -11,6 +11,29 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
+import { diagnoseSchoolStudentKPIs } from './diagnoseSchoolStudentKPIs';
+import { forceUpdateSchoolKPIs } from './forceUpdateSchoolKPIs';
+import { analyzeSchoolNotebooksSubjects, assignSubjectToNotebook } from './fixSchoolNotebooksSubjects';
+import { syncStudentSubjects } from './syncStudentSubjects';
+import { migrateAllSchoolStudentKPIs, checkSchoolStudentsNeedingKPIs } from './migrateSchoolStudentKPIs';
+import { debugSchoolNotebookConcepts } from './debugSchoolNotebookConcepts';
+import { testRankingSystem, testNotebookRanking } from './testRankingSystem';
+import { initializeAllTeacherMetrics, checkTeacherMetricsById } from './initializeTeacherMetrics';
+import { updateTeacherMetrics, updateAllTeacherMetrics, checkTeacherMetricsStatus } from './updateTeacherMetrics';
+import { debugTeacherData } from './debugTeacherData';
+import { debugStudentRankings } from './debugStudentRankings';
+import { updateInstitutionRankings, updateAllInstitutionRankings, getInstitutionRankingStats } from './updateInstitutionRankings';
+import { testUpdateKPIs } from './testUpdateKPIs';
+import { createTestStudySessions } from './createTestStudySessions';
+import { debugWeeklyStudyTime } from './debugWeeklyStudyTime';
+import { saveCurrentPositionToHistory, getPositionHistory, initializePositionHistory } from './createPositionHistory';
+import { verifyKPIsData } from './verifyKPIsData';
+import { forceWeeklyTimeUpdate, updateWeeklyTimeFromSessions } from './forceWeeklyTimeUpdate';
+import { updateAllStudentsWeeklyTime, quickUpdateAllWeeklyTime } from './updateAllStudentsWeeklyTime';
+import { debugConceptTracking, debugSpecificSession } from './debugConceptTracking';
+import { debugConceptCounting } from './debugConceptCounting';
+import { debugStudySessionCompletion } from './debugStudySessionCompletion';
+import { fixMissingConceptsInSessions, validateSessionConcepts } from './fixMissingConcepts';
 
 /**
  * Actualizar usuario actual como super admin
@@ -212,6 +235,55 @@ if (typeof window !== 'undefined') {
   (window as any).checkAndFixCurrentUser = checkAndFixCurrentUser;
   (window as any).updateUserProfileWithNotebook = updateUserProfileWithNotebook;
   (window as any).completeNotebookAssignment = completeNotebookAssignment;
+  (window as any).diagnoseSchoolStudentKPIs = diagnoseSchoolStudentKPIs;
+  (window as any).forceUpdateSchoolKPIs = forceUpdateSchoolKPIs;
+  (window as any).analyzeSchoolNotebooksSubjects = analyzeSchoolNotebooksSubjects;
+  (window as any).assignSubjectToNotebook = assignSubjectToNotebook;
+  (window as any).syncStudentSubjects = syncStudentSubjects;
+  (window as any).migrateAllSchoolStudentKPIs = migrateAllSchoolStudentKPIs;
+  (window as any).checkSchoolStudentsNeedingKPIs = checkSchoolStudentsNeedingKPIs;
+  (window as any).debugSchoolNotebookConcepts = debugSchoolNotebookConcepts;
+  (window as any).testRankingSystem = testRankingSystem;
+  (window as any).testNotebookRanking = testNotebookRanking;
+  
+  // Teacher metrics functions
+  (window as any).initializeAllTeacherMetrics = initializeAllTeacherMetrics;
+  (window as any).checkTeacherMetricsById = checkTeacherMetricsById;
+  (window as any).updateTeacherMetrics = updateTeacherMetrics;
+  (window as any).updateAllTeacherMetrics = updateAllTeacherMetrics;
+  (window as any).checkTeacherMetricsStatus = checkTeacherMetricsStatus;
+  (window as any).debugTeacherData = debugTeacherData;
+  (window as any).debugStudentRankings = debugStudentRankings;
+  
+  // Rankings pre-calculados
+  (window as any).updateInstitutionRankings = updateInstitutionRankings;
+  (window as any).updateAllInstitutionRankings = updateAllInstitutionRankings;
+  (window as any).getInstitutionRankingStats = getInstitutionRankingStats;
+  
+  // Test KPIs update
+  (window as any).testUpdateKPIs = testUpdateKPIs;
+  (window as any).createTestStudySessions = createTestStudySessions;
+  (window as any).debugWeeklyStudyTime = debugWeeklyStudyTime;
+  (window as any).verifyKPIsData = verifyKPIsData;
+  (window as any).forceWeeklyTimeUpdate = forceWeeklyTimeUpdate;
+  (window as any).updateWeeklyTimeFromSessions = updateWeeklyTimeFromSessions;
+  (window as any).updateAllStudentsWeeklyTime = updateAllStudentsWeeklyTime;
+  (window as any).quickUpdateAllWeeklyTime = quickUpdateAllWeeklyTime;
+  
+  // Debug concept tracking
+  (window as any).debugConceptTracking = debugConceptTracking;
+  (window as any).debugSpecificSession = debugSpecificSession;
+  (window as any).debugConceptCounting = debugConceptCounting;
+  (window as any).debugStudySessionCompletion = debugStudySessionCompletion;
+  
+  // Fix missing concepts
+  (window as any).fixMissingConceptsInSessions = fixMissingConceptsInSessions;
+  (window as any).validateSessionConcepts = validateSessionConcepts;
+  
+  // Position history
+  (window as any).saveCurrentPositionToHistory = saveCurrentPositionToHistory;
+  (window as any).getPositionHistory = getPositionHistory;
+  (window as any).initializePositionHistory = initializePositionHistory;
   
   // Función específica para el estudiante actual
   (window as any).fixCurrentStudentNotebook = async () => {

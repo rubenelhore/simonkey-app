@@ -168,6 +168,7 @@ const DashboardVerification: React.FC = () => {
             role: 'student'
           } as SchoolUser)).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
           console.log('Loaded students:', studentsData.length);
+          console.log('Student IDs:', studentsData.map(s => ({ id: s.id, email: s.email, nombre: s.nombre })));
           setSchoolStudents(studentsData);
         } else {
           // Cargar usuarios regulares (free/pro)
@@ -275,30 +276,45 @@ const DashboardVerification: React.FC = () => {
           setError('No se encontraron métricas para este profesor. Es posible que aún no se hayan generado.');
         }
       } else {
+        // Para usuarios escolares, necesitamos usar su ID de documento, no el UID
+        let effectiveUserId = userId;
+        
+        // Si es un estudiante escolar, el userId ya es el ID del documento (school_xxx)
+        if (accountType === 'school' && !isTeacher) {
+          console.log('School student detected, using document ID:', userId);
+          console.log('Expected KPIs path for school student:', `users/${userId}/kpis/dashboard`);
+          effectiveUserId = userId;
+        }
+        
         // Cargar KPIs del estudiante/usuario regular
-        const kpisPath = `users/${userId}/kpis/dashboard`;
+        const kpisPath = `users/${effectiveUserId}/kpis/dashboard`;
         console.log('Attempting to load KPIs from path:', kpisPath);
         
         // Primero verifiquemos si el usuario existe
-        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userDoc = await getDoc(doc(db, 'users', effectiveUserId));
         console.log('User exists:', userDoc.exists());
         if (userDoc.exists()) {
           console.log('User data:', userDoc.data());
         }
         
         // Ahora intentemos cargar los KPIs
-        const kpisDoc = await getDoc(doc(db, 'users', userId, 'kpis', 'dashboard'));
+        const kpisDoc = await getDoc(doc(db, 'users', effectiveUserId, 'kpis', 'dashboard'));
         console.log('KPIs doc exists:', kpisDoc.exists());
         
         if (kpisDoc.exists()) {
           const data = kpisDoc.data();
           console.log('KPIs data:', data);
+          console.log('KPIs data stringified:', JSON.stringify(data, null, 2));
+          console.log('KPIs data keys:', Object.keys(data || {}));
+          console.log('KPIs data.global:', data?.global);
+          console.log('KPIs data.cuadernos:', data?.cuadernos);
+          console.log('KPIs data.materias:', data?.materias);
           setDashboardData(data as DashboardKPIs);
         } else {
           // Intentemos ver si hay algún documento en la colección kpis
           console.log('Checking if kpis collection exists...');
           try {
-            const kpisCollection = collection(db, 'users', userId, 'kpis');
+            const kpisCollection = collection(db, 'users', effectiveUserId, 'kpis');
             const kpisSnapshot = await getDocs(kpisCollection);
             console.log('Documents in kpis collection:', kpisSnapshot.size);
             kpisSnapshot.forEach(doc => {

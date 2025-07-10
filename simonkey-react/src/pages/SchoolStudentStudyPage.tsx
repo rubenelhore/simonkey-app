@@ -363,12 +363,18 @@ const SchoolStudentStudyPage = () => {
       // Para estudiantes escolares, usar identificador específico
       const studentKey = `student_${auth.currentUser.uid}`;
       
-      // Actualizar respuesta usando SM-3 con datos específicos del estudiante
-      await studyService.updateConceptResponse(
-        studentKey,
-        conceptId,
-        quality
-      );
+      // IMPORTANTE: Solo actualizar SM-3 si es estudio inteligente
+      // Los estudios libres NO deben afectar al algoritmo de espaciamiento
+      if (studyMode === StudyMode.SMART) {
+        // Actualizar respuesta usando SM-3 con datos específicos del estudiante
+        await studyService.updateConceptResponse(
+          studentKey,
+          conceptId,
+          quality
+        );
+      } else {
+        console.log('📚 Estudio Libre - NO se actualiza el algoritmo SM-3');
+      }
       
       // Actualizar métricas locales
       setMetrics(prev => ({
@@ -455,6 +461,12 @@ const SchoolStudentStudyPage = () => {
     try {
       const studentKey = `student_${auth.currentUser.uid}`;
       
+      // DEBUG: Verificar estado de conceptos
+      console.log('🔍 [DEBUG] Estado de conceptos al completar sesión:');
+      console.log('  - allConcepts.length:', allConcepts.length);
+      console.log('  - masteredConceptIds.size:', masteredConceptIds.size);
+      console.log('  - sessionId:', sessionId);
+      
       // Preparar datos detallados de conceptos para KPIs
       const conceptsResults: any[] = [];
       let conceptsDominados = 0;
@@ -474,11 +486,17 @@ const SchoolStudentStudyPage = () => {
         });
       });
       
+      console.log('📊 [DEBUG] Conteos calculados:');
+      console.log('  - conceptsDominados:', conceptsDominados);
+      console.log('  - conceptosNoDominados:', conceptosNoDominados);
+      console.log('  - conceptsResults.length:', conceptsResults.length);
+      
       // Finalizar sesión con identificador específico del estudiante y datos detallados
       await studyService.completeStudySession(
         sessionId,
         metrics,
         {
+          concepts: allConcepts, // Pasar array completo de conceptos
           conceptsDominados,
           conceptosNoDominados,
           conceptsResults,
@@ -492,8 +510,39 @@ const SchoolStudentStudyPage = () => {
       // Actualizar KPIs después de completar la sesión
       try {
         const { kpiService } = await import('../services/kpiService');
+        const { rankingUpdateService } = await import('../services/rankingUpdateService');
+        const { teacherKpiService } = await import('../services/teacherKpiService');
         console.log('🎓 Actualizando KPIs del estudiante después de la sesión...');
         await kpiService.updateUserKPIs(studentKey);
+        
+        // Actualizar rankings si es estudio inteligente (afecta scores)
+        if (studyMode === StudyMode.SMART) {
+          console.log('🏆 Actualizando rankings después de estudio inteligente...');
+          await rankingUpdateService.updateRankingsForStudent(studentKey);
+        }
+        
+        // Actualizar métricas del profesor asociado
+        if (selectedNotebook && selectedNotebook.idMateria) {
+          console.log('👨‍🏫 Actualizando métricas del profesor asociado...');
+          try {
+            // Obtener el profesor de la materia
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('../services/firebase');
+            const subjectDoc = await getDoc(doc(db, 'schoolSubjects', selectedNotebook.idMateria));
+            
+            if (subjectDoc.exists()) {
+              const subjectData = subjectDoc.data();
+              if (subjectData.idProfesor) {
+                console.log('🎯 Profesor encontrado:', subjectData.idProfesor);
+                await teacherKpiService.updateTeacherMetrics(subjectData.idProfesor);
+                console.log('✅ Métricas del profesor actualizadas');
+              }
+            }
+          } catch (teacherError) {
+            console.error('Error actualizando métricas del profesor:', teacherError);
+            // No bloquear el flujo si falla la actualización del profesor
+          }
+        }
       } catch (kpiError) {
         console.error('Error actualizando KPIs del estudiante:', kpiError);
       }
