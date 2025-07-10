@@ -12,7 +12,9 @@
 .quiz-card,
 .quiz-card *,
 .free-study-card,
-.free-study-card * {
+.free-study-card *,
+.games-card,
+.games-card * {
   font-family: 'Poppins', sans-serif !important;
 }
 
@@ -245,6 +247,30 @@
 
 .free-study-card .card-content {
   padding-top: 20px;
+}
+
+/* Tarjeta de Juegos */
+.games-card {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.games-card .card-icon {
+  color: #f59e0b;
+}
+
+.games-card .card-content {
+  padding-top: 20px;
+}
+
+.games-card .new-badge {
+  background: #ef4444;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
 }
 
 .availability-status {

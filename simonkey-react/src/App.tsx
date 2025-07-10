@@ -28,6 +28,7 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
+import GamesPage from './pages/GamesPage';
 // Importar utilidad para corregir tiempos de sesiones
 import './utils/fixStudySessionsTime';
 // Importar utilidad para debug de tiempos
@@ -627,6 +628,18 @@ const AppContent: React.FC = () => {
             isAuthenticated ? (
               <EmailVerificationGuard>
                 <QuizModePage />
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          }
+        />
+        
+        {/* Nueva ruta para games */}
+        <Route
+          path="/games"
+          element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <GamesPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }

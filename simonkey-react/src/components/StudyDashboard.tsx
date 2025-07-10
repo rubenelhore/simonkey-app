@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'fireb
 import { db } from '../services/firebase';
 import { useStudyService } from '../hooks/useStudyService';
 import { getNextSmartStudyDate } from '../utils/sm3Algorithm';
+import { useNavigate } from 'react-router-dom';
 import '../styles/StudyDashboard.css';
 
 // Función auxiliar para obtener datos de aprendizaje
@@ -53,7 +54,8 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [studyLimits, setStudyLimits] = useState<any>(null);
-
+  
+  const navigate = useNavigate();
   const studyService = useStudyService(userSubscription);
 
   // Debug prop validation
@@ -836,6 +838,26 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
                 }
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Juegos */}
+        <div 
+          className="dashboard-card games-card"
+          onClick={() => navigate('/games', { state: { notebookId: notebook?.id, notebookTitle: notebook?.title } })}
+          style={{ 
+            cursor: 'pointer',
+            opacity: 1
+          }}
+        >
+          <div className="card-header">
+            <h4>Juegos</h4>
+            <span className="new-badge">Nuevo</span>
+          </div>
+          <div className="card-content">
+            <div className="availability-status available-text">
+              Disponible
+            </div>
           </div>
         </div>
       </div>
