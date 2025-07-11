@@ -58,6 +58,7 @@ interface CuadernoData {
   porcentajeExito: number;
   porcentajeDominio: number;
   estudiosLibres: number;
+  juegosJugados: number;
 }
 
 const SchoolTutorPage: React.FC = () => {
@@ -185,6 +186,7 @@ const SchoolTutorPage: React.FC = () => {
       porcentajeExito: 85,
       porcentajeDominio: 72,
       estudiosLibres: 8,
+      juegosJugados: 12,
     },
     {
       id: '2',
@@ -198,6 +200,7 @@ const SchoolTutorPage: React.FC = () => {
       porcentajeExito: 75,
       porcentajeDominio: 65,
       estudiosLibres: 6,
+      juegosJugados: 7,
     },
     {
       id: '3',
@@ -211,6 +214,7 @@ const SchoolTutorPage: React.FC = () => {
       porcentajeExito: 90,
       porcentajeDominio: 80,
       estudiosLibres: 10,
+      juegosJugados: 18,
     },
     {
       id: '4',
@@ -224,6 +228,7 @@ const SchoolTutorPage: React.FC = () => {
       porcentajeExito: 70,
       porcentajeDominio: 60,
       estudiosLibres: 5,
+      juegosJugados: 4,
     },
   ];
 
@@ -486,13 +491,14 @@ const SchoolTutorPage: React.FC = () => {
                         <th>% Éxito</th>
                         <th>% Dominio</th>
                         <th>E. Libres</th>
+                        <th>Juegos</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cuadernosData.map((cuaderno) => (
                         <tr key={cuaderno.id}>
                           <td className="notebook-name">{cuaderno.nombre}</td>
-                          <td className="score-cell">{cuaderno.score.toLocaleString()}</td>
+                          <td className="score-cell">{Math.round(cuaderno.score).toLocaleString('es-ES')}</td>
                           <td className="position-cell">
                             {cuaderno.posicion}/{cuaderno.totalAlumnos}
                           </td>
@@ -502,6 +508,7 @@ const SchoolTutorPage: React.FC = () => {
                           <td className="percentage success">{cuaderno.porcentajeExito}%</td>
                           <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
                           <td>{cuaderno.estudiosLibres}</td>
+                          <td>{cuaderno.juegosJugados || 0}</td>
                         </tr>
                       ))}
                     </tbody>

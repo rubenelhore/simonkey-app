@@ -59,8 +59,8 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   
   const navigate = useNavigate();
   const studyService = useStudyService(userSubscription);
-  const { points: gamePoints } = useGamePoints();
-  const { tickets } = useTickets();
+  const { points: gamePoints } = useGamePoints(notebook?.id);
+  const { tickets } = useTickets(notebook?.id);
 
   // Debug prop validation
   useEffect(() => {

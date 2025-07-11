@@ -46,10 +46,10 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
   return (
     <div className="ticket-display">
       <div className="ticket-header">
-        <h3>Tickets disponibles</h3>
+        <h3>Tickets de este cuaderno</h3>
         <div className="ticket-count">
           <span className="count-number">{availableTickets}</span>
-          <span className="count-total">/3</span>
+          <span className="count-total">/3 diarios</span>
         </div>
       </div>
       

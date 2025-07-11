@@ -19,8 +19,8 @@ const GamesPage: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [pendingGame, setPendingGame] = useState<string | null>(null);
-  const { tickets, loading: ticketsLoading, consumeTicket } = useTickets();
-  const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints();
+  const { tickets, loading: ticketsLoading, consumeTicket } = useTickets(notebookId);
+  const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints(notebookId);
 
   // Recargar puntos cuando se regrese de un juego
   useEffect(() => {
@@ -101,7 +101,7 @@ const GamesPage: React.FC = () => {
                   <div className="header-points-total">
                     {points?.totalPoints?.toLocaleString() || '0'}
                   </div>
-                  <div className="header-points-label">puntos</div>
+                  <div className="header-points-label">puntos del cuaderno</div>
                 </div>
               </div>
             )}

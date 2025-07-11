@@ -1,15 +1,6 @@
 import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 import { db } from './config';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  doc,
-  getDoc,
-  writeBatch,
-  Timestamp
-} from 'firebase/firestore';
 
 interface RankingEntry {
   studentId: string;
@@ -18,204 +9,217 @@ interface RankingEntry {
   position: number;
 }
 
-interface SubjectRanking {
-  type: 'subject';
-  subjectId: string;
-  subjectName: string;
-  institutionId: string;
-  lastUpdated: Timestamp;
-  totalStudents: number;
-  students: RankingEntry[];
+interface StudentRanking {
+  studentId: string;
+  name: string;
+  score: number;
 }
 
-interface NotebookRanking {
-  type: 'notebook';
-  notebookId: string;
-  notebookName: string;
+interface SubjectRanking {
   subjectId: string;
-  institutionId: string;
-  lastUpdated: Timestamp;
+  subjectName: string;
+  rankings: RankingEntry[];
+}
+
+interface RankingData {
+  position: number;
   totalStudents: number;
-  students: RankingEntry[];
+  percentile: number;
 }
 
 /**
  * Cloud Function que actualiza los rankings de una institución
  * Se puede ejecutar de forma programada o cuando se actualizan KPIs
  */
-export const updateInstitutionRankings = functions
-  .runWith({
-    timeoutSeconds: 540, // 9 minutos
-    memory: '1GB'
-  })
-  .https.onCall(async (data, context) => {
+export const updateInstitutionRankings = functions.https.onCall(async (request) => {
     try {
-      const { institutionId } = data;
+      const { institutionId } = request.data;
       
       if (!institutionId) {
         throw new functions.https.HttpsError(
           'invalid-argument',
-          'Se requiere institutionId'
+          'Se requiere el ID de la institución'
         );
       }
 
-      console.log(`[updateRankings] Actualizando rankings para institución: ${institutionId}`);
+      console.log(`[updateInstitutionRankings] Iniciando actualización para institución: ${institutionId}`);
 
       // 1. Obtener todos los estudiantes de la institución
-      const studentsQuery = query(
-        collection(db, 'users'),
-        where('subscription', '==', 'school'),
-        where('schoolRole', '==', 'student'),
-        where('idInstitucion', '==', institutionId)
-      );
+      const studentsQuery = db
+        .collection('users')
+        .where('subscription', '==', 'school')
+        .where('schoolRole', '==', 'student')
+        .where('idInstitucion', '==', institutionId);
 
-      const studentsSnapshot = await getDocs(studentsQuery);
-      console.log(`[updateRankings] Total estudiantes: ${studentsSnapshot.size}`);
+      const studentsSnapshot = await studentsQuery.get();
+      console.log(`[updateInstitutionRankings] Estudiantes encontrados: ${studentsSnapshot.size}`);
 
-      // 2. Recopilar datos de KPIs de todos los estudiantes
-      const studentKPIs = new Map<string, any>();
-      
+      if (studentsSnapshot.empty) {
+        return { 
+          success: true, 
+          message: 'No se encontraron estudiantes',
+          studentsProcessed: 0
+        };
+      }
+
+      // 2. Recopilar KPIs de cada estudiante
+      const studentScores: Map<string, Map<string, number>> = new Map();
+      const studentNames: Map<string, string> = new Map();
+
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
-        const kpisDoc = await getDoc(doc(db, 'users', studentDoc.id, 'kpis', 'dashboard'));
+        const kpisDoc = await db.doc(`users/${studentDoc.id}/kpis/dashboard`).get();
+
+        if (kpisDoc.exists) {
+          const kpis = kpisDoc.data();
+          studentNames.set(studentDoc.id, studentData.nombre || 'Sin nombre');
+
+          // Recopilar scores por materia
+          if (kpis.materias) {
+            const materiaScores = new Map<string, number>();
+            
+            for (const [materiaId, materiaData] of Object.entries(kpis.materias)) {
+              const score = (materiaData as any).scoreMateria || 0;
+              materiaScores.set(materiaId, score);
+            }
+            
+            studentScores.set(studentDoc.id, materiaScores);
+          }
+        }
+      }
+
+      console.log(`[updateInstitutionRankings] KPIs procesados para ${studentScores.size} estudiantes`);
+
+      // 3. Obtener todas las materias de la institución
+      const subjectsQuery = db
+        .collection('schoolSubjects')
+        .where('idEscuela', '==', institutionId);
+
+      const subjectsSnapshot = await subjectsQuery.get();
+      console.log(`[updateInstitutionRankings] Materias encontradas: ${subjectsSnapshot.size}`);
+
+      // 4. También obtener materias desde los notebooks
+      const notebooksQuery = db
+        .collection('schoolNotebooks')
+        .where('idEscuela', '==', institutionId);
+
+      const notebooksSnapshot = await notebooksQuery.get();
+      const subjectIds = new Set<string>();
+      const subjectNames = new Map<string, string>();
+
+      // Recopilar IDs de materias desde subjects
+      subjectsSnapshot.forEach(doc => {
+        subjectIds.add(doc.id);
+        subjectNames.set(doc.id, doc.data().nombre || 'Sin nombre');
+      });
+
+      // Recopilar IDs de materias desde notebooks
+      notebooksSnapshot.forEach(doc => {
+        const idMateria = doc.data().idMateria;
+        if (idMateria) {
+          subjectIds.add(idMateria);
+        }
+      });
+
+      console.log(`[updateInstitutionRankings] Total de materias únicas: ${subjectIds.size}`);
+
+      // 5. Calcular rankings por materia
+      const subjectRankings: SubjectRanking[] = [];
+      
+      for (const subjectId of subjectIds) {
+        const rankings: StudentRanking[] = [];
         
-        if (kpisDoc.exists()) {
-          studentKPIs.set(studentDoc.id, {
-            id: studentDoc.id,
-            name: studentData.displayName || studentData.nombre || 'Estudiante',
-            kpis: kpisDoc.data()
+        // Recopilar estudiantes con score en esta materia
+        studentScores.forEach((materiaScores, studentId) => {
+          const score = materiaScores.get(subjectId) || 0;
+          if (score > 0) { // Solo incluir estudiantes con score > 0
+            rankings.push({
+              studentId,
+              name: studentNames.get(studentId) || 'Sin nombre',
+              score
+            });
+          }
+        });
+
+        // Ordenar por score descendente
+        rankings.sort((a, b) => b.score - a.score);
+
+        // Asignar posiciones
+        const rankingsWithPosition: RankingEntry[] = rankings.map((student, index) => ({
+          ...student,
+          position: index + 1
+        }));
+
+        if (rankingsWithPosition.length > 0) {
+          subjectRankings.push({
+            subjectId,
+            subjectName: subjectNames.get(subjectId) || 'Sin nombre',
+            rankings: rankingsWithPosition
           });
         }
       }
 
-      // 3. Obtener todas las materias de la institución
-      const subjectsQuery = query(
-        collection(db, 'schoolSubjects'),
-        where('idEscuela', '==', institutionId)
-      );
+      console.log(`[updateInstitutionRankings] Rankings calculados para ${subjectRankings.length} materias`);
 
-      const subjectsSnapshot = await getDocs(subjectsQuery);
-      const subjects = new Map<string, any>();
-      
-      subjectsSnapshot.forEach(doc => {
-        subjects.set(doc.id, {
-          id: doc.id,
-          name: doc.data().nombre || doc.data().name || 'Sin nombre'
-        });
-      });
+      // 6. Guardar rankings en Firestore
+      if (subjectRankings.length > 0) {
+        const batch = db.batch();
+        let operationsCount = 0;
 
-      // 4. Crear rankings por materia
-      const batch = writeBatch(db);
-      let rankingsCreated = 0;
-      
-      for (const [subjectId, subjectData] of subjects) {
-        const subjectScores: Array<{id: string, name: string, score: number}> = [];
-        
-        // Recopilar scores de todos los estudiantes para esta materia
-        for (const [studentId, studentData] of studentKPIs) {
-          const materiaKpis = studentData.kpis.materias?.[subjectId];
-          if (materiaKpis && materiaKpis.scoreMateria > 0) {
-            subjectScores.push({
-              id: studentId,
-              name: studentData.name,
-              score: materiaKpis.scoreMateria
+        for (const subject of subjectRankings) {
+          const totalStudents = subject.rankings.length;
+
+          for (const student of subject.rankings) {
+            // Calcular percentil
+            const percentile = Math.round(((totalStudents - student.position + 1) / totalStudents) * 100);
+
+            const rankingData: RankingData = {
+              position: student.position,
+              totalStudents,
+              percentile
+            };
+
+            // Guardar en la colección del estudiante
+            batch.set(db.doc(`users/${student.studentId}/rankings/subjects/${subject.subjectId}`), rankingData);
+
+            // Guardar en la colección central de rankings
+            batch.set(db.doc(`rankings/institutions/${institutionId}/subjects/${subject.subjectId}/students/${student.studentId}`), {
+              ...rankingData,
+              studentName: student.name,
+              score: student.score,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
+
+            operationsCount += 2;
+
+            // Firestore tiene un límite de 500 operaciones por batch
+            if (operationsCount >= 400) {
+              await batch.commit();
+              operationsCount = 0;
+            }
           }
         }
 
-        // Ordenar por score descendente
-        subjectScores.sort((a, b) => b.score - a.score);
-
-        // Crear el documento de ranking
-        const ranking: SubjectRanking = {
-          type: 'subject',
-          subjectId,
-          subjectName: subjectData.name,
-          institutionId,
-          lastUpdated: Timestamp.now(),
-          totalStudents: subjectScores.length,
-          students: subjectScores.slice(0, 100).map((student, index) => ({
-            studentId: student.id,
-            name: student.name,
-            score: student.score,
-            position: index + 1
-          }))
-        };
-
-        // Agregar al batch
-        const rankingRef = doc(db, 'institutionRankings', institutionId, 'rankings', `subject_${subjectId}`);
-        batch.set(rankingRef, ranking);
-        rankingsCreated++;
-      }
-
-      // 5. Crear rankings por cuaderno
-      const notebooksQuery = query(
-        collection(db, 'schoolNotebooks'),
-        where('idEscuela', '==', institutionId)
-      );
-
-      const notebooksSnapshot = await getDocs(notebooksQuery);
-      
-      for (const notebookDoc of notebooksSnapshot.docs) {
-        const notebookData = notebookDoc.data();
-        const notebookId = notebookDoc.id;
-        const notebookScores: Array<{id: string, name: string, score: number}> = [];
-        
-        // Recopilar scores de todos los estudiantes para este cuaderno
-        for (const [studentId, studentData] of studentKPIs) {
-          const cuadernoKpis = studentData.kpis.cuadernos?.[notebookId];
-          if (cuadernoKpis && cuadernoKpis.scoreCuaderno > 0) {
-            notebookScores.push({
-              id: studentId,
-              name: studentData.name,
-              score: cuadernoKpis.scoreCuaderno
-            });
-          }
+        // Commit final si quedan operaciones pendientes
+        if (operationsCount > 0) {
+          await batch.commit();
         }
-
-        // Ordenar por score descendente
-        notebookScores.sort((a, b) => b.score - a.score);
-
-        // Crear el documento de ranking
-        const ranking: NotebookRanking = {
-          type: 'notebook',
-          notebookId,
-          notebookName: notebookData.title || 'Sin nombre',
-          subjectId: notebookData.idMateria || '',
-          institutionId,
-          lastUpdated: Timestamp.now(),
-          totalStudents: notebookScores.length,
-          students: notebookScores.slice(0, 50).map((student, index) => ({
-            studentId: student.id,
-            name: student.name,
-            score: student.score,
-            position: index + 1
-          }))
-        };
-
-        // Agregar al batch
-        const rankingRef = doc(db, 'institutionRankings', institutionId, 'rankings', `notebook_${notebookId}`);
-        batch.set(rankingRef, ranking);
-        rankingsCreated++;
       }
 
-      // 6. Ejecutar el batch
-      await batch.commit();
-      
-      console.log(`[updateRankings] Rankings actualizados exitosamente. Total: ${rankingsCreated}`);
-      
+      console.log(`[updateInstitutionRankings] Rankings actualizados exitosamente`);
+
       return {
         success: true,
-        institutionId,
-        rankingsCreated,
-        timestamp: new Date().toISOString()
+        message: 'Rankings actualizados exitosamente',
+        studentsProcessed: studentScores.size,
+        subjectsProcessed: subjectRankings.length
       };
-      
+
     } catch (error) {
-      console.error('[updateRankings] Error:', error);
+      console.error('[updateInstitutionRankings] Error:', error);
       throw new functions.https.HttpsError(
         'internal',
-        'Error actualizando rankings',
+        'Error al actualizar rankings',
         error
       );
     }
@@ -225,19 +229,12 @@ export const updateInstitutionRankings = functions
  * Cloud Function programada para actualizar rankings de todas las instituciones
  * Se ejecuta cada 30 minutos
  */
-export const scheduledRankingsUpdate = functions
-  .runWith({
-    timeoutSeconds: 540,
-    memory: '1GB'
-  })
-  .pubsub
-  .schedule('every 30 minutes')
-  .onRun(async (context) => {
+export const scheduledRankingsUpdate = functions.pubsub.schedule('every 30 minutes').onRun(async (context) => {
     try {
       console.log('[scheduledRankingsUpdate] Iniciando actualización programada de rankings');
       
       // Obtener todas las instituciones
-      const institutionsSnapshot = await getDocs(collection(db, 'schoolInstitutions'));
+      const institutionsSnapshot = await db.collection('schoolInstitutions').get();
       
       console.log(`[scheduledRankingsUpdate] Total de instituciones: ${institutionsSnapshot.size}`);
       
@@ -245,29 +242,24 @@ export const scheduledRankingsUpdate = functions
       let errorCount = 0;
       
       // Procesar cada institución
-      for (const instDoc of institutionsSnapshot.docs) {
-        const institutionId = instDoc.id;
-        const institutionName = instDoc.data().nombre;
+      for (const institutionDoc of institutionsSnapshot.docs) {
+        const institutionId = institutionDoc.id;
         
         try {
-          console.log(`[scheduledRankingsUpdate] Procesando: ${institutionName} (${institutionId})`);
+          console.log(`[scheduledRankingsUpdate] Procesando institución: ${institutionId}`);
           
-          // Llamar a la función de actualización para esta institución
+          // Actualizar rankings para esta institución
           await updateInstitutionRankingsInternal(institutionId);
           
           successCount++;
-          console.log(`[scheduledRankingsUpdate] ✅ ${institutionName} actualizada`);
         } catch (error) {
+          console.error(`[scheduledRankingsUpdate] Error procesando institución ${institutionId}:`, error);
           errorCount++;
-          console.error(`[scheduledRankingsUpdate] ❌ Error en ${institutionName}:`, error);
         }
       }
       
-      console.log('[scheduledRankingsUpdate] Actualización completada');
-      console.log(`[scheduledRankingsUpdate] ✅ Exitosas: ${successCount}`);
-      console.log(`[scheduledRankingsUpdate] ❌ Con errores: ${errorCount}`);
+      console.log(`[scheduledRankingsUpdate] Actualización completada. Éxito: ${successCount}, Errores: ${errorCount}`);
       
-      return null;
     } catch (error) {
       console.error('[scheduledRankingsUpdate] Error general:', error);
       throw error;
@@ -279,9 +271,10 @@ export const scheduledRankingsUpdate = functions
  */
 async function updateInstitutionRankingsInternal(institutionId: string): Promise<void> {
   // Reutilizar la lógica de la función callable
-  const result = await updateInstitutionRankings(
+  const updateFunction = updateInstitutionRankings as any;
+  const result = await updateFunction(
     { institutionId },
-    {} as functions.https.CallableContext
+    {}
   );
   
   if (!result.success) {

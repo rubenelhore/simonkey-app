@@ -43,7 +43,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [maxCombo, setMaxCombo] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
-  const { addPoints } = useGamePoints();
+  const { addPoints } = useGamePoints(notebookId);
 
   // Timer
   useEffect(() => {
@@ -329,7 +329,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         bonusType = 'perfect'; // Puntuación alta
       }
       
-      const result = await addPoints('puzzle', 'Puzzle de Definiciones', score, bonusType);
+      const gameId = notebookId ? `puzzle_${notebookId}` : 'puzzle';
+      const result = await addPoints(gameId, 'Puzzle de Definiciones', score, bonusType);
       
       if (result?.newAchievements && result.newAchievements.length > 0) {
         console.log('Nuevos logros:', result.newAchievements);

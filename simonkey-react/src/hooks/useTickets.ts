@@ -9,7 +9,7 @@ interface TicketData {
   timeUntilNextRefresh: { hours: number; minutes: number };
 }
 
-export const useTickets = () => {
+export const useTickets = (notebookId?: string) => {
   const [tickets, setTickets] = useState<TicketData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +21,20 @@ export const useTickets = () => {
       return;
     }
 
+    if (!notebookId) {
+      setError('No se especificó un cuaderno');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const userTickets = await ticketService.getUserTickets(auth.currentUser.uid);
+      const notebookTickets = await ticketService.getNotebookTickets(auth.currentUser.uid, notebookId);
       
       setTickets({
-        availableTickets: userTickets.availableTickets,
-        ticketsUsedToday: userTickets.ticketsUsedToday,
-        lastRefreshDate: userTickets.lastRefreshDate,
+        availableTickets: notebookTickets.availableTickets,
+        ticketsUsedToday: notebookTickets.ticketsUsedToday,
+        lastRefreshDate: notebookTickets.lastRefreshDate,
         timeUntilNextRefresh: ticketService.getTimeUntilNextRefresh()
       });
       setError(null);
@@ -46,8 +52,13 @@ export const useTickets = () => {
       return false;
     }
 
+    if (!notebookId) {
+      setError('No se especificó un cuaderno');
+      return false;
+    }
+
     try {
-      const success = await ticketService.consumeTicket(auth.currentUser.uid, gameId, gameName);
+      const success = await ticketService.consumeTicket(auth.currentUser.uid, notebookId, gameId, gameName);
       if (success) {
         // Recargar tickets después de consumir
         await loadTickets();
@@ -66,8 +77,13 @@ export const useTickets = () => {
       return;
     }
 
+    if (!notebookId) {
+      setError('No se especificó un cuaderno');
+      return;
+    }
+
     try {
-      await ticketService.awardTickets(auth.currentUser.uid, amount, reason);
+      await ticketService.awardTickets(auth.currentUser.uid, notebookId, amount, reason);
       await loadTickets();
     } catch (err) {
       console.error('Error otorgando tickets:', err);
@@ -76,8 +92,10 @@ export const useTickets = () => {
   };
 
   useEffect(() => {
-    loadTickets();
-  }, []);
+    if (notebookId) {
+      loadTickets();
+    }
+  }, [notebookId]);
 
   // Actualizar el tiempo hasta el próximo refresh cada minuto
   useEffect(() => {

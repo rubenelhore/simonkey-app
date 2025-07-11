@@ -35,8 +35,10 @@ interface DashboardKPIs {
       tiempoEstudioLibreLocal: number;
       tiempoEstudioInteligenteLocal: number;
       tiempoQuizLocal: number;
+      tiempoJuegosLocal: number;
       estudiosInteligentesLocal: number;
       estudiosLibresLocal: number;
+      juegosJugados: number;
       porcentajeExitoEstudiosInteligentes: number;
       porcentajeDominioConceptos: number;
       conceptosDominados: number;
@@ -163,11 +165,35 @@ export class KPIService {
         }
       } else {
         // Para usuarios regulares, buscar en notebooks
+        // Primero buscar por userId
         const notebooksQuery = query(
           collection(db, 'notebooks'),
           where('userId', '==', userId)
         );
-        notebooksSnap = await getDocs(notebooksQuery);
+        const userNotebooksSnap = await getDocs(notebooksQuery);
+        
+        // También buscar por idCuadernos si existe
+        const notebooks: any[] = [...userNotebooksSnap.docs];
+        
+        if (userData && userData.idCuadernos && userData.idCuadernos.length > 0) {
+          console.log(`[KPIService] Usuario regular con idCuadernos: ${userData.idCuadernos.length} cuadernos asignados`);
+          for (const cuadernoId of userData.idCuadernos) {
+            // Verificar si no está ya en la lista
+            if (!notebooks.find(doc => doc.id === cuadernoId)) {
+              const notebookDoc = await getDoc(doc(db, 'notebooks', cuadernoId));
+              if (notebookDoc.exists()) {
+                console.log(`[KPIService] Agregando cuaderno asignado: ${cuadernoId}`);
+                notebooks.push(notebookDoc);
+              }
+            }
+          }
+        }
+        
+        notebooksSnap = {
+          docs: notebooks,
+          size: notebooks.length,
+          forEach: (callback: any) => notebooks.forEach(callback)
+        };
       }
 
       // Obtener conceptos por cuaderno
@@ -224,7 +250,7 @@ export class KPIService {
       
       // Procesar cuadernos y extraer materias
       console.log(`[KPIService] Procesando ${notebooksSnap.size} cuadernos...`);
-      notebooksSnap.forEach(doc => {
+      notebooksSnap.forEach((doc: any) => {
         const data = doc.data();
         notebooksMap.set(doc.id, { id: doc.id, ...data });
         // Para cuadernos escolares el campo es 'idMateria', para regulares es 'materiaId'
@@ -509,6 +535,122 @@ export class KPIService {
         }
       });
 
+      // Procesar datos de juegos por cuaderno
+      const gameStats = new Map<string, { gamesPlayed: number, totalTime: number }>();
+      
+      try {
+        console.log(`[KPIService] ===== INICIO PROCESAMIENTO DE JUEGOS =====`);
+        console.log(`[KPIService] Procesando datos de juegos para usuario ${userId}`);
+        
+        // Obtener historial de puntos de juegos con la nueva estructura
+        const gamePointsDoc = await getDoc(doc(db, 'gamePoints', userId));
+        
+        console.log(`[KPIService] Documento gamePoints existe: ${gamePointsDoc.exists()}`);
+        
+        if (gamePointsDoc.exists()) {
+          const gamePointsData = gamePointsDoc.data();
+          console.log(`[KPIService] Estructura de gamePointsData:`, gamePointsData);
+          
+          // Ahora los datos están organizados por notebookId
+          const notebookPoints = gamePointsData.notebookPoints || {};
+          
+          console.log(`[KPIService] Procesando datos de juegos para ${Object.keys(notebookPoints).length} cuadernos`);
+          console.log(`[KPIService] Cuadernos encontrados:`, Object.keys(notebookPoints));
+          
+          // Procesar cada cuaderno
+          for (const [notebookId, notebookData] of Object.entries(notebookPoints)) {
+            console.log(`[KPIService] Procesando cuaderno ${notebookId}, datos:`, notebookData);
+            const pointsHistory = (notebookData as any).pointsHistory || [];
+            
+            if (!gameStats.has(notebookId)) {
+              gameStats.set(notebookId, { gamesPlayed: 0, totalTime: 0 });
+            }
+            
+            const stats = gameStats.get(notebookId)!;
+            stats.gamesPlayed = pointsHistory.length;
+            
+            console.log(`[KPIService] Cuaderno ${notebookId}: ${pointsHistory.length} juegos encontrados`);
+            
+            // Procesar cada transacción para calcular tiempo
+            pointsHistory.forEach((transaction: any) => {
+              // Extraer tipo de juego del gameId
+              const gameType = transaction.gameId?.split('_')[0] || 'unknown';
+              let estimatedTime = 60; // Por defecto 1 minuto
+              
+              // Estimaciones basadas en el tipo de juego
+              switch(gameType) {
+                case 'memory': estimatedTime = 90; break;  // 1.5 minutos
+                case 'puzzle': estimatedTime = 120; break; // 2 minutos
+                case 'race': estimatedTime = 90; break;    // 1.5 minutos
+                case 'quiz': estimatedTime = 180; break;   // 3 minutos (batalla completa)
+              }
+              
+              stats.totalTime += estimatedTime;
+              
+              // Si el juego está en la semana actual, agregar al tiempo semanal
+              if (transaction.timestamp) {
+                const gameDate = transaction.timestamp.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
+                
+                if (gameDate >= currentWeekStart && gameDate < currentWeekEnd) {
+                  const dayOfWeek = gameDate.getDay();
+                  const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                  const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+                  
+                  // Agregar tiempo estimado en minutos
+                  const gameMinutes = Math.round(estimatedTime / 60);
+                  weeklyStudyTime[dayName] += gameMinutes;
+                  
+                  console.log(`[KPIService] Agregando ${gameMinutes} minutos de juego (${gameType}) al ${dayName}`);
+                  
+                  // También agregar a la materia correspondiente si existe
+                  const materiaId = notebookToMateria.get(notebookId);
+                  if (materiaId && kpis.materias![materiaId]) {
+                    if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                      kpis.materias![materiaId].tiempoEstudioSemanal = {
+                        domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                        jueves: 0, viernes: 0, sabado: 0
+                      };
+                    }
+                    kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += gameMinutes;
+                  }
+                }
+              }
+            });
+          }
+          
+          console.log(`[KPIService] Estadísticas de juegos procesadas:`, Array.from(gameStats.entries()));
+          console.log(`[KPIService] ===== FIN PROCESAMIENTO DE JUEGOS =====`);
+        } else {
+          console.log(`[KPIService] No se encontró documento gamePoints para el usuario`);
+        }
+      } catch (error) {
+        console.error('[KPIService] Error procesando datos de juegos:', error);
+        // Continuar sin datos de juegos
+      }
+
+      // Agregar cuadernos que tienen datos de juegos pero no están en notebooksMap
+      for (const [notebookId] of gameStats) {
+        if (!notebooksMap.has(notebookId)) {
+          console.log(`[KPIService] Encontrado cuaderno con juegos pero sin asignación: ${notebookId}`);
+          try {
+            const notebookDoc = await getDoc(doc(db, 'notebooks', notebookId));
+            if (notebookDoc.exists()) {
+              const data = notebookDoc.data();
+              notebooksMap.set(notebookId, { id: notebookId, ...data });
+              console.log(`[KPIService] Cuaderno ${notebookId} agregado desde datos de juegos`);
+              
+              // También agregar al mapeo de materias si corresponde
+              const materiaId = data.idMateria || data.materiaId || data.subjectId;
+              if (materiaId) {
+                notebookToMateria.set(notebookId, materiaId);
+              }
+            }
+          } catch (error) {
+            console.error(`[KPIService] Error obteniendo cuaderno ${notebookId}:`, error);
+          }
+        }
+      }
+
       // Obtener información del salón para ranking (si existe)
       let classroomUsers: string[] = [];
       // Ya tenemos userDoc y userData desde arriba
@@ -543,6 +685,10 @@ export class KPIService {
 
         const quizData = quizStats.get(notebookId) || { scores: [], totalTime: 0 };
         const miniQuizData = miniQuizStats.get(notebookId) || { totalTime: 0, successCount: 0, totalCount: 0 };
+        console.log(`[KPIService] Buscando gameData para cuaderno ${notebookId}`);
+        console.log(`[KPIService] gameStats tiene ${gameStats.size} entradas:`, Array.from(gameStats.keys()));
+        const gameData = gameStats.get(notebookId) || { gamesPlayed: 0, totalTime: 0 };
+        console.log(`[KPIService] gameData para cuaderno ${notebookId}:`, gameData);
         let maxScore = quizData.scores.length > 0 ? Math.max(...quizData.scores) : 0;
         
         // Si no hay scores en quizResults, intentar obtener de quizStats
@@ -564,9 +710,10 @@ export class KPIService {
           }
         }
         
-        // Calcular tiempo total de estudio (en segundos) - incluir mini quiz
+        // Calcular tiempo total de estudio (en segundos) - incluir mini quiz y juegos
         const tiempoQuizTotal = quizData.totalTime + miniQuizData.totalTime;
-        const tiempoEstudioTotal = stats.tiempoEstudioLibre + stats.tiempoEstudioInteligente + tiempoQuizTotal;
+        const tiempoJuegosTotal = gameData.totalTime;
+        const tiempoEstudioTotal = stats.tiempoEstudioLibre + stats.tiempoEstudioInteligente + tiempoQuizTotal + tiempoJuegosTotal;
         
         // Calcular porcentaje de éxito de estudios inteligentes
         const porcentajeExito = stats.estudiosInteligentesTotal > 0 
@@ -620,19 +767,28 @@ export class KPIService {
         const numeroConceptos = conceptsByNotebook.get(notebookId) || 0;
 
         // Calcular score del cuaderno (scoreMax * estudiosInteligentes)
-        const scoreCuaderno = maxScore * stats.estudiosInteligentesTotal;
+        // Si no hay maxScore (no se han hecho quizzes), usar un valor base de 100 puntos
+        const effectiveMaxScore = maxScore > 0 ? maxScore : 100;
+        const scoreCuaderno = effectiveMaxScore * stats.estudiosInteligentesTotal;
         
         console.log(`[KPIService] Cálculo de score para cuaderno ${notebookId}:`, {
           maxScore,
+          effectiveMaxScore,
           estudiosInteligentesTotal: stats.estudiosInteligentesTotal,
           scoreCuaderno,
-          formula: `${maxScore} × ${stats.estudiosInteligentesTotal} = ${scoreCuaderno}`
+          formula: `${effectiveMaxScore} × ${stats.estudiosInteligentesTotal} = ${scoreCuaderno}`
         });
 
         // Obtener el ID de la materia del cuaderno
         const idMateria = notebookToMateria.get(notebookId) || '';
         const nombreCuaderno = notebook.title || notebook.name || 'Sin nombre';
 
+        console.log(`[KPIService] Asignando datos finales para cuaderno ${notebookId}:`, {
+          gameData,
+          juegosJugados: gameData.gamesPlayed,
+          tiempoJuegosTotal
+        });
+        
         kpis.cuadernos[notebookId] = {
           scoreCuaderno,
           scoreMaxCuaderno: maxScore,
@@ -643,8 +799,10 @@ export class KPIService {
           tiempoEstudioLibreLocal: Math.round(stats.tiempoEstudioLibre / 60),
           tiempoEstudioInteligenteLocal: Math.round(stats.tiempoEstudioInteligente / 60),
           tiempoQuizLocal: Math.round(tiempoQuizTotal / 60),
+          tiempoJuegosLocal: Math.round(tiempoJuegosTotal / 60),
           estudiosInteligentesLocal: stats.estudiosInteligentesTotal,
           estudiosLibresLocal: stats.estudiosLibresTotal,
+          juegosJugados: gameData.gamesPlayed,
           porcentajeExitoEstudiosInteligentes: porcentajeExito,
           porcentajeDominioConceptos: porcentajeDominio,
           conceptosDominados: stats.conceptosDominados,
@@ -834,6 +992,8 @@ export class KPIService {
    * Obtiene los KPIs del dashboard para un usuario
    */
   async getUserKPIs(userId: string): Promise<DashboardKPIs | null> {
+    console.log('[KPIService] ============= INICIO getUserKPIs =============');
+    console.log('[KPIService] getUserKPIs llamado con userId:', userId);
     try {
       const kpisDocRef = doc(db, 'users', userId, 'kpis', 'dashboard');
       const kpisDoc = await getDoc(kpisDocRef);

@@ -429,6 +429,29 @@
   font-weight: 600;
 }
 
+/* Estilo específico para el botón de volver en el modal de victoria */
+.game-modal .back-button {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  color: white;
+  padding: 16px 60px;
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 80%;
+  max-width: 300px;
+  margin-top: 20px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.game-modal .back-button:hover {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  transform: none;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
 /* Loading */
 .loading-spinner {
   display: flex;

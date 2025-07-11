@@ -53,7 +53,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   const [enemyShield, setEnemyShield] = useState(false);
   const [playerShield, setPlayerShield] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
-  const { addPoints } = useGamePoints();
+  const { addPoints } = useGamePoints(notebookId);
   
   // Animation states
   const [playerAttacking, setPlayerAttacking] = useState(false);
@@ -393,7 +393,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         bonusType = 'streak'; // Completó todas las rondas
       }
       
-      const result = await addPoints('quiz', 'Quiz Battle', finalScore, bonusType);
+      const gameId = notebookId ? `quiz_${notebookId}` : 'quiz';
+      const result = await addPoints(gameId, 'Quiz Battle', finalScore, bonusType);
       
       if (result?.newAchievements && result.newAchievements.length > 0) {
         console.log('¡Nuevos logros desbloqueados!', result.newAchievements);
