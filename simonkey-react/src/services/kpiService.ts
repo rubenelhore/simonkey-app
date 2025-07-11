@@ -1,5 +1,6 @@
 import { db, functions } from './firebase';
 import { rankingService } from './rankingService';
+import { saveCurrentPositionToHistory } from '../utils/createPositionHistory';
 import { 
   doc, 
   setDoc, 
@@ -27,6 +28,8 @@ interface DashboardKPIs {
       scoreMaxCuaderno: number;
       posicionRanking: number;
       percentilCuaderno: number;
+      idMateria: string;
+      nombreCuaderno: string;
       numeroConceptos: number;
       tiempoEstudioLocal: number;
       tiempoEstudioLibreLocal: number;
@@ -48,6 +51,15 @@ interface DashboardKPIs {
       estudiosInteligentesMateria: number;
       conceptosDominadosMateria: number;
       conceptosNoDominadosMateria: number;
+      tiempoEstudioSemanal?: {
+        domingo: number;
+        lunes: number;
+        martes: number;
+        miercoles: number;
+        jueves: number;
+        viernes: number;
+        sabado: number;
+      };
     };
   };
   tiempoEstudioSemanal?: {
@@ -339,6 +351,19 @@ export class KPIService {
             weeklyStudyTime[dayName] += sessionMinutes;
             
             console.log(`[KPIService] Agregando ${sessionMinutes} minutos al ${dayName}`);
+            
+            // También agregar a la materia correspondiente si existe
+            const materiaId = notebookToMateria.get(notebookId);
+            if (materiaId && kpis.materias![materiaId]) {
+              if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                kpis.materias![materiaId].tiempoEstudioSemanal = {
+                  domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                  jueves: 0, viernes: 0, sabado: 0
+                };
+              }
+              kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += sessionMinutes;
+              console.log(`[KPIService] Agregando ${sessionMinutes} minutos a materia ${materiaId} en ${dayName}`);
+            }
           }
         }
 
@@ -403,6 +428,19 @@ export class KPIService {
               weeklyStudyTime[dayName] += quizMinutes;
               
               console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz al ${dayName}`);
+              
+              // También agregar a la materia correspondiente si existe
+              const materiaId = notebookToMateria.get(notebookId);
+              if (materiaId && kpis.materias![materiaId]) {
+                if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                  kpis.materias![materiaId].tiempoEstudioSemanal = {
+                    domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                    jueves: 0, viernes: 0, sabado: 0
+                  };
+                }
+                kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += quizMinutes;
+                console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz a materia ${materiaId} en ${dayName}`);
+              }
             }
           }
         }
@@ -447,6 +485,19 @@ export class KPIService {
               weeklyStudyTime[dayName] += miniQuizMinutes;
               
               console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz al ${dayName}`);
+              
+              // También agregar a la materia correspondiente si existe
+              const materiaId = notebookToMateria.get(notebookId);
+              if (materiaId && kpis.materias![materiaId]) {
+                if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                  kpis.materias![materiaId].tiempoEstudioSemanal = {
+                    domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                    jueves: 0, viernes: 0, sabado: 0
+                  };
+                }
+                kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += miniQuizMinutes;
+                console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz a materia ${materiaId} en ${dayName}`);
+              }
             }
           }
         }
@@ -578,6 +629,10 @@ export class KPIService {
           formula: `${maxScore} × ${stats.estudiosInteligentesTotal} = ${scoreCuaderno}`
         });
 
+        // Obtener el ID de la materia del cuaderno
+        const idMateria = notebookToMateria.get(notebookId) || '';
+        const nombreCuaderno = notebook.title || notebook.name || 'Sin nombre';
+
         kpis.cuadernos[notebookId] = {
           scoreCuaderno,
           scoreMaxCuaderno: maxScore,
@@ -593,7 +648,9 @@ export class KPIService {
           porcentajeExitoEstudiosInteligentes: porcentajeExito,
           porcentajeDominioConceptos: porcentajeDominio,
           conceptosDominados: stats.conceptosDominados,
-          conceptosNoDominados: stats.conceptosNoDominados
+          conceptosNoDominados: stats.conceptosNoDominados,
+          idMateria: idMateria,
+          nombreCuaderno: nombreCuaderno
         };
 
         // Sumar a totales globales
@@ -619,7 +676,16 @@ export class KPIService {
               tiempoEstudioMateria: 0,
               estudiosInteligentesMateria: 0,
               conceptosDominadosMateria: 0,
-              conceptosNoDominadosMateria: 0
+              conceptosNoDominadosMateria: 0,
+              tiempoEstudioSemanal: {
+                domingo: 0,
+                lunes: 0,
+                martes: 0,
+                miercoles: 0,
+                jueves: 0,
+                viernes: 0,
+                sabado: 0
+              }
             };
           }
           
@@ -706,6 +772,23 @@ export class KPIService {
             if (kpis.materias && kpis.materias[subjectId]) {
               kpis.materias[subjectId].percentilMateria = (ranking as any).percentile;
               console.log(`[KPIService] Materia ${subjectId}: Posición ${(ranking as any).position}/${(ranking as any).totalStudents}, Percentil ${(ranking as any).percentile}%`);
+              
+              // Guardar posición en el historial
+              if (userData?.idInstitucion) {
+                try {
+                  await saveCurrentPositionToHistory(
+                    userId,
+                    userData.idInstitucion,
+                    subjectId,
+                    (ranking as any).position,
+                    (ranking as any).totalStudents,
+                    kpis.materias[subjectId].scoreMateria
+                  );
+                  console.log(`[KPIService] Historial de posición guardado para materia ${subjectId}`);
+                } catch (historyError) {
+                  console.error(`[KPIService] Error guardando historial de posición:`, historyError);
+                }
+              }
             }
           }
           

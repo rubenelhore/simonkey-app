@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db, auth } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faArrowLeft, faRedo, faClock, faFire } from '@fortawesome/free-solid-svg-icons';
+import { useGamePoints } from '../../hooks/useGamePoints';
 import '../../styles/MemoryGame.css';
 
 interface Concept {
@@ -39,6 +40,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [pointsAwarded, setPointsAwarded] = useState(false);
+  const { addPoints } = useGamePoints();
 
   // Timer effect
   useEffect(() => {
@@ -185,6 +188,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
           if (matchedPairs + 1 === Math.floor(matchedCards.length / 2)) {
             setGameCompleted(true);
             celebrateWin();
+            awardGamePoints();
           }
         }, 600);
       } else {
@@ -255,6 +259,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     setElapsedTime(0);
     setStreak(0);
     setBestStreak(0);
+    setPointsAwarded(false);
     loadConcepts();
   };
 
@@ -270,6 +275,36 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     const movesPenalty = moves * 2;
     const streakBonus = bestStreak * 5;
     return Math.max(0, baseScore + timeBonus - movesPenalty + streakBonus);
+  };
+
+  const awardGamePoints = async () => {
+    if (!pointsAwarded) {
+      setPointsAwarded(true);
+      const finalScore = getScore();
+      console.log('[MemoryGame] Otorgando puntos:', finalScore);
+      
+      // Determinar tipo de bonus
+      let bonusType: 'perfect' | 'speed' | 'streak' | undefined = undefined;
+      if (moves === matchedPairs * 2) {
+        bonusType = 'perfect'; // Juego perfecto sin errores
+      } else if (elapsedTime < 30) {
+        bonusType = 'speed'; // Completado en menos de 30 segundos
+      } else if (bestStreak >= 5) {
+        bonusType = 'streak'; // Racha de 5 o más
+      }
+      
+      try {
+        const result = await addPoints('memory', 'Memorama', finalScore, bonusType);
+        console.log('[MemoryGame] Resultado de puntos:', result);
+        
+        if (result?.newAchievements && result.newAchievements.length > 0) {
+          // Mostrar logros desbloqueados si los hay
+          console.log('Nuevos logros:', result.newAchievements);
+        }
+      } catch (error) {
+        console.error('[MemoryGame] Error al otorgar puntos:', error);
+      }
+    }
   };
 
   if (loading) {

@@ -1,6 +1,5 @@
 // src/components/Mobile/SwipeableStudyCard.jsx
 import React, { useState, useEffect } from 'react';
-import { useSwipe } from '../../hooks/useSwipe';
 import './SwipeableStudyCard.css';
 import TextToSpeech from '../TextToSpeech';
 import { Concept, ResponseQuality, StudyLockState } from '../../types/interfaces';
@@ -23,11 +22,6 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   onLockComplete
 }) => {
   const [flipped, setFlipped] = useState(false);
-  const [confidence, setConfidence] = useState<string | null>(null);
-  const [exitDirection, setExitDirection] = useState<string | null>(null);
-  const [isExiting, setIsExiting] = useState(false);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [lockTimer, setLockTimer] = useState<number>(5);
   const [isLocked, setIsLocked] = useState(false);
   const [canEvaluate, setCanEvaluate] = useState(false);
@@ -92,105 +86,19 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
     console.log('🎯 Estado del candado:', { reviewMode, isLocked, canEvaluate, lockTimer });
   }, [reviewMode, isLocked, canEvaluate, lockTimer]);
   
-  const { swipeHandlers, swipeDirection, swiping, resetSwipe } = useSwipe({
-    threshold: 100,
-    timeout: 500
-  });
-  
-  useEffect(() => {
-    if (swipeDirection) {
-      handleSwipe(swipeDirection);
-      resetSwipe();
-    }
-  }, [swipeDirection, resetSwipe]);
-  
-  const handleSwipe = (direction: string) => {
-    // En modo estudio inteligente, solo permitir swipe después del candado
-    // En modo estudio libre, permitir swipe siempre
-    if (reviewMode && !canEvaluate) {
-      return;
-    }
-    
-    if (direction === 'left' || direction === 'right') {
-      setExitDirection(direction);
-      setIsExiting(true);
-      
-      setTimeout(async () => {
-        // Ensure card is facing front before transitioning
-        if (flipped) {
-          setFlipped(false);
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-        if (direction === 'right') {
-          onResponse(ResponseQuality.MASTERED);
-        } else {
-          // Increment response count to force reset if it's the same concept
-          setResponseCount(prev => prev + 1);
-          onResponse(ResponseQuality.REVIEW_LATER);
-        }
-      }, 300);
-    }
-  };
-  
   const handleCardTap = (e: React.MouseEvent) => {
-    if (!swiping) {
-      setFlipped(!flipped);
-    }
+    setFlipped(!flipped);
   };
   
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartY(e.touches[0].clientY);
-  };
-  
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY === null) return;
-    
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartY;
-    
-    const maxDrag = 100;
-    const drag = Math.max(-maxDrag, Math.min(maxDrag, deltaY));
-    
-    setDragOffsetY(drag);
-  };
-  
-  const handleTouchEnd = (e: React.TouchEvent<Element>) => {
-    if (Math.abs(dragOffsetY) > 50) {
-      setFlipped(!flipped);
-    }
-    
-    setTouchStartY(null);
-    setDragOffsetY(0);
-  };
-  
+  // Disabled swipe functionality - only tap to flip
   const handlers = {
-    ...swipeHandlers,
-    onTouchStart: (e: React.TouchEvent) => {
-      swipeHandlers.onTouchStart(e);
-      handleTouchStart(e);
-    },
-    onTouchMove: (e: React.TouchEvent) => {
-      swipeHandlers.onTouchMove(e);
-      handleTouchMove(e);
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      swipeHandlers.onTouchEnd(e);
-      handleTouchEnd(e);
-    },
     onClick: handleCardTap
   };
   
   const getCardStyle = () => {
     let style: React.CSSProperties = {
-      transform: `perspective(1000px) rotateX(${dragOffsetY * 0.2}deg)`
+      transform: `perspective(1000px) rotateX(0deg)`
     };
-    
-    if (isExiting) {
-      style.transform = `translateX(${exitDirection === 'right' ? 1000 : -1000}px) rotate(${exitDirection === 'right' ? 30 : -30}deg)`;
-      style.transition = 'transform 0.3s ease-out';
-      style.opacity = 0;
-    }
     
     return style;
   };

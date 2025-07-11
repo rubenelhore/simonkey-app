@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db, auth } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRunning, faArrowLeft, faTrophy, faClock, faHeart } from '@fortawesome/free-solid-svg-icons';
+import { useGamePoints } from '../../hooks/useGamePoints';
 import '../../styles/RaceGame.css';
 
 interface Concept {
@@ -47,6 +48,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   const [startTime, setStartTime] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isJumping, setIsJumping] = useState(false);
+  const [pointsAwarded, setPointsAwarded] = useState(false);
+  const { addPoints } = useGamePoints();
   
   // Animation state
   const [runnerFrame, setRunnerFrame] = useState(0);
@@ -237,7 +240,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
     if (hurdle.isCorrect) {
       // Correct hurdle - jump over it
       setIsJumping(true);
-      setScore(prev => prev + 10 + combo * 2);
+      setScore(prev => prev + 5 + combo);
       setCombo(prev => prev + 1);
       if (combo + 1 > maxCombo) {
         setMaxCombo(combo + 1);
@@ -246,7 +249,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       setQuestionsAnswered(prev => {
         const newCount = prev + 1;
         if (newCount >= MAX_QUESTIONS) {
-          setTimeout(() => endGame(), 2000); // End game after last question
+          setTimeout(() => endGame(true), 2000); // End game after last question
         }
         return newCount;
       });
@@ -261,7 +264,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       setShowResult('wrong');
       
       if (lives <= 1) {
-        endGame();
+        endGame(false);
       }
     }
     
@@ -297,13 +300,41 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
     setCurrentDefinition('');
     setCorrectConcept(null);
     setIsJumping(false);
+    setPointsAwarded(false);
+    setGameOver(false);
     
     // Spawn first question immediately
     setTimeout(() => spawnNewQuestion(), 500);
   };
 
-  const endGame = () => {
+  const endGame = async (completed: boolean) => {
     setGameOver(true);
+    if (completed && !pointsAwarded) {
+      await awardGamePoints();
+    }
+  };
+
+  const awardGamePoints = async () => {
+    if (!pointsAwarded) {
+      setPointsAwarded(true);
+      
+      // Determinar bonus basado en el rendimiento
+      let bonusType: 'perfect' | 'speed' | 'streak' | undefined;
+      
+      if (lives === 3) {
+        bonusType = 'perfect'; // No perdió vidas
+      } else if (maxCombo >= 5) {
+        bonusType = 'streak'; // Buen combo
+      } else if (elapsedTime < 90) {
+        bonusType = 'speed'; // Completado rápidamente (menos de 90 segundos)
+      }
+      
+      const result = await addPoints('race', 'Carrera de Conceptos', score, bonusType);
+      
+      if (result?.newAchievements && result.newAchievements.length > 0) {
+        console.log('¡Nuevos logros desbloqueados!', result.newAchievements);
+      }
+    }
   };
 
   const formatTime = (seconds: number) => {

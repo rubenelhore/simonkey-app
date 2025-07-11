@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -16,9 +16,13 @@ import {
   faPercent,
   faStopwatch,
   faUserClock,
-  faGraduationCap
+  faGraduationCap,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { teacherKpiService } from '../services/teacherKpiService';
+import { auth, db } from '../services/firebase';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import '../styles/ProgressPage.css';
 
 interface Materia {
@@ -53,142 +57,181 @@ interface CuadernoData {
 }
 
 const SchoolTeacherAnalyticsPage: React.FC = () => {
-  const [selectedMateria, setSelectedMateria] = useState<string>('matematicas');
+  const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [teacherMetrics, setTeacherMetrics] = useState<any>(null);
+  const [materias, setMaterias] = useState<Materia[]>([]);
+  const [rankingData, setRankingData] = useState<any[]>([]);
+  const [scorePromedioData, setScorePromedioData] = useState<ScoreData[]>([]);
+  const [studyTimeData, setStudyTimeData] = useState<StudyTimeData[]>([]);
+  const [cuadernosData, setCuadernosData] = useState<CuadernoData[]>([]);
 
-  // Datos dummy adaptados para profesores
-  const materias: Materia[] = [
-    { id: 'matematicas', nombre: 'Matemáticas' },
-    { id: 'fisica', nombre: 'Física' },
-    { id: 'quimica', nombre: 'Química' },
-    { id: 'biologia', nombre: 'Biología' },
-  ];
+  // Cargar métricas del profesor al montar el componente
+  useEffect(() => {
+    loadTeacherMetrics();
+  }, []);
 
-  const rankingData = [
-    { posicion: 1, nombre: 'Juan Pérez', score: 2450 },
-    { posicion: 2, nombre: 'María García', score: 2380 },
-    { posicion: 3, nombre: 'Carlos López', score: 2290 },
-    { posicion: 4, nombre: 'Ana Martínez', score: 2150 },
-    { posicion: 5, nombre: 'Luis Rodríguez', score: 2050 },
-    { posicion: 6, nombre: 'Elena Sánchez', score: 1920 },
-    { posicion: 7, nombre: 'Pedro Gómez', score: 1850 },
-    { posicion: 8, nombre: 'Laura Jiménez', score: 1780 },
-  ];
+  // Procesar datos cuando cambien las métricas o la materia seleccionada
+  useEffect(() => {
+    if (teacherMetrics) {
+      processMaterias();
+      processRankingData();
+      processStudyTimeData();
+      processCuadernosData();
+    }
+  }, [teacherMetrics, selectedMateria]);
 
-  // Datos dummy para score promedio por cuaderno
-  const scorePromedioData: ScoreData[] = [
-    { cuaderno: 'Álgebra', scorePromedio: 340 },
-    { cuaderno: 'Cálculo', scorePromedio: 288 },
-    { cuaderno: 'Geometría', scorePromedio: 410 },
-    { cuaderno: 'Estadística', scorePromedio: 243 },
-  ];
+  const loadTeacherMetrics = async () => {
+    if (!auth.currentUser) {
+      setLoading(false);
+      return;
+    }
 
-  const studyTimeData: StudyTimeData[] = [
-    { dia: 'Lun', tiempo: 180 },
-    { dia: 'Mar', tiempo: 220 },
-    { dia: 'Mié', tiempo: 165 },
-    { dia: 'Jue', tiempo: 240 },
-    { dia: 'Vie', tiempo: 195 },
-    { dia: 'Sáb', tiempo: 120 },
-    { dia: 'Dom', tiempo: 90 },
-  ];
+    try {
+      setLoading(true);
+      console.log('[TeacherAnalytics] Cargando métricas para profesor:', auth.currentUser.uid);
+      
+      // Obtener métricas del profesor
+      let metrics = await teacherKpiService.getTeacherMetrics(auth.currentUser.uid);
+      
+      if (!metrics) {
+        console.log('[TeacherAnalytics] No hay métricas, actualizando...');
+        // Si no hay métricas, intentar actualizarlas
+        await teacherKpiService.updateTeacherMetrics(auth.currentUser.uid);
+        metrics = await teacherKpiService.getTeacherMetrics(auth.currentUser.uid);
+      }
+      
+      console.log('[TeacherAnalytics] Métricas obtenidas:', metrics);
+      setTeacherMetrics(metrics);
+      
+    } catch (error) {
+      console.error('[TeacherAnalytics] Error cargando métricas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const cuadernosData: CuadernoData[] = [
-    {
-      id: '1',
-      nombre: 'Álgebra Lineal',
-      porcentajeDominio: 75,
-      tiempoEfectivo: 15, // 15 minutos promedio por concepto
-      tiempoActivo: 180, // 180 minutos promedio por semana
-      estudioPromedio: 4.2, // 4.2 estudios inteligentes promedio por semana
-      topConceptos: [
-        { nombre: 'Matrices', porcentajeDominio: 92 },
-        { nombre: 'Determinantes', porcentajeDominio: 88 },
-        { nombre: 'Vectores', porcentajeDominio: 85 },
-        { nombre: 'Sistemas lineales', porcentajeDominio: 83 },
-        { nombre: 'Espacios vectoriales', porcentajeDominio: 81 }
-      ],
-      lowConceptos: [
-        { nombre: 'Transformaciones lineales', porcentajeDominio: 45 },
-        { nombre: 'Eigenvalores', porcentajeDominio: 48 },
-        { nombre: 'Diagonalización', porcentajeDominio: 52 },
-        { nombre: 'Producto interno', porcentajeDominio: 55 },
-        { nombre: 'Ortogonalización', porcentajeDominio: 58 }
-      ]
-    },
-    {
-      id: '2',
-      nombre: 'Cálculo Diferencial',
-      porcentajeDominio: 68,
-      tiempoEfectivo: 18,
-      tiempoActivo: 140,
-      estudioPromedio: 3.5,
-      topConceptos: [
-        { nombre: 'Límites básicos', porcentajeDominio: 90 },
-        { nombre: 'Derivadas simples', porcentajeDominio: 87 },
-        { nombre: 'Regla de la cadena', porcentajeDominio: 82 },
-        { nombre: 'Optimización', porcentajeDominio: 79 },
-        { nombre: 'Tangentes', porcentajeDominio: 77 }
-      ],
-      lowConceptos: [
-        { nombre: 'Series de Taylor', porcentajeDominio: 42 },
-        { nombre: 'Integrales implícitas', porcentajeDominio: 46 },
-        { nombre: 'Aplicaciones físicas', porcentajeDominio: 50 },
-        { nombre: 'Problemas de tasa', porcentajeDominio: 53 },
-        { nombre: 'Derivadas parciales', porcentajeDominio: 56 }
-      ]
-    },
-    {
-      id: '3',
-      nombre: 'Geometría Analítica',
-      porcentajeDominio: 82,
-      tiempoEfectivo: 12,
-      tiempoActivo: 210,
-      estudioPromedio: 5.1,
-      topConceptos: [
-        { nombre: 'Rectas', porcentajeDominio: 95 },
-        { nombre: 'Circunferencias', porcentajeDominio: 92 },
-        { nombre: 'Parábolas', porcentajeDominio: 89 },
-        { nombre: 'Elipses', porcentajeDominio: 86 },
-        { nombre: 'Hipérbolas', porcentajeDominio: 84 }
-      ],
-      lowConceptos: [
-        { nombre: 'Rotación de ejes', porcentajeDominio: 60 },
-        { nombre: 'Superficies 3D', porcentajeDominio: 62 },
-        { nombre: 'Coordenadas polares', porcentajeDominio: 65 },
-        { nombre: 'Ecuaciones paramétricas', porcentajeDominio: 68 },
-        { nombre: 'Transformaciones', porcentajeDominio: 70 }
-      ]
-    },
-    {
-      id: '4',
-      nombre: 'Estadística',
-      porcentajeDominio: 62,
-      tiempoEfectivo: 20,
-      tiempoActivo: 120,
-      estudioPromedio: 2.8,
-      topConceptos: [
-        { nombre: 'Media y mediana', porcentajeDominio: 88 },
-        { nombre: 'Varianza', porcentajeDominio: 82 },
-        { nombre: 'Distribución normal', porcentajeDominio: 78 },
-        { nombre: 'Correlación', porcentajeDominio: 75 },
-        { nombre: 'Probabilidad básica', porcentajeDominio: 73 }
-      ],
-      lowConceptos: [
-        { nombre: 'Pruebas de hipótesis', porcentajeDominio: 38 },
-        { nombre: 'ANOVA', porcentajeDominio: 42 },
-        { nombre: 'Regresión múltiple', porcentajeDominio: 45 },
-        { nombre: 'Intervalos de confianza', porcentajeDominio: 48 },
-        { nombre: 'Distribuciones especiales', porcentajeDominio: 51 }
-      ]
-    },
-  ];
+  const processMaterias = () => {
+    if (!teacherMetrics?.materias) return;
+    
+    const materiasArray: Materia[] = Object.entries(teacherMetrics.materias).map(([id, data]: [string, any]) => ({
+      id,
+      nombre: data.nombreMateria
+    }));
+    
+    console.log('[TeacherAnalytics] Materias procesadas:', materiasArray);
+    setMaterias(materiasArray);
+    
+    // Seleccionar la primera materia por defecto
+    if (materiasArray.length > 0 && !selectedMateria) {
+      setSelectedMateria(materiasArray[0].id);
+    }
+  };
 
-  // Métricas globales (promedio de todos los cuadernos)
-  const globalDominioConceptos = Math.round(cuadernosData.reduce((acc, c) => acc + c.porcentajeDominio, 0) / cuadernosData.length);
-  const globalTiempoEfectivo = Math.round(cuadernosData.reduce((acc, c) => acc + c.tiempoEfectivo, 0) / cuadernosData.length);
-  const globalTiempoActivo = Math.round(cuadernosData.reduce((acc, c) => acc + c.tiempoActivo, 0) / cuadernosData.length);
-  const globalEstudioPromedio = (cuadernosData.reduce((acc, c) => acc + c.estudioPromedio, 0) / cuadernosData.length).toFixed(1);
+  const processRankingData = async () => {
+    if (!teacherMetrics || !selectedMateria) return;
+    
+    try {
+      // Obtener los estudiantes de esta materia con sus scores
+      const materiaData = teacherMetrics.materias[selectedMateria];
+      if (!materiaData) return;
+      
+      // Por ahora usamos datos de ejemplo, pero aquí se podría hacer una query real
+      // para obtener el ranking de estudiantes de la materia
+      const mockRanking = [
+        { posicion: 1, nombre: 'Estudiante Top 1', score: Math.floor(Math.random() * 500 + 2000) },
+        { posicion: 2, nombre: 'Estudiante Top 2', score: Math.floor(Math.random() * 400 + 1600) },
+        { posicion: 3, nombre: 'Estudiante Top 3', score: Math.floor(Math.random() * 300 + 1300) },
+        { posicion: 4, nombre: 'Estudiante Top 4', score: Math.floor(Math.random() * 300 + 1000) },
+        { posicion: 5, nombre: 'Estudiante Top 5', score: Math.floor(Math.random() * 200 + 800) },
+      ];
+      
+      setRankingData(mockRanking);
+    } catch (error) {
+      console.error('[TeacherAnalytics] Error procesando ranking:', error);
+      setRankingData([]);
+    }
+  };
+
+  const processStudyTimeData = () => {
+    if (!teacherMetrics?.tiempoEstudioSemanal) {
+      setStudyTimeData([
+        { dia: 'Lun', tiempo: 0 },
+        { dia: 'Mar', tiempo: 0 },
+        { dia: 'Mié', tiempo: 0 },
+        { dia: 'Jue', tiempo: 0 },
+        { dia: 'Vie', tiempo: 0 },
+        { dia: 'Sáb', tiempo: 0 },
+        { dia: 'Dom', tiempo: 0 },
+      ]);
+      return;
+    }
+    
+    const weekData = teacherMetrics.tiempoEstudioSemanal;
+    const chartData: StudyTimeData[] = [
+      { dia: 'Lun', tiempo: weekData.lunes || 0 },
+      { dia: 'Mar', tiempo: weekData.martes || 0 },
+      { dia: 'Mié', tiempo: weekData.miercoles || 0 },
+      { dia: 'Jue', tiempo: weekData.jueves || 0 },
+      { dia: 'Vie', tiempo: weekData.viernes || 0 },
+      { dia: 'Sáb', tiempo: weekData.sabado || 0 },
+      { dia: 'Dom', tiempo: weekData.domingo || 0 },
+    ];
+    
+    console.log('[TeacherAnalytics] Tiempo de estudio semanal:', chartData);
+    setStudyTimeData(chartData);
+  };
+
+  const processCuadernosData = async () => {
+    if (!teacherMetrics?.cuadernos || !selectedMateria) return;
+    
+    try {
+      const cuadernosTemp: CuadernoData[] = [];
+      const scoreData: ScoreData[] = [];
+      
+      // Filtrar cuadernos por materia seleccionada
+      for (const [cuadernoId, cuadernoData] of Object.entries(teacherMetrics.cuadernos)) {
+        const data = cuadernoData as any;
+        
+        if (data.materiaId === selectedMateria) {
+          // Para los datos de la tabla
+          cuadernosTemp.push({
+            id: cuadernoId,
+            nombre: data.nombreCuaderno,
+            porcentajeDominio: data.porcentajeDominioConceptos || 0,
+            tiempoEfectivo: data.tiempoEfectivo || 0,
+            tiempoActivo: data.tiempoActivo || 0,
+            estudioPromedio: data.estudioPromedio || 0,
+            // Por ahora, conceptos top y low son mock, pero se podrían calcular
+            topConceptos: [],
+            lowConceptos: []
+          });
+          
+          // Para el gráfico de scores
+          scoreData.push({
+            cuaderno: data.nombreCuaderno,
+            scorePromedio: data.scorePromedio || 0
+          });
+        }
+      }
+      
+      console.log('[TeacherAnalytics] Cuadernos procesados:', cuadernosTemp);
+      setCuadernosData(cuadernosTemp);
+      setScorePromedioData(scoreData);
+      
+    } catch (error) {
+      console.error('[TeacherAnalytics] Error procesando cuadernos:', error);
+      setCuadernosData([]);
+      setScorePromedioData([]);
+    }
+  };
+
+  // Métricas globales desde los datos reales
+  const globalDominioConceptos = teacherMetrics?.global?.porcentajeDominioConceptos || 0;
+  const globalTiempoEfectivo = teacherMetrics?.global?.tiempoEfectivo || 0;
+  const globalTiempoActivo = teacherMetrics?.global?.tiempoActivo || 0;
+  const globalEstudioPromedio = teacherMetrics?.global?.estudioPromedio || 0;
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -198,33 +241,64 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
 
   // Generar insights para profesores
   const generateInsights = () => {
-    const avgMasteryRate = cuadernosData.reduce((acc, c) => acc + c.porcentajeDominio, 0) / cuadernosData.length;
-    const totalStudents = 25; // Número promedio de estudiantes
-    const activeStudents = Math.floor(totalStudents * 0.85); // 85% de estudiantes activos
+    const totalStudents = teacherMetrics?.global?.totalAlumnos || 0;
+    const totalMaterias = teacherMetrics?.global?.totalMaterias || 0;
+    const totalCuadernos = teacherMetrics?.global?.totalCuadernos || 0;
     
-    const insights = [
-      {
+    const insights = [];
+    
+    if (globalDominioConceptos > 0) {
+      insights.push({
         id: 1,
         type: 'class-performance',
         title: 'Rendimiento de la Clase',
-        content: `El dominio promedio de conceptos en tu clase es del ${avgMasteryRate.toFixed(0)}%, con un tiempo efectivo de ${globalTiempoEfectivo} minutos por concepto.`,
+        content: `El dominio promedio de conceptos en tu clase es del ${globalDominioConceptos}%, con un tiempo efectivo de ${globalTiempoEfectivo} minutos por concepto.`,
         icon: faChartLine,
-        color: avgMasteryRate > 75 ? 'green' : 'orange'
-      },
-      {
+        color: globalDominioConceptos > 75 ? 'green' : 'orange'
+      });
+    }
+    
+    if (totalStudents > 0) {
+      insights.push({
         id: 2,
         type: 'student-engagement',
-        title: 'Participación Estudiantil',
-        content: `${activeStudents} de ${totalStudents} estudiantes están activamente participando en las actividades esta semana.`,
+        title: 'Alcance de tu Enseñanza',
+        content: `Estás enseñando a ${totalStudents} estudiantes en ${totalMaterias} materias con ${totalCuadernos} cuadernos activos.`,
         icon: faBrain,
-        color: activeStudents/totalStudents > 0.8 ? 'blue' : 'orange'
-      }
-    ];
+        color: 'blue'
+      });
+    }
+    
+    // Si no hay insights basados en datos, mostrar mensaje de bienvenida
+    if (insights.length === 0) {
+      insights.push({
+        id: 3,
+        type: 'welcome',
+        title: 'Bienvenido a Analytics',
+        content: 'Las métricas se actualizarán cuando tus estudiantes completen actividades de estudio.',
+        icon: faLightbulb,
+        color: 'blue'
+      });
+    }
     
     return insights;
   };
 
   const insights = generateInsights();
+
+  if (loading && !teacherMetrics) {
+    return (
+      <>
+        <HeaderWithHamburger title="Analítica del Profesor" />
+        <div className="progress-layout">
+          <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column' }}>
+            <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+            <p style={{ marginTop: '1rem' }}>Cargando métricas del profesor...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -246,48 +320,63 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
 
             {/* Módulo Lateral: Selector de Materias y Ranking de Estudiantes */}
             <div className="progress-side-module">
-              <div className="materia-selector">
-                <button 
-                  className="materia-dropdown-btn"
-                  onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
-                >
-                  <span>{materias.find(m => m.id === selectedMateria)?.nombre}</span>
-                  <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
-                </button>
-                
-                {showMateriaDropdown && (
-                  <div className="materia-dropdown">
-                    {materias.map(materia => (
-                      <div 
-                        key={materia.id}
-                        className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedMateria(materia.id);
-                          setShowMateriaDropdown(false);
-                        }}
-                      >
-                        {materia.nombre}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="ranking-table">
-                <h4>Top Estudiantes</h4>
-                <div className="ranking-list">
-                  {rankingData.map((student) => (
-                    <div 
-                      key={student.posicion} 
-                      className="ranking-item"
-                    >
-                      <span className="ranking-position">#{student.posicion}</span>
-                      <span className="ranking-name">{student.nombre}</span>
-                      <span className="ranking-score">{student.score}</span>
-                    </div>
-                  ))}
+              {materias.length === 0 ? (
+                <div className="no-materias-message">
+                  <p>No hay materias asignadas. Contacta a tu administrador para asignar materias.</p>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="materia-dropdown-container">
+                    <button 
+                      className="materia-dropdown-btn"
+                      onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
+                      type="button"
+                    >
+                      <span>{materias.find(m => m.id === selectedMateria)?.nombre || 'Seleccionar materia'}</span>
+                      <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
+                    </button>
+                    
+                    {showMateriaDropdown && (
+                      <div className="materia-dropdown">
+                        {materias.map(materia => (
+                          <div 
+                            key={materia.id}
+                            className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedMateria(materia.id);
+                              setShowMateriaDropdown(false);
+                            }}
+                          >
+                            {materia.nombre}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="ranking-table">
+                    <h4>Top Estudiantes</h4>
+                    <div className="ranking-list">
+                      {rankingData.length > 0 ? (
+                        rankingData.map((student) => (
+                          <div 
+                            key={student.posicion} 
+                            className="ranking-item"
+                          >
+                            <span className="ranking-position">#{student.posicion}</span>
+                            <span className="ranking-name">{student.nombre}</span>
+                            <span className="ranking-score">{student.score}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-data-message" style={{ padding: '1rem', textAlign: 'center', color: '#6b7280' }}>
+                          No hay datos de estudiantes disponibles
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -378,35 +467,51 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {cuadernosData.map((cuaderno) => (
-                        <tr key={cuaderno.id}>
-                          <td className="notebook-name">{cuaderno.nombre}</td>
-                          <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
-                          <td>{cuaderno.tiempoEfectivo} min</td>
-                          <td>{formatTime(cuaderno.tiempoActivo)}</td>
-                          <td className="smart-studies">{cuaderno.estudioPromedio}</td>
-                          <td>
-                            <div className="concepts-wrapper">
-                              {cuaderno.topConceptos.map((concepto, idx) => (
-                                <div key={idx} className="concept-item top">
-                                  <span className="concept-name">{concepto.nombre}</span>
-                                  <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="concepts-wrapper">
-                              {cuaderno.lowConceptos.map((concepto, idx) => (
-                                <div key={idx} className="concept-item low">
-                                  <span className="concept-name">{concepto.nombre}</span>
-                                  <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
-                                </div>
-                              ))}
-                            </div>
+                      {cuadernosData.length > 0 ? (
+                        cuadernosData.map((cuaderno) => (
+                          <tr key={cuaderno.id}>
+                            <td className="notebook-name">{cuaderno.nombre}</td>
+                            <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
+                            <td>{cuaderno.tiempoEfectivo} min</td>
+                            <td>{formatTime(cuaderno.tiempoActivo)}</td>
+                            <td className="smart-studies">{cuaderno.estudioPromedio}</td>
+                            <td>
+                              <div className="concepts-wrapper">
+                                {cuaderno.topConceptos.length > 0 ? (
+                                  cuaderno.topConceptos.map((concepto, idx) => (
+                                    <div key={idx} className="concept-item top">
+                                      <span className="concept-name">{concepto.nombre}</span>
+                                      <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Sin datos</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="concepts-wrapper">
+                                {cuaderno.lowConceptos.length > 0 ? (
+                                  cuaderno.lowConceptos.map((concepto, idx) => (
+                                    <div key={idx} className="concept-item low">
+                                      <span className="concept-name">{concepto.nombre}</span>
+                                      <span className="concept-percentage">{concepto.porcentajeDominio}%</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Sin datos</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="no-data" style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                            {selectedMateria ? 'No hay cuadernos para esta materia' : 'Selecciona una materia para ver los cuadernos'}
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>

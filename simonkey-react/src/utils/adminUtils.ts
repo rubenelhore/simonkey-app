@@ -34,6 +34,8 @@ import { debugConceptTracking, debugSpecificSession } from './debugConceptTracki
 import { debugConceptCounting } from './debugConceptCounting';
 import { debugStudySessionCompletion } from './debugStudySessionCompletion';
 import { fixMissingConceptsInSessions, validateSessionConcepts } from './fixMissingConcepts';
+import { debugTeacherMetrics } from './debugTeacherMetrics';
+import { fixTeacherMetrics, fixCurrentTeacherMetrics } from './fixTeacherMetrics';
 
 /**
  * Actualizar usuario actual como super admin
@@ -294,4 +296,9 @@ if (typeof window !== 'undefined') {
   (window as any).fixUserNotebookDirect = async () => {
     return await updateUserProfileWithNotebook('u1fRjwpdmOPFTtlEUsMGiWnqwST2', '1vKFhWs3IX2AbDDt853l');
   };
+  
+  // Teacher metrics debugging
+  (window as any).debugTeacherMetrics = debugTeacherMetrics;
+  (window as any).fixTeacherMetrics = fixTeacherMetrics;
+  (window as any).fixCurrentTeacherMetrics = fixCurrentTeacherMetrics;
 } 

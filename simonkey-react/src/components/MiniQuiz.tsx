@@ -594,14 +594,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
         {/* Pregunta */}
         <div className="mini-quiz-question-container">
-          {/* Info del quiz integrada en el contenedor */}
+          {/* Info del quiz simplificada sin el progreso */}
           <div className="quiz-info-inline">
-            <div className="quiz-progress-info">
-              <span className="progress-text">Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}</span>
-              <div className="progress-bar-small">
-                <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-              </div>
-            </div>
             <div className={`quiz-timer-info ${timerClass}`}>
               <i className="fas fa-clock"></i>
               <span>{formattedTime}</span>
@@ -799,8 +793,16 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
   return (
     <div className="mini-quiz-container">
+      {/* Barra de progreso superior - Solo mostrar cuando hay sesión activa y no está en intro */}
+      {sessionActive && !showIntro && questions.length > 0 && (
+        <div className="mini-quiz-top-progress">
+          <span className="progress-text">
+            Pregunta {currentQuestionIndex + 1} de {questions.length}
+          </span>
+        </div>
+      )}
       
-      <div className="mini-quiz-main">
+      <div className={`mini-quiz-main ${sessionActive && !showIntro ? 'with-top-progress' : ''}`}>
         {showIntro && renderMiniQuizIntro()}
         {sessionActive && renderCurrentQuestion()}
       </div>

@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db, auth } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece, faArrowLeft, faClock, faTrophy, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
+import { useGamePoints } from '../../hooks/useGamePoints';
 import '../../styles/PuzzleGame.css';
 
 interface Concept {
@@ -41,6 +42,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [pointsAwarded, setPointsAwarded] = useState(false);
+  const { addPoints } = useGamePoints();
 
   // Timer
   useEffect(() => {
@@ -200,6 +203,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       setGameCompleted(true);
       setTimeout(() => {
         celebrateGameComplete();
+        awardGamePoints();
       }, 500);
     } else {
       setLevel(level + 1);
@@ -309,6 +313,28 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const awardGamePoints = async () => {
+    if (!pointsAwarded) {
+      setPointsAwarded(true);
+      
+      // Determinar tipo de bonus
+      let bonusType: 'perfect' | 'speed' | 'streak' | undefined = undefined;
+      if (maxCombo >= 10) {
+        bonusType = 'streak'; // Gran combo
+      } else if (elapsedTime < 60) {
+        bonusType = 'speed'; // Completado en menos de 1 minuto
+      } else if (score >= 300) {
+        bonusType = 'perfect'; // Puntuación alta
+      }
+      
+      const result = await addPoints('puzzle', 'Puzzle de Definiciones', score, bonusType);
+      
+      if (result?.newAchievements && result.newAchievements.length > 0) {
+        console.log('Nuevos logros:', result.newAchievements);
+      }
+    }
   };
 
   if (loading) {

@@ -5,6 +5,8 @@ import { db } from '../services/firebase';
 import { useStudyService } from '../hooks/useStudyService';
 import { getNextSmartStudyDate } from '../utils/sm3Algorithm';
 import { useNavigate } from 'react-router-dom';
+import { useGamePoints } from '../hooks/useGamePoints';
+import { useTickets } from '../hooks/useTickets';
 import '../styles/StudyDashboard.css';
 
 // Función auxiliar para obtener datos de aprendizaje
@@ -57,6 +59,8 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   
   const navigate = useNavigate();
   const studyService = useStudyService(userSubscription);
+  const { points: gamePoints } = useGamePoints();
+  const { tickets } = useTickets();
 
   // Debug prop validation
   useEffect(() => {
@@ -69,7 +73,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     });
   }, [notebook, onStartSession]);
 
-  // Efecto para cargar datos cuando cambie el cuaderno o usuario
+  // Efecto para cargar datos cuando cambie el cuaderno, usuario o puntos de juego
   useEffect(() => {
     if (notebook && userId) {
       console.log('StudyDashboard: Cargando datos para cuaderno:', notebook.title);
@@ -78,7 +82,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       setDashboardData(null);
       setLoading(false);
     }
-  }, [notebook?.id, userId]); // Usar notebook.id para que se actualice cuando cambie el cuaderno
+  }, [notebook?.id, userId, gamePoints?.totalPoints]); // Incluir gamePoints para actualizar el score general
 
   // Efecto para actualizar la disponibilidad de estudio libre cuando cambien los límites
   useEffect(() => {
@@ -403,13 +407,17 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     }
 
     // 5. CALCULAR DATOS REALES
-    const generalScore = completedSmartSessions * maxQuizScore;
+    const studyScore = completedSmartSessions * maxQuizScore;
+    const gameScore = gamePoints?.totalPoints || 0;
+    const generalScore = studyScore + gameScore;
     
     console.log('🔍 CÁLCULO DEL SCORE GENERAL:', {
       completedSmartSessions,
       maxQuizScore,
+      studyScore,
+      gameScore,
       generalScore,
-      formula: `${completedSmartSessions} × ${maxQuizScore} = ${generalScore}`
+      formula: `(${completedSmartSessions} × ${maxQuizScore}) + ${gameScore} = ${generalScore}`
     });
 
     // Verificar disponibilidad del estudio inteligente según SM-3
@@ -852,11 +860,19 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
         >
           <div className="card-header">
             <h4>Juegos</h4>
-            <span className="new-badge">Nuevo</span>
+            {gamePoints && (
+              <span className="max-score">Pts: {gamePoints.totalPoints.toLocaleString()}</span>
+            )}
           </div>
           <div className="card-content">
-            <div className="availability-status available-text">
-              Disponible
+            <div className="header-tickets-display">
+              <div className="header-ticket-count">
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="ticket" className="svg-inline--fa fa-ticket header-ticket-icon" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
+                  <path fill="currentColor" d="M64 64C28.7 64 0 92.7 0 128l0 64c0 8.8 7.4 15.7 15.7 18.6C34.5 217.1 48 235 48 256s-13.5 38.9-32.3 45.4C7.4 304.3 0 311.2 0 320l0 64c0 35.3 28.7 64 64 64l448 0c35.3 0 64-28.7 64-64l0-64c0-8.8-7.4-15.7-15.7-18.6C541.5 294.9 528 277 528 256s13.5-38.9 32.3-45.4c8.3-2.9 15.7-9.8 15.7-18.6l0-64c0-35.3-28.7-64-64-64L64 64zm64 112l0 160c0 8.8 7.2 16 16 16l288 0c8.8 0 16-7.2 16-16l0-160c0-8.8-7.2-16-16-16l-288 0c-8.8 0-16 7.2-16 16zM96 160c0-17.7 14.3-32 32-32l320 0c17.7 0 32 14.3 32 32l0 192c0 17.7-14.3 32-32 32l-320 0c-17.7 0-32-14.3-32-32l0-192z"></path>
+                </svg>
+                <span className="header-ticket-number">{tickets ? tickets.availableTickets : 0}</span>
+                <span className="header-ticket-total">/3</span>
+              </div>
             </div>
           </div>
         </div>

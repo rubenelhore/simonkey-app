@@ -181,6 +181,101 @@
   font-size: 16px;
 }
 
+/* Dropdown personalizado */
+.materia-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.materia-dropdown-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #111827;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.materia-dropdown-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.materia-dropdown-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(97, 71, 255, 0.2);
+}
+
+.dropdown-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.3s ease;
+  color: #6b7280;
+}
+
+.dropdown-icon.open {
+  transform: rotate(180deg);
+}
+
+.materia-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.materia-option {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 15px;
+  color: #374151;
+  background-color: #ffffff;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.materia-option:last-child {
+  border-bottom: none;
+}
+
+.materia-option:hover {
+  background: #f9fafb;
+}
+
+.materia-option.selected {
+  background: #ede9fe;
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
 /* Estado vacío */
 .empty-notebooks {
   text-align: center;
@@ -656,10 +751,10 @@
 
 /* Tarjeta de estudio centrada y visible */
 .study-card-container {
-  background: linear-gradient(135deg, #fff, #f6f8fa 80%);
+  background: #ffffff;
   border-radius: 24px;
   padding: 24px 16px;
-  box-shadow: 0 8px 40px 0 rgba(97, 71, 255, 0.10), 0 2px 8px 0 rgba(0,0,0,0.08);
+  box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.10), 0 2px 8px 0 rgba(0,0,0,0.08);
   min-width: 340px;
   max-width: 520px;
   min-height: 340px;
@@ -667,7 +762,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #e5e5ea;
+  border: 2px solid #e5e7eb;
   position: relative;
   overflow: auto;
   margin: 0;
@@ -675,8 +770,8 @@
 }
 
 .study-card-container:hover {
-  box-shadow: 0 12px 48px 0 rgba(97, 71, 255, 0.18), 0 4px 16px 0 rgba(0,0,0,0.10);
-  border: 3px solid var(--primary-color);
+  box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.15), 0 4px 16px 0 rgba(0,0,0,0.10);
+  border: 2px solid #d1d5db;
 }
 
 /* Indicadores de dirección para los botones */

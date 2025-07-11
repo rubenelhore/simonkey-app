@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db, auth } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFistRaised, faArrowLeft, faClock, faHeart, faBolt, faShield } from '@fortawesome/free-solid-svg-icons';
+import { useGamePoints } from '../../hooks/useGamePoints';
 import '../../styles/QuizBattle.css';
 
 interface Concept {
@@ -51,6 +52,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   const [playerPower, setPlayerPower] = useState<Power | null>(null);
   const [enemyShield, setEnemyShield] = useState(false);
   const [playerShield, setPlayerShield] = useState(false);
+  const [pointsAwarded, setPointsAwarded] = useState(false);
+  const { addPoints } = useGamePoints();
   
   // Animation states
   const [playerAttacking, setPlayerAttacking] = useState(false);
@@ -171,6 +174,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setCombo(0);
     setIsPlayerTurn(true);
     setEnemyThinking(false);
+    setPointsAwarded(false);
+    setGameOver(false);
     setTimeout(() => nextTurn(true), 500); // Start with player turn
   };
 
@@ -324,9 +329,9 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setShowResult(shouldAnswerCorrect ? 'correct' : 'wrong');
     
     // Always switch back to player turn after enemy answers
-    setTimeout(() => {
+    setTimeout(async () => {
       if (playerDied) {
-        endGame(false);
+        await endGame(false);
       } else if (!gameOver) {
         setIsPlayerTurn(true);
         setTimeout(() => nextTurn(true), 500); // Pass true for player turn
@@ -363,10 +368,36 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setTimeout(() => nextTurn(true), 1000); // Player starts new round
   };
 
-  const endGame = (won: boolean) => {
+  const endGame = async (won: boolean) => {
     setGameOver(true);
+    let finalScore = score;
     if (won) {
-      setScore(score + 100); // Victory bonus
+      finalScore = score + 100; // Victory bonus
+      setScore(finalScore);
+    }
+    if (won && !pointsAwarded) {
+      await awardGamePoints(finalScore);
+    }
+  };
+
+  const awardGamePoints = async (finalScore: number) => {
+    if (!pointsAwarded) {
+      setPointsAwarded(true);
+      
+      // Determinar bonus basado en el rendimiento
+      let bonusType: 'perfect' | 'speed' | 'streak' | undefined;
+      
+      if (playerHP === 60) {
+        bonusType = 'perfect'; // Victoria sin recibir daño
+      } else if (round === 3) {
+        bonusType = 'streak'; // Completó todas las rondas
+      }
+      
+      const result = await addPoints('quiz', 'Quiz Battle', finalScore, bonusType);
+      
+      if (result?.newAchievements && result.newAchievements.length > 0) {
+        console.log('¡Nuevos logros desbloqueados!', result.newAchievements);
+      }
     }
   };
 
