@@ -41,7 +41,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [pointsAwarded, setPointsAwarded] = useState(false);
-  const { addPoints } = useGamePoints();
+  const { addPoints } = useGamePoints(notebookId);
 
   // Timer effect
   useEffect(() => {
@@ -294,7 +294,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
       }
       
       try {
-        const result = await addPoints('memory', 'Memorama', finalScore, bonusType);
+        const gameId = notebookId ? `memory_${notebookId}` : 'memory';
+        const result = await addPoints(gameId, 'Memorama', finalScore, bonusType);
         console.log('[MemoryGame] Resultado de puntos:', result);
         
         if (result?.newAchievements && result.newAchievements.length > 0) {

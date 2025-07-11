@@ -21,7 +21,7 @@ interface GamePoints {
   }>;
 }
 
-export const useGamePoints = () => {
+export const useGamePoints = (notebookId?: string) => {
   const [points, setPoints] = useState<GamePoints | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,16 +33,22 @@ export const useGamePoints = () => {
       return;
     }
 
+    if (!notebookId) {
+      setError('No se especificó un cuaderno');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const userPoints = await gamePointsService.getUserPoints(auth.currentUser.uid);
+      const notebookPoints = await gamePointsService.getNotebookPoints(auth.currentUser.uid, notebookId);
       
       setPoints({
-        totalPoints: userPoints.totalPoints,
-        weeklyPoints: userPoints.weeklyPoints,
-        monthlyPoints: userPoints.monthlyPoints,
-        gameScores: userPoints.gameScores,
-        achievements: userPoints.achievements
+        totalPoints: notebookPoints.totalPoints,
+        weeklyPoints: notebookPoints.weeklyPoints,
+        monthlyPoints: notebookPoints.monthlyPoints,
+        gameScores: notebookPoints.gameScores,
+        achievements: notebookPoints.achievements
       });
       setError(null);
     } catch (err) {
@@ -64,9 +70,15 @@ export const useGamePoints = () => {
       return null;
     }
 
+    if (!notebookId) {
+      setError('No se especificó un cuaderno');
+      return null;
+    }
+
     try {
       const result = await gamePointsService.addGamePoints(
         auth.currentUser.uid, 
+        notebookId,
         gameId, 
         gameName, 
         basePoints,
@@ -94,8 +106,10 @@ export const useGamePoints = () => {
   };
 
   useEffect(() => {
-    loadPoints();
-  }, []);
+    if (notebookId) {
+      loadPoints();
+    }
+  }, [notebookId]);
 
   return {
     points,

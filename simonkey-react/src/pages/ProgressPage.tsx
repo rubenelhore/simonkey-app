@@ -18,6 +18,9 @@ import {
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
+import '../scripts/fixUserNotebooks';
+import '../scripts/verifyNotebookIds';
+import '../utils/forceReloadKPIs';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
@@ -51,6 +54,7 @@ interface CuadernoData {
   porcentajeExito: number;
   porcentajeDominio: number;
   estudiosLibres: number;
+  juegosJugados: number;
 }
 
 const ProgressPage: React.FC = () => {
@@ -349,7 +353,8 @@ const ProgressPage: React.FC = () => {
             estudiosInteligentes: cuadernoData.estudiosInteligentesLocal || 0,
             porcentajeExito: cuadernoData.porcentajeExitoEstudiosInteligentes || 0,
             porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
-            estudiosLibres: cuadernoData.estudiosLibresLocal || 0
+            estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
+            juegosJugados: cuadernoData.juegosJugados || 0
           });
         });
       } else {
@@ -368,6 +373,11 @@ const ProgressPage: React.FC = () => {
             const nombreCuaderno = notebookNames.get(cuadernoId) || cuadernoData.nombreCuaderno || 'Sin nombre';
             
             console.log(`  - Agregando cuaderno: ${nombreCuaderno}`);
+            console.log(`[ProgressPage] Datos del cuaderno ${cuadernoId}:`, {
+              juegosJugados: cuadernoData.juegosJugados,
+              tiempoJuegosLocal: cuadernoData.tiempoJuegosLocal,
+              rawData: cuadernoData
+            });
             
             cuadernosTemp.push({
               id: cuadernoId,
@@ -380,7 +390,8 @@ const ProgressPage: React.FC = () => {
               estudiosInteligentes: cuadernoData.estudiosInteligentesLocal || 0,
               porcentajeExito: cuadernoData.porcentajeExitoEstudiosInteligentes || 0,
               porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
-              estudiosLibres: cuadernoData.estudiosLibresLocal || 0
+              estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
+              juegosJugados: cuadernoData.juegosJugados || 0
             });
           }
         });
@@ -1167,6 +1178,7 @@ const ProgressPage: React.FC = () => {
                         <th>% Éxito</th>
                         <th>% Dominio</th>
                         <th>E. Libres</th>
+                        <th>Juegos</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1176,7 +1188,7 @@ const ProgressPage: React.FC = () => {
                           return (
                             <tr key={cuaderno.id}>
                               <td className="notebook-name">{cuaderno.nombre}</td>
-                              <td className="score-cell">{cuaderno.score.toLocaleString()}</td>
+                              <td className="score-cell">{Math.round(cuaderno.score).toLocaleString('es-ES')}</td>
                               <td className="position-cell">
                                 #{cuaderno.posicion} de {cuaderno.totalAlumnos}
                               </td>
@@ -1186,6 +1198,7 @@ const ProgressPage: React.FC = () => {
                               <td className="percentage success">{cuaderno.porcentajeExito}%</td>
                               <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
                               <td>{cuaderno.estudiosLibres}</td>
+                              <td>{cuaderno.juegosJugados || 0}</td>
                             </tr>
                           );
                         })

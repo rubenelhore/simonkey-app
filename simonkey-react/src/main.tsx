@@ -33,6 +33,18 @@ import './utils/copyUserToDefaultDb';
 // Importar función de prueba de KPIs
 import './utils/testKpiService';
 
+// Importar función de depuración y corrección de cuadernos
+import './scripts/debugAndFixNotebooks';
+
+// Importar función de debug del servicio KPI
+import './utils/debugKpiService';
+
+// Importar función de verificación de datos de juegos
+import './utils/verifyGameData';
+
+// Importar función de test KPI con logs
+import './utils/testKpiWithLogs';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

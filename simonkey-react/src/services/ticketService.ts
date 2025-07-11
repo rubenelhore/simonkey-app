@@ -18,8 +18,8 @@ interface TicketTransaction {
   description: string;
 }
 
-interface UserTickets {
-  userId: string;
+interface NotebookTickets {
+  notebookId: string;
   availableTickets: number;
   lastRefreshDate: Date;
   ticketsUsedToday: number;
@@ -28,22 +28,39 @@ interface UserTickets {
   ticketHistory: TicketTransaction[];
 }
 
+interface UserTickets {
+  userId: string;
+  notebookTickets: { [notebookId: string]: NotebookTickets };
+}
+
 class TicketService {
   private readonly DAILY_TICKETS = 3;
   private readonly MAX_HISTORY_LENGTH = 50;
 
   /**
-   * Obtiene o crea los datos de tickets para un usuario
+   * Obtiene o crea los datos de tickets para un cuaderno específico
    */
-  async getUserTickets(userId: string): Promise<UserTickets> {
+  async getNotebookTickets(userId: string, notebookId: string): Promise<NotebookTickets> {
     try {
       const ticketDocRef = doc(db, 'userTickets', userId);
       const ticketDoc = await getDoc(ticketDocRef);
       
       if (!ticketDoc.exists()) {
-        // Crear documento inicial con tickets
+        // Crear documento inicial
         const initialData: UserTickets = {
           userId,
+          notebookTickets: {}
+        };
+        await setDoc(ticketDocRef, initialData);
+      }
+      
+      const userData = ticketDoc.exists() ? ticketDoc.data() as UserTickets : { userId, notebookTickets: {} };
+      
+      // Verificar si existe información para este cuaderno
+      if (!userData.notebookTickets || !userData.notebookTickets[notebookId]) {
+        // Crear datos iniciales para este cuaderno
+        const notebookData: NotebookTickets = {
+          notebookId,
           availableTickets: this.DAILY_TICKETS,
           lastRefreshDate: new Date(),
           ticketsUsedToday: 0,
@@ -58,36 +75,42 @@ class TicketService {
           }]
         };
         
-        await setDoc(ticketDocRef, {
-          ...initialData,
-          lastRefreshDate: Timestamp.fromDate(initialData.lastRefreshDate),
-          ticketHistory: initialData.ticketHistory.map(t => ({
-            ...t,
-            timestamp: Timestamp.fromDate(t.timestamp)
-          }))
+        await updateDoc(ticketDocRef, {
+          [`notebookTickets.${notebookId}`]: {
+            ...notebookData,
+            lastRefreshDate: Timestamp.fromDate(notebookData.lastRefreshDate),
+            ticketHistory: notebookData.ticketHistory.map(t => ({
+              ...t,
+              timestamp: Timestamp.fromDate(t.timestamp)
+            }))
+          }
         });
         
-        return initialData;
+        return notebookData;
       }
       
-      const data = ticketDoc.data();
+      const notebookData = userData.notebookTickets[notebookId] as any;
       
-      // Verificar si necesita refresh diario
-      const userTickets: UserTickets = {
-        ...data,
-        lastRefreshDate: data.lastRefreshDate.toDate(),
-        ticketHistory: data.ticketHistory.map((t: any) => ({
+      // Convertir timestamps
+      const notebookTickets: NotebookTickets = {
+        ...notebookData,
+        lastRefreshDate: notebookData.lastRefreshDate instanceof Date 
+          ? notebookData.lastRefreshDate 
+          : notebookData.lastRefreshDate.toDate(),
+        ticketHistory: notebookData.ticketHistory.map((t: any) => ({
           ...t,
-          timestamp: t.timestamp.toDate()
+          timestamp: t.timestamp instanceof Date 
+            ? t.timestamp 
+            : t.timestamp.toDate()
         }))
-      } as UserTickets;
+      };
       
       // Comprobar si ha pasado un día desde el último refresh
-      if (this.needsDailyRefresh(userTickets.lastRefreshDate)) {
-        return await this.refreshDailyTickets(userId);
+      if (this.needsDailyRefresh(notebookTickets.lastRefreshDate)) {
+        return await this.refreshDailyTickets(userId, notebookId);
       }
       
-      return userTickets;
+      return notebookTickets;
     } catch (error) {
       console.error('Error obteniendo tickets:', error);
       throw error;
@@ -97,11 +120,11 @@ class TicketService {
   /**
    * Consume un ticket para jugar
    */
-  async consumeTicket(userId: string, gameId: string, gameName: string): Promise<boolean> {
+  async consumeTicket(userId: string, notebookId: string, gameId: string, gameName: string): Promise<boolean> {
     try {
-      const userTickets = await this.getUserTickets(userId);
+      const notebookTickets = await this.getNotebookTickets(userId, notebookId);
       
-      if (userTickets.availableTickets <= 0) {
+      if (notebookTickets.availableTickets <= 0) {
         return false; // No hay tickets disponibles
       }
       
@@ -118,18 +141,18 @@ class TicketService {
       // Actualizar documento
       const ticketDocRef = doc(db, 'userTickets', userId);
       await updateDoc(ticketDocRef, {
-        availableTickets: userTickets.availableTickets - 1,
-        ticketsUsedToday: userTickets.ticketsUsedToday + 1,
-        totalTicketsSpent: userTickets.totalTicketsSpent + 1,
-        ticketHistory: arrayUnion({
+        [`notebookTickets.${notebookId}.availableTickets`]: notebookTickets.availableTickets - 1,
+        [`notebookTickets.${notebookId}.ticketsUsedToday`]: notebookTickets.ticketsUsedToday + 1,
+        [`notebookTickets.${notebookId}.totalTicketsSpent`]: notebookTickets.totalTicketsSpent + 1,
+        [`notebookTickets.${notebookId}.ticketHistory`]: arrayUnion({
           ...transaction,
           timestamp: Timestamp.fromDate(transaction.timestamp)
         })
       });
       
       // Limpiar historial si es muy largo
-      if (userTickets.ticketHistory.length > this.MAX_HISTORY_LENGTH) {
-        await this.cleanupHistory(userId);
+      if (notebookTickets.ticketHistory.length > this.MAX_HISTORY_LENGTH) {
+        await this.cleanupHistory(userId, notebookId);
       }
       
       return true;
@@ -142,9 +165,9 @@ class TicketService {
   /**
    * Otorga tickets extra (por logros, bonificaciones, etc.)
    */
-  async awardTickets(userId: string, amount: number, reason: string): Promise<void> {
+  async awardTickets(userId: string, notebookId: string, amount: number, reason: string): Promise<void> {
     try {
-      const userTickets = await this.getUserTickets(userId);
+      const notebookTickets = await this.getNotebookTickets(userId, notebookId);
       
       const transaction: TicketTransaction = {
         id: this.generateId(),
@@ -156,9 +179,9 @@ class TicketService {
       
       const ticketDocRef = doc(db, 'userTickets', userId);
       await updateDoc(ticketDocRef, {
-        availableTickets: userTickets.availableTickets + amount,
-        totalTicketsEarned: userTickets.totalTicketsEarned + amount,
-        ticketHistory: arrayUnion({
+        [`notebookTickets.${notebookId}.availableTickets`]: notebookTickets.availableTickets + amount,
+        [`notebookTickets.${notebookId}.totalTicketsEarned`]: notebookTickets.totalTicketsEarned + amount,
+        [`notebookTickets.${notebookId}.ticketHistory`]: arrayUnion({
           ...transaction,
           timestamp: Timestamp.fromDate(transaction.timestamp)
         })
@@ -186,7 +209,7 @@ class TicketService {
   /**
    * Actualiza los tickets diarios
    */
-  private async refreshDailyTickets(userId: string): Promise<UserTickets> {
+  private async refreshDailyTickets(userId: string, notebookId: string): Promise<NotebookTickets> {
     try {
       const transaction: TicketTransaction = {
         id: this.generateId(),
@@ -198,21 +221,22 @@ class TicketService {
       
       const ticketDocRef = doc(db, 'userTickets', userId);
       const ticketDoc = await getDoc(ticketDocRef);
-      const currentData = ticketDoc.data() as any;
+      const currentData = ticketDoc.data() as UserTickets;
+      const currentNotebookData = currentData.notebookTickets[notebookId];
       
       // Resetear a 3 tickets (no acumulativo)
       await updateDoc(ticketDocRef, {
-        availableTickets: this.DAILY_TICKETS,
-        lastRefreshDate: Timestamp.fromDate(new Date()),
-        ticketsUsedToday: 0,
-        totalTicketsEarned: currentData.totalTicketsEarned + this.DAILY_TICKETS,
-        ticketHistory: arrayUnion({
+        [`notebookTickets.${notebookId}.availableTickets`]: this.DAILY_TICKETS,
+        [`notebookTickets.${notebookId}.lastRefreshDate`]: Timestamp.fromDate(new Date()),
+        [`notebookTickets.${notebookId}.ticketsUsedToday`]: 0,
+        [`notebookTickets.${notebookId}.totalTicketsEarned`]: currentNotebookData.totalTicketsEarned + this.DAILY_TICKETS,
+        [`notebookTickets.${notebookId}.ticketHistory`]: arrayUnion({
           ...transaction,
           timestamp: Timestamp.fromDate(transaction.timestamp)
         })
       });
       
-      return this.getUserTickets(userId);
+      return this.getNotebookTickets(userId, notebookId);
     } catch (error) {
       console.error('Error actualizando tickets diarios:', error);
       throw error;
@@ -222,19 +246,20 @@ class TicketService {
   /**
    * Limpia el historial manteniendo solo las últimas transacciones
    */
-  private async cleanupHistory(userId: string): Promise<void> {
+  private async cleanupHistory(userId: string, notebookId: string): Promise<void> {
     try {
       const ticketDocRef = doc(db, 'userTickets', userId);
       const ticketDoc = await getDoc(ticketDocRef);
-      const data = ticketDoc.data() as any;
+      const data = ticketDoc.data() as UserTickets;
+      const notebookData = data.notebookTickets[notebookId];
       
       // Mantener solo las últimas 50 transacciones
-      const sortedHistory = data.ticketHistory
+      const sortedHistory = notebookData.ticketHistory
         .sort((a: any, b: any) => b.timestamp.toMillis() - a.timestamp.toMillis())
         .slice(0, this.MAX_HISTORY_LENGTH);
       
       await updateDoc(ticketDocRef, {
-        ticketHistory: sortedHistory
+        [`notebookTickets.${notebookId}.ticketHistory`]: sortedHistory
       });
     } catch (error) {
       console.error('Error limpiando historial:', error);

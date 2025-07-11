@@ -49,7 +49,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isJumping, setIsJumping] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
-  const { addPoints } = useGamePoints();
+  const { addPoints } = useGamePoints(notebookId);
   
   // Animation state
   const [runnerFrame, setRunnerFrame] = useState(0);
@@ -329,7 +329,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
         bonusType = 'speed'; // Completado rápidamente (menos de 90 segundos)
       }
       
-      const result = await addPoints('race', 'Carrera de Conceptos', score, bonusType);
+      const gameId = notebookId ? `race_${notebookId}` : 'race';
+      const result = await addPoints(gameId, 'Carrera de Conceptos', score, bonusType);
       
       if (result?.newAchievements && result.newAchievements.length > 0) {
         console.log('¡Nuevos logros desbloqueados!', result.newAchievements);

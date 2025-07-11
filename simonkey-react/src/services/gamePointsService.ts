@@ -14,8 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-interface GamePointsData {
-  userId: string;
+interface NotebookGamePoints {
+  notebookId: string;
   totalPoints: number;
   weeklyPoints: number;
   monthlyPoints: number;
@@ -29,6 +29,11 @@ interface GamePointsData {
   };
   pointsHistory: PointTransaction[];
   achievements: Achievement[];
+}
+
+interface GamePointsData {
+  userId: string;
+  notebookPoints: { [notebookId: string]: NotebookGamePoints };
 }
 
 interface PointTransaction {
@@ -61,9 +66,9 @@ class GamePointsService {
   };
 
   /**
-   * Obtiene o crea los datos de puntos para un usuario
+   * Obtiene o crea los datos de puntos para un cuaderno específico
    */
-  async getUserPoints(userId: string): Promise<GamePointsData> {
+  async getNotebookPoints(userId: string, notebookId: string): Promise<NotebookGamePoints> {
     try {
       const pointsDocRef = doc(db, 'gamePoints', userId);
       const pointsDoc = await getDoc(pointsDocRef);
@@ -72,6 +77,18 @@ class GamePointsService {
         // Crear documento inicial
         const initialData: GamePointsData = {
           userId,
+          notebookPoints: {}
+        };
+        await setDoc(pointsDocRef, initialData);
+      }
+      
+      const userData = pointsDoc.exists() ? pointsDoc.data() as GamePointsData : { userId, notebookPoints: {} };
+      
+      // Verificar si existe información para este cuaderno
+      if (!userData.notebookPoints || !userData.notebookPoints[notebookId]) {
+        // Crear datos iniciales para este cuaderno
+        const notebookData: NotebookGamePoints = {
+          notebookId,
           totalPoints: 0,
           weeklyPoints: 0,
           monthlyPoints: 0,
@@ -87,45 +104,55 @@ class GamePointsService {
           achievements: []
         };
         
-        await setDoc(pointsDocRef, {
-          ...initialData,
-          lastWeekReset: Timestamp.fromDate(initialData.lastWeekReset),
-          lastMonthReset: Timestamp.fromDate(initialData.lastMonthReset),
-          pointsHistory: [],
-          achievements: []
+        await updateDoc(pointsDocRef, {
+          [`notebookPoints.${notebookId}`]: {
+            ...notebookData,
+            lastWeekReset: Timestamp.fromDate(notebookData.lastWeekReset),
+            lastMonthReset: Timestamp.fromDate(notebookData.lastMonthReset),
+            pointsHistory: [],
+            achievements: []
+          }
         });
         
-        return initialData;
+        return notebookData;
       }
       
-      const data = pointsDoc.data();
+      const notebookData = userData.notebookPoints[notebookId] as any;
       
-      // Verificar si necesita reset semanal o mensual
-      const userPoints: GamePointsData = {
-        ...data,
-        lastWeekReset: data.lastWeekReset.toDate(),
-        lastMonthReset: data.lastMonthReset.toDate(),
-        pointsHistory: (data.pointsHistory || []).map((t: any) => ({
+      // Convertir timestamps
+      const notebookPoints: NotebookGamePoints = {
+        ...notebookData,
+        lastWeekReset: notebookData.lastWeekReset instanceof Date 
+          ? notebookData.lastWeekReset 
+          : notebookData.lastWeekReset.toDate(),
+        lastMonthReset: notebookData.lastMonthReset instanceof Date 
+          ? notebookData.lastMonthReset 
+          : notebookData.lastMonthReset.toDate(),
+        pointsHistory: (notebookData.pointsHistory || []).map((t: any) => ({
           ...t,
-          timestamp: t.timestamp.toDate()
+          timestamp: t.timestamp instanceof Date 
+            ? t.timestamp 
+            : t.timestamp.toDate()
         })),
-        achievements: (data.achievements || []).map((a: any) => ({
+        achievements: (notebookData.achievements || []).map((a: any) => ({
           ...a,
-          unlockedAt: a.unlockedAt.toDate()
+          unlockedAt: a.unlockedAt instanceof Date 
+            ? a.unlockedAt 
+            : a.unlockedAt.toDate()
         }))
-      } as GamePointsData;
+      };
       
       // Resetear puntos semanales/mensuales si es necesario
       const now = new Date();
-      const weeksSinceReset = Math.floor((now.getTime() - userPoints.lastWeekReset.getTime()) / (7 * 24 * 60 * 60 * 1000));
-      const monthsSinceReset = Math.floor((now.getTime() - userPoints.lastMonthReset.getTime()) / (30 * 24 * 60 * 60 * 1000));
+      const weeksSinceReset = Math.floor((now.getTime() - notebookPoints.lastWeekReset.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      const monthsSinceReset = Math.floor((now.getTime() - notebookPoints.lastMonthReset.getTime()) / (30 * 24 * 60 * 60 * 1000));
       
       if (weeksSinceReset > 0 || monthsSinceReset > 0) {
-        await this.resetPeriodPoints(userId, weeksSinceReset > 0, monthsSinceReset > 0);
-        return this.getUserPoints(userId);
+        await this.resetPeriodPoints(userId, notebookId, weeksSinceReset > 0, monthsSinceReset > 0);
+        return this.getNotebookPoints(userId, notebookId);
       }
       
-      return userPoints;
+      return notebookPoints;
     } catch (error) {
       console.error('Error obteniendo puntos:', error);
       throw error;
@@ -137,13 +164,15 @@ class GamePointsService {
    */
   async addGamePoints(
     userId: string, 
+    notebookId: string,
     gameId: string, 
     gameName: string, 
     basePoints: number,
     bonusType?: 'perfect' | 'speed' | 'streak' | 'first_try'
   ): Promise<{ totalPoints: number; newAchievements: Achievement[] }> {
     try {
-      const userPoints = await this.getUserPoints(userId);
+      console.log(`[GamePointsService] addGamePoints llamado con:`, { userId, notebookId, gameId, gameName, basePoints, bonusType });
+      const notebookPoints = await this.getNotebookPoints(userId, notebookId);
       
       // Calcular puntos con bonus
       let finalPoints = basePoints;
@@ -181,40 +210,44 @@ class GamePointsService {
       };
       
       // Actualizar puntos del juego específico
-      const gameScores = { ...userPoints.gameScores };
-      if (gameId in gameScores) {
-        gameScores[gameId as keyof typeof gameScores] += finalPoints;
+      const gameScores = { ...notebookPoints.gameScores };
+      // Extraer el tipo de juego del gameId (ej: 'memory' de 'memory_abc123')
+      const gameType = gameId.split('_')[0];
+      if (gameType in gameScores) {
+        gameScores[gameType as keyof typeof gameScores] += finalPoints;
       }
       
       // Verificar logros
-      const newAchievements = await this.checkAchievements(userId, userPoints, finalPoints, gameId);
+      const newAchievements = await this.checkAchievements(userId, notebookId, notebookPoints, finalPoints, gameId);
       
       // Actualizar documento
       const pointsDocRef = doc(db, 'gamePoints', userId);
       await updateDoc(pointsDocRef, {
-        totalPoints: increment(finalPoints),
-        weeklyPoints: increment(finalPoints),
-        monthlyPoints: increment(finalPoints),
-        gameScores,
-        pointsHistory: arrayUnion({
+        [`notebookPoints.${notebookId}.totalPoints`]: increment(finalPoints),
+        [`notebookPoints.${notebookId}.weeklyPoints`]: increment(finalPoints),
+        [`notebookPoints.${notebookId}.monthlyPoints`]: increment(finalPoints),
+        [`notebookPoints.${notebookId}.gameScores`]: gameScores,
+        [`notebookPoints.${notebookId}.pointsHistory`]: arrayUnion({
           ...transaction,
           timestamp: Timestamp.fromDate(transaction.timestamp)
         }),
         ...(newAchievements.length > 0 && {
-          achievements: arrayUnion(...newAchievements.map(a => ({
+          [`notebookPoints.${notebookId}.achievements`]: arrayUnion(...newAchievements.map(a => ({
             ...a,
             unlockedAt: Timestamp.fromDate(a.unlockedAt)
           })))
         })
       });
       
+      console.log(`[GamePointsService] Puntos actualizados correctamente para cuaderno ${notebookId}`);
+      
       // Limpiar historial si es muy largo
-      if (userPoints.pointsHistory.length > 100) {
-        await this.cleanupHistory(userId);
+      if (notebookPoints.pointsHistory.length > 100) {
+        await this.cleanupHistory(userId, notebookId);
       }
       
       return {
-        totalPoints: userPoints.totalPoints + finalPoints,
+        totalPoints: notebookPoints.totalPoints + finalPoints,
         newAchievements
       };
     } catch (error) {
@@ -228,15 +261,16 @@ class GamePointsService {
    */
   private async checkAchievements(
     userId: string, 
-    userPoints: GamePointsData, 
+    notebookId: string,
+    notebookPoints: NotebookGamePoints, 
     newPoints: number,
     gameId: string
   ): Promise<Achievement[]> {
     const newAchievements: Achievement[] = [];
-    const unlockedIds = new Set(userPoints.achievements.map(a => a.id));
+    const unlockedIds = new Set(notebookPoints.achievements.map(a => a.id));
     
     // Primer juego
-    if (!unlockedIds.has('FIRST_GAME') && userPoints.pointsHistory.length === 0) {
+    if (!unlockedIds.has('FIRST_GAME') && notebookPoints.pointsHistory.length === 0) {
       newAchievements.push({
         id: 'FIRST_GAME',
         ...this.ACHIEVEMENTS.FIRST_GAME,
@@ -245,7 +279,7 @@ class GamePointsService {
     }
     
     // 1000 puntos
-    if (!unlockedIds.has('POINTS_1000') && userPoints.totalPoints + newPoints >= 1000) {
+    if (!unlockedIds.has('POINTS_1000') && notebookPoints.totalPoints + newPoints >= 1000) {
       newAchievements.push({
         id: 'POINTS_1000',
         ...this.ACHIEVEMENTS.POINTS_1000,
@@ -254,7 +288,7 @@ class GamePointsService {
     }
     
     // Todos los juegos
-    const gamesPlayed = new Set(userPoints.pointsHistory.map(t => t.gameId));
+    const gamesPlayed = new Set(notebookPoints.pointsHistory.map(t => t.gameId));
     gamesPlayed.add(gameId);
     if (!unlockedIds.has('ALL_GAMES') && gamesPlayed.size >= 4) {
       newAchievements.push({
@@ -267,9 +301,9 @@ class GamePointsService {
     // Agregar puntos por logros
     for (const achievement of newAchievements) {
       await updateDoc(doc(db, 'gamePoints', userId), {
-        totalPoints: increment(achievement.points),
-        weeklyPoints: increment(achievement.points),
-        monthlyPoints: increment(achievement.points)
+        [`notebookPoints.${notebookId}.totalPoints`]: increment(achievement.points),
+        [`notebookPoints.${notebookId}.weeklyPoints`]: increment(achievement.points),
+        [`notebookPoints.${notebookId}.monthlyPoints`]: increment(achievement.points)
       });
     }
     
@@ -308,17 +342,17 @@ class GamePointsService {
   /**
    * Resetea puntos semanales/mensuales
    */
-  private async resetPeriodPoints(userId: string, resetWeekly: boolean, resetMonthly: boolean) {
+  private async resetPeriodPoints(userId: string, notebookId: string, resetWeekly: boolean, resetMonthly: boolean) {
     const updates: any = {};
     
     if (resetWeekly) {
-      updates.weeklyPoints = 0;
-      updates.lastWeekReset = Timestamp.fromDate(new Date());
+      updates[`notebookPoints.${notebookId}.weeklyPoints`] = 0;
+      updates[`notebookPoints.${notebookId}.lastWeekReset`] = Timestamp.fromDate(new Date());
     }
     
     if (resetMonthly) {
-      updates.monthlyPoints = 0;
-      updates.lastMonthReset = Timestamp.fromDate(new Date());
+      updates[`notebookPoints.${notebookId}.monthlyPoints`] = 0;
+      updates[`notebookPoints.${notebookId}.lastMonthReset`] = Timestamp.fromDate(new Date());
     }
     
     await updateDoc(doc(db, 'gamePoints', userId), updates);
@@ -327,19 +361,20 @@ class GamePointsService {
   /**
    * Limpia el historial manteniendo solo las últimas transacciones
    */
-  private async cleanupHistory(userId: string) {
+  private async cleanupHistory(userId: string, notebookId: string) {
     try {
       const pointsDocRef = doc(db, 'gamePoints', userId);
       const pointsDoc = await getDoc(pointsDocRef);
-      const data = pointsDoc.data() as any;
+      const data = pointsDoc.data() as GamePointsData;
+      const notebookData = data.notebookPoints[notebookId];
       
       // Mantener solo las últimas 100 transacciones
-      const sortedHistory = data.pointsHistory
+      const sortedHistory = notebookData.pointsHistory
         .sort((a: any, b: any) => b.timestamp.toMillis() - a.timestamp.toMillis())
         .slice(0, 100);
       
       await updateDoc(pointsDocRef, {
-        pointsHistory: sortedHistory
+        [`notebookPoints.${notebookId}.pointsHistory`]: sortedHistory
       });
     } catch (error) {
       console.error('Error limpiando historial:', error);
@@ -352,3 +387,43 @@ class GamePointsService {
 }
 
 export const gamePointsService = new GamePointsService();
+
+// Función auxiliar para agregar puntos desde los juegos
+export async function addPoints(
+  gameId: string,
+  gameName: string,
+  basePoints: number,
+  bonusType?: 'perfect' | 'speed' | 'streak' | 'first_try'
+): Promise<{ success: boolean; totalPoints?: number; newAchievements?: Achievement[] }> {
+  try {
+    const { auth } = await import('./firebase');
+    if (!auth.currentUser) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    // Extraer notebookId del gameId (formato: gameType_notebookId)
+    const gameIdParts = gameId.split('_');
+    if (gameIdParts.length < 2) {
+      throw new Error('Formato de gameId inválido');
+    }
+
+    const notebookId = gameIdParts.slice(1).join('_');
+    const result = await gamePointsService.addGamePoints(
+      auth.currentUser.uid,
+      notebookId,
+      gameId,
+      gameName,
+      basePoints,
+      bonusType
+    );
+
+    return {
+      success: true,
+      totalPoints: result.totalPoints,
+      newAchievements: result.newAchievements
+    };
+  } catch (error) {
+    console.error('Error al agregar puntos:', error);
+    return { success: false };
+  }
+}
