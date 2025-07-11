@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   SchoolCategory, 
   SchoolCreationData,
@@ -19,10 +19,30 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import Papa from 'papaparse';
 import '../styles/SchoolComponents.css';
 
 interface SchoolCreationProps {
   onRefresh: () => void;
+}
+
+interface CSVUserData {
+  email: string;
+  nombre: string;
+  apellidos?: string;
+  role?: string;
+  institucion?: string;
+  [key: string]: string | undefined;
+}
+
+interface BulkUploadResult {
+  success: number;
+  failed: number;
+  errors: Array<{
+    row: number;
+    email: string;
+    error: string;
+  }>;
 }
 
 const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
@@ -34,6 +54,13 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
   const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Estados para carga masiva
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [csvData, setCsvData] = useState<CSVUserData[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Listener en tiempo real para administradores
   useEffect(() => {
@@ -537,6 +564,178 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
     return names[field] || field;
   };
 
+  // Funciones para carga masiva CSV
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const validatedData = validateCSVData(results.data as CSVUserData[]);
+        setCsvData(validatedData);
+        setUploadResult(null);
+        setUploadProgress(0);
+      },
+      error: (error) => {
+        alert(`Error al leer el archivo CSV: ${error.message}`);
+      }
+    });
+  };
+
+  const validateCSVData = (data: CSVUserData[]): CSVUserData[] => {
+    return data.filter((row, index) => {
+      if (!row.email || !row.nombre) {
+        console.warn(`Fila ${index + 2} ignorada: falta email o nombre`);
+        return false;
+      }
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(row.email)) {
+        console.warn(`Fila ${index + 2} ignorada: email inválido (${row.email})`);
+        return false;
+      }
+      return true;
+    });
+  };
+
+  const downloadCSVTemplate = () => {
+    let csvContent = '';
+    let headers = [];
+    let exampleRow = [];
+
+    switch (creationData.categoria) {
+      case SchoolCategory.ADMINS:
+        headers = ['email', 'nombre', 'apellidos'];
+        exampleRow = ['admin@escuela.com', 'Juan', 'Pérez García'];
+        break;
+      case SchoolCategory.PROFESORES:
+        headers = ['email', 'nombre', 'apellidos'];
+        exampleRow = ['profesor@escuela.com', 'María', 'González López'];
+        break;
+      case SchoolCategory.ALUMNOS:
+        headers = ['email', 'nombre', 'apellidos'];
+        exampleRow = ['alumno@escuela.com', 'Carlos', 'Rodríguez Martín'];
+        break;
+      case SchoolCategory.TUTORES:
+        headers = ['email', 'nombre', 'apellidos'];
+        exampleRow = ['tutor@escuela.com', 'Ana', 'Martínez Sánchez'];
+        break;
+      default:
+        alert('Selecciona una categoría válida para descargar la plantilla');
+        return;
+    }
+
+    csvContent = headers.join(',') + '\n';
+    csvContent += exampleRow.join(',') + '\n';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `plantilla_${creationData.categoria}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const processBulkUpload = async () => {
+    if (csvData.length === 0) {
+      alert('No hay datos válidos para procesar');
+      return;
+    }
+
+    if (!creationData.categoria) {
+      alert('Por favor selecciona una categoría');
+      return;
+    }
+
+    setLoading(true);
+    setUploadProgress(0);
+    
+    const result: BulkUploadResult = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    const functions = getFunctions();
+    const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
+
+    // Determinar el rol basado en la categoría
+    let role = '';
+    switch (creationData.categoria) {
+      case SchoolCategory.ADMINS:
+        role = 'admin';
+        break;
+      case SchoolCategory.PROFESORES:
+        role = 'teacher';
+        break;
+      case SchoolCategory.ALUMNOS:
+        role = 'student';
+        break;
+      case SchoolCategory.TUTORES:
+        role = 'tutor';
+        break;
+    }
+
+    // Procesar usuarios en lotes de 5 para evitar sobrecarga
+    const batchSize = 5;
+    for (let i = 0; i < csvData.length; i += batchSize) {
+      const batch = csvData.slice(i, i + batchSize);
+      const promises = batch.map(async (userData, batchIndex) => {
+        const rowIndex = i + batchIndex;
+        try {
+          await createSchoolUser({
+            userData: {
+              email: userData.email,
+              nombre: userData.nombre,
+              apellidos: userData.apellidos || '',
+              role: role,
+              additionalData: {
+                idInstitucion: userData.institucion || '',
+                idAdmin: '',
+                idCuadernos: [],
+                idAlumnos: []
+              }
+            }
+          });
+          result.success++;
+        } catch (error: any) {
+          result.failed++;
+          result.errors.push({
+            row: rowIndex + 2, // +2 porque la fila 1 es el header
+            email: userData.email,
+            error: error.message || 'Error desconocido'
+          });
+        }
+      });
+
+      await Promise.all(promises);
+      setUploadProgress(Math.round(((i + batch.length) / csvData.length) * 100));
+    }
+
+    setUploadResult(result);
+    setLoading(false);
+    
+    // Recargar entidades si hubo éxitos
+    if (result.success > 0) {
+      await loadEntities(creationData.categoria);
+      onRefresh();
+    }
+  };
+
+  const resetBulkUpload = () => {
+    setCsvData([]);
+    setUploadResult(null);
+    setUploadProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="school-creation-container">
       <div className="creation-header">
@@ -600,6 +799,160 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
                   </>
                 )}
               </button>
+              
+              {/* Botón para carga masiva */}
+              {(creationData.categoria === SchoolCategory.ADMINS || 
+                creationData.categoria === SchoolCategory.PROFESORES ||
+                creationData.categoria === SchoolCategory.ALUMNOS ||
+                creationData.categoria === SchoolCategory.TUTORES) && (
+                <button
+                  onClick={() => setShowBulkUpload(!showBulkUpload)}
+                  className="bulk-upload-button"
+                  style={{ marginLeft: '10px' }}
+                >
+                  <i className="fas fa-file-csv"></i> Carga Masiva CSV
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Sección de Carga Masiva */}
+        {showBulkUpload && creationData.categoria && (
+          <div className="creation-section bulk-upload-section">
+            <div className="section-header">
+              <h3><i className="fas fa-upload"></i> Carga Masiva de {getCategoryDisplayName(creationData.categoria)}</h3>
+              <button 
+                onClick={() => setShowBulkUpload(false)}
+                className="close-button"
+                style={{ marginLeft: 'auto' }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="bulk-upload-content">
+              {/* Paso 1: Descargar plantilla */}
+              <div className="upload-step">
+                <h4>1. Descarga la plantilla CSV</h4>
+                <button onClick={downloadCSVTemplate} className="template-button">
+                  <i className="fas fa-download"></i> Descargar Plantilla
+                </button>
+              </div>
+
+              {/* Paso 2: Subir archivo */}
+              <div className="upload-step">
+                <h4>2. Sube tu archivo CSV</h4>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="file-input"
+                  id="csv-upload"
+                />
+                <label htmlFor="csv-upload" className="file-label">
+                  <i className="fas fa-file-upload"></i> Seleccionar archivo CSV
+                </label>
+              </div>
+
+              {/* Vista previa de datos */}
+              {csvData.length > 0 && !uploadResult && (
+                <div className="csv-preview">
+                  <h4>3. Vista previa ({csvData.length} usuarios válidos)</h4>
+                  <div className="preview-table-container">
+                    <table className="preview-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Email</th>
+                          <th>Nombre</th>
+                          <th>Apellidos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvData.slice(0, 5).map((row, index) => (
+                          <tr key={index}>
+                            <td>{index + 1}</td>
+                            <td>{row.email}</td>
+                            <td>{row.nombre}</td>
+                            <td>{row.apellidos || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {csvData.length > 5 && (
+                      <p className="preview-more">... y {csvData.length - 5} más</p>
+                    )}
+                  </div>
+                  
+                  <div className="upload-actions">
+                    <button 
+                      onClick={processBulkUpload} 
+                      className="process-button"
+                      disabled={loading}
+                    >
+                      <i className="fas fa-play"></i> Procesar Carga Masiva
+                    </button>
+                    <button 
+                      onClick={resetBulkUpload} 
+                      className="reset-button"
+                    >
+                      <i className="fas fa-redo"></i> Reiniciar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Barra de progreso */}
+              {loading && uploadProgress > 0 && (
+                <div className="upload-progress">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="progress-text">{uploadProgress}%</span>
+                </div>
+              )}
+
+              {/* Resultados */}
+              {uploadResult && (
+                <div className="upload-results">
+                  <h4>Resultados de la carga</h4>
+                  <div className="result-stats">
+                    <div className="stat success">
+                      <i className="fas fa-check-circle"></i>
+                      <span>{uploadResult.success} usuarios creados</span>
+                    </div>
+                    <div className="stat failed">
+                      <i className="fas fa-times-circle"></i>
+                      <span>{uploadResult.failed} errores</span>
+                    </div>
+                  </div>
+                  
+                  {uploadResult.errors.length > 0 && (
+                    <div className="error-list">
+                      <h5>Errores encontrados:</h5>
+                      <ul>
+                        {uploadResult.errors.map((error, index) => (
+                          <li key={index}>
+                            Fila {error.row} ({error.email}): {error.error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <button 
+                    onClick={resetBulkUpload} 
+                    className="reset-button"
+                  >
+                    <i className="fas fa-redo"></i> Nueva carga
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

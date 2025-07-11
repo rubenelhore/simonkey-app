@@ -431,6 +431,32 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const completeStudySession = useCallback(
     async (sessionId: string, metrics: any, detailedResults?: any): Promise<void> => {
       try {
+        console.log('🔍 completeStudySession llamado con:', {
+          sessionId,
+          metrics,
+          detailedResults,
+          metricsKeys: Object.keys(metrics || {}),
+          detailedResultsKeys: Object.keys(detailedResults || {})
+        });
+        
+        // Verificar campos undefined en metrics
+        if (metrics) {
+          for (const [key, value] of Object.entries(metrics)) {
+            if (value === undefined) {
+              console.error(`❌ Campo undefined en metrics: ${key}`);
+            }
+          }
+        }
+        
+        // Verificar campos undefined en detailedResults
+        if (detailedResults) {
+          for (const [key, value] of Object.entries(detailedResults)) {
+            if (value === undefined) {
+              console.error(`❌ Campo undefined en detailedResults: ${key}`);
+            }
+          }
+        }
+        
         const sessionRef = doc(db, 'studySessions', sessionId);
         
         // Obtener datos de la sesión para saber el modo
@@ -447,18 +473,107 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         // Preparar datos detallados de conceptos
         const conceptsDetails = detailedResults?.conceptsResults || [];
         
-        await updateDoc(sessionRef, {
-          endTime,
+        // Función para limpiar undefined de objetos
+        const cleanUndefinedFields = (obj: any): any => {
+          if (Array.isArray(obj)) {
+            return obj.map(item => cleanUndefinedFields(item));
+          } else if (obj && typeof obj === 'object' && obj.constructor === Object) {
+            const cleaned: any = {};
+            for (const [key, value] of Object.entries(obj)) {
+              if (value !== undefined) {
+                cleaned[key] = cleanUndefinedFields(value);
+              }
+            }
+            return cleaned;
+          }
+          return obj;
+        };
+        
+        // Limpiar los conceptos de campos undefined
+        const cleanedConcepts = (detailedResults?.concepts || []).map((concept: any) => {
+          const cleaned: any = {};
+          // Solo incluir campos que no sean undefined
+          if (concept.id !== undefined) cleaned.id = concept.id;
+          if (concept.término !== undefined) cleaned.término = concept.término;
+          if (concept.definición !== undefined) cleaned.definición = concept.definición;
+          if (concept.fuente !== undefined) cleaned.fuente = concept.fuente;
+          if (concept.createdAt !== undefined) cleaned.createdAt = concept.createdAt;
+          if (concept.notebookId !== undefined) cleaned.notebookId = concept.notebookId;
+          if (concept.userId !== undefined) cleaned.userId = concept.userId;
+          // Excluir explícitamente campos que sabemos que son undefined
+          // usuarioId, notasPersonales, reviewId, dominado
+          return cleaned;
+        });
+        
+        // Preparar objeto para updateDoc con validación
+        const updateData = {
+          endTime: Timestamp.fromDate(endTime), // Convertir Date a Timestamp
+          concepts: cleanedConcepts, // Conceptos limpios sin campos undefined
           metrics: {
-            ...metrics,
-            sessionDuration, // Duración total de la sesión en segundos
+            // Filtrar campos que no deben ir a Firebase
+            totalConcepts: metrics.totalConcepts || 0,
+            conceptsReviewed: metrics.conceptsReviewed || 0,
+            mastered: metrics.mastered || 0,
+            reviewing: metrics.reviewing || 0,
             timeSpent: Math.round(sessionDuration / 60), // Duración en minutos
+            sessionDuration, // Duración total de la sesión en segundos
             conceptsDominados: detailedResults?.conceptsDominados || 0,
             conceptosNoDominados: detailedResults?.conceptosNoDominados || 0,
             conceptsDetails, // Array con detalles de cada concepto
           },
           completedAt: serverTimestamp()
+        };
+        
+        // Log detallado del objeto antes de updateDoc
+        console.log('📦 Datos a enviar a updateDoc:', {
+          updateData,
+          updateDataKeys: Object.keys(updateData),
+          metricsKeys: Object.keys(updateData.metrics),
+          // Verificar valores undefined
+          hasUndefinedInUpdateData: Object.entries(updateData).some(([k, v]) => v === undefined),
+          hasUndefinedInMetrics: Object.entries(updateData.metrics).some(([k, v]) => v === undefined)
         });
+        
+        // Log más detallado del contenido
+        console.log('📦 Contenido detallado de updateData:');
+        console.log('  - endTime:', updateData.endTime);
+        console.log('  - concepts:', updateData.concepts);
+        console.log('  - completedAt:', updateData.completedAt);
+        console.log('  - metrics:', JSON.stringify(updateData.metrics, null, 2));
+        
+        // Función para buscar undefined recursivamente
+        const findUndefinedFields = (obj: any, path: string = ''): void => {
+          for (const [key, value] of Object.entries(obj)) {
+            const currentPath = path ? `${path}.${key}` : key;
+            if (value === undefined) {
+              console.error(`❌ Campo undefined encontrado en: ${currentPath}`);
+            } else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+              findUndefinedFields(value, currentPath);
+            } else if (Array.isArray(value)) {
+              value.forEach((item, index) => {
+                if (item === undefined) {
+                  console.error(`❌ Elemento undefined en array: ${currentPath}[${index}]`);
+                } else if (item && typeof item === 'object') {
+                  findUndefinedFields(item, `${currentPath}[${index}]`);
+                }
+              });
+            }
+          }
+        };
+        
+        console.log('🔍 Buscando campos undefined recursivamente...');
+        findUndefinedFields(updateData);
+        
+        // Verificar específicamente conceptsDetails
+        if (updateData.metrics.conceptsDetails) {
+          console.log('📋 conceptsDetails:', updateData.metrics.conceptsDetails);
+          console.log('📋 conceptsDetails length:', updateData.metrics.conceptsDetails.length);
+          updateData.metrics.conceptsDetails.forEach((detail: any, index: number) => {
+            console.log(`  - conceptsDetails[${index}]:`, detail);
+          });
+        }
+        
+        await updateDoc(sessionRef, updateData);
         
         // Actualizar estadísticas del usuario
         await updateUserStats(sessionData.userId, {

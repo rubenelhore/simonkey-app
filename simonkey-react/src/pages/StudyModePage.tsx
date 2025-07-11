@@ -16,6 +16,9 @@ import { useUserType } from '../hooks/useUserType';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
+import { rankingUpdateService } from '../services/rankingUpdateService';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -25,6 +28,7 @@ const StudyModePage = () => {
   
   const [materias, setMaterias] = useState<any[]>([]);
   const [selectedMateria, setSelectedMateria] = useState<any | null>(null);
+  const [showMateriaDropdown, setShowMateriaDropdown] = useState<boolean>(false);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>(StudyMode.SMART);
@@ -73,6 +77,14 @@ const StudyModePage = () => {
   const [miniQuizScore, setMiniQuizScore] = useState<number>(0);
   const [studySessionValidated, setStudySessionValidated] = useState<boolean>(false);
   
+  // Log cuando cambia showMiniQuiz
+  useEffect(() => {
+    console.log('🎯 showMiniQuiz cambió a:', showMiniQuiz);
+    if (showMiniQuiz) {
+      console.log('📍 selectedNotebook:', selectedNotebook?.title);
+    }
+  }, [showMiniQuiz]);
+  
   // Estados para pantallas de introducción
   const [showSmartStudyIntro, setShowSmartStudyIntro] = useState<boolean>(false);
   const [showQuizIntro, setShowQuizIntro] = useState<boolean>(false);
@@ -84,6 +96,24 @@ const StudyModePage = () => {
     console.log('[DEBUG] showQuizIntro state changed to:', showQuizIntro);
   }, [showQuizIntro]);
   
+  // Cerrar el dropdown cuando se hace click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.materia-dropdown-container')) {
+        setShowMateriaDropdown(false);
+      }
+    };
+
+    if (showMateriaDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMateriaDropdown]);
+
   // Usar nuestro hook de servicio personalizado con el tipo de suscripción
   const studyService = useStudyService(subscription);
   
@@ -590,7 +620,16 @@ const StudyModePage = () => {
       }));
       
       // Marcar concepto como revisado
-      setReviewedConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
+      setReviewedConceptIds(prev => {
+        const newSet = new Set(Array.from(prev).concat([conceptId]));
+        console.log('📝 Agregando concepto a reviewedConceptIds:', {
+          conceptId,
+          previousSize: prev.size,
+          newSize: newSet.size,
+          allIds: Array.from(newSet)
+        });
+        return newSet;
+      });
       
       if (quality === ResponseQuality.MASTERED) {
         setMasteredConceptIds(prev => {
@@ -677,7 +716,17 @@ const StudyModePage = () => {
           continueWithImmediateReview(newReviewQueue);
         } else {
           console.log('✅ No hay conceptos en cola de repaso, completando sesión...');
-          await completeStudySession();
+          // Pasar los valores actualizados directamente
+          await completeStudySession({
+            updatedReviewedIds: new Set(Array.from(reviewedConceptIds).concat([conceptId])),
+            updatedMasteredIds: quality === ResponseQuality.MASTERED 
+              ? new Set(Array.from(masteredConceptIds).concat([conceptId]))
+              : masteredConceptIds,
+            updatedReviewingIds: quality === ResponseQuality.REVIEW_LATER
+              ? new Set(Array.from(reviewingConceptIds).concat([conceptId]))
+              : reviewingConceptIds,
+            updatedConceptFinalResults: new Map(conceptFinalResults).set(conceptId, quality)
+          });
         }
       } else {
         console.log('⏭️ Aún quedan conceptos en la ronda actual, continuando...');
@@ -717,12 +766,23 @@ const StudyModePage = () => {
   };
   
   // Completar la sesión de estudio
-  const completeStudySession = async () => {
+  const completeStudySession = async (updatedStates?: {
+    updatedReviewedIds?: Set<string>;
+    updatedMasteredIds?: Set<string>;
+    updatedReviewingIds?: Set<string>;
+    updatedConceptFinalResults?: Map<string, ResponseQuality>;
+  }) => {
+    // Usar los valores actualizados si se proporcionan, o los del estado actual
+    const finalReviewedIds = updatedStates?.updatedReviewedIds || reviewedConceptIds;
+    const finalMasteredIds = updatedStates?.updatedMasteredIds || masteredConceptIds;
+    const finalReviewingIds = updatedStates?.updatedReviewingIds || reviewingConceptIds;
+    const finalConceptResults = updatedStates?.updatedConceptFinalResults || conceptFinalResults;
+    
     // Log del estado final de los Sets
     console.log('📊 RESUMEN FINAL DE LA SESIÓN:');
-    console.log(`   - Conceptos únicos revisados: ${reviewedConceptIds.size}`);
-    console.log(`   - Conceptos dominados: ${masteredConceptIds.size}`);
-    console.log(`   - Conceptos en repaso: ${reviewingConceptIds.size}`);
+    console.log(`   - Conceptos únicos revisados: ${finalReviewedIds.size}`);
+    console.log(`   - Conceptos dominados: ${finalMasteredIds.size}`);
+    console.log(`   - Conceptos en repaso: ${finalReviewingIds.size}`);
     console.log(`   - Total conceptos en el cuaderno: ${allConcepts.length}`);
     
     if (!sessionId || !auth.currentUser) {
@@ -750,8 +810,16 @@ const StudyModePage = () => {
     }));
     
     try {
+      // DEBUG: Verificar estado de conceptos
+      console.log('🔍 [DEBUG] Estado de conceptos al completar sesión:');
+      console.log('  - allConcepts.length:', allConcepts.length);
+      console.log('  - conceptFinalResults.size:', finalConceptResults.size);
+      console.log('  - masteredConceptIds.size:', finalMasteredIds.size);
+      console.log('  - reviewedConceptIds.size:', finalReviewedIds.size);
+      console.log('  - sessionId:', sessionId);
+      
       // Preparar datos detallados de conceptos para KPIs
-      const conceptsResults = Array.from(conceptFinalResults.entries()).map(([conceptId, quality]) => ({
+      const conceptsResults = Array.from(finalConceptResults.entries()).map(([conceptId, quality]) => ({
         conceptId,
         mastered: quality === ResponseQuality.MASTERED,
         quality
@@ -761,45 +829,101 @@ const StudyModePage = () => {
       const conceptsDominados = conceptsResults.filter(c => c.mastered).length;
       const conceptosNoDominados = conceptsResults.filter(c => !c.mastered).length;
       
+      console.log('📊 [DEBUG] Conteos calculados:');
+      console.log('  - conceptsDominados:', conceptsDominados);
+      console.log('  - conceptosNoDominados:', conceptosNoDominados);
+      console.log('  - conceptsResults.length:', conceptsResults.length);
+      
+      // Preparar datos para completeStudySession con validación
+      const metricsData = {
+        ...metrics,
+        conceptsReviewed: finalReviewedIds.size,
+        mastered: finalMasteredIds.size,
+        reviewing: finalReviewingIds.size
+      };
+      
+      const detailedResultsData = {
+        concepts: allConcepts || [], // Pasar array completo de conceptos
+        conceptsDominados: conceptsDominados || 0,
+        conceptosNoDominados: conceptosNoDominados || 0,
+        conceptsResults: conceptsResults || [],
+        studyMode: studyMode || StudyMode.SMART
+      };
+      
+      // Log detallado para debug
+      console.log('📋 Datos a enviar a completeStudySession:', {
+        sessionId,
+        metricsData,
+        detailedResultsData,
+        // Verificar campos específicos
+        metricsKeys: Object.keys(metricsData),
+        detailedResultsKeys: Object.keys(detailedResultsData),
+        // Verificar valores undefined
+        hasUndefinedInMetrics: Object.entries(metricsData).some(([k, v]) => v === undefined),
+        hasUndefinedInDetailedResults: Object.entries(detailedResultsData).some(([k, v]) => v === undefined)
+      });
+      
+      // Verificar campos undefined antes de enviar
+      for (const [key, value] of Object.entries(metricsData)) {
+        if (value === undefined) {
+          console.error(`❌ Campo undefined en metrics: ${key}`);
+        }
+      }
+      
+      for (const [key, value] of Object.entries(detailedResultsData)) {
+        if (value === undefined) {
+          console.error(`❌ Campo undefined en detailedResults: ${key}`);
+        }
+      }
+      
+      // Verificar el contenido de metrics original
+      console.log('📊 metrics original:', metrics);
+      console.log('📊 allConcepts:', allConcepts);
+      console.log('📊 conceptsResults:', conceptsResults);
+      
       // Guardar estadísticas en Firestore con datos detallados
       await studyService.completeStudySession(
         sessionId,
-        {
-          ...metrics,
-          conceptsReviewed: reviewedConceptIds.size,
-          mastered: masteredConceptIds.size,
-          reviewing: reviewingConceptIds.size,
-          endTime
-        },
-        {
-          conceptsDominados,
-          conceptosNoDominados,
-          conceptsResults,
-          studyMode
-        }
+        metricsData,
+        detailedResultsData
       );
       
-      // IMPORTANTE: Actualizar SM-3 con los resultados finales de la primera pasada
-      const effectiveUserData = await getEffectiveUserId();
-      const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      
-      console.log('🎯 Actualizando SM-3 con resultados finales de primera pasada...');
-      console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
-      
-      // Actualizar cada concepto con su resultado de primera pasada
-      for (const [conceptId, quality] of conceptFinalResults) {
-        try {
-          await studyService.updateConceptResponse(userKey, conceptId, quality);
-          console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
-        } catch (error) {
-          console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+      // IMPORTANTE: Solo actualizar SM-3 si es estudio inteligente
+      // Los estudios libres NO deben afectar al algoritmo de espaciamiento
+      if (studyMode === StudyMode.SMART) {
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        console.log('🎯 Actualizando SM-3 con resultados finales de primera pasada (Estudio Inteligente)...');
+        console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
+        
+        // Actualizar cada concepto con su resultado de primera pasada
+        for (const [conceptId, quality] of conceptFinalResults) {
+          try {
+            await studyService.updateConceptResponse(userKey, conceptId, quality);
+            console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
+          } catch (error) {
+            console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
+          }
         }
+      } else {
+        console.log('📚 Estudio Libre completado - NO se actualiza el algoritmo SM-3');
+        console.log('ℹ️ Los estudios libres no afectan al espaciamiento de conceptos');
       }
       
       // Actualizar KPIs del usuario
       try {
         console.log('📊 Actualizando KPIs del usuario después de completar sesión de estudio...');
-        await kpiService.updateUserKPIs(auth.currentUser.uid);
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        console.log('📊 Usando ID efectivo para KPIs:', userKey);
+        await kpiService.updateUserKPIs(userKey);
+        
+        // Actualizar rankings si es estudio inteligente (afecta scores)
+        if (studyMode === StudyMode.SMART) {
+          console.log('🏆 Actualizando rankings después de estudio inteligente...');
+          await rankingUpdateService.updateRankingsForStudent(userKey);
+        }
       } catch (kpiError) {
         console.error('Error actualizando KPIs:', kpiError);
         // No fallar la sesión por error en KPIs
@@ -817,18 +941,31 @@ const StudyModePage = () => {
       // Los límites se actualizarán después del Mini Quiz
       if (studyMode === StudyMode.SMART && selectedNotebook) {
         console.log('🔄 Estudio inteligente completado. Esperando resultado del Mini Quiz...');
+        console.log('📋 Estado antes de mostrar Mini Quiz:', {
+          selectedNotebook: selectedNotebook?.title,
+          sessionId,
+          showMiniQuiz,
+          sessionComplete,
+          sessionActive
+        });
+        
         // Mostrar Mini Quiz para validar el estudio inteligente
         setShowMiniQuiz(true);
         setSessionActive(false);
-        // NO marcar sessionComplete aquí para evitar mostrar la pantalla de resumen prematuramente
+        // Marcar como completado para mostrar el resumen con el mini quiz
+        setSessionComplete(true);
+        
+        console.log('✅ Mini Quiz activado. showMiniQuiz = true');
         return; // No completar la sesión aún
       }
       
       // Para estudio libre, completar normalmente
       if (studyMode === StudyMode.FREE) {
         // Registrar actividad
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         await studyService.logStudyActivity(
-          auth.currentUser.uid,
+          userKey,
           'session_completed',
           `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, ${masteredConceptIds.size} dominados`
         );
@@ -929,7 +1066,8 @@ const StudyModePage = () => {
       // Actualizar KPIs del usuario después del Mini Quiz
       try {
         console.log('📊 Actualizando KPIs del usuario después del Mini Quiz...');
-        await kpiService.updateUserKPIs(auth.currentUser.uid);
+        console.log('📊 Usando userKey para KPIs:', userKey);
+        await kpiService.updateUserKPIs(userKey);
       } catch (kpiError) {
         console.error('Error actualizando KPIs:', kpiError);
         // No fallar por error en KPIs
@@ -1319,7 +1457,7 @@ const StudyModePage = () => {
   // Renderizar el componente principal
   return (
     <>
-      {/* Mini Quiz - se muestra como overlay completo */}
+      {/* Mini Quiz - se muestra como overlay completo con la mayor prioridad */}
       {showMiniQuiz && selectedNotebook && (
         <div style={{
           position: 'fixed',
@@ -1327,9 +1465,16 @@ const StudyModePage = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 9999,
+          zIndex: 99999,
           backgroundColor: '#f8f9fa'
         }}>
+          {(() => {
+            console.log('🎮 RENDERIZANDO MINI QUIZ:', {
+              notebookId: selectedNotebook.id,
+              notebookTitle: selectedNotebook.title
+            });
+            return null;
+          })()}
           <MiniQuiz
             notebookId={selectedNotebook.id}
             notebookTitle={selectedNotebook.title}
@@ -1343,9 +1488,12 @@ const StudyModePage = () => {
       {showSmartStudyIntro && renderSmartStudyIntro()}
       {showQuizIntro && (
         <>
-          {console.log('[QUIZ] About to render quiz intro screen, showQuizIntro=', showQuizIntro)}
-          {console.log('[QUIZ] pendingStudyMode=', pendingStudyMode)}
-          {console.log('[QUIZ] selectedNotebook=', selectedNotebook?.id)}
+          {(() => {
+            console.log('[QUIZ] About to render quiz intro screen, showQuizIntro=', showQuizIntro);
+            console.log('[QUIZ] pendingStudyMode=', pendingStudyMode);
+            console.log('[QUIZ] selectedNotebook=', selectedNotebook?.id);
+            return null;
+          })()}
           {renderQuizIntro()}
         </>
       )}
@@ -1354,7 +1502,7 @@ const StudyModePage = () => {
       {/* Contenido principal */}
       <div className="study-mode-container">
         <HeaderWithHamburger
-          title=""
+          title="Espacio de estudio"
           subtitle=""
           showBackButton={sessionActive || sessionComplete}
           onBackClick={() => {
@@ -1399,34 +1547,54 @@ const StudyModePage = () => {
                 <>
                   {/* Selector de materia */}
                   <div className="materia-selector-container">
-                    <label htmlFor="materia-select" className="materia-selector-label">
+                    <label className="materia-selector-label">
                       Selecciona una materia:
                     </label>
-                    <select
-                      id="materia-select"
-                      className="materia-selector"
-                      value={selectedMateria?.id || ''}
-                      onChange={(e) => {
-                        const materia = materias.find(m => m.id === e.target.value);
-                        if (materia) {
-                          setSelectedMateria(materia);
-                          const lastMateriaKey = isSchoolStudent ? 
-                            `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
-                            'lastStudyMateriaId';
-                          localStorage.setItem(lastMateriaKey, materia.id);
-                        }
-                      }}
-                      style={{
-                        borderColor: selectedMateria?.color || '#6147FF'
-                      }}
-                    >
-                      <option value="">-- Selecciona una materia --</option>
-                      {materias.map(materia => (
-                        <option key={materia.id} value={materia.id}>
-                          {materia.title}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="materia-dropdown-container">
+                      <button 
+                        className="materia-dropdown-btn"
+                        onClick={() => {
+                          console.log('[StudyModePage] Materias disponibles:', materias);
+                          setShowMateriaDropdown(!showMateriaDropdown);
+                        }}
+                        type="button"
+                        style={{
+                          borderColor: selectedMateria?.color || '#6147FF'
+                        }}
+                      >
+                        <span>{selectedMateria?.nombre || 'Seleccionar materia'}</span>
+                        <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
+                      </button>
+                      
+                      {showMateriaDropdown && (
+                        <div className="materia-dropdown" style={{ backgroundColor: '#ffffff' }}>
+                          {materias.length === 0 ? (
+                            <div className="materia-option" style={{ color: '#374151' }}>No hay materias disponibles</div>
+                          ) : (
+                            materias.map(materia => (
+                              <div 
+                                key={materia.id}
+                                className={`materia-option ${selectedMateria?.id === materia.id ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedMateria(materia);
+                                  const lastMateriaKey = isSchoolStudent ? 
+                                    `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
+                                    'lastStudyMateriaId';
+                                  localStorage.setItem(lastMateriaKey, materia.id);
+                                  setShowMateriaDropdown(false);
+                                }}
+                                style={{
+                                  borderLeft: selectedMateria?.id === materia.id ? `4px solid ${materia.color || '#6147FF'}` : 'none',
+                                  paddingLeft: selectedMateria?.id === materia.id ? '12px' : '16px'
+                                }}
+                              >
+                                {materia.nombre || materia.title || 'Sin nombre'}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Mostrar cuadernos solo si hay una materia seleccionada */}
@@ -1515,7 +1683,7 @@ const StudyModePage = () => {
                       <p>Has revisado todos los conceptos disponibles.</p>
                       <button
                         className="session-action-button"
-                        onClick={completeStudySession}
+                        onClick={() => completeStudySession()}
                       >
                         Finalizar sesión
                       </button>

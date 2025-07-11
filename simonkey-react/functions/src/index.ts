@@ -2999,3 +2999,6 @@ const extractConceptsFromText = (text: string): any[] => {
   
   return concepts.slice(0, 10); // Máximo 10 conceptos de respaldo
 };
+
+// Exportar las funciones de rankings
+export { updateInstitutionRankings, scheduledRankingsUpdate } from './updateRankings';

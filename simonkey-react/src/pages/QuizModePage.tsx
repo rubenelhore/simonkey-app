@@ -23,6 +23,7 @@ import {
 import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
+import { rankingUpdateService } from '../services/rankingUpdateService';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
@@ -838,6 +839,41 @@ const QuizModePage: React.FC = () => {
       try {
         console.log('📊 Actualizando KPIs del usuario después del quiz...');
         await kpiService.updateUserKPIs(userId);
+        
+        // Actualizar rankings ya que el quiz afecta los scores
+        console.log('🏆 Actualizando rankings después del quiz...');
+        await rankingUpdateService.updateRankingsForStudent(userId);
+        
+        // Actualizar métricas del profesor si es estudiante escolar
+        if (isSchoolStudent && selectedNotebook) {
+          console.log('👨‍🏫 Actualizando métricas del profesor asociado...');
+          try {
+            // Obtener el notebook de schoolNotebooks para tener el idMateria
+            const { doc, getDoc } = await import('firebase/firestore');
+            const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', session.notebookId));
+            
+            if (notebookDoc.exists()) {
+              const notebookData = notebookDoc.data();
+              if (notebookData.idMateria) {
+                // Obtener el profesor de la materia
+                const subjectDoc = await getDoc(doc(db, 'schoolSubjects', notebookData.idMateria));
+                
+                if (subjectDoc.exists()) {
+                  const subjectData = subjectDoc.data();
+                  if (subjectData.idProfesor) {
+                    console.log('🎯 Profesor encontrado:', subjectData.idProfesor);
+                    const { teacherKpiService } = await import('../services/teacherKpiService');
+                    await teacherKpiService.updateTeacherMetrics(subjectData.idProfesor);
+                    console.log('✅ Métricas del profesor actualizadas');
+                  }
+                }
+              }
+            }
+          } catch (teacherError) {
+            console.error('Error actualizando métricas del profesor:', teacherError);
+            // No bloquear el flujo si falla la actualización del profesor
+          }
+        }
       } catch (kpiError) {
         console.error('Error actualizando KPIs:', kpiError);
         // No fallar el quiz por error en KPIs

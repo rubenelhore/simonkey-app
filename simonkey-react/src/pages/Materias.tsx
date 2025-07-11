@@ -641,7 +641,7 @@ const Materias: React.FC = () => {
   return (
     <>
       <HeaderWithHamburger
-        title=""
+        title="Materias"
         subtitle={`Espacio Personal de ${userData.nombre || 'Simón'}`}
       />
       {/* Notificación de migración */}
