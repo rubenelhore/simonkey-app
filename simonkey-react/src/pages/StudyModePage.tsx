@@ -1502,7 +1502,7 @@ const StudyModePage = () => {
       {/* Contenido principal */}
       <div className="study-mode-container">
         <HeaderWithHamburger
-          title=""
+          title="Espacio de estudio"
           subtitle=""
           showBackButton={sessionActive || sessionComplete}
           onBackClick={() => {
