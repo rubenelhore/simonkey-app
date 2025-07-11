@@ -270,3 +270,60 @@
   margin: 0 !important; /* Eliminar cualquier margen */
   align-self: center !important; /* Asegurar que el elemento se centre */
 }
+
+/* --- Notificaciones --- */
+.notification-btn {
+  position: relative;
+  margin-right: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-size: 20px;
+  z-index: 101;
+}
+
+.notification-btn:focus {
+  outline: 2px solid var(--primary, #6c47ff);
+}
+
+.notification-btn .fa-bell {
+  color: #333;
+}
+
+.notification-btn .notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  background: red;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 2;
+}
+
+/* Ajuste de layout para nav-top */
+.nav-top {
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+  flex-shrink: 0;
+  height: 70px;
+  gap: 8px;
+}
+
+/* En móvil, mantener separación y visibilidad */
+@media (max-width: 850px) {
+  .notification-btn {
+    margin-right: 12px;
+    font-size: 22px;
+    padding: 10px;
+  }
+  .nav-top {
+    gap: 6px;
+  }
+}
