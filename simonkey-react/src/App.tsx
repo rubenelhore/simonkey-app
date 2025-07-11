@@ -156,17 +156,80 @@ const HomePageContent: React.FC = () => {
   }, [location]);
 
   return (
-    <div>
+    <div style={{ background: '#f9fafb' }}>
       <Header />
       <Hero />
-      <section className="about-simonkey" style={{ width: '100%', background: '#f9fafb', padding: '0 0 40px 0', textAlign: 'center', display: 'block' }}>
+      {/* Sección completa de llamada a la acción */}
+      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{
+          width: '100%',
+          background: 'transparent',
+          padding: '54px 0 70px 0', // reducido 30px arriba y abajo
+          fontWeight: 700,
+          fontSize: '2.1rem',
+          color: '#111827',
+          textAlign: 'center',
+          letterSpacing: 0.1,
+          margin: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            width: '100%',
+            background: '#e5e7eb',
+            padding: '22px 0 22px 0', // menos padding vertical
+            margin: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 700, marginBottom: 24 }}>
+              <span style={{ whiteSpace: 'nowrap', color: '#111827', fontWeight: 700 }}>Únete a Simonkey</span>&nbsp;
+              <span style={{ whiteSpace: 'nowrap', color: '#111827', fontWeight: 700, fontSize: '1.2em' }}>→</span>&nbsp;
+              <span style={{ whiteSpace: 'nowrap', color: '#4F46E5', fontWeight: 800 }}>cambia tu futuro</span>
+            </div>
+            <div style={{
+              width: '100%',
+              maxWidth: 1200,
+              margin: '0 auto',
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'nowrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 0,
+              fontWeight: 500,
+              fontSize: '1rem',
+              letterSpacing: 0.03,
+              color: '#111827',
+              overflow: 'hidden',
+              padding: '10px 0',
+            }}>
+              <div style={{ flex: 1, textAlign: 'center', padding: '0 8px', minWidth: 0 }}>Estudia a tu ritmo</div>
+              <span style={{ color: '#b4b4b4', fontWeight: 400, margin: '0 12px', fontSize: '1.1em' }}>|</span>
+              <div style={{ flex: 1, textAlign: 'center', padding: '0 8px', minWidth: 0 }}>Convierte el repaso en hábito</div>
+              <span style={{ color: '#b4b4b4', fontWeight: 400, margin: '0 12px', fontSize: '1.1em' }}>|</span>
+              <div style={{ flex: 1, textAlign: 'center', padding: '0 8px', minWidth: 0 }}>Desbloquea tu potencial</div>
+              <span style={{ color: '#b4b4b4', fontWeight: 400, margin: '0 12px', fontSize: '1.1em' }}>|</span>
+              <div style={{ flex: 1, textAlign: 'center', padding: '0 8px', minWidth: 0 }}>Aprende y disfruta el proceso</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section className="about-simonkey" style={{ width: '100%', background: '#f9fafb', padding: '0 0 0 0', textAlign: 'center', display: 'block', margin: 0, marginTop: '12px', marginBottom: '48px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 48 }}>
           <div style={{ flex: '0 0 400px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <img src="/img/chango-feliz.png" alt="Chango feliz" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 4px 32px rgba(0,0,0,0.13)', marginLeft: 0 }} />
+            <img src="/img/chango-feliz.png" alt="Chango feliz" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', marginLeft: 0 }} />
           </div>
           <div style={{ flex: 2, minWidth: 0, textAlign: 'left' }}>
             <div style={{ textAlign: 'center' }}>
-              <AnimatedAprenderTitle />
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#111', margin: '0 0 10px', textAlign: 'center', letterSpacing: 0.1 }}>¿Qué es Simonkey?</h2>
+              <div style={{ fontFamily: '"Segoe UI", "Arial", sans-serif', fontSize: '1rem', color: '#6366F1', marginBottom: 18, textAlign: 'center', fontStyle: 'italic', fontWeight: 400, letterSpacing: 0.05 }}>
+                Tu compañero inteligente para aprender mejor cada día.
+              </div>
               <p style={{ fontSize: '1.125rem', color: '#6B7280', marginBottom: 16, textAlign: 'center' }}>
                 Simonkey es tu asistente inteligente de estudio, diseñado para adaptarse a tu ritmo y necesidades. <span style={{ color: '#4F46E5', fontWeight: 600 }}>Utiliza inteligencia artificial para ayudarte a aprender</span> de manera más eficiente, organizar tus conceptos, practicar con quizzes personalizados y mantenerte motivado en tu camino académico.
               </p>
@@ -174,7 +237,7 @@ const HomePageContent: React.FC = () => {
           </div>
         </div>
       </section>
-      <div id="how-it-works">
+      <div id="how-it-works" style={{ marginBottom: '48px' }}>
         <HowItWorks />
       </div>
       {/* <SimonkeyCarousel images={images} autoPlayInterval={9000} /> */}
@@ -313,10 +376,11 @@ const AppWrapper: React.FC = () => {
 
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
+  const location = useLocation();
   const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
   const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSuperAdmin, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { user: currentUser, setUser } = useContext(UserContext);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
     return localStorage.getItem('hasCompletedOnboarding') === 'true';
@@ -377,43 +441,8 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, isSchoolAdmin, isSchoolTutor, navigate]);
 
-  if (loading || userTypeLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f8f9fa'
-      }}>
-        <div style={{
-          textAlign: 'center'
-        }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '3px solid #e3e3e3',
-            borderTop: '3px solid #667eea',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 16px'
-          }}></div>
-          <p style={{ 
-            color: '#636e72',
-            margin: 0,
-            fontSize: '14px'
-          }}>
-            Cargando...
-          </p>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <div style={{width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#4F46E5'}}>Cargando...</div>;
   }
   
   // Show mobile navigation for all authenticated users except admin and tutor

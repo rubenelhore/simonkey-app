@@ -108,3 +108,9 @@
   border: none;
   cursor: pointer;
 }
+
+html, body {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
