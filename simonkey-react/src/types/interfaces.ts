@@ -416,7 +416,6 @@ export interface SchoolSubject {
   idMateria?: string; // Campo opcional que debe coincidir con el ID del documento
   color?: string;
   createdAt: Timestamp;
-  color?: string;
   category?: string;
   updatedAt?: Timestamp;
 }

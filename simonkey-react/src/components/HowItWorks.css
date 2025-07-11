@@ -1,7 +1,7 @@
 /* src/components/HowItWorks.css */
 .how-it-works {
   padding: 120px 0 60px 0;
-  background-color: #4F46E5;
+  background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
 }
 
 .how-it-works-title {

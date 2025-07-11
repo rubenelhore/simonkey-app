@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './FAQPage.css';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 interface FAQItem {
   question: string;
@@ -82,55 +84,59 @@ const FAQPage: React.FC = () => {
   };
 
   return (
-    <div className="faq-page">
-      <div className="faq-hero">
+    <>
+      <Header />
+      <div className="faq-page">
+        <div className="faq-hero">
+          <div className="container">
+            <h1 className="faq-title">Preguntas Frecuentes</h1>
+            <p className="faq-subtitle">
+              Encuentra respuestas a las preguntas más comunes sobre Simonkey
+            </p>
+          </div>
+        </div>
+
         <div className="container">
-          <h1 className="faq-title">Preguntas Frecuentes</h1>
-          <p className="faq-subtitle">
-            Encuentra respuestas a las preguntas más comunes sobre Simonkey
-          </p>
-        </div>
-      </div>
-
-      <div className="container">
-        <div className="faq-categories">
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              className={`category-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat.id)}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="faq-list">
-          {filteredFAQs.map((faq, index) => (
-            <div key={index} className="faq-item">
+          <div className="faq-categories">
+            {categories.map(cat => (
               <button
-                className={`faq-question ${openIndex === index ? 'open' : ''}`}
-                onClick={() => toggleFAQ(index)}
+                key={cat.id}
+                className={`category-btn ${selectedCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
               >
-                <span>{faq.question}</span>
-                <span className="faq-icon">{openIndex === index ? '−' : '+'}</span>
+                {cat.name}
               </button>
-              {openIndex === index && (
-                <div className="faq-answer">
-                  <p>{faq.answer}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="faq-contact">
-          <h2>¿No encontraste lo que buscabas?</h2>
-          <p>Nuestro equipo está aquí para ayudarte</p>
-          <a href="/contact" className="btn btn-primary">Contáctanos</a>
+          <div className="faq-list">
+            {filteredFAQs.map((faq, index) => (
+              <div key={index} className="faq-item">
+                <button
+                  className={`faq-question ${openIndex === index ? 'open' : ''}`}
+                  onClick={() => toggleFAQ(index)}
+                >
+                  <span>{faq.question}</span>
+                  <span className="faq-icon">{openIndex === index ? '−' : '+'}</span>
+                </button>
+                {openIndex === index && (
+                  <div className="faq-answer">
+                    <p>{faq.answer}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="faq-contact">
+            <h2>¿No encontraste lo que buscabas?</h2>
+            <p>Nuestro equipo está aquí para ayudarte</p>
+            <a href="/contact" className="btn btn-primary">Contáctanos</a>
+          </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 };
 
