@@ -328,6 +328,7 @@ export interface UserProfile {
   studyStreak?: number;
   totalStudyTime?: number;
   photoURL?: string;
+  hasCompletedOnboarding?: boolean;
 }
 
 /**
