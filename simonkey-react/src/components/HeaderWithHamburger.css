@@ -800,3 +800,74 @@ body .header-with-hamburger .logo2-title-group h1 * {
     font-size: 0.95rem;
   }
 } 
+
+/* --- Notificaciones estilo hamburguesa --- */
+.notification-btn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 21px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: auto;
+  position: absolute;
+  right: calc(3rem + 30px + 20px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Elimino el borde blanco al focus */
+.notification-btn:focus, .notification-btn:focus-visible, .notification-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+@keyframes bell-shake {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(-15deg); }
+  20% { transform: rotate(10deg); }
+  30% { transform: rotate(-10deg); }
+  40% { transform: rotate(6deg); }
+  50% { transform: rotate(-4deg); }
+  60% { transform: rotate(2deg); }
+  70% { transform: rotate(-1deg); }
+  80% { transform: rotate(1deg); }
+  90% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.notification-btn .fa-bell {
+  color: #fff;
+  font-size: 1.3rem;
+  transition: transform 0.2s;
+}
+
+.notification-btn.shake .fa-bell {
+  animation: bell-shake 1s cubic-bezier(.36,.07,.19,.97) both;
+  animation-iteration-count: 2;
+}
+
+.notification-btn .notification-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background: red;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 2;
+}
+
+@media (max-width: 768px) {
+  .notification-btn {
+    right: calc(4.2rem + 28px + 20px);
+    width: 28px;
+    height: 21px;
+  }
+} 

@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom'; // Añadimos useLocation
 import './Header.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBell } from '@fortawesome/free-solid-svg-icons';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasNotification, setHasNotification] = useState(true); // Simulado: true si hay evento en calendario
   const location = useLocation(); // Usamos el hook useLocation para acceder a la ubicación actual
 
   const toggleMenu = () => {
@@ -58,11 +62,60 @@ const Header: React.FC = () => {
                 <span style={{ color: 'black' }}>key</span>
               </span>
             </Link>
+            {/* Botón de notificaciones */}
+            <button
+              className="notification-btn"
+              aria-label="Notificaciones"
+              onClick={() => setShowNotifications((v) => !v)}
+              style={{ position: 'relative', marginRight: '8px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <FontAwesomeIcon icon={faBell} size="lg" />
+              {hasNotification && (
+                <span style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  width: 10,
+                  height: 10,
+                  background: 'red',
+                  borderRadius: '50%',
+                  border: '2px solid white',
+                  display: 'inline-block',
+                  zIndex: 2,
+                }} />
+              )}
+            </button>
+            {/* Botón hamburguesa */}
             <button className="hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>
             </button>
+            {/* Menú de notificaciones */}
+            {showNotifications && (
+              <div style={{
+                position: 'absolute',
+                top: 50,
+                right: 20,
+                background: 'white',
+                border: '1px solid #eee',
+                borderRadius: 8,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                padding: 16,
+                minWidth: 220,
+                zIndex: 10,
+              }}>
+                <strong>Notificaciones</strong>
+                <div style={{ marginTop: 8 }}>
+                  {hasNotification ? (
+                    <div>¡Tienes un evento en el calendario!</div>
+                  ) : (
+                    <div>No tienes notificaciones nuevas.</div>
+                  )}
+                </div>
+                <button style={{ marginTop: 12 }} onClick={() => setShowNotifications(false)}>Cerrar</button>
+              </div>
+            )}
           </div>
           
           <div className="nav-menu">

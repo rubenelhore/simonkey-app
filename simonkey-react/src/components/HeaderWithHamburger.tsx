@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '../services/firebase';
+import { auth, db, collection, query, where, getDocs } from '../services/firebase';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
-import { UserSubscriptionType } from '../types/interfaces';
+import { UserSubscriptionType, Notebook } from '../types/interfaces';
 import './HeaderWithHamburger.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBell } from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderWithHamburgerProps {
   title: string;
@@ -29,10 +31,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { isSuperAdmin, subscription } = useUserType();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasNotification, setHasNotification] = useState(false);
+  const [todayEvents, setTodayEvents] = useState<{ id: string; title: string; type: string }[]>([]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const isFreeUser = subscription === 'free';
 
   // Detectar si estamos en la página de configuración de voz
   const isVoiceSettingsPage = location.pathname === '/settings/voice';
@@ -42,6 +48,112 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   // Detectar si estamos en la página de calendario
   const isCalendarPage = location.pathname === '/calendar';
+
+  const isFreeUser = subscription === 'free';
+
+  // Fetch today's calendar events
+  useEffect(() => {
+    async function fetchTodayEvents() {
+      if (!user) return;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      // Buscar eventos personalizados
+      const q = query(collection(db, 'calendarEvents'), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
+      const events: { id: string; title: string; type: string }[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const date = data.date && data.date.toDate ? data.date.toDate() : new Date(data.date);
+        if (date >= today && date < tomorrow) {
+          events.push({ id: docSnap.id, title: data.title, type: 'custom' });
+        }
+      });
+      // Aquí podrías agregar lógica para eventos de estudio si lo deseas
+      setTodayEvents(events);
+      setHasNotification(events.length > 0);
+    }
+    fetchTodayEvents();
+  }, [user]);
+
+  // Cargar notebooks del usuario
+  useEffect(() => {
+    if (!user) return;
+    const loadNotebooks = async () => {
+      const userId = user.uid;
+      const notebooksQuery = query(
+        collection(db, 'notebooks'),
+        where('userId', '==', userId)
+      );
+      const snapshot = await getDocs(notebooksQuery);
+      const userNotebooks: Notebook[] = [];
+      snapshot.forEach(doc => {
+        userNotebooks.push({ id: doc.id, ...doc.data() } as Notebook);
+      });
+      setNotebooks(userNotebooks);
+    };
+    loadNotebooks();
+  }, [user]);
+
+  // Buscar estudios inteligentes disponibles hoy
+  useEffect(() => {
+    async function fetchSmartEvents() {
+      if (!user || notebooks.length === 0) return;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const userId = user.uid;
+      const smartEventsList: { id: string; title: string; notebookId: string }[] = [];
+      for (const notebook of notebooks) {
+        // Buscar límites del notebook
+        const notebookLimitsRef = doc(db, 'users', userId, 'notebookLimits', notebook.id);
+        const notebookLimitsDoc = await getDoc(notebookLimitsRef);
+        let smartAvailable = false;
+        if (notebookLimitsDoc.exists()) {
+          const limits = notebookLimitsDoc.data();
+          // Verificar si ya se usó hoy
+          if (limits.lastSmartStudyDate) {
+            const lastSmart = limits.lastSmartStudyDate.toDate();
+            lastSmart.setHours(0, 0, 0, 0);
+            if (lastSmart.getTime() !== today.getTime()) {
+              // No se ha usado hoy, verificar si hay conceptos para repasar
+              const learningRef = collection(db, 'users', userId, 'learningData');
+              const learningQuery = query(learningRef, where('notebookId', '==', notebook.id));
+              const learningSnapshot = await getDocs(learningQuery);
+              let hasConceptsToReview = false;
+              learningSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.nextReviewDate) {
+                  const reviewDate = data.nextReviewDate.toDate();
+                  if (reviewDate <= new Date()) {
+                    hasConceptsToReview = true;
+                  }
+                }
+              });
+              if (hasConceptsToReview) smartAvailable = true;
+            }
+          } else {
+            // Nunca se ha usado, verificar si hay conceptos
+            const learningRef = collection(db, 'users', userId, 'learningData');
+            const learningQuery = query(learningRef, where('notebookId', '==', notebook.id));
+            const learningSnapshot = await getDocs(learningQuery);
+            if (!learningSnapshot.empty) smartAvailable = true;
+          }
+        }
+        if (smartAvailable) {
+          smartEventsList.push({
+            id: notebook.id,
+            title: `🧠 Estudio inteligente disponible: ${notebook.title}`,
+            notebookId: notebook.id
+          });
+        }
+      }
+      setSmartEvents(smartEventsList);
+      setHasNotification(todayEvents.length > 0 || smartEventsList.length > 0);
+    }
+    fetchSmartEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, notebooks, todayEvents]);
 
   // Función de depuración para verificar y actualizar superadmin
   const checkAndUpdateSuperAdmin = async () => {
@@ -135,6 +247,22 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     setMobileMenuOpen(false);
   };
 
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        notificationMenuRef.current &&
+        !notificationMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
   return (
     <div className={`header-with-hamburger-container ${isMobileMenuOpen ? 'menu-open' : ''}`}>
       {/* Overlay para cerrar el menú */}
@@ -190,11 +318,88 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>
           
+          {/* Botón de notificaciones */}
+          <button
+            className={`notification-btn${hasNotification && !showNotifications ? ' shake' : ''}`}
+            aria-label="Notificaciones"
+            onClick={() => setShowNotifications((v) => !v)}
+          >
+            <FontAwesomeIcon icon={faBell} size="lg" />
+            {hasNotification && (
+              <span style={{
+                position: 'absolute',
+                top: 2,
+                right: 2,
+                width: 10,
+                height: 10,
+                background: 'red',
+                borderRadius: '50%',
+                border: '2px solid white',
+                display: 'inline-block',
+                zIndex: 2,
+              }} />
+            )}
+          </button>
+          {/* Botón hamburguesa */}
           <button className="notebooks-hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
             <span className="notebooks-hamburger-line"></span>
             <span className="notebooks-hamburger-line"></span>
             <span className="notebooks-hamburger-line"></span>
           </button>
+          {/* Menú de notificaciones */}
+          {showNotifications && (
+            <div
+              ref={notificationMenuRef}
+              style={{
+                position: 'absolute',
+                top: 50,
+                right: 20,
+                background: 'white',
+                color: '#222',
+                border: '1px solid #eee',
+                borderRadius: 8,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                padding: 16,
+                minWidth: 220,
+                zIndex: 10000,
+              }}
+            >
+              <strong>Notificaciones</strong>
+              <div style={{ marginTop: 8 }}>
+                {todayEvents.length > 0 || smartEvents.length > 0 ? (
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {todayEvents.map((event) => (
+                      <li
+                        key={event.id}
+                        style={{ cursor: 'pointer', padding: '6px 0', color: '#6147FF', fontWeight: 500 }}
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/calendar');
+                        }}
+                      >
+                        📅 {event.title}
+                      </li>
+                    ))}
+                    {smartEvents.map((event) => (
+                      <li
+                        key={event.id}
+                        style={{ cursor: 'pointer', padding: '6px 0', color: '#10b981', fontWeight: 500 }}
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/study', { state: { selectedNotebookId: event.notebookId } });
+                        }}
+                      >
+                        {event.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div>No tienes notificaciones nuevas.</div>
+                )}
+              </div>
+              <button style={{ marginTop: 12 }} onClick={() => setShowNotifications(false)}>Cerrar</button>
+            </div>
+          )}
         </div>
       </header>
       
