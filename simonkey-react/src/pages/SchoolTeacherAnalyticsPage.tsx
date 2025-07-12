@@ -23,6 +23,8 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { teacherKpiService } from '../services/teacherKpiService';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { getTeacherMetricsWithProfile } from '../utils/getTeacherMetrics';
 import '../styles/ProgressPage.css';
 
 interface Materia {
@@ -57,6 +59,7 @@ interface CuadernoData {
 }
 
 const SchoolTeacherAnalyticsPage: React.FC = () => {
+  const { userProfile } = useAuth();
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,41 +72,41 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
 
   // Cargar métricas del profesor al montar el componente
   useEffect(() => {
-    loadTeacherMetrics();
-  }, []);
+    if (userProfile) {
+      loadTeacherMetrics();
+    }
+  }, [userProfile]);
 
   // Procesar datos cuando cambien las métricas o la materia seleccionada
   useEffect(() => {
     if (teacherMetrics) {
       processMaterias();
-      processRankingData();
+      if (selectedMateria) {
+        processRankingData();
+      }
       processStudyTimeData();
       processCuadernosData();
     }
   }, [teacherMetrics, selectedMateria]);
 
   const loadTeacherMetrics = async () => {
-    if (!auth.currentUser) {
+    if (!auth.currentUser || !userProfile) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log('[TeacherAnalytics] Cargando métricas para profesor:', auth.currentUser.uid);
+      console.log('[TeacherAnalytics] Cargando métricas usando helper...');
       
-      // Obtener métricas del profesor
-      let metrics = await teacherKpiService.getTeacherMetrics(auth.currentUser.uid);
-      
-      if (!metrics) {
-        console.log('[TeacherAnalytics] No hay métricas, actualizando...');
-        // Si no hay métricas, intentar actualizarlas
-        await teacherKpiService.updateTeacherMetrics(auth.currentUser.uid);
-        metrics = await teacherKpiService.getTeacherMetrics(auth.currentUser.uid);
-      }
+      // Usar el helper que maneja correctamente los IDs
+      const metrics = await getTeacherMetricsWithProfile(userProfile);
       
       console.log('[TeacherAnalytics] Métricas obtenidas:', metrics);
-      setTeacherMetrics(metrics);
+      console.log('[TeacherAnalytics] Métricas.materias:', metrics?.materias);
+      console.log('[TeacherAnalytics] Métricas.global:', metrics?.global);
+      
+      setTeacherMetrics(metrics || {});
       
     } catch (error) {
       console.error('[TeacherAnalytics] Error cargando métricas:', error);
@@ -113,11 +116,18 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
   };
 
   const processMaterias = () => {
-    if (!teacherMetrics?.materias) return;
+    console.log('[TeacherAnalytics] processMaterias - teacherMetrics:', teacherMetrics);
+    console.log('[TeacherAnalytics] processMaterias - teacherMetrics.materias:', teacherMetrics?.materias);
+    
+    if (!teacherMetrics?.materias || Object.keys(teacherMetrics.materias).length === 0) {
+      console.log('[TeacherAnalytics] No hay materias en los metrics');
+      setMaterias([]);
+      return;
+    }
     
     const materiasArray: Materia[] = Object.entries(teacherMetrics.materias).map(([id, data]: [string, any]) => ({
       id,
-      nombre: data.nombreMateria
+      nombre: data.nombreMateria || 'Sin nombre'
     }));
     
     console.log('[TeacherAnalytics] Materias procesadas:', materiasArray);
@@ -130,24 +140,238 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
   };
 
   const processRankingData = async () => {
-    if (!teacherMetrics || !selectedMateria) return;
+    if (!teacherMetrics || !selectedMateria || !userProfile) return;
     
     try {
-      // Obtener los estudiantes de esta materia con sus scores
-      const materiaData = teacherMetrics.materias[selectedMateria];
-      if (!materiaData) return;
+      console.log('[TeacherAnalytics] Procesando ranking para materia:', selectedMateria);
+      console.log('[TeacherAnalytics] UserProfile idInstitucion:', userProfile.idInstitucion);
       
-      // Por ahora usamos datos de ejemplo, pero aquí se podría hacer una query real
-      // para obtener el ranking de estudiantes de la materia
-      const mockRanking = [
-        { posicion: 1, nombre: 'Estudiante Top 1', score: Math.floor(Math.random() * 500 + 2000) },
-        { posicion: 2, nombre: 'Estudiante Top 2', score: Math.floor(Math.random() * 400 + 1600) },
-        { posicion: 3, nombre: 'Estudiante Top 3', score: Math.floor(Math.random() * 300 + 1300) },
-        { posicion: 4, nombre: 'Estudiante Top 4', score: Math.floor(Math.random() * 300 + 1000) },
-        { posicion: 5, nombre: 'Estudiante Top 5', score: Math.floor(Math.random() * 200 + 800) },
-      ];
+      // Obtener los cuadernos de esta materia
+      const notebooksQuery = query(
+        collection(db, 'schoolNotebooks'),
+        where('idMateria', '==', selectedMateria)
+      );
+      const notebooksSnapshot = await getDocs(notebooksQuery);
+      const notebookIds = notebooksSnapshot.docs.map(doc => doc.id);
       
-      setRankingData(mockRanking);
+      if (notebookIds.length === 0) {
+        console.log('[TeacherAnalytics] No hay cuadernos para esta materia');
+        setRankingData([]);
+        return;
+      }
+      
+      console.log('[TeacherAnalytics] Cuadernos encontrados:', notebookIds.length);
+      console.log('[TeacherAnalytics] IDs de cuadernos:', notebookIds);
+      
+      // Buscar el ID de la institución en múltiples campos posibles
+      let institutionId = userProfile.idEscuela || userProfile.idInstitucion || userProfile.schoolData?.idEscuela;
+      
+      console.log('[TeacherAnalytics] Buscando ID institución:', {
+        idEscuela: userProfile.idEscuela,
+        idInstitucion: userProfile.idInstitucion,
+        schoolDataIdEscuela: userProfile.schoolData?.idEscuela,
+        idAdmin: userProfile.idAdmin,
+        encontrado: institutionId
+      });
+      
+      // Si no se encuentra directamente, intentar obtener desde el admin
+      if (!institutionId && userProfile.idAdmin) {
+        console.log('[TeacherAnalytics] No se encontró ID directo, buscando en admin:', userProfile.idAdmin);
+        
+        try {
+          const adminDoc = await getDoc(doc(db, 'users', userProfile.idAdmin));
+          
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            institutionId = adminData.idEscuela || adminData.idInstitucion || adminData.schoolData?.idEscuela;
+            console.log('[TeacherAnalytics] ID institución obtenido del admin:', institutionId);
+          } else {
+            console.log('[TeacherAnalytics] Admin no encontrado en users collection');
+          }
+        } catch (error) {
+          console.error('[TeacherAnalytics] Error obteniendo datos del admin:', error);
+        }
+      }
+      
+      // Si no tenemos ID de institución, mostrar advertencia pero continuar
+      if (!institutionId) {
+        console.warn('[TeacherAnalytics] No se encontró ID de institución, se buscarán estudiantes por cuadernos');
+      }
+      
+      // Obtener estudiantes de la institución que tengan estos cuadernos
+      let studentsSnapshot;
+      const studentScores: { id: string; nombre: string; score: number }[] = [];
+      
+      // Estrategia múltiple para encontrar estudiantes
+      if (institutionId) {
+        // Primero intentar con idEscuela
+        let studentsQuery = query(
+          collection(db, 'users'),
+          where('idEscuela', '==', institutionId),
+          where('schoolRole', '==', 'student'),
+          where('subscription', '==', 'school')
+        );
+        
+        console.log('[TeacherAnalytics] Query 1 - buscando con idEscuela:', institutionId);
+        studentsSnapshot = await getDocs(studentsQuery);
+        console.log('[TeacherAnalytics] Estudiantes encontrados con idEscuela:', studentsSnapshot.size);
+        
+        // Si no encuentra con idEscuela, intentar con idInstitucion
+        if (studentsSnapshot.size === 0) {
+          console.log('[TeacherAnalytics] Intentando con idInstitucion...');
+          studentsQuery = query(
+            collection(db, 'users'),
+            where('idInstitucion', '==', institutionId),
+            where('schoolRole', '==', 'student'),
+            where('subscription', '==', 'school')
+          );
+          
+          studentsSnapshot = await getDocs(studentsQuery);
+          console.log('[TeacherAnalytics] Estudiantes encontrados con idInstitucion:', studentsSnapshot.size);
+        }
+        
+        // Si aún no encuentra, buscar por idAdmin
+        if (studentsSnapshot.size === 0 && userProfile.idAdmin) {
+          console.log('[TeacherAnalytics] Intentando con idAdmin directo...');
+          studentsQuery = query(
+            collection(db, 'users'),
+            where('idAdmin', '==', userProfile.idAdmin),
+            where('schoolRole', '==', 'student'),
+            where('subscription', '==', 'school')
+          );
+          
+          studentsSnapshot = await getDocs(studentsQuery);
+          console.log('[TeacherAnalytics] Estudiantes encontrados con idAdmin:', studentsSnapshot.size);
+        }
+        
+        // Si aún no encuentra, buscar sin filtro de subscription
+        if (studentsSnapshot.size === 0) {
+          console.log('[TeacherAnalytics] Intentando sin filtro de subscription...');
+          studentsQuery = query(
+            collection(db, 'users'),
+            where('idEscuela', '==', institutionId),
+            where('schoolRole', '==', 'student')
+          );
+          
+          studentsSnapshot = await getDocs(studentsQuery);
+          console.log('[TeacherAnalytics] Estudiantes sin filtro subscription:', studentsSnapshot.size);
+        }
+      }
+      
+      // Si aún no hay estudiantes o no hay institutionId, buscar todos los estudiantes escolares
+      if (!studentsSnapshot || studentsSnapshot.size === 0) {
+        console.log('[TeacherAnalytics] Buscando todos los estudiantes escolares...');
+        
+        const allStudentsQuery = query(
+          collection(db, 'users'),
+          where('schoolRole', '==', 'student'),
+          where('subscription', '==', 'school')
+        );
+        
+        studentsSnapshot = await getDocs(allStudentsQuery);
+        console.log('[TeacherAnalytics] Total estudiantes escolares encontrados:', studentsSnapshot.size);
+        
+        // Si encuentra estudiantes, mostrar una muestra de sus campos
+        if (studentsSnapshot.size > 0) {
+          const firstStudent = studentsSnapshot.docs[0].data();
+          console.log('[TeacherAnalytics] Ejemplo de campos del estudiante:', {
+            id: studentsSnapshot.docs[0].id,
+            idEscuela: firstStudent.idEscuela,
+            idInstitucion: firstStudent.idInstitucion,
+            idAdmin: firstStudent.idAdmin,
+            schoolRole: firstStudent.schoolRole,
+            subscription: firstStudent.subscription,
+            email: firstStudent.email
+          });
+        }
+      }
+      
+      // Para cada estudiante, obtener sus KPIs
+      for (const studentDoc of studentsSnapshot.docs) {
+        const studentData = studentDoc.data();
+        const studentNotebooks = studentData.idCuadernos || [];
+        
+        console.log(`[TeacherAnalytics] Procesando estudiante ${studentDoc.id}:`, {
+          nombre: studentData.nombre,
+          email: studentData.email,
+          cuadernos: studentNotebooks.length,
+          idCuadernos: studentNotebooks,
+          idMateria: studentData.idMateria
+        });
+        
+        // Verificar si el estudiante tiene algún cuaderno de esta materia
+        const hasNotebookFromSubject = notebookIds.some(id => studentNotebooks.includes(id));
+        
+        // También verificar si el estudiante tiene la misma materia directamente
+        const hasSubjectDirect = studentData.idMateria === selectedMateria;
+        
+        console.log(`[TeacherAnalytics] Estudiante tiene cuaderno de la materia: ${hasNotebookFromSubject}`);
+        console.log(`[TeacherAnalytics] Estudiante tiene idMateria directa: ${hasSubjectDirect}`);
+        
+        if (hasNotebookFromSubject || hasSubjectDirect) {
+          try {
+            // Obtener KPIs del estudiante
+            const kpisDoc = await getDoc(doc(db, 'users', studentDoc.id, 'kpis', 'dashboard'));
+            
+            if (kpisDoc.exists()) {
+              const kpisData = kpisDoc.data();
+              let totalScore = 0;
+              let notebookCount = 0;
+              
+              // Sumar scores de los cuadernos de esta materia
+              for (const notebookId of notebookIds) {
+                if (kpisData.cuadernos?.[notebookId]) {
+                  totalScore += kpisData.cuadernos[notebookId].scoreCuaderno || 0;
+                  notebookCount++;
+                }
+              }
+              
+              // Si el estudiante tiene idMateria pero no cuadernos específicos, buscar todos sus cuadernos
+              if (hasSubjectDirect && notebookCount === 0 && kpisData.cuadernos) {
+                console.log(`[TeacherAnalytics] Buscando cuadernos del estudiante por idMateria`);
+                for (const [cuadernoId, cuadernoData] of Object.entries(kpisData.cuadernos)) {
+                  // Verificar si este cuaderno pertenece a la materia
+                  const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
+                  if (notebookDoc.exists() && notebookDoc.data().idMateria === selectedMateria) {
+                    totalScore += (cuadernoData as any).scoreCuaderno || 0;
+                    notebookCount++;
+                  }
+                }
+              }
+              
+              if (notebookCount > 0 || totalScore > 0) {
+                studentScores.push({
+                  id: studentDoc.id,
+                  nombre: studentData.nombre || studentData.displayName || 'Estudiante',
+                  score: totalScore
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error obteniendo KPIs del estudiante ${studentDoc.id}:`, error);
+          }
+        }
+      }
+      
+      // Ordenar por score descendente y tomar los top 5
+      const topStudents = studentScores
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5)
+        .map((student, index) => ({
+          posicion: index + 1,
+          nombre: student.nombre,
+          score: student.score
+        }));
+      
+      console.log('[TeacherAnalytics] Top estudiantes:', topStudents);
+      
+      if (topStudents.length === 0) {
+        console.log('[TeacherAnalytics] No se encontraron estudiantes con scores para mostrar');
+        console.log('[TeacherAnalytics] Total estudiantes procesados:', studentScores.length);
+      }
+      
+      setRankingData(topStudents);
+      
     } catch (error) {
       console.error('[TeacherAnalytics] Error procesando ranking:', error);
       setRankingData([]);
@@ -300,6 +524,7 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
     );
   }
 
+
   return (
     <>
       <HeaderWithHamburger title="Analítica del Profesor" />
@@ -389,7 +614,7 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
                 </div>
                 <div className="kpi-content">
                   <h3>Tiempo Efectivo</h3>
-                  <p className="kpi-value">{globalTiempoEfectivo} min</p>
+                  <p className="kpi-value">{globalTiempoEfectivo * 60} seg</p>
                   <span className="kpi-label">por concepto</span>
                 </div>
               </div>
@@ -472,7 +697,7 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
                           <tr key={cuaderno.id}>
                             <td className="notebook-name">{cuaderno.nombre}</td>
                             <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
-                            <td>{cuaderno.tiempoEfectivo} min</td>
+                            <td>{cuaderno.tiempoEfectivo * 60} seg</td>
                             <td>{formatTime(cuaderno.tiempoActivo)}</td>
                             <td className="smart-studies">{cuaderno.estudioPromedio}</td>
                             <td>

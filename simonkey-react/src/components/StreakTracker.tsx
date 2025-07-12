@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from '../services/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { auth } from '../services/firebase';
+import { studyStreakService } from '../services/studyStreakService';
+import { useAuth } from '../contexts/AuthContext';
 
-interface StreakData {
+interface StreakDisplayData {
   days: {
     [key: string]: boolean; // 'monday', 'tuesday', etc.
   };
-  lastVisit: Date | null;
   consecutiveDays: number;
-  streakDays?: string[]; // Días que forman parte de la racha actual
-  visitHistory?: Date[]; // Historial de visitas recientes
+  streakBonus: number;
+  hasStudiedToday: boolean;
 }
 
 const StreakTracker: React.FC = () => {
   const [user] = useAuthState(auth);
-  const [streakData, setStreakData] = useState<StreakData>({
+  const { effectiveUserId } = useAuth();
+  const [streakData, setStreakData] = useState<StreakDisplayData>({
     days: {
       monday: false,
       tuesday: false,
@@ -25,10 +26,9 @@ const StreakTracker: React.FC = () => {
       saturday: false,
       sunday: false
     },
-    lastVisit: null,
     consecutiveDays: 0,
-    streakDays: [],
-    visitHistory: []
+    streakBonus: 0,
+    hasStudiedToday: false
   });
   const [loading, setLoading] = useState(true);
 
@@ -43,305 +43,38 @@ const StreakTracker: React.FC = () => {
     { key: 'sunday', label: 'D' }
   ];
 
-  // Mapeo de días de la semana
-  const dayMapping: { [key: string]: string } = {
-    'lunes': 'monday',
-    'martes': 'tuesday',
-    'miércoles': 'wednesday',
-    'jueves': 'thursday',
-    'viernes': 'friday',
-    'sábado': 'saturday',
-    'domingo': 'sunday'
-  };
-
-  // Función auxiliar para obtener el número de semana ISO (Lunes como primer día)
-  const getWeekNumber = (date: Date): number => {
-    const tempDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    tempDate.setUTCDate(tempDate.getUTCDate() + 4 - (tempDate.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((( (tempDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return weekNo;
-  };
-
-  // Función simplificada para obtener la fecha a medianoche (hora local)
-  const getMidnight = (date: Date): Date => {
-    const midnight = new Date(date);
-    midnight.setHours(0, 0, 0, 0);
-    return midnight;
-  };
-
-  // Función simplificada para verificar si dos fechas son días consecutivos
-  const isConsecutiveDay = (date1: Date, date2: Date): boolean => {
-    const day1 = getMidnight(date1);
-    const day2 = getMidnight(date2);
-    const diffTime = day2.getTime() - day1.getTime();
-    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    return diffDays === 1;
-  };
-
-  // Función para verificar si dos fechas son el mismo día
-  const isSameDay = (date1: Date, date2: Date): boolean => {
-    const day1 = getMidnight(date1);
-    const day2 = getMidnight(date2);
-    return day1.getTime() === day2.getTime();
-  };
-
-  // Función para calcular la racha basada en el historial de visitas
-  const calculateStreakFromHistory = (visitHistory: Date[]): number => {
-    if (!visitHistory || visitHistory.length === 0) return 1;
-    
-    // Ordenar las fechas de más reciente a más antigua
-    const sortedDates = [...visitHistory].sort((a, b) => b.getTime() - a.getTime());
-    
-    // Eliminar duplicados (mismo día)
-    const uniqueDates: Date[] = [];
-    for (const date of sortedDates) {
-      if (!uniqueDates.some(d => isSameDay(d, date))) {
-        uniqueDates.push(date);
-      }
-    }
-    
-    if (uniqueDates.length === 0) return 1;
-    
-    console.log('🔍 Fechas únicas en el historial:', uniqueDates.map(d => 
-      d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
-    ));
-    
-    // Verificar si hay una visita hoy o ayer
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const mostRecent = uniqueDates[0];
-    
-    // Si la última visita no es ni hoy ni ayer, la racha se rompió
-    if (!isSameDay(mostRecent, today) && !isSameDay(mostRecent, yesterday)) {
-      console.log('🔴 Racha rota - última visita fue:', mostRecent.toLocaleDateString('es-ES'));
-      return 1;
-    }
-    
-    // Si la última visita fue ayer, empezamos desde ayer
-    let startDate = isSameDay(mostRecent, yesterday) ? yesterday : today;
-    let startIndex = isSameDay(mostRecent, yesterday) ? 0 : 0;
-    
-    console.log('📍 Comenzando cálculo desde:', startDate.toLocaleDateString('es-ES'));
-    
-    // Contar días consecutivos
-    let streak = 1;
-    let expectedDate = new Date(startDate);
-    
-    for (let i = startIndex; i < uniqueDates.length; i++) {
-      const currentDate = uniqueDates[i];
-      
-      if (isSameDay(currentDate, expectedDate)) {
-        // Este día es parte de la racha
-        if (i > startIndex) streak++;
-        
-        // El próximo día esperado es el día anterior
-        expectedDate = new Date(expectedDate);
-        expectedDate.setDate(expectedDate.getDate() - 1);
-        
-        console.log(`✅ Día ${i + 1}: ${currentDate.toLocaleDateString('es-ES')} - Racha: ${streak}`);
-      } else if (currentDate < expectedDate) {
-        // Hemos saltado días, la racha termina aquí
-        console.log(`❌ Racha interrumpida. Esperaba ${expectedDate.toLocaleDateString('es-ES')}, encontré ${currentDate.toLocaleDateString('es-ES')}`);
-        break;
-      }
-    }
-    
-    // Si la última visita fue ayer y hoy estamos agregando una nueva, incrementar la racha
-    if (isSameDay(mostRecent, yesterday)) {
-      streak++;
-      console.log('📈 Incrementando racha porque hoy es un nuevo día');
-    }
-    
-    console.log('✅ Racha final calculada:', streak);
-    return streak;
-  };
-
-  // Función para calcular qué días de la semana forman parte de la racha actual
-  const calculateStreakDays = (consecutiveDays: number, today: Date): string[] => {
-    const streakDays: string[] = [];
-    const todayMidnight = getMidnight(today);
-    
-    // Agregar los días de la racha actual (desde hoy hacia atrás)
-    for (let i = 0; i < consecutiveDays && i < 7; i++) { // Máximo 7 días (una semana)
-      const checkDate = new Date(todayMidnight);
-      checkDate.setDate(checkDate.getDate() - i);
-      
-      const dayName = checkDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
-      const dayKey = dayMapping[dayName];
-      
-      if (dayKey) {
-        streakDays.push(dayKey);
-      }
-    }
-    
-    return streakDays;
-  };
-
   const fetchAndUpdateStreak = async () => {
-    if (!user) return;
+    if (!user || !effectiveUserId) return;
 
     try {
       setLoading(true);
       
-      // Obtener la racha del usuario
-      const streakRef = doc(db, 'users', user.uid, 'stats', 'streak');
-      const streakDoc = await getDoc(streakRef);
+      // Usar el ID efectivo del usuario (puede ser diferente para usuarios escolares)
+      const userId = effectiveUserId;
+      console.log('[StreakTracker] Usando userId:', userId, 'Firebase UID:', user.uid);
       
-      const today = new Date();
-      const todayMidnight = getMidnight(today);
+      // Actualizar la racha si ha estudiado hoy
+      const currentStreak = await studyStreakService.updateStreakIfStudied(userId);
       
-      console.log('🚀 StreakTracker - Fecha actual:', today.toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }));
+      // Obtener los días de estudio de la semana actual
+      const weekStudyDays = await studyStreakService.getWeekStudyDays(userId);
       
-      const dayInSpanish = today.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
-      const dayOfWeek = dayMapping[dayInSpanish] || 'monday';
+      // Verificar si ha estudiado hoy
+      const hasStudiedToday = await studyStreakService.hasStudiedToday(userId);
       
-      let currentData: StreakData;
+      // Calcular el bonus de puntos
+      const streakBonus = studyStreakService.getStreakBonus(currentStreak);
       
-      if (streakDoc.exists()) {
-        const data = streakDoc.data();
-        const lastVisitTimestamp = data?.lastVisit as Timestamp | undefined;
-        const lastVisit = lastVisitTimestamp ? lastVisitTimestamp.toDate() : null;
-        
-        // Leer el historial de visitas
-        let visitHistory: Date[] = [];
-        if (data?.visitHistory && Array.isArray(data.visitHistory)) {
-          visitHistory = data.visitHistory.map((timestamp: any) => {
-            if (timestamp instanceof Timestamp) {
-              return timestamp.toDate();
-            }
-            return new Date(timestamp);
-          });
-        }
-        
-        console.log('📅 Historial de visitas recuperado:', visitHistory.map(date => 
-          date.toLocaleDateString('es-ES', { 
-            weekday: 'short', 
-            day: 'numeric', 
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        ));
-        
-        // Limpiar visitas antiguas (mantener solo últimos 30 días)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        visitHistory = visitHistory.filter(date => date > thirtyDaysAgo);
-        
-        // Leer days o inicializar si no existe
-        let days = data?.days || {
-          monday: false, tuesday: false, wednesday: false, thursday: false,
-          friday: false, saturday: false, sunday: false
-        };
-
-        // --- Lógica de Reseteo Semanal Visual ---
-        // Siempre empezar con todos los días en false para la semana actual
-        days = {
-          monday: false, tuesday: false, wednesday: false, thursday: false,
-          friday: false, saturday: false, sunday: false
-        };
-        
-        console.log('🔄 Reseteando visualización semanal');
-
-        // --- Lógica de Racha Consecutiva ---
-        // Agregar hoy al historial si no es el mismo día
-        if (!lastVisit || !isSameDay(lastVisit, today)) {
-          console.log('✅ Agregando visita de hoy al historial');
-          visitHistory.push(today);
-        } else {
-          console.log('⚠️ Ya hay una visita registrada para hoy, no se duplica');
-        }
-        
-        console.log('📊 ANTES de calcular racha - Historial ordenado:', 
-          [...visitHistory].sort((a, b) => b.getTime() - a.getTime()).map(d => 
-            d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
-          )
-        );
-        
-        // Calcular la racha basada en el historial
-        const updatedConsecutiveDays = calculateStreakFromHistory(visitHistory);
-        
-        console.log('📊 Racha calculada:', {
-          visitHistory: visitHistory.map(d => d.toLocaleDateString()),
-          consecutiveDays: updatedConsecutiveDays,
-          today: today.toLocaleDateString()
-        });
-        
-        // Marcar solo los días de esta semana que están en el historial de visitas
-        const currentWeek = getWeekNumber(today);
-        const currentYear = today.getFullYear();
-        
-        console.log('📅 Marcando días visitados de la semana actual');
-        
-        // Revisar el historial y marcar solo los días visitados de esta semana
-        for (const visitDate of visitHistory) {
-          const visitWeek = getWeekNumber(visitDate);
-          const visitYear = visitDate.getFullYear();
-          
-          // Solo marcar si la visita fue en la semana actual
-          if (visitWeek === currentWeek && visitYear === currentYear) {
-            const dayName = visitDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
-            const dayKey = dayMapping[dayName];
-            if (dayKey) {
-              days[dayKey] = true;
-              console.log(`✅ Marcando ${dayKey} como visitado (${visitDate.toLocaleDateString('es-ES')})`);
-            }
-          }
-        }
-
-        // Calcular qué días forman parte de la racha actual
-        const streakDays = calculateStreakDays(updatedConsecutiveDays, today);
-
-        currentData = {
-          days: days,
-          lastVisit: today,
-          consecutiveDays: updatedConsecutiveDays,
-          streakDays: streakDays,
-          visitHistory: visitHistory
-        };
-
-      } else {
-        // Primera vez que el usuario visita / no existe documento
-        const streakDays = calculateStreakDays(1, today); // Racha de 1 día
-        currentData = {
-          days: {
-            monday: false, tuesday: false, wednesday: false, thursday: false,
-            friday: false, saturday: false, sunday: false
-          },
-          lastVisit: today,
-          consecutiveDays: 1,
-          streakDays: streakDays,
-          visitHistory: [today]
-        };
-        currentData.days[dayOfWeek] = true;
-      }
-
-      // Guardar en Firestore
-      const dataToSave = {
-        days: currentData.days,
-        lastVisit: serverTimestamp(),
-        consecutiveDays: currentData.consecutiveDays,
-        visitHistory: currentData.visitHistory?.map(date => Timestamp.fromDate(date)) || []
-      };
+      console.log('[StreakTracker] Racha actual:', currentStreak);
+      console.log('[StreakTracker] Días de estudio esta semana:', weekStudyDays);
+      console.log('[StreakTracker] Ha estudiado hoy:', hasStudiedToday);
+      console.log('[StreakTracker] Bonus de racha:', streakBonus);
       
-      await setDoc(streakRef, dataToSave);
-
-      // Actualizar estado local
       setStreakData({
-        days: currentData.days,
-        lastVisit: today,
-        consecutiveDays: currentData.consecutiveDays,
-        streakDays: currentData.streakDays,
-        visitHistory: currentData.visitHistory
+        days: weekStudyDays,
+        consecutiveDays: currentStreak,
+        streakBonus: streakBonus,
+        hasStudiedToday: hasStudiedToday
       });
 
     } catch (error) {
@@ -353,7 +86,14 @@ const StreakTracker: React.FC = () => {
 
   useEffect(() => {
     fetchAndUpdateStreak();
-  }, [user]);
+    
+    // Actualizar cada 5 minutos para reflejar cambios en tiempo real
+    const interval = setInterval(() => {
+      fetchAndUpdateStreak();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [user, effectiveUserId]);
 
   if (loading) {
     return (
@@ -372,6 +112,15 @@ const StreakTracker: React.FC = () => {
           {streakData.consecutiveDays} {streakData.consecutiveDays === 1 ? 'día' : 'días'} consecutivos
         </span>
       </div>
+      
+      {/* Mostrar bonus de puntos */}
+      {streakData.consecutiveDays > 0 && (
+        <div className="streak-bonus">
+          <span className="bonus-label">Bonus: </span>
+          <span className="bonus-points">+{streakData.streakBonus.toLocaleString()}pts</span>
+        </div>
+      )}
+      
       <div className="streak-calendar">
         {weekDays.map((day) => (
           <div
@@ -379,13 +128,24 @@ const StreakTracker: React.FC = () => {
             className={`day-indicator ${streakData.days[day.key] ? 'active' : ''}`}
           >
             <span className="day-label">{day.label}</span>
-            {/* Mostrar fuego solo si el día es parte de la racha actual */}
-            {streakData.days[day.key] && streakData.streakDays?.includes(day.key) && (
+            {/* Mostrar fuego si estudiaron ese día */}
+            {streakData.days[day.key] && (
               <span className="day-fire">🔥</span>
             )}
           </div>
         ))}
       </div>
+      
+      {/* Mensaje motivacional */}
+      {(streakData.consecutiveDays === 0 || !streakData.hasStudiedToday) && (
+        <div className="streak-motivation">
+          <p className="motivation-text">
+            {streakData.consecutiveDays > 0 
+              ? "¡Sigue así! Estudia al menos 1 minuto para mantener tu racha"
+              : "Estudia al menos 1 minuto para comenzar tu racha"}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -7,6 +7,9 @@ import { getNextSmartStudyDate } from '../utils/sm3Algorithm';
 import { useNavigate } from 'react-router-dom';
 import { useGamePoints } from '../hooks/useGamePoints';
 import { useTickets } from '../hooks/useTickets';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { studyStreakService } from '../services/studyStreakService';
 import '../styles/StudyDashboard.css';
 
 // Función auxiliar para obtener datos de aprendizaje
@@ -56,6 +59,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [studyLimits, setStudyLimits] = useState<any>(null);
+  const [currentStreak, setCurrentStreak] = useState<number>(0);
   
   const navigate = useNavigate();
   const studyService = useStudyService(userSubscription);
@@ -73,7 +77,18 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     });
   }, [notebook, onStartSession]);
 
-  // Efecto para cargar datos cuando cambie el cuaderno, usuario o puntos de juego
+  // Efecto para actualizar la racha cuando cambie el usuario
+  useEffect(() => {
+    if (userId) {
+      studyStreakService.getUserStreak(userId).then(streak => {
+        setCurrentStreak(streak.currentStreak);
+      }).catch(error => {
+        console.error('Error obteniendo racha:', error);
+      });
+    }
+  }, [userId]);
+
+  // Efecto para cargar datos cuando cambie el cuaderno, usuario, puntos de juego o racha
   useEffect(() => {
     if (notebook && userId) {
       console.log('StudyDashboard: Cargando datos para cuaderno:', notebook.title);
@@ -82,7 +97,7 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       setDashboardData(null);
       setLoading(false);
     }
-  }, [notebook?.id, userId, gamePoints?.totalPoints]); // Incluir gamePoints para actualizar el score general
+  }, [notebook?.id, userId, gamePoints?.totalPoints, currentStreak]); // Incluir gamePoints y racha para actualizar el score general
 
   // Efecto para actualizar la disponibilidad de estudio libre cuando cambien los límites
   useEffect(() => {
@@ -409,15 +424,27 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     // 5. CALCULAR DATOS REALES
     const studyScore = completedSmartSessions * maxQuizScore;
     const gameScore = gamePoints?.totalPoints || 0;
-    const generalScore = studyScore + gameScore;
+    
+    // Obtener bonus de racha
+    let streakBonus = 0;
+    try {
+      const userStreak = await studyStreakService.getUserStreak(userId);
+      streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
+      console.log(`🔥 Racha actual: ${userStreak.currentStreak} días, Bonus: ${streakBonus} pts`);
+    } catch (error) {
+      console.error('Error obteniendo bonus de racha:', error);
+    }
+    
+    const generalScore = studyScore + gameScore + streakBonus;
     
     console.log('🔍 CÁLCULO DEL SCORE GENERAL:', {
       completedSmartSessions,
       maxQuizScore,
       studyScore,
       gameScore,
+      streakBonus,
       generalScore,
-      formula: `(${completedSmartSessions} × ${maxQuizScore}) + ${gameScore} = ${generalScore}`
+      formula: `(${completedSmartSessions} × ${maxQuizScore}) + ${gameScore} + ${streakBonus} = ${generalScore}`
     });
 
     // Verificar disponibilidad del estudio inteligente según SM-3
@@ -677,9 +704,9 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   if (loading) {
     return (
       <div className="study-dashboard">
-        <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
-          <p>Cargando datos...</p>
+        <div className="loading-container" style={{ minHeight: '300px' }}>
+          <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+          <p>Cargando datos del dashboard...</p>
         </div>
       </div>
     );

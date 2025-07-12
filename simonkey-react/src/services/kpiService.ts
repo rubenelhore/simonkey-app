@@ -1,6 +1,7 @@
 import { db, functions } from './firebase';
 import { rankingService } from './rankingService';
 import { saveCurrentPositionToHistory } from '../utils/createPositionHistory';
+import { studyStreakService } from './studyStreakService';
 import { 
   doc, 
   setDoc, 
@@ -292,7 +293,7 @@ export class KPIService {
       // Procesar sesiones de estudio por cuaderno
       const cuadernoStats = new Map<string, any>();
       
-      // Inicializar estructura para tiempo de estudio semanal
+      // Inicializar estructura para tiempo de estudio semanal (acumulado histórico por día de la semana)
       const weeklyStudyTime = {
         domingo: 0,
         lunes: 0,
@@ -303,16 +304,40 @@ export class KPIService {
         sabado: 0
       };
       
-      // Obtener la fecha de inicio de la semana actual
-      const today = new Date();
-      const currentWeekStart = new Date(today);
-      currentWeekStart.setDate(today.getDate() - today.getDay());
-      currentWeekStart.setHours(0, 0, 0, 0);
+      console.log(`[KPIService] Calculando tiempo de estudio histórico acumulado por día de la semana`);
       
-      const currentWeekEnd = new Date(currentWeekStart);
-      currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+      // IMPORTANTE: Inicializar materias ANTES de procesar sesiones para poder asignar tiempo
+      const uniqueMateriaIds = new Set<string>();
+      notebookToMateria.forEach((materiaId) => {
+        uniqueMateriaIds.add(materiaId);
+      });
       
-      console.log(`[KPIService] Calculando tiempo semanal desde ${currentWeekStart.toISOString()} hasta ${currentWeekEnd.toISOString()}`);
+      console.log(`[KPIService] Inicializando ${uniqueMateriaIds.size} materias antes de procesar sesiones:`, Array.from(uniqueMateriaIds));
+      
+      for (const materiaId of uniqueMateriaIds) {
+        if (!kpis.materias![materiaId]) {
+          console.log(`[KPIService] ✅ Inicializando materia ${materiaId} antes de procesar sesiones`);
+          kpis.materias![materiaId] = {
+            scoreMateria: 0,
+            percentilMateria: 0,
+            tiempoEstudioMateria: 0,
+            estudiosInteligentesMateria: 0,
+            conceptosDominadosMateria: 0,
+            conceptosNoDominadosMateria: 0,
+            tiempoEstudioSemanal: {
+              domingo: 0,
+              lunes: 0,
+              martes: 0,
+              miercoles: 0,
+              jueves: 0,
+              viernes: 0,
+              sabado: 0
+            }
+          };
+        }
+      }
+      
+      console.log(`[KPIService] Materias inicializadas:`, Object.keys(kpis.materias || {}));
       
       studySessionsSnap.forEach(sessionDoc => {
         const session = sessionDoc.data();
@@ -341,10 +366,19 @@ export class KPIService {
         let sessionDuration = 0;
         if (session.metrics?.sessionDuration) {
           sessionDuration = session.metrics.sessionDuration;
+          console.log(`[KPIService] Duración desde metrics: ${sessionDuration} segundos`);
         } else if (session.startTime && session.endTime) {
           const start = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
           const end = session.endTime.toDate ? session.endTime.toDate() : new Date(session.endTime);
           sessionDuration = Math.floor((end.getTime() - start.getTime()) / 1000);
+          console.log(`[KPIService] Duración calculada: ${sessionDuration} segundos (${start} - ${end})`);
+        } else {
+          console.log(`[KPIService] ⚠️ Sesión sin duración calculable:`, {
+            hasMetrics: !!session.metrics,
+            hasSessionDuration: !!session.metrics?.sessionDuration,
+            hasStartTime: !!session.startTime,
+            hasEndTime: !!session.endTime
+          });
         }
 
         // Distribuir tiempo según el modo de estudio
@@ -363,33 +397,35 @@ export class KPIService {
         
         stats.sesionesTotales++;
         
-        // Agregar tiempo al estudio semanal si la sesión es de esta semana
-        if (session.startTime) {
+        // Agregar tiempo al estudio semanal (acumulado histórico por día de la semana)
+        if (session.startTime && sessionDuration > 0) {
           const sessionDate = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
           
-          if (sessionDate >= currentWeekStart && sessionDate < currentWeekEnd) {
-            const dayOfWeek = sessionDate.getDay();
-            const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-            const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
-            
-            // Convertir segundos a minutos
-            const sessionMinutes = Math.round(sessionDuration / 60);
-            weeklyStudyTime[dayName] += sessionMinutes;
-            
-            console.log(`[KPIService] Agregando ${sessionMinutes} minutos al ${dayName}`);
-            
-            // También agregar a la materia correspondiente si existe
-            const materiaId = notebookToMateria.get(notebookId);
-            if (materiaId && kpis.materias![materiaId]) {
-              if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
-                kpis.materias![materiaId].tiempoEstudioSemanal = {
-                  domingo: 0, lunes: 0, martes: 0, miercoles: 0,
-                  jueves: 0, viernes: 0, sabado: 0
-                };
-              }
-              kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += sessionMinutes;
-              console.log(`[KPIService] Agregando ${sessionMinutes} minutos a materia ${materiaId} en ${dayName}`);
+          const dayOfWeek = sessionDate.getDay();
+          const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+          const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+          
+          // Convertir segundos a minutos
+          const sessionMinutes = Math.round(sessionDuration / 60);
+          weeklyStudyTime[dayName] += sessionMinutes;
+          
+          console.log(`[KPIService] ✅ Agregando ${sessionMinutes} minutos al ${dayName} (${sessionDate.toLocaleDateString()})`);
+          
+          // También agregar a la materia correspondiente si existe
+          const materiaId = notebookToMateria.get(notebookId);
+          console.log(`[KPIService] Buscando materia para cuaderno ${notebookId}: ${materiaId}`);
+          console.log(`[KPIService] kpis.materias tiene:`, Object.keys(kpis.materias || {}));
+          if (materiaId && kpis.materias![materiaId]) {
+            if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+              kpis.materias![materiaId].tiempoEstudioSemanal = {
+                domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                jueves: 0, viernes: 0, sabado: 0
+              };
             }
+            kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += sessionMinutes;
+            console.log(`[KPIService] ✅ Agregando ${sessionMinutes} minutos a materia ${materiaId} en ${dayName}`);
+          } else {
+            console.log(`[KPIService] ❌ No se pudo agregar tiempo a materia. materiaId: ${materiaId}, existe en kpis.materias: ${!!(materiaId && kpis.materias![materiaId])}`);
           }
         }
 
@@ -440,33 +476,34 @@ export class KPIService {
         if (result.totalTime) {
           stats.totalTime += result.totalTime;
           
-          // Agregar tiempo al estudio semanal si el quiz es de esta semana
+          // Agregar tiempo al estudio semanal (acumulado histórico)
           if (result.timestamp) {
             const quizDate = result.timestamp.toDate ? result.timestamp.toDate() : new Date(result.timestamp);
             
-            if (quizDate >= currentWeekStart && quizDate < currentWeekEnd) {
-              const dayOfWeek = quizDate.getDay();
-              const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-              const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
-              
-              // Convertir segundos a minutos
-              const quizMinutes = Math.round(result.totalTime / 60);
-              weeklyStudyTime[dayName] += quizMinutes;
-              
-              console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz al ${dayName}`);
-              
-              // También agregar a la materia correspondiente si existe
-              const materiaId = notebookToMateria.get(notebookId);
-              if (materiaId && kpis.materias![materiaId]) {
-                if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
-                  kpis.materias![materiaId].tiempoEstudioSemanal = {
-                    domingo: 0, lunes: 0, martes: 0, miercoles: 0,
-                    jueves: 0, viernes: 0, sabado: 0
-                  };
-                }
-                kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += quizMinutes;
-                console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz a materia ${materiaId} en ${dayName}`);
+            const dayOfWeek = quizDate.getDay();
+            const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+            
+            // Convertir segundos a minutos
+            const quizMinutes = Math.round(result.totalTime / 60);
+            weeklyStudyTime[dayName] += quizMinutes;
+            
+            console.log(`[KPIService] Agregando ${quizMinutes} minutos de quiz al ${dayName} (${quizDate.toLocaleDateString()})`);
+            
+            // También agregar a la materia correspondiente si existe
+            const materiaId = notebookToMateria.get(notebookId);
+            console.log(`[KPIService] [QUIZ] Buscando materia para cuaderno ${notebookId}: ${materiaId}`);
+            if (materiaId && kpis.materias![materiaId]) {
+              if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                kpis.materias![materiaId].tiempoEstudioSemanal = {
+                  domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                  jueves: 0, viernes: 0, sabado: 0
+                };
               }
+              kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += quizMinutes;
+              console.log(`[KPIService] ✅ Agregando ${quizMinutes} minutos de quiz a materia ${materiaId} en ${dayName}`);
+            } else {
+              console.log(`[KPIService] ❌ [QUIZ] No se pudo agregar tiempo a materia. materiaId: ${materiaId}`);
             }
           }
         }
@@ -497,33 +534,34 @@ export class KPIService {
         if (result.totalTime) {
           stats.totalTime += result.totalTime;
           
-          // Agregar tiempo al estudio semanal si el mini quiz es de esta semana
+          // Agregar tiempo al estudio semanal (acumulado histórico)
           if (result.timestamp) {
             const miniQuizDate = result.timestamp.toDate ? result.timestamp.toDate() : new Date(result.timestamp);
             
-            if (miniQuizDate >= currentWeekStart && miniQuizDate < currentWeekEnd) {
-              const dayOfWeek = miniQuizDate.getDay();
-              const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-              const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
-              
-              // Convertir segundos a minutos
-              const miniQuizMinutes = Math.round(result.totalTime / 60);
-              weeklyStudyTime[dayName] += miniQuizMinutes;
-              
-              console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz al ${dayName}`);
-              
-              // También agregar a la materia correspondiente si existe
-              const materiaId = notebookToMateria.get(notebookId);
-              if (materiaId && kpis.materias![materiaId]) {
-                if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
-                  kpis.materias![materiaId].tiempoEstudioSemanal = {
-                    domingo: 0, lunes: 0, martes: 0, miercoles: 0,
-                    jueves: 0, viernes: 0, sabado: 0
-                  };
-                }
-                kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += miniQuizMinutes;
-                console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz a materia ${materiaId} en ${dayName}`);
+            const dayOfWeek = miniQuizDate.getDay();
+            const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+            
+            // Convertir segundos a minutos
+            const miniQuizMinutes = Math.round(result.totalTime / 60);
+            weeklyStudyTime[dayName] += miniQuizMinutes;
+            
+            console.log(`[KPIService] Agregando ${miniQuizMinutes} minutos de mini quiz al ${dayName} (${miniQuizDate.toLocaleDateString()})`);
+            
+            // También agregar a la materia correspondiente si existe
+            const materiaId = notebookToMateria.get(notebookId);
+            console.log(`[KPIService] [MINI-QUIZ] Buscando materia para cuaderno ${notebookId}: ${materiaId}`);
+            if (materiaId && kpis.materias![materiaId]) {
+              if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                kpis.materias![materiaId].tiempoEstudioSemanal = {
+                  domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                  jueves: 0, viernes: 0, sabado: 0
+                };
               }
+              kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += miniQuizMinutes;
+              console.log(`[KPIService] ✅ Agregando ${miniQuizMinutes} minutos de mini quiz a materia ${materiaId} en ${dayName}`);
+            } else {
+              console.log(`[KPIService] ❌ [MINI-QUIZ] No se pudo agregar tiempo a materia. materiaId: ${materiaId}`);
             }
           }
         }
@@ -536,7 +574,7 @@ export class KPIService {
       });
 
       // Procesar datos de juegos por cuaderno
-      const gameStats = new Map<string, { gamesPlayed: number, totalTime: number }>();
+      const gameStats = new Map<string, { gamesPlayed: number, totalTime: number, totalPoints: number }>();
       
       try {
         console.log(`[KPIService] ===== INICIO PROCESAMIENTO DE JUEGOS =====`);
@@ -561,15 +599,17 @@ export class KPIService {
           for (const [notebookId, notebookData] of Object.entries(notebookPoints)) {
             console.log(`[KPIService] Procesando cuaderno ${notebookId}, datos:`, notebookData);
             const pointsHistory = (notebookData as any).pointsHistory || [];
+            console.log(`[KPIService] pointsHistory para cuaderno ${notebookId}:`, pointsHistory);
             
             if (!gameStats.has(notebookId)) {
-              gameStats.set(notebookId, { gamesPlayed: 0, totalTime: 0 });
+              gameStats.set(notebookId, { gamesPlayed: 0, totalTime: 0, totalPoints: 0 });
             }
             
             const stats = gameStats.get(notebookId)!;
             stats.gamesPlayed = pointsHistory.length;
+            stats.totalPoints = (notebookData as any).totalPoints || 0;
             
-            console.log(`[KPIService] Cuaderno ${notebookId}: ${pointsHistory.length} juegos encontrados`);
+            console.log(`[KPIService] Cuaderno ${notebookId}: ${pointsHistory.length} juegos encontrados, totalPoints: ${stats.totalPoints}`);
             
             // Procesar cada transacción para calcular tiempo
             pointsHistory.forEach((transaction: any) => {
@@ -577,42 +617,44 @@ export class KPIService {
               const gameType = transaction.gameId?.split('_')[0] || 'unknown';
               let estimatedTime = 60; // Por defecto 1 minuto
               
-              // Estimaciones basadas en el tipo de juego
+              // Estimaciones basadas en el tipo de juego (en segundos)
               switch(gameType) {
-                case 'memory': estimatedTime = 90; break;  // 1.5 minutos
-                case 'puzzle': estimatedTime = 120; break; // 2 minutos
-                case 'race': estimatedTime = 90; break;    // 1.5 minutos
-                case 'quiz': estimatedTime = 180; break;   // 3 minutos (batalla completa)
+                case 'memory': estimatedTime = 90; break;  // 1.5 minutos = 90 segundos
+                case 'puzzle': estimatedTime = 120; break; // 2 minutos = 120 segundos
+                case 'race': estimatedTime = 90; break;    // 1.5 minutos = 90 segundos
+                case 'quiz': estimatedTime = 180; break;   // 3 minutos = 180 segundos
               }
               
               stats.totalTime += estimatedTime;
               
-              // Si el juego está en la semana actual, agregar al tiempo semanal
+              // Agregar al tiempo semanal (acumulado histórico)
               if (transaction.timestamp) {
                 const gameDate = transaction.timestamp.toDate ? transaction.timestamp.toDate() : new Date(transaction.timestamp);
                 
-                if (gameDate >= currentWeekStart && gameDate < currentWeekEnd) {
-                  const dayOfWeek = gameDate.getDay();
-                  const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                  const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
-                  
-                  // Agregar tiempo estimado en minutos
-                  const gameMinutes = Math.round(estimatedTime / 60);
-                  weeklyStudyTime[dayName] += gameMinutes;
-                  
-                  console.log(`[KPIService] Agregando ${gameMinutes} minutos de juego (${gameType}) al ${dayName}`);
-                  
-                  // También agregar a la materia correspondiente si existe
-                  const materiaId = notebookToMateria.get(notebookId);
-                  if (materiaId && kpis.materias![materiaId]) {
-                    if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
-                      kpis.materias![materiaId].tiempoEstudioSemanal = {
-                        domingo: 0, lunes: 0, martes: 0, miercoles: 0,
-                        jueves: 0, viernes: 0, sabado: 0
-                      };
-                    }
-                    kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += gameMinutes;
+                const dayOfWeek = gameDate.getDay();
+                const daysOfWeek = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const dayName = daysOfWeek[dayOfWeek] as keyof typeof weeklyStudyTime;
+                
+                // Convertir segundos a minutos para el tiempo semanal
+                const gameMinutes = Math.round(estimatedTime / 60);
+                weeklyStudyTime[dayName] += gameMinutes;
+                
+                console.log(`[KPIService] Agregando ${gameMinutes} minutos de juego (${gameType}) al ${dayName} (${gameDate.toLocaleDateString()})`);
+                
+                // También agregar a la materia correspondiente si existe
+                const materiaId = notebookToMateria.get(notebookId);
+                console.log(`[KPIService] [JUEGO] Buscando materia para cuaderno ${notebookId}: ${materiaId}`);
+                if (materiaId && kpis.materias![materiaId]) {
+                  if (!kpis.materias![materiaId].tiempoEstudioSemanal) {
+                    kpis.materias![materiaId].tiempoEstudioSemanal = {
+                      domingo: 0, lunes: 0, martes: 0, miercoles: 0,
+                      jueves: 0, viernes: 0, sabado: 0
+                    };
                   }
+                  kpis.materias![materiaId].tiempoEstudioSemanal![dayName] += gameMinutes;
+                  console.log(`[KPIService] ✅ Agregando ${gameMinutes} minutos de juego a materia ${materiaId} en ${dayName}`);
+                } else {
+                  console.log(`[KPIService] ❌ [JUEGO] No se pudo agregar tiempo a materia. materiaId: ${materiaId}`);
                 }
               }
             });
@@ -664,6 +706,11 @@ export class KPIService {
         classroomUsers = classroomUsersSnap.docs.map(doc => doc.id);
       }
 
+      // Obtener el bonus de racha actual del usuario
+      const userStreak = await studyStreakService.getUserStreak(userId);
+      const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
+      console.log(`[KPIService] Racha actual: ${userStreak.currentStreak} días, Bonus: ${streakBonus} pts`);
+
       // Calcular KPIs por cuaderno
       let totalScore = 0;
       let totalPercentil = 0;
@@ -687,7 +734,7 @@ export class KPIService {
         const miniQuizData = miniQuizStats.get(notebookId) || { totalTime: 0, successCount: 0, totalCount: 0 };
         console.log(`[KPIService] Buscando gameData para cuaderno ${notebookId}`);
         console.log(`[KPIService] gameStats tiene ${gameStats.size} entradas:`, Array.from(gameStats.keys()));
-        const gameData = gameStats.get(notebookId) || { gamesPlayed: 0, totalTime: 0 };
+        const gameData = gameStats.get(notebookId) || { gamesPlayed: 0, totalTime: 0, totalPoints: 0 };
         console.log(`[KPIService] gameData para cuaderno ${notebookId}:`, gameData);
         let maxScore = quizData.scores.length > 0 ? Math.max(...quizData.scores) : 0;
         
@@ -766,17 +813,24 @@ export class KPIService {
         // Obtener número de conceptos del cuaderno
         const numeroConceptos = conceptsByNotebook.get(notebookId) || 0;
 
-        // Calcular score del cuaderno (scoreMax * estudiosInteligentes)
+        // Calcular score del cuaderno (scoreMax * estudiosInteligentesExitosos + gamePoints + streakBonus)
+        // Solo contar estudios inteligentes validados, igual que en StudyDashboard
         // Si no hay maxScore (no se han hecho quizzes), usar un valor base de 100 puntos
         const effectiveMaxScore = maxScore > 0 ? maxScore : 100;
-        const scoreCuaderno = effectiveMaxScore * stats.estudiosInteligentesTotal;
+        const studyScore = effectiveMaxScore * stats.estudiosInteligentesExitosos;
+        const gameScore = gameData.totalPoints || 0;
+        const scoreCuaderno = studyScore + gameScore + streakBonus;
         
         console.log(`[KPIService] Cálculo de score para cuaderno ${notebookId}:`, {
           maxScore,
           effectiveMaxScore,
           estudiosInteligentesTotal: stats.estudiosInteligentesTotal,
+          estudiosInteligentesExitosos: stats.estudiosInteligentesExitosos,
+          studyScore,
+          gameScore,
+          streakBonus,
           scoreCuaderno,
-          formula: `${effectiveMaxScore} × ${stats.estudiosInteligentesTotal} = ${scoreCuaderno}`
+          formula: `(${effectiveMaxScore} × ${stats.estudiosInteligentesExitosos}) + ${gameScore} + ${streakBonus} = ${scoreCuaderno}`
         });
 
         // Obtener el ID de la materia del cuaderno
@@ -786,7 +840,8 @@ export class KPIService {
         console.log(`[KPIService] Asignando datos finales para cuaderno ${notebookId}:`, {
           gameData,
           juegosJugados: gameData.gamesPlayed,
-          tiempoJuegosTotal
+          tiempoJuegosTotal,
+          gamePoints: gameData.totalPoints || 0
         });
         
         kpis.cuadernos[notebookId] = {

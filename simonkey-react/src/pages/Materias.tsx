@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, Timestamp, getDoc } from 'firebase/firestore';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Materias.css';
 import '../styles/AdminMaterias.css';
 import StreakTracker from '../components/StreakTracker';
@@ -482,9 +484,16 @@ const Materias: React.FC = () => {
   if (loading || authLoading) {
     // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Cargando materias...</p>
+      <div className="loading-container" style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        gap: '1rem'
+      }}>
+        <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
+        <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando materias...</p>
       </div>
     );
   }

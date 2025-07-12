@@ -305,6 +305,7 @@ export interface UserProfile {
   subjectIds?: string[];
   idCuadernos?: string[];
   idInstitucion?: string;
+  idEscuela?: string;
   idAdmin?: string;
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;

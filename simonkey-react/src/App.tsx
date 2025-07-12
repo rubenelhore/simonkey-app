@@ -1,5 +1,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -89,6 +91,7 @@ import './utils/fixTeacherSubjectsMapping';
 import './utils/generateFirebaseCommands';
 import './utils/debugCurrentUser';
 import './utils/verifyFirebaseSetup';
+import './utils/fixTeacherProfile';
 import './utils/testGenerateConcepts';
 import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
@@ -96,6 +99,7 @@ import CalendarPage from './pages/CalendarPage';
 import Materias from './pages/Materias';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
+import './utils/forceUpdateStreak';
 
 // Definir el tipo para el usuario
 interface User {
@@ -454,7 +458,21 @@ const AppContent: React.FC = () => {
   }, [isAuthenticated, isEmailVerified, loading, userTypeLoading, isSchoolTeacher, isSchoolAdmin, isSchoolTutor, navigate]);
 
   if (loading) {
-    return <div style={{width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#4F46E5'}}>Cargando...</div>;
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '1rem',
+        backgroundColor: '#ffffff'
+      }}>
+        <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
+        <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando Simonkey...</p>
+      </div>
+    );
   }
   
   // Show mobile navigation for all authenticated users except admin and tutor
