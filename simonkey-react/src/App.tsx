@@ -377,14 +377,26 @@ const AppWrapper: React.FC = () => {
 // Componente principal que contiene la lógica de la aplicación
 const AppContent: React.FC = () => {
   const location = useLocation();
-  const { user, isAuthenticated, isEmailVerified, loading } = useAuth();
+  const { user, userProfile, isAuthenticated, isEmailVerified, loading } = useAuth();
   const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSuperAdmin, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const { user: currentUser, setUser } = useContext(UserContext);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
-    return localStorage.getItem('hasCompletedOnboarding') === 'true';
+    // Priorizar el valor del localStorage para evitar conflictos
+    const completed = localStorage.getItem('hasCompletedOnboarding') === 'true';
+    console.log('🎯 Estado inicial de onboarding desde localStorage:', completed);
+    return completed;
   });
+  
+  // Sincronizar con el perfil de usuario cuando esté disponible
+  useEffect(() => {
+    if (userProfile && userProfile.hasCompletedOnboarding && !hasCompletedOnboarding) {
+      console.log('🎯 Sincronizando onboarding desde userProfile');
+      setHasCompletedOnboarding(true);
+      localStorage.setItem('hasCompletedOnboarding', 'true');
+    }
+  }, [userProfile, hasCompletedOnboarding]);
 
   // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
   const MAINTENANCE_MODE = false;
@@ -470,7 +482,7 @@ const AppContent: React.FC = () => {
               if (isSchoolStudent) return <Navigate to="/materias" replace />;
               // Usuarios regulares requieren verificación
               if (isEmailVerified) {
-                return <Navigate to="/notebooks" replace />;
+                return <Navigate to="/materias" replace />;
               }
             }
             // Usuarios no autenticados ven la página de inicio
@@ -510,13 +522,15 @@ const AppContent: React.FC = () => {
             isAuthenticated ? (
               <EmailVerificationGuard>
                 <PasswordChangeGuard>
-                  <>
-                    {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                  {!hasCompletedOnboarding ? (
+                    <OnboardingComponent onComplete={() => {
+                      console.log('🎯 Onboarding completado');
                       setHasCompletedOnboarding(true);
                       localStorage.setItem('hasCompletedOnboarding', 'true');
-                    }} />}
+                    }} />
+                  ) : (
                     <Materias />
-                  </>
+                  )}
                 </PasswordChangeGuard>
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
@@ -559,13 +573,14 @@ const AppContent: React.FC = () => {
           element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <>
-                  {!hasCompletedOnboarding && <OnboardingComponent onComplete={() => {
+                {!hasCompletedOnboarding ? (
+                  <OnboardingComponent onComplete={() => {
                     setHasCompletedOnboarding(true);
                     localStorage.setItem('hasCompletedOnboarding', 'true');
-                  }} />}
+                  }} />
+                ) : (
                   <Navigate to="/materias" replace />
-                </>
+                )}
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           }

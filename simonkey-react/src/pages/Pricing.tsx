@@ -88,10 +88,10 @@ const Pricing: React.FC = () => {
                   <div className="plan-price">
                     <span className="plan-price-currency">$</span>
                     <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
-                    {showAnnual ? '100 USD' : '10 USD'}
+                    {showAnnual ? '180 USD' : '20 USD'}
                     </span>
                     <span className="plan-price-period">{showAnnual ? '/año' : '/mes'}</span>
-                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($8.34 USD/mes)</span>}
+                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($15 USD/mes)</span>}
                   </div>
                   <p className="plan-description">Ideal para estudiantes que quieren para maximizar el tiempo y eficiencia de estudio. </p>
                 </div>
@@ -131,18 +131,22 @@ const Pricing: React.FC = () => {
                 <div className="plan-price">
                   <span className="plan-price-currency">$</span>
                   <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
-                  {showAnnual ? '120 USD' : '13 USD'}
+                  {showAnnual ? '240 USD' : '25 USD'}
                   </span>
                   <span className="plan-price-period">{showAnnual ? '/año' : '/mes'}</span>
-                  {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($10 USD/mes)</span>}
+                  {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($20 USD/mes)</span>}
                 </div>
-                <p className="plan-description">Ideal para Instituciones. Precios a partir de 20 alumnos.</p>
+                <p className="plan-description">Ideal para Instituciones. Precios a partir de 20 alumnos. Costo por alumno.</p>
               </div>
               <div className="plan-features">
                 <ul className="feature-list">
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
                     <span className="feature-text prominent">Analítica avanzada para Instituciones</span>
+                  </li>
+                  <li className="feature-item">
+                    <span className="feature-icon">✔</span>
+                    <span className="feature-text">Creación de perfiles de Profesor, Administrador y Tutor gratis</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>

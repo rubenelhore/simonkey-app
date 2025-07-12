@@ -16,34 +16,19 @@ interface OnboardingProps {
 }
 
 const Onboarding: React.FC<OnboardingProps> = (props) => {
+  console.log('🎬 OnboardingComponent - Renderizando, props:', props);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasNavigated, setHasNavigated] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar si el usuario ya ha visto el onboarding
-    const checkOnboardingStatus = async () => {
-      try {
-        if (auth.currentUser) {
-          const userDocRef = doc(db, 'users', auth.currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists() && userDoc.data().hasCompletedOnboarding) {
-            setHasSeenOnboarding(true);
-            // Redirigir a notebooks si ya completó el onboarding
-            navigate('/notebooks', { replace: true });
-          }
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error al verificar estado de onboarding:", error);
-        setIsLoading(false);
-      }
-    };
-  
-    checkOnboardingStatus();
-  }, [navigate]);
+    // Simplificar: No verificar el estado del onboarding aquí
+    // ya que eso se maneja en App.tsx
+    console.log('🎬 OnboardingComponent montado');
+    setIsLoading(false);
+  }, []);
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -80,6 +65,7 @@ const Onboarding: React.FC<OnboardingProps> = (props) => {
 
   // Si está cargando o el usuario ya ha visto el onboarding, no mostrar nada
   if (isLoading) {
+    console.log('🎬 OnboardingComponent - Mostrando loading');
     return (
       <div className="onboarding-loading">
         <div className="spinner"></div>
@@ -88,10 +74,7 @@ const Onboarding: React.FC<OnboardingProps> = (props) => {
     );
   }
   
-  // Este es el punto clave - si el usuario ya ha visto el onboarding, retorna null
-  if (hasSeenOnboarding) {
-    return null;
-  }
+  // Remover la verificación de hasSeenOnboarding ya que se maneja en App.tsx
 
   // Componentes para cada paso con props para navegación
   const steps = [

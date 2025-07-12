@@ -27,12 +27,13 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    console.log('🔄 useSchoolStudentData - useEffect ejecutado');
-    console.log('👤 useSchoolStudentData - user:', user);
-    console.log('👤 useSchoolStudentData - userProfile:', userProfile);
+    // Logs comentados para reducir ruido
+    // console.log('🔄 useSchoolStudentData - useEffect ejecutado');
+    // console.log('👤 useSchoolStudentData - user:', user);
+    // console.log('👤 useSchoolStudentData - userProfile:', userProfile);
     
     if (!user || !userProfile) {
-      console.log('❌ useSchoolStudentData - No hay usuario autenticado o perfil no cargado');
+      // console.log('❌ useSchoolStudentData - No hay usuario autenticado o perfil no cargado');
       setLoading(false);
       return;
     }
@@ -40,25 +41,26 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
     const loadSchoolStudentData = async () => {
       try {
         setLoading(true);
-        console.log('🚀 === INICIANDO CARGA DE DATOS DEL ESTUDIANTE ===');
-        console.log('👤 Usuario ID:', userProfile.id || user.uid);
-        console.log('👤 Perfil del usuario:', userProfile);
+        // console.log('🚀 === INICIANDO CARGA DE DATOS DEL ESTUDIANTE ===');
+        // console.log('👤 Usuario ID:', userProfile.id || user.uid);
+        // console.log('👤 Perfil del usuario:', userProfile);
 
         // Verificar que sea un estudiante escolar
         if (userProfile.subscription !== 'school' || userProfile.schoolRole !== 'student') {
-          console.log('⚠️ El usuario no es un estudiante escolar');
-          setError(new Error('Usuario no es estudiante escolar'));
+          // console.log('⚠️ El usuario no es un estudiante escolar');
+          setSchoolNotebooks([]);
+          setSchoolSubjects([]);
           setLoading(false);
           return;
         }
 
-        console.log('✅ Usuario confirmado como estudiante escolar');
-        console.log('📚 subjectIds del estudiante:', userProfile.subjectIds);
-        console.log('📚 idCuadernos del estudiante:', userProfile.idCuadernos);
+        // console.log('✅ Usuario confirmado como estudiante escolar');
+        // console.log('📚 subjectIds del estudiante:', userProfile.subjectIds);
+        // console.log('📚 idCuadernos del estudiante:', userProfile.idCuadernos);
 
         // 1. Cargar las materias asignadas usando subjectIds
         if (userProfile.subjectIds && userProfile.subjectIds.length > 0) {
-          console.log('🎯 Cargando materias desde subjectIds:', userProfile.subjectIds);
+          // console.log('🎯 Cargando materias desde subjectIds:', userProfile.subjectIds);
           
           // Cargar cada materia individualmente por ID
           const subjectPromises = userProfile.subjectIds.map(async (subjectId: string) => {
@@ -75,20 +77,20 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
           const subjectsResults = await Promise.all(subjectPromises);
           const subjectsList = subjectsResults.filter(subject => subject !== null) as SchoolSubject[];
           
-          console.log('🏫 Materias cargadas:', subjectsList.length);
-          subjectsList.forEach(subject => {
-            console.log('   -', subject.id, ':', subject.nombre);
-          });
+          // console.log('🏫 Materias cargadas:', subjectsList.length);
+          // subjectsList.forEach(subject => {
+          //   console.log('   -', subject.id, ':', subject.nombre);
+          // });
           
           setSchoolSubjects(subjectsList);
         } else {
-          console.log('⚠️ El estudiante no tiene materias asignadas (subjectIds vacío)');
+          // console.log('⚠️ El estudiante no tiene materias asignadas (subjectIds vacío)');
           setSchoolSubjects([]);
         }
 
         // 2. Cargar los cuadernos asignados
         if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
-          console.log('📖 Cargando cuadernos desde idCuadernos:', userProfile.idCuadernos);
+          // console.log('📖 Cargando cuadernos desde idCuadernos:', userProfile.idCuadernos);
           
           // Cargar cada cuaderno individualmente por ID
           const notebookPromises = userProfile.idCuadernos.map(async (notebookId: string) => {
@@ -106,21 +108,21 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
           const notebooksResults = await Promise.all(notebookPromises);
           const notebooksList = notebooksResults.filter(notebook => notebook !== null) as SchoolNotebook[];
           
-          console.log('📚 Cuadernos escolares cargados:', notebooksList.length);
-          notebooksList.forEach(notebook => {
-            console.log('   -', notebook.id, ':', notebook.title);
-          });
+          // console.log('📚 Cuadernos escolares cargados:', notebooksList.length);
+          // notebooksList.forEach(notebook => {
+          //   console.log('   -', notebook.id, ':', notebook.title);
+          // });
           
           setSchoolNotebooks(notebooksList);
           setLoading(false);
         } else {
-          console.log('⚠️ El estudiante no tiene cuadernos asignados (idCuadernos vacío)');
+          // console.log('⚠️ El estudiante no tiene cuadernos asignados (idCuadernos vacío)');
           setSchoolNotebooks([]);
           setLoading(false);
         }
 
       } catch (err) {
-        console.error("❌ Error loading school student data:", err);
+        // console.error("❌ Error loading school student data:", err);
         setError(err as Error);
         setLoading(false);
       }

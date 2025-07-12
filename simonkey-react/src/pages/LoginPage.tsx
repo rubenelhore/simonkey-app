@@ -65,9 +65,9 @@ const LoginPage: React.FC = () => {
         return;
       }
       
-      // Usuario válido, redirigir a home para que App.tsx maneje el routing
-      console.log("🚀 Login exitoso, redirigiendo a home...");
-      navigate('/', { replace: true });
+      // Usuario válido, redirigir directamente a materias
+      console.log("🚀 Login exitoso, redirigiendo a materias...");
+      navigate('/materias', { replace: true });
     } catch (error: any) {
       console.error("Error en login:", error);
       let errorMessage = "Error al iniciar sesión";

@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isEmailVerified: false
   });
 
-  console.log('🔍 AuthProvider - Estado inicial:', authState);
+  // console.log('🔍 AuthProvider - Estado inicial:', authState);
 
   const authListenerRef = useRef<(() => void) | null>(null);
   const isInitializedRef = useRef(false);
@@ -119,16 +119,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Función para actualizar el estado de verificación
   const updateVerificationState = async (user: User) => {
     try {
-      console.log('🔍 updateVerificationState - Iniciando verificación para:', user.email);
-      console.log('🔍 updateVerificationState - user.emailVerified (antes de reload):', user.emailVerified);
+      // console.log('🔍 updateVerificationState - Iniciando verificación para:', user.email);
+      // console.log('🔍 updateVerificationState - user.emailVerified (antes de reload):', user.emailVerified);
       
       const isVerified = await checkEmailVerificationStatus(user);
-      console.log('🔍 updateVerificationState - isVerified después de checkEmailVerificationStatus:', isVerified);
+      // console.log('🔍 updateVerificationState - isVerified después de checkEmailVerificationStatus:', isVerified);
       
       // Obtener el ID correcto del usuario (puede ser diferente para usuarios escolares)
       let userIdToUse = user.uid;
       if (authState.userProfile?.id && authState.userProfile.id !== user.uid) {
-        console.log('🔍 Usando ID del perfil escolar para verificación:', authState.userProfile.id);
+        // console.log('🔍 Usando ID del perfil escolar para verificación:', authState.userProfile.id);
         userIdToUse = authState.userProfile.id;
       }
       
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       let verificationState;
       try {
         verificationState = await getVerificationState(userIdToUse);
-        console.log('🔍 updateVerificationState - verificationState desde Firestore:', verificationState);
+        // console.log('🔍 updateVerificationState - verificationState desde Firestore:', verificationState);
       } catch (firestoreError) {
         console.warn('⚠️ Error obteniendo estado desde Firestore (continuando con estado local):', firestoreError);
         verificationState = {
@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isEmailVerified: isVerified
       }));
       
-      console.log('🔍 updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
+      // console.log('🔍 updateVerificationState - Estado actualizado. isEmailVerified:', isVerified);
       return isVerified;
     } catch (error) {
       console.error('Error actualizando estado de verificación:', error);
@@ -162,10 +162,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Función para cargar el perfil completo del usuario
   const loadUserProfile = async (user: User) => {
     try {
-      console.log(`🔍 loadUserProfile - Iniciando carga para: ${user.email} (${user.uid})`);
+      // console.log(`🔍 loadUserProfile - Iniciando carga para: ${user.email} (${user.uid})`);
       
       // PRIMERO: Verificar si existe un usuario escolar vinculado con este UID de Google Auth
-      console.log('🔍 Verificando si existe usuario escolar vinculado...');
+      // console.log('🔍 Verificando si existe usuario escolar vinculado...');
       let linkedSchoolUserId = null;
       
       try {
@@ -180,29 +180,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           if (linkedUserData.subscription === 'school' || linkedUserData.subscription === 'SCHOOL') {
             linkedSchoolUserId = linkedUserDoc.id;
-            console.log('✅ Usuario escolar vinculado encontrado:', {
-              schoolUserId: linkedSchoolUserId,
-              email: linkedUserData.email,
-              subscription: linkedUserData.subscription,
-              schoolRole: linkedUserData.schoolRole
-            });
+            // console.log('✅ Usuario escolar vinculado encontrado:', {
+            //   schoolUserId: linkedSchoolUserId,
+            //   email: linkedUserData.email,
+            //   subscription: linkedUserData.subscription,
+            //   schoolRole: linkedUserData.schoolRole
+            // });
           }
         }
       } catch (linkError) {
-        console.log('⚠️ Error verificando usuario vinculado:', linkError);
+        // console.log('⚠️ Error verificando usuario vinculado:', linkError);
       }
       
       // Si encontramos un usuario escolar vinculado, usar ese ID
       const userIdToUse = linkedSchoolUserId || user.uid;
-      console.log(`🔍 Usando ID para cargar perfil: ${userIdToUse} (original: ${user.uid})`);
+      // console.log(`🔍 Usando ID para cargar perfil: ${userIdToUse} (original: ${user.uid})`);
       
       // Primero intentar obtener el perfil con el ID correcto
       let profile = await getUserProfile(userIdToUse);
-      console.log(`🔍 loadUserProfile - Perfil obtenido con ID ${userIdToUse}:`, profile);
+      // console.log(`🔍 loadUserProfile - Perfil obtenido con ID ${userIdToUse}:`, profile);
       
       // Si no se encuentra el perfil, verificar si hay un usuario vinculado
       if (!profile) {
-        console.log('⚠️ Perfil no encontrado con ID correcto, verificando si hay usuario vinculado...');
+        // console.log('⚠️ Perfil no encontrado con ID correcto, verificando si hay usuario vinculado...');
         
         // Buscar si existe un usuario con el mismo email que tenga este UID de Google Auth vinculado
         try {
@@ -212,8 +212,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const existingUserCheck = await checkUserExistsByEmail(user.email);
             
             if (existingUserCheck.exists && existingUserCheck.userData) {
-              console.log('🔍 Usuario existente encontrado con el mismo email:', existingUserCheck.userId);
-              console.log('🔍 Datos del usuario existente:', existingUserCheck.userData);
+              // console.log('🔍 Usuario existente encontrado con el mismo email:', existingUserCheck.userId);
+              // console.log('🔍 Datos del usuario existente:', existingUserCheck.userData);
               
               // Para usuarios escolares, usar el perfil existente aunque no tenga googleAuthUid vinculado
               const isSchoolUser = existingUserCheck.userType?.includes('SCHOOL');
@@ -221,7 +221,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               if (isSchoolUser && existingUserCheck.userId) {
                 console.log('🏫 Usuario escolar encontrado, usando perfil existente:', existingUserCheck.userId);
                 profile = await getUserProfile(existingUserCheck.userId);
-                console.log(`🔍 loadUserProfile - Perfil escolar obtenido:`, profile);
+                // console.log(`🔍 loadUserProfile - Perfil escolar obtenido:`, profile);
                 
                 // Guardar el ID del usuario escolar para futuras referencias
                 linkedSchoolUserId = existingUserCheck.userId;
@@ -243,7 +243,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               } else if (existingUserCheck.userData.googleAuthUid === user.uid && existingUserCheck.userId) {
                 console.log('✅ Usuario vinculado encontrado, usando ID del usuario existente:', existingUserCheck.userId);
                 profile = await getUserProfile(existingUserCheck.userId);
-                console.log(`🔍 loadUserProfile - Perfil obtenido con ID de usuario existente:`, profile);
+                // console.log(`🔍 loadUserProfile - Perfil obtenido con ID de usuario existente:`, profile);
               } else {
                 console.log('⚠️ Usuario existente no tiene este UID de Google Auth vinculado o no tiene ID válido');
               }
@@ -252,7 +252,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('⚠️ No hay email disponible para verificar usuario vinculado');
           }
         } catch (linkError) {
-          console.log('⚠️ Error verificando usuario vinculado:', linkError);
+          // console.log('⚠️ Error verificando usuario vinculado:', linkError);
         }
       }
       
@@ -329,7 +329,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           await createUserProfile(userIdToUse, userData);
           const newProfile = await getUserProfile(userIdToUse);
-          console.log(`🔍 loadUserProfile - Perfil básico creado:`, newProfile);
+          // console.log(`🔍 loadUserProfile - Perfil básico creado:`, newProfile);
           setAuthState(prev => ({
             ...prev,
             userProfile: newProfile
@@ -339,16 +339,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.error('Error creando perfil básico:', createError);
         }
       } else {
-        console.log(`🔍 loadUserProfile - Perfil encontrado, subscription: ${profile.subscription}, schoolRole: ${profile.schoolRole}`);
+        // console.log(`🔍 loadUserProfile - Perfil encontrado, subscription: ${profile.subscription}, schoolRole: ${profile.schoolRole}`);
       }
       
       setAuthState(prev => {
-        console.log('🔍 loadUserProfile - setAuthState - Estado anterior:', prev);
+        // console.log('🔍 loadUserProfile - setAuthState - Estado anterior:', prev);
         const newState = {
           ...prev,
           userProfile: profile
         };
-        console.log('🔍 loadUserProfile - setAuthState - Nuevo estado:', newState);
+        // console.log('🔍 loadUserProfile - setAuthState - Nuevo estado:', newState);
         return newState;
       });
       return profile;
@@ -425,13 +425,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Efecto para manejar cambios de autenticación - SIMPLIFICADO
   useEffect(() => {
-    console.log('🔐 Configurando listener de autenticación SIMPLIFICADO');
+    // console.log('🔐 Configurando listener de autenticación SIMPLIFICADO');
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('🔄 Estado de autenticación cambió:', user ? `Usuario logueado: ${user.email}` : 'No hay usuario');
+      // console.log('🔄 Estado de autenticación cambió:', user ? `Usuario logueado: ${user.email}` : 'No hay usuario');
       
       if (user) {
-        console.log('👤 Usuario encontrado:', user.email);
+        // console.log('👤 Usuario encontrado:', user.email);
         
         // Establecer estado de carga
         setAuthState(prev => ({
@@ -442,7 +442,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }));
         
         try {
-          console.log('🔍 Iniciando carga de perfil y verificación...');
+          // console.log('🔍 Iniciando carga de perfil y verificación...');
           
           // Cargar perfil y verificación en paralelo
           const [profile, verificationResult] = await Promise.all([
@@ -450,7 +450,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             updateVerificationState(user)
           ]);
           
-          console.log('✅ Carga completa. Perfil:', profile, 'Verificación:', verificationResult);
+          // console.log('✅ Carga completa. Perfil:', profile, 'Verificación:', verificationResult);
 
           // Actualizar estado final
           setAuthState(prev => ({
@@ -475,7 +475,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }));
         }
       } else {
-        console.log('❌ No hay usuario autenticado');
+        // console.log('❌ No hay usuario autenticado');
         
         // Resetear estado cuando no hay usuario
         setAuthState({
@@ -494,7 +494,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Cleanup function
     return () => {
-      console.log('🔐 Limpiando listener de autenticación');
+      // console.log('🔐 Limpiando listener de autenticación');
       unsubscribe();
     };
   }, []); // Sin dependencias para que solo se ejecute una vez

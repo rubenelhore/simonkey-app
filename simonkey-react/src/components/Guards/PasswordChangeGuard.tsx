@@ -12,16 +12,17 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
   const { isSchoolUser } = useUserType();
   const location = useLocation();
 
-  // Log para depuración
-  console.log('🔐 PasswordChangeGuard - Estado:');
-  console.log('  - loading:', authLoading);
-  console.log('  - userProfile:', userProfile);
-  console.log('  - requiresPasswordChange:', userProfile?.requiresPasswordChange);
-  console.log('  - isSchoolUser:', isSchoolUser);
-  console.log('  - location:', location.pathname);
+  // Log para depuración - COMENTADO PARA REDUCIR RUIDO
+  // console.log('🔐 PasswordChangeGuard - Estado:');
+  // console.log('  - loading:', authLoading);
+  // console.log('  - userProfile:', userProfile);
+  // console.log('  - requiresPasswordChange:', userProfile?.requiresPasswordChange);
+  // console.log('  - isSchoolUser:', isSchoolUser);
+  // console.log('  - location:', location.pathname);
 
   // Si está cargando, mostrar loading
   if (authLoading) {
+    console.log('🔐 PasswordChangeGuard mostrando loading');
     return (
       <div className="loading-container">
         <div className="spinner"></div>
@@ -33,13 +34,13 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
   // Si es usuario escolar y requiere cambio de contraseña
   // y no está en la página de cambio de contraseña
   if (isSchoolUser && userProfile?.requiresPasswordChange && location.pathname !== '/change-password-required') {
-    console.log('🚨 PasswordChangeGuard - Redirigiendo a cambio de contraseña obligatorio');
+    // console.log('🚨 PasswordChangeGuard - Redirigiendo a cambio de contraseña obligatorio');
     return <Navigate to="/change-password-required" replace />;
   }
 
   // Si está en la página de cambio de contraseña pero no lo requiere
   if (location.pathname === '/change-password-required' && !userProfile?.requiresPasswordChange) {
-    console.log('✅ PasswordChangeGuard - Usuario ya cambió contraseña, redirigiendo');
+    // console.log('✅ PasswordChangeGuard - Usuario ya cambió contraseña, redirigiendo');
     if (isSchoolUser) {
       // Redirigir según el rol
       if (userProfile?.schoolRole === 'admin') {
@@ -53,6 +54,7 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
     return <Navigate to="/" replace />;
   }
 
+  console.log('🔐 PasswordChangeGuard - Renderizando children');
   return <>{children}</>;
 };
 

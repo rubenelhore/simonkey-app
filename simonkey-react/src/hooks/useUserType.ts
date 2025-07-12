@@ -12,12 +12,12 @@ import { UserProfile, SubscriptionLimits, UserSubscriptionType, SchoolRole } fro
 export const useUserType = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
 
-  // Logs para depuración
-  console.log('useUserType - loading:', loading);
-  console.log('useUserType - isAuthenticated:', isAuthenticated);
-  if (!loading) {
-    console.log('useUserType - userProfile:', userProfile);
-  }
+  // Logs para depuración - COMENTADOS PARA REDUCIR RUIDO
+  // console.log('useUserType - loading:', loading);
+  // console.log('useUserType - isAuthenticated:', isAuthenticated);
+  // if (!loading) {
+  //   console.log('useUserType - userProfile:', userProfile);
+  // }
 
   // Si no está autenticado, no necesitamos cargar el tipo de usuario
   if (!isAuthenticated) {
@@ -57,11 +57,11 @@ export const useUserType = () => {
   // Lógica mejorada para determinar si es superadmin
   const isSuperAdmin = email === 'ruben.elhore@gmail.com' || subscription === UserSubscriptionType.SUPER_ADMIN;
   
-  // Log específico para superadmin
-  console.log('useUserType - SuperAdmin check:');
-  console.log('  - email:', email);
-  console.log('  - subscription:', subscription);
-  console.log('  - isSuperAdmin:', isSuperAdmin);
+  // Log específico para superadmin - COMENTADO PARA REDUCIR RUIDO
+  // console.log('useUserType - SuperAdmin check:');
+  // console.log('  - email:', email);
+  // console.log('  - subscription:', subscription);
+  // console.log('  - isSuperAdmin:', isSuperAdmin);
 
   // Normalizar subscription a minúsculas para evitar bugs por mayúsculas/minúsculas
   const normalizedSubscription = typeof subscription === 'string' ? subscription.toLowerCase() : subscription;
@@ -72,14 +72,14 @@ export const useUserType = () => {
   const isSchoolAdmin = isSchoolUser && normalizedSchoolRole === SchoolRole.ADMIN;
   const isSchoolTutor = isSchoolUser && normalizedSchoolRole === SchoolRole.TUTOR;
   
-  // Log de los roles calculados
-  console.log('useUserType - Roles calculados:');
-  console.log('  - isSchoolUser:', isSchoolUser);
-  console.log('  - isSchoolTeacher:', isSchoolTeacher);
-  console.log('  - isSchoolStudent:', isSchoolStudent);
-  console.log('  - isSchoolAdmin:', isSchoolAdmin);
-  console.log('  - isSchoolTutor:', isSchoolTutor);
-  console.log('  - schoolRole:', schoolRole);
+  // Log de los roles calculados - COMENTADO PARA REDUCIR RUIDO
+  // console.log('useUserType - Roles calculados:');
+  // console.log('  - isSchoolUser:', isSchoolUser);
+  // console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  // console.log('  - isSchoolStudent:', isSchoolStudent);
+  // console.log('  - isSchoolAdmin:', isSchoolAdmin);
+  // console.log('  - isSchoolTutor:', isSchoolTutor);
+  // console.log('  - schoolRole:', schoolRole);
 
   return {
     isSuperAdmin,
