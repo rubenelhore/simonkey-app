@@ -229,7 +229,7 @@ export const updateInstitutionRankings = functions.https.onCall(async (request) 
  * Cloud Function programada para actualizar rankings de todas las instituciones
  * Se ejecuta cada 30 minutos
  */
-export const scheduledRankingsUpdate = functions.pubsub.schedule('every 30 minutes').onRun(async (context) => {
+export const scheduledRankingsUpdate = functions.runWith({ timeoutSeconds: 540, memory: '1GB' }).pubsub.schedule('every 30 minutes').onRun(async (context) => {
     try {
       console.log('[scheduledRankingsUpdate] Iniciando actualización programada de rankings');
       

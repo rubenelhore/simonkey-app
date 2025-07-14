@@ -74,30 +74,62 @@ export class TeacherKpiService {
   /**
    * Calcula y actualiza las métricas de un profesor
    */
-  async updateTeacherMetrics(teacherId: string): Promise<void> {
+  async updateTeacherMetrics(teacherUid: string, userProfile?: any): Promise<void> {
     try {
-      console.log(`[TeacherKpiService] Actualizando métricas para profesor: ${teacherId}`);
+      console.log(`[TeacherKpiService] Actualizando métricas para profesor UID: ${teacherUid}`);
 
-      // 1. Obtener datos del profesor
-      const teacherDoc = await getDoc(doc(db, 'users', teacherId));
-      if (!teacherDoc.exists()) {
-        console.error('[TeacherKpiService] Profesor no encontrado');
-        return;
+      let teacherData: any;
+      let teacherId: string;
+      
+      // Si se proporciona userProfile, usarlo en lugar de buscar en la BD
+      if (userProfile) {
+        teacherData = userProfile;
+        teacherId = userProfile.id || teacherUid;
+        console.log('[TeacherKpiService] Usando userProfile desde contexto:', teacherData);
+      } else {
+        // 1. Obtener datos del profesor
+        const teacherDoc = await getDoc(doc(db, 'users', teacherUid));
+        if (!teacherDoc.exists()) {
+          console.error('[TeacherKpiService] Profesor no encontrado');
+          return;
+        }
+        teacherData = teacherDoc.data();
+        teacherId = teacherData.id || teacherUid;
       }
-
-      const teacherData = teacherDoc.data();
-      let institutionId = teacherData.idInstitucion;
+      
+      console.log('[TeacherKpiService] Datos del profesor:', teacherData);
+      console.log('[TeacherKpiService] ID del documento del profesor:', teacherId);
+      
+      // Buscar el ID de la institución en múltiples campos posibles
+      let institutionId = teacherData.idEscuela || teacherData.idInstitucion || teacherData.schoolData?.idEscuela;
+      console.log('[TeacherKpiService] ID Institución encontrado:', institutionId);
+      console.log('[TeacherKpiService] Fuente del ID:', 
+        teacherData.idEscuela ? 'idEscuela' : 
+        teacherData.idInstitucion ? 'idInstitucion' : 
+        teacherData.schoolData?.idEscuela ? 'schoolData.idEscuela' : 'ninguno');
 
       // Si el profesor no tiene idInstitucion directamente, obtenerlo del admin
       if (!institutionId && teacherData.idAdmin) {
         console.log('[TeacherKpiService] Obteniendo institución del admin:', teacherData.idAdmin);
-        // Los admins están en la colección 'users', no en 'schoolAdmins'
-        const adminDoc = await getDoc(doc(db, 'users', teacherData.idAdmin));
+        
+        // Intentar buscar en varias colecciones posibles
+        let adminDoc = await getDoc(doc(db, 'users', teacherData.idAdmin));
+        
+        if (!adminDoc.exists()) {
+          console.log('[TeacherKpiService] Admin no encontrado en users, buscando en schoolAdmins...');
+          adminDoc = await getDoc(doc(db, 'schoolAdmins', teacherData.idAdmin));
+        }
+        
+        if (!adminDoc.exists()) {
+          console.log('[TeacherKpiService] Admin no encontrado en schoolAdmins, buscando en schoolUsers...');
+          adminDoc = await getDoc(doc(db, 'schoolUsers', teacherData.idAdmin));
+        }
+        
         console.log('[TeacherKpiService] Admin doc exists:', adminDoc.exists());
         if (adminDoc.exists()) {
           const adminData = adminDoc.data();
           console.log('[TeacherKpiService] Admin data:', adminData);
-          institutionId = adminData.idInstitucion;
+          institutionId = adminData.idEscuela || adminData.idInstitucion;
           console.log('[TeacherKpiService] Institución obtenida del admin:', institutionId);
         } else {
           console.error('[TeacherKpiService] Admin document not found:', teacherData.idAdmin);
@@ -105,8 +137,7 @@ export class TeacherKpiService {
       }
 
       if (!institutionId) {
-        console.error('[TeacherKpiService] Profesor sin institución (ni directa ni a través del admin)');
-        return;
+        console.warn('[TeacherKpiService] Profesor sin institución (ni directa ni a través del admin), continuando con búsqueda por cuadernos');
       }
 
       // 2. Obtener todas las materias del profesor
@@ -116,11 +147,15 @@ export class TeacherKpiService {
       );
       const subjectsSnap = await getDocs(subjectsQuery);
       console.log(`[TeacherKpiService] Materias del profesor: ${subjectsSnap.size}`);
+      console.log(`[TeacherKpiService] Query: schoolSubjects where idProfesor == ${teacherId}`);
+      console.log(`[TeacherKpiService] Institución ID usado para filtrar estudiantes: ${institutionId}`);
 
       const subjectIds = subjectsSnap.docs.map(doc => doc.id);
       const subjectsMap = new Map<string, any>();
       subjectsSnap.forEach(doc => {
-        subjectsMap.set(doc.id, { id: doc.id, ...doc.data() });
+        const data = doc.data();
+        console.log(`[TeacherKpiService] Materia ${doc.id}:`, data);
+        subjectsMap.set(doc.id, { id: doc.id, ...data });
       });
 
       // 3. Obtener todos los cuadernos de las materias del profesor
@@ -147,15 +182,29 @@ export class TeacherKpiService {
 
       // 4. Obtener todos los estudiantes que tienen estos cuadernos
       const studentIds = new Set<string>();
-      const studentsQuery = query(
-        collection(db, 'users'),
-        where('subscription', '==', 'school'),
-        where('schoolRole', '==', 'student'),
-        where('idInstitucion', '==', institutionId)
-      );
-
-      const studentsSnap = await getDocs(studentsQuery);
+      let studentsSnap;
       const studentsByNotebook = new Map<string, string[]>();
+      
+      if (institutionId) {
+        // Si tenemos ID de institución, buscar por institución
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'student'),
+          where('idEscuela', '==', institutionId)
+        );
+        studentsSnap = await getDocs(studentsQuery);
+        console.log(`[TeacherKpiService] Estudiantes encontrados por idEscuela: ${studentsSnap.size}`);
+      } else {
+        // Si no tenemos ID de institución, buscar todos los estudiantes escolares
+        const studentsQuery = query(
+          collection(db, 'users'),
+          where('subscription', '==', 'school'),
+          where('schoolRole', '==', 'student')
+        );
+        studentsSnap = await getDocs(studentsQuery);
+        console.log(`[TeacherKpiService] Estudiantes escolares totales encontrados: ${studentsSnap.size}`);
+      }
 
       // Filtrar estudiantes que tienen cuadernos del profesor
       for (const studentDoc of studentsSnap.docs) {
@@ -365,7 +414,7 @@ export class TeacherKpiService {
         const totalSubjectStudents = subjectStudents.size;
         
         metrics.materias[subjectId] = {
-          nombreMateria: subject.nombre || subject.name,
+          nombreMateria: subject.nombre || subject.name || subject.title || 'Sin nombre',
           porcentajeDominioConceptos: subjectConceptsTotal > 0 
             ? Math.round((subjectConceptsDominated / subjectConceptsTotal) * 100) 
             : 0,
@@ -407,10 +456,10 @@ export class TeacherKpiService {
         ? Math.round(globalTotalScore / studentsWithData)
         : 0;
 
-      // 9. Guardar métricas en Firestore
-      await setDoc(doc(db, 'teacherKpis', teacherId), metrics);
+      // 9. Guardar métricas en Firestore (usar el UID para el documento)
+      await setDoc(doc(db, 'teacherKpis', teacherUid), metrics);
 
-      console.log(`[TeacherKpiService] Métricas actualizadas exitosamente para profesor: ${teacherId}`);
+      console.log(`[TeacherKpiService] Métricas actualizadas exitosamente para profesor UID: ${teacherUid}`);
       console.log(`[TeacherKpiService] Resumen:`, {
         materias: Object.keys(metrics.materias).length,
         cuadernos: Object.keys(metrics.cuadernos).length,

@@ -18,7 +18,7 @@ import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
 import { rankingUpdateService } from '../services/rankingUpdateService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -1529,11 +1529,9 @@ const StudyModePage = () => {
           {!sessionActive && !sessionComplete && (
             <div className="study-notebook-selection">
               {loading ? (
-                <div className="empty-notebooks">
-                  <div className="empty-icon">
-                    <i className="fas fa-spinner fa-spin"></i>
-                  </div>
-                  <h3>Cargando materias...</h3>
+                <div className="loading-container">
+                  <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+                  <p>Cargando tus datos de estudio...</p>
                 </div>
               ) : materias.length === 0 ? (
                 <div className="empty-notebooks">
@@ -1562,7 +1560,7 @@ const StudyModePage = () => {
                           borderColor: selectedMateria?.color || '#6147FF'
                         }}
                       >
-                        <span>{selectedMateria?.nombre || 'Seleccionar materia'}</span>
+                        <span>{selectedMateria?.nombre || selectedMateria?.title || 'Seleccionar materia'}</span>
                         <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
                       </button>
                       
@@ -1748,12 +1746,12 @@ const StudyModePage = () => {
                 <div className="session-complete-stats">
                   <div className="session-complete-stat-card concepts">
                     <div className="session-complete-stat-icon"><i className="fas fa-book"></i></div>
-                    <div className="session-complete-stat-value">{reviewedConceptIds.size}</div>
+                    <div className="session-complete-stat-value">{conceptFinalResults.size}</div>
                     <div className="session-complete-stat-label">Conceptos revisados</div>
                   </div>
                   <div className="session-complete-stat-card mastered">
                     <div className="session-complete-stat-icon"><i className="fas fa-star"></i></div>
-                    <div className="session-complete-stat-value">{masteredConceptIds.size}</div>
+                    <div className="session-complete-stat-value">{Array.from(conceptFinalResults.values()).filter(quality => quality === ResponseQuality.MASTERED).length}</div>
                     <div className="session-complete-stat-label">Dominados</div>
                   </div>
                   <div className="session-complete-stat-card time">

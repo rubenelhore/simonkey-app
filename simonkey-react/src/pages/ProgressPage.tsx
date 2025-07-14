@@ -86,11 +86,14 @@ const ProgressPage: React.FC = () => {
 
   // Calcular ranking cuando cambien los cuadernos o la materia
   useEffect(() => {
-    // Solo calcular si hay una materia seleccionada o datos de KPIs
-    if (selectedMateria || (kpisData && Object.keys(kpisData.cuadernos || {}).length > 0)) {
+    // Solo calcular si hay datos de KPIs
+    if (kpisData) {
       calculateRanking();
       calculatePositionHistory();
-      calculateWeeklyStudyTime();
+      // Add a small delay to ensure KPIs are fully loaded
+      setTimeout(() => {
+        calculateWeeklyStudyTime();
+      }, 100);
     }
   }, [cuadernosReales, selectedMateria, kpisData]);
 
@@ -110,16 +113,21 @@ const ProgressPage: React.FC = () => {
       console.log('[ProgressPage] Cargando KPIs para usuario:', userId);
       console.log('[ProgressPage] Es usuario escolar:', effectiveUserData?.isSchoolUser);
       
-      // Obtener KPIs del usuario
+      // Siempre actualizar KPIs primero para obtener datos frescos
+      console.log('[ProgressPage] Actualizando KPIs...');
+      await kpiService.updateUserKPIs(userId);
+      
+      // Pequeña pausa para asegurar que Firestore propagó los cambios
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Obtener KPIs actualizados del usuario
       const kpis = await kpiService.getUserKPIs(userId);
       console.log('[ProgressPage] KPIs obtenidos:', kpis);
+      console.log('[ProgressPage] Tiempo estudio semanal en KPIs:', kpis?.tiempoEstudioSemanal);
       
       if (!kpis) {
-        console.log('[ProgressPage] No hay KPIs, actualizando...');
-        // Si no hay KPIs, intentar actualizarlos
-        await kpiService.updateUserKPIs(userId);
-        const updatedKpis = await kpiService.getUserKPIs(userId);
-        setKpisData(updatedKpis);
+        console.log('[ProgressPage] Error: No se pudieron obtener KPIs');
+        setKpisData(null);
       } else {
         setKpisData(kpis);
       }
@@ -683,7 +691,7 @@ const ProgressPage: React.FC = () => {
         const effectiveUserData = await getEffectiveUserId();
         const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser!.uid;
         
-        // Obtener la fecha de inicio de la semana actual
+        // Obtener la fecha de inicio de la semana actual (ajustado a zona horaria local)
         const today = new Date();
         const currentWeekStart = new Date(today);
         currentWeekStart.setDate(today.getDate() - today.getDay());
@@ -691,6 +699,9 @@ const ProgressPage: React.FC = () => {
         
         const currentWeekEnd = new Date(currentWeekStart);
         currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+        
+        console.log('[ProgressPage] Hoy es:', today.toISOString(), 'Día de la semana:', today.getDay());
+        console.log('[ProgressPage] Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
 
         console.log('[ProgressPage] Buscando sesiones desde:', currentWeekStart.toISOString());
         console.log('[ProgressPage] Hasta:', currentWeekEnd.toISOString());
@@ -702,17 +713,23 @@ const ProgressPage: React.FC = () => {
         );
         
         const allSessionsSnap = await getDocs(studySessionsQuery);
+        console.log('[ProgressPage] Total sesiones encontradas:', allSessionsSnap.size);
         
         // Filtrar manualmente por fecha y cuaderno si es necesario
         allSessionsSnap.forEach((doc: any) => {
           const session = doc.data();
           const sessionDate = session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime);
           
+          console.log(`[ProgressPage] Sesión ${doc.id}: fecha=${sessionDate.toISOString()}, notebook=${session.notebookId}, mode=${session.mode}`);
+          
           if (sessionDate >= currentWeekStart && sessionDate < currentWeekEnd) {
             // Si hay materia seleccionada, filtrar por cuadernos de esa materia
             if (selectedMateria && selectedMateria !== 'general') {
               const belongsToMateria = cuadernosReales.some(c => c.id === session.notebookId);
-              if (!belongsToMateria) return;
+              if (!belongsToMateria) {
+                console.log(`[ProgressPage] Sesión ${doc.id} filtrada: no pertenece a la materia seleccionada`);
+                return;
+              }
             }
             
             const dayOfWeek = sessionDate.getDay();
@@ -720,19 +737,25 @@ const ProgressPage: React.FC = () => {
             
             // Calcular duración de la sesión
             if (session.metrics?.timeSpent) {
-              sessionDuration = Math.round(session.metrics.timeSpent);
+              // timeSpent está en segundos, convertir a minutos
+              sessionDuration = Math.round(session.metrics.timeSpent / 60);
+              console.log(`[ProgressPage] Sesión ${doc.id}: timeSpent=${session.metrics.timeSpent}s -> ${sessionDuration}min`);
             } else if (session.metrics?.sessionDuration) {
               sessionDuration = Math.round(session.metrics.sessionDuration / 60);
+              console.log(`[ProgressPage] Sesión ${doc.id}: sessionDuration=${session.metrics.sessionDuration}s -> ${sessionDuration}min`);
             } else if (session.startTime && session.endTime) {
               const start = session.startTime.toDate ? session.startTime.toDate() : new Date(session.startTime);
               const end = session.endTime.toDate ? session.endTime.toDate() : new Date(session.endTime);
               sessionDuration = Math.round((end.getTime() - start.getTime()) / 60000);
+              console.log(`[ProgressPage] Sesión ${doc.id}: calculado de start/end -> ${sessionDuration}min`);
             } else {
               sessionDuration = 5;
+              console.log(`[ProgressPage] Sesión ${doc.id}: usando valor por defecto -> ${sessionDuration}min`);
             }
             
             const currentTime = timeByDay.get(dayOfWeek) || 0;
             timeByDay.set(dayOfWeek, currentTime + sessionDuration);
+            console.log(`[ProgressPage] Agregando ${sessionDuration}min al día ${dayOfWeek} (total: ${currentTime + sessionDuration}min)`);
           }
         });
       };
@@ -743,6 +766,7 @@ const ProgressPage: React.FC = () => {
         const materiaData = kpisData.materias?.[selectedMateria];
         if (materiaData?.tiempoEstudioSemanal) {
           console.log('[ProgressPage] Tiempo de estudio semanal encontrado para materia:', selectedMateria, materiaData.tiempoEstudioSemanal);
+          console.log('[ProgressPage] Detalle del tiempo por día:', JSON.stringify(materiaData.tiempoEstudioSemanal, null, 2));
           
           // Usar los datos semanales de la materia específica
           Object.entries(materiaData.tiempoEstudioSemanal).forEach(([dia, tiempo]) => {
@@ -751,6 +775,10 @@ const ProgressPage: React.FC = () => {
               studyTimeByDay.set(dayIndex, tiempo);
             }
           });
+          
+          // Log para debug
+          const totalTimeInWeek = Object.values(materiaData.tiempoEstudioSemanal).reduce((sum: number, time: any) => sum + (time || 0), 0);
+          console.log(`[ProgressPage] Tiempo total en la semana para materia ${selectedMateria}: ${totalTimeInWeek} minutos`);
         } else {
           // Si no hay datos específicos de la materia, calcular desde las sesiones de los cuadernos
           console.log('[ProgressPage] No hay tiempo semanal específico para la materia, calculando desde sesiones...');
@@ -758,6 +786,9 @@ const ProgressPage: React.FC = () => {
         }
       } else {
         // Vista general - usar datos globales si existen
+        console.log('[ProgressPage] Datos de KPIs completos:', kpisData);
+        console.log('[ProgressPage] tiempoEstudioSemanal existe?', !!kpisData.tiempoEstudioSemanal);
+        
         if (kpisData.tiempoEstudioSemanal) {
           const tiempoSemanal = kpisData.tiempoEstudioSemanal;
           
@@ -770,21 +801,27 @@ const ProgressPage: React.FC = () => {
           studyTimeByDay.set(4, tiempoSemanal.jueves || 0);
           studyTimeByDay.set(5, tiempoSemanal.viernes || 0);
           studyTimeByDay.set(6, tiempoSemanal.sabado || 0);
+          
+          // Log para debug
+          const totalGlobalTime = Object.values(tiempoSemanal).reduce((sum: number, time: any) => sum + ((typeof time === 'number' ? time : 0) || 0), 0);
+          console.log(`[ProgressPage] Tiempo total global en la semana: ${totalGlobalTime} minutos`);
         } else {
-          // Si no hay datos globales, calcular desde todas las sesiones
-          await calculateFromStudySessions(studyTimeByDay);
+          console.log('[ProgressPage] No hay datos de tiempo semanal en KPIs');
+          // Dejar vacío si no hay datos
         }
       }
       
       // Convertir a formato del gráfico
       for (let i = 0; i < 7; i++) {
+        const timeForDay = studyTimeByDay.get(i) || 0;
         chartData.push({
           dia: weekDays[i],
-          tiempo: studyTimeByDay.get(i) || 0
+          tiempo: timeForDay
         });
+        console.log(`[ProgressPage] ${weekDays[i]}: ${timeForDay} minutos`);
       }
       
-      console.log('[ProgressPage] Tiempo de estudio por día:', chartData);
+      console.log('[ProgressPage] Tiempo de estudio por día (final):', JSON.stringify(chartData, null, 2));
       setStudyTimeData(chartData);
       
     } catch (error) {

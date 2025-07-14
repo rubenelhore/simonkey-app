@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, Timestamp, getDoc } from 'firebase/firestore';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Materias.css';
 import '../styles/AdminMaterias.css';
 import StreakTracker from '../components/StreakTracker';
@@ -38,12 +40,13 @@ const Materias: React.FC = () => {
   const { migrationStatus, migrationMessage } = useAutoMigration();
   const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
-  console.log('📚 Materias.tsx - Estado actual:');
-  console.log('📚 user:', user);
-  console.log('📚 userProfile:', userProfile);
-  console.log('📚 isSchoolStudent:', isSchoolStudent);
-  console.log('📚 schoolSubjects:', schoolSubjects);
-  console.log('📚 schoolLoading:', schoolLoading);
+  // Logs comentados para reducir ruido
+  // console.log('📚 Materias.tsx - Estado actual:');
+  // console.log('📚 user:', user);
+  // console.log('📚 userProfile:', userProfile);
+  // console.log('📚 isSchoolStudent:', isSchoolStudent);
+  // console.log('📚 schoolSubjects:', schoolSubjects);
+  // console.log('📚 schoolLoading:', schoolLoading);
 
   // Estados para el componente de personalización
   const [userData, setUserData] = useState({
@@ -65,44 +68,8 @@ const Materias: React.FC = () => {
     const loadMaterias = async () => {
       if (!user) return;
       
-      // Si es estudiante escolar, usar las materias escolares
+      // Si es estudiante escolar, el otro useEffect manejará la carga
       if (isSchoolStudent) {
-        console.log('📚 Es estudiante escolar, verificando materias...');
-        console.log('📚 schoolSubjects:', schoolSubjects);
-        console.log('📚 schoolLoading:', schoolLoading);
-        
-        if (schoolSubjects && schoolSubjects.length > 0) {
-          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
-            // Contar cuántos notebooks tiene esta materia
-            const notebookCount = schoolNotebooks 
-              ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
-              : 0;
-            
-            return {
-              id: subject.id,
-              title: subject.nombre,
-              color: subject.color || '#6147FF',
-              category: '',
-              userId: user.uid,
-              createdAt: subject.createdAt?.toDate() || new Date(),
-              updatedAt: subject.createdAt?.toDate() || new Date(),
-              notebookCount: notebookCount
-            };
-          });
-          
-          console.log('📚 Materias escolares mapeadas:', schoolMateriasData);
-          console.log('📚 Notebooks por materia:', schoolMateriasData.map(m => ({ id: m.id, title: m.title, count: m.notebookCount })));
-          setMaterias(schoolMateriasData);
-          setLoading(false);
-          return;
-        } else if (!schoolLoading) {
-          console.log('📚 No hay materias escolares, mostrando lista vacía');
-          setMaterias([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Si todavía está cargando, no hacer nada
         return;
       }
       
@@ -150,7 +117,32 @@ const Materias: React.FC = () => {
     };
     
     loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent, schoolSubjects, schoolLoading]);
+  }, [user, refreshTrigger, isSchoolStudent]);
+
+  // Efecto específico para estudiantes escolares
+  useEffect(() => {
+    if (isSchoolStudent && !schoolLoading && schoolSubjects) {
+      const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
+        const notebookCount = schoolNotebooks 
+          ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
+          : 0;
+        
+        return {
+          id: subject.id,
+          title: subject.nombre,
+          color: subject.color || '#6147FF',
+          category: '',
+          userId: user?.uid || '',
+          createdAt: subject.createdAt?.toDate() || new Date(),
+          updatedAt: subject.createdAt?.toDate() || new Date(),
+          notebookCount: notebookCount
+        };
+      });
+      
+      setMaterias(schoolMateriasData);
+      setLoading(false);
+    }
+  }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user]);
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -288,8 +280,8 @@ const Materias: React.FC = () => {
         materiasData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         
         setAdminMaterias(materiasData);
-        console.log('📊 Admin materias cargadas:', materiasData.length, 'materias');
-        console.log('📊 Admin materias detalle:', materiasData);
+        // console.log('📊 Admin materias cargadas:', materiasData.length, 'materias');
+        // console.log('📊 Admin materias detalle:', materiasData);
       } catch (error) {
         console.error('Error loading filtered materias:', error);
       }
@@ -490,15 +482,24 @@ const Materias: React.FC = () => {
   };
 
   if (loading || authLoading) {
+    // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Cargando materias...</p>
+      <div className="loading-container" style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        gap: '1rem'
+      }}>
+        <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
+        <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando materias...</p>
       </div>
     );
   }
 
   if (error) {
+    console.error('❌ Materias - Error:', error);
     return (
       <div className="error-container">
         <h2>Error al cargar las materias</h2>
@@ -508,7 +509,7 @@ const Materias: React.FC = () => {
   }
 
   if (isSchoolAdmin) {
-    console.log('🎯 Renderizando vista admin con adminMaterias:', adminMaterias.length);
+    // console.log('🎯 Renderizando vista admin con adminMaterias:', adminMaterias.length);
     // Vista especial para admin
     return (
       <>
@@ -638,6 +639,12 @@ const Materias: React.FC = () => {
   }
 
   // Vista normal para usuarios regulares y estudiantes
+  // console.log('🎨 Materias - Renderizando vista normal');
+  // console.log('  - materias:', materias.length);
+  // console.log('  - userData:', userData);
+  // console.log('  - isSchoolStudent:', isSchoolStudent);
+  // console.log('  - userProfile:', userProfile);
+  
   return (
     <>
       <HeaderWithHamburger

@@ -515,7 +515,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
             conceptsReviewed: metrics.conceptsReviewed || 0,
             mastered: metrics.mastered || 0,
             reviewing: metrics.reviewing || 0,
-            timeSpent: Math.round(sessionDuration / 60), // Duración en minutos
+            timeSpent: sessionDuration, // Duración en segundos (igual que sessionDuration)
             sessionDuration, // Duración total de la sesión en segundos
             conceptsDominados: detailedResults?.conceptsDominados || 0,
             conceptosNoDominados: detailedResults?.conceptosNoDominados || 0,

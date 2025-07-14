@@ -794,6 +794,28 @@ button[type="submit"]:hover {
   font-size: 1rem;
 }
 
+/* Bonus de puntos por racha */
+.streak-bonus {
+  text-align: center;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 8px;
+  border: 1px solid #fbbf24;
+}
+
+.streak-bonus .bonus-label {
+  color: #92400e;
+  font-weight: 500;
+  margin-right: 0.25rem;
+}
+
+.streak-bonus .bonus-points {
+  color: #b45309;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
 /* Estilos para DaysWithIntelligentStudy */
 .days-intelligent-study-tracker {
   background-color: var(--card-background);
@@ -852,17 +874,20 @@ button[type="submit"]:hover {
   padding: 0.5rem;
   background-color: #f9f9f9;
   border-radius: 6px;
+  margin-bottom: 0.5rem;
 }
 
 .day-indicator {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  padding: 0.5rem;
+  height: 46px;
+  border-radius: 8px;
+  padding: 0.25rem;
   position: relative;
+  gap: 0.25rem;
 }
 
 .day-indicator.active {
@@ -879,10 +904,22 @@ button[type="submit"]:hover {
   color: var(--text-color);
 }
 
+/* Mensaje motivacional de la racha */
+.streak-motivation {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.streak-motivation .motivation-text {
+  font-size: 0.85rem;
+  color: var(--light-text);
+  font-style: italic;
+  margin: 0;
+}
+
 .day-fire {
-  font-size: 0.9rem;
-  position: absolute;
-  bottom: -5px;
+  font-size: 1rem;
+  margin-top: auto;
 }
 
 /* Responsive para móvil */
