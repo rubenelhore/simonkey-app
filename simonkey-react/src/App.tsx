@@ -100,6 +100,7 @@ import Materias from './pages/Materias';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
+import HelpWhatsAppButton from './components/HelpWhatsAppButton';
 
 // Definir el tipo para el usuario
 interface User {
@@ -478,352 +479,365 @@ const AppContent: React.FC = () => {
   // Show mobile navigation for all authenticated users except admin and tutor
   const showMobileNav = isAuthenticated && !isSchoolAdmin && !isSchoolTutor;
   const showTeacherNav = isAuthenticated && isSchoolTeacher && location.pathname.startsWith('/school/teacher');
+  // const helpPages = [
+  //   '/pricing',
+  //   '/examples',
+  //   '/faq',
+  //   '/about',
+  //   '/contact',
+  //   '/terms',
+  //   '/privacy-policy',
+  // ];
+  // const showHelpButton = helpPages.includes(location.pathname);
 
   return (
-    <UserContext.Provider value={{ user: user ? {
-      id: user.uid,
-      email: user.email || undefined,
-      name: user.displayName || user.email?.split('@')[0] || undefined,
-      photoURL: user.photoURL || undefined,
-      isAuthenticated: true
-    } : { isAuthenticated: false }, setUser: () => {} }}>
-      <Routes>
-        {/* Ruta principal: redirige según el tipo de usuario */}
-        <Route 
-          path="/" 
-          element={(() => {
-            if (isAuthenticated) {
-              // Usuarios escolares van a sus módulos específicos (sin requerir verificación de email)
-              if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
-              if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
-              if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
-              if (isSchoolStudent) return <Navigate to="/materias" replace />;
-              // Usuarios regulares requieren verificación
-              if (isEmailVerified) {
-                return <Navigate to="/materias" replace />;
+    <>
+      <UserContext.Provider value={{ user: user ? {
+        id: user.uid,
+        email: user.email || undefined,
+        name: user.displayName || user.email?.split('@')[0] || undefined,
+        photoURL: user.photoURL || undefined,
+        isAuthenticated: true
+      } : { isAuthenticated: false }, setUser: () => {} }}>
+        <Routes>
+          {/* Ruta principal: redirige según el tipo de usuario */}
+          <Route 
+            path="/" 
+            element={(() => {
+              if (isAuthenticated) {
+                // Usuarios escolares van a sus módulos específicos (sin requerir verificación de email)
+                if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+                if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
+                if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
+                if (isSchoolStudent) return <Navigate to="/materias" replace />;
+                // Usuarios regulares requieren verificación
+                if (isEmailVerified) {
+                  return <Navigate to="/materias" replace />;
+                }
               }
+              // Usuarios no autenticados ven la página de inicio
+              return <HomePage />;
+            })()} 
+          />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/verify-email" element={<EmailVerificationPage />} />
+          
+          {/* Rutas legales - disponibles para todos */}
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          
+          {/* Ruta para cambio de contraseña obligatorio */}
+          <Route
+            path="/change-password-required"
+            element={
+              isAuthenticated ? (
+                <ChangePasswordRequired />
+              ) : <Navigate to="/login" replace />
             }
-            // Usuarios no autenticados ven la página de inicio
-            return <HomePage />;
-          })()} 
-        />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify-email" element={<EmailVerificationPage />} />
-        
-        {/* Rutas legales - disponibles para todos */}
-        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        
-        {/* Ruta para cambio de contraseña obligatorio */}
-        <Route
-          path="/change-password-required"
-          element={
-            isAuthenticated ? (
-              <ChangePasswordRequired />
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nuevas rutas informativas - disponibles para todos */}
-        <Route path="/examples" element={<ExamplesPage />} />
-        <Route path="/faq" element={<FAQPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        
-        {/* Rutas protegidas - requieren autenticación Y verificación de email */}
-        {/* Nueva ruta principal: Materias */}
-        <Route
-          path="/materias"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
+          />
+          
+          {/* Nuevas rutas informativas - disponibles para todos */}
+          <Route path="/examples" element={<ExamplesPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          
+          {/* Rutas protegidas - requieren autenticación Y verificación de email */}
+          {/* Nueva ruta principal: Materias */}
+          <Route
+            path="/materias"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    {!hasCompletedOnboarding ? (
+                      <OnboardingComponent onComplete={() => {
+                        console.log('🎯 Onboarding completado');
+                        setHasCompletedOnboarding(true);
+                        localStorage.setItem('hasCompletedOnboarding', 'true');
+                      }} />
+                    ) : (
+                      <Materias />
+                    )}
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          {/* Notebooks dentro de una materia */}
+          <Route
+            path="/materias/:materiaId/notebooks"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <Notebooks />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/materias/:materiaId/notebooks/:id"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <NotebookDetailWrapper />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/materias/:materiaId/notebooks/:notebookId/concepto/:conceptoId/:index"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ConceptDetail />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          {/* Ruta legacy para notebooks (temporal, para compatibilidad) */}
+          <Route
+            path="/notebooks"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
                   {!hasCompletedOnboarding ? (
                     <OnboardingComponent onComplete={() => {
-                      console.log('🎯 Onboarding completado');
                       setHasCompletedOnboarding(true);
                       localStorage.setItem('hasCompletedOnboarding', 'true');
                     }} />
                   ) : (
-                    <Materias />
+                    <Navigate to="/materias" replace />
                   )}
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        {/* Notebooks dentro de una materia */}
-        <Route
-          path="/materias/:materiaId/notebooks"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <Notebooks />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/materias/:materiaId/notebooks/:id"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <NotebookDetailWrapper />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/materias/:materiaId/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <ConceptDetail />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        {/* Ruta legacy para notebooks (temporal, para compatibilidad) */}
-        <Route
-          path="/notebooks"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                {!hasCompletedOnboarding ? (
-                  <OnboardingComponent onComplete={() => {
-                    setHasCompletedOnboarding(true);
-                    localStorage.setItem('hasCompletedOnboarding', 'true');
-                  }} />
-                ) : (
-                  <Navigate to="/materias" replace />
-                )}
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/notebooks/:id"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <NotebookDetailWrapper />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <ConceptDetail />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/tools/explain/:type/:notebookId"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <ExplainConceptPage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route path="/shared/:shareId" element={<SharedNotebook />} />
-        
-        {/* Nueva ruta para configuración de voz */}
-        <Route
-          path="/settings/voice"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <VoiceSettingsPage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nueva ruta para estudio */}
-        <Route
-          path="/study"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <StudyModePage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nueva ruta para progreso */}
-        <Route
-          path="/progress"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <ProgressPage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nueva ruta para perfil */}
-        <Route
-          path="/profile"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <ProfilePage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nueva ruta para quiz */}
-        <Route
-          path="/quiz"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <QuizModePage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Nueva ruta para games */}
-        <Route
-          path="/games"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <GamesPage />
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Rutas para el sistema escolar */}
-        <Route
-          path="/school/teacher"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/notebooks/:id"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <NotebookDetailWrapper />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/notebooks/:notebookId/concepto/:conceptoId/:index"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ConceptDetail />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/tools/explain/:type/:notebookId"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ExplainConceptPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route path="/shared/:shareId" element={<SharedNotebook />} />
+          
+          {/* Nueva ruta para configuración de voz */}
+          <Route
+            path="/settings/voice"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <VoiceSettingsPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para estudio */}
+          <Route
+            path="/study"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <StudyModePage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para progreso */}
+          <Route
+            path="/progress"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ProgressPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para perfil */}
+          <Route
+            path="/profile"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ProfilePage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para quiz */}
+          <Route
+            path="/quiz"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <QuizModePage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para games */}
+          <Route
+            path="/games"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <GamesPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Rutas para el sistema escolar */}
+          <Route
+            path="/school/teacher"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolTeacherMateriasPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/school/teacher/analytics"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolTeacherAnalyticsPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/school/teacher/materias/:materiaId/notebooks"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolTeacherMateriaNotebooksPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          {/* La ruta /school/student ya no es necesaria - los estudiantes usan las rutas normales */}
+          <Route
+            path="/school/student"
+            element={<Navigate to="/materias" replace />}
+          />
+          
+          {/* Ruta para el panel de administración escolar */}
+          <Route
+            path="/school/admin"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolAdminPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Ruta para el panel del tutor escolar */}
+          <Route
+            path="/school/tutor"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolTutorPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Ruta para el panel de control del súper admin */}
+          <Route
+            path="/super-admin"
+            element={<SuperAdminRoute />}
+          />
+          <Route
+            path="/school/notebooks/:id"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
                   <SchoolUserGuard>
-                    <SchoolTeacherMateriasPage />
+                    <SchoolNotebookDetail />
                   </SchoolUserGuard>
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/school/teacher/analytics"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/school/notebooks/:notebookId/concepto/:conceptoId/:index"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
                   <SchoolUserGuard>
-                    <SchoolTeacherAnalyticsPage />
+                    <SchoolNotebookConcepts />
                   </SchoolUserGuard>
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/school/teacher/materias/:materiaId/notebooks"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
-                  <SchoolUserGuard>
-                    <SchoolTeacherMateriaNotebooksPage />
-                  </SchoolUserGuard>
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        {/* La ruta /school/student ya no es necesaria - los estudiantes usan las rutas normales */}
-        <Route
-          path="/school/student"
-          element={<Navigate to="/materias" replace />}
-        />
-        
-        {/* Ruta para el panel de administración escolar */}
-        <Route
-          path="/school/admin"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
-                  <SchoolUserGuard>
-                    <SchoolAdminPage />
-                  </SchoolUserGuard>
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Ruta para el panel del tutor escolar */}
-        <Route
-          path="/school/tutor"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <PasswordChangeGuard>
-                  <SchoolUserGuard>
-                    <SchoolTutorPage />
-                  </SchoolUserGuard>
-                </PasswordChangeGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        
-        {/* Ruta para el panel de control del súper admin */}
-        <Route
-          path="/super-admin"
-          element={<SuperAdminRoute />}
-        />
-        <Route
-          path="/school/notebooks/:id"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolNotebookDetail />
-                </SchoolUserGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route
-          path="/school/notebooks/:notebookId/concepto/:conceptoId/:index"
-          element={
-            isAuthenticated ? (
-              <EmailVerificationGuard>
-                <SchoolUserGuard>
-                  <SchoolNotebookConcepts />
-                </SchoolUserGuard>
-              </EmailVerificationGuard>
-            ) : <Navigate to="/login" replace />
-          }
-        />
-        <Route path="/calendar" element={<CalendarPage />} />
-      </Routes>
-      {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') && location.pathname !== '/super-admin' ? <MobileNavigation /> : null)}
-      {/* Sistema de gestión de cookies - siempre visible */}
-      <CookieManager />
-      {/* <AuthDiagnostic /> */}
-    </UserContext.Provider>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route path="/calendar" element={<CalendarPage />} />
+        </Routes>
+        {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') && location.pathname !== '/super-admin' ? <MobileNavigation /> : null)}
+        {/* Sistema de gestión de cookies - siempre visible */}
+        <CookieManager />
+        {/* <AuthDiagnostic /> */}
+      </UserContext.Provider>
+      <HelpWhatsAppButton />
+    </>
   );
 };
 

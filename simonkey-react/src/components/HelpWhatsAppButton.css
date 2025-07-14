@@ -1,0 +1,82 @@
+.help-fab {
+  position: fixed;
+  right: 0;
+  bottom: 32px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  background: #4F46E5;
+  border-radius: 24px 0 0 24px;
+  box-shadow: 0 4px 16px rgba(79,70,229,0.10);
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow 0.2s, background 0.2s, width 0.25s;
+  overflow: hidden;
+  color: #fff;
+  min-width: 48px;
+  width: 48px;
+  height: 48px;
+}
+.help-fab.expanded {
+  width: 220px;
+}
+.help-fab-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 50%;
+  transition: box-shadow 0.2s;
+  color: #fff;
+  font-size: 2.2rem;
+}
+.help-fab-icon svg {
+  width: 56px;
+  height: 56px;
+}
+.help-fab-text {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  opacity: 0;
+  margin-left: 0;
+  transition: opacity 0.25s, margin-left 0.25s;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.help-fab.expanded .help-fab-text {
+  opacity: 1;
+  margin-left: 8px;
+}
+.help-fab.expanded .help-fab-icon {
+  box-shadow: 0 8px 24px rgba(79,70,229,0.18);
+}
+@media (max-width: 700px) {
+  .help-fab {
+    right: 0;
+    bottom: 12px;
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px 0 0 20px;
+  }
+  .help-fab.expanded {
+    width: 140px;
+  }
+  .help-fab-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .help-fab-icon svg {
+    width: 44px;
+    height: 44px;
+  }
+  .help-fab-text {
+    font-size: 0.95rem;
+  }
+} 

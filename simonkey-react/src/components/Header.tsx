@@ -62,29 +62,6 @@ const Header: React.FC = () => {
                 <span style={{ color: 'black' }}>key</span>
               </span>
             </Link>
-            {/* Botón de notificaciones */}
-            <button
-              className="notification-btn"
-              aria-label="Notificaciones"
-              onClick={() => setShowNotifications((v) => !v)}
-              style={{ position: 'relative', marginRight: '8px', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              <FontAwesomeIcon icon={faBell} size="lg" />
-              {hasNotification && (
-                <span style={{
-                  position: 'absolute',
-                  top: 2,
-                  right: 2,
-                  width: 10,
-                  height: 10,
-                  background: 'red',
-                  borderRadius: '50%',
-                  border: '2px solid white',
-                  display: 'inline-block',
-                  zIndex: 2,
-                }} />
-              )}
-            </button>
             {/* Botón hamburguesa */}
             <button className="hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
               <span className="hamburger-line"></span>

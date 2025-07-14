@@ -140,27 +140,40 @@ const HowItWorks: React.FC = () => {
             <div className="step">
               <div className="step-number">1</div>
               <div className="step-content">
-                <h3 className="step-title">Importa tus materiales</h3>
+                <h3 className="step-title two-line-title up">Sube tus archivos</h3>
+                <div style={{width: '32px', height: '2px', background: '#4F46E5', margin: '10px auto 16px auto', borderRadius: 2}} />
                 <p className="step-description">
-                  Sube documentos, presentaciones e imágenes y pide a Simonkey que extraiga la información más relevante.
+                  Carga tus documentos (PDF, Word, PPT, etc.) y deja que Simonkey te ayude extrayendo la información clave para que estudies más fácil.
                 </p>
               </div>
             </div>
             <div className="step">
               <div className="step-number">2</div>
               <div className="step-content">
-                <h3 className="step-title">Estudia inteligentemente</h3>
+                <h3 className="step-title two-line-title">Estudia de forma más inteligente</h3>
+                <div style={{width: '32px', height: '2px', background: '#4F46E5', margin: '10px auto 16px auto', borderRadius: 2}} />
                 <p className="step-description">
-                  Estudia con nuestra IA que optimiza tus sesiones de estudio y te da insights y retroalimentación al momento.
+                  Usa sesiones personalizadas, quizzes y consejos de la IA para aprender mejor y más rápido.
                 </p>
               </div>
             </div>
             <div className="step">
               <div className="step-number">3</div>
               <div className="step-content">
-                <h3 className="step-title">Compite con tu salón de clase</h3>
+                <h3 className="step-title two-line-title up">Mide tu progreso</h3>
+                <div style={{width: '32px', height: '2px', background: '#4F46E5', margin: '10px auto 16px auto', borderRadius: 2}} />
                 <p className="step-description">
-                  Tu constancia y habilidad al estudiar se verán reflejados en tu score. ¡Compite con tu salón para ser el mejor!
+                  Consulta tus avances, pon metas claras y recibe recomendaciones para mejorar cada día.
+                </p>
+              </div>
+            </div>
+            <div className="step">
+              <div className="step-number">4</div>
+              <div className="step-content">
+                <h3 className="step-title two-line-title">Compite por el primer puesto</h3>
+                <div style={{width: '32px', height: '2px', background: '#4F46E5', margin: '10px auto 16px auto', borderRadius: 2}} />
+                <p className="step-description">
+                  Reta a tus compañeros, sube en el ranking y demuestra que puedes ser el mejor de la clase.
                 </p>
               </div>
             </div>
