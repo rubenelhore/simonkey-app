@@ -146,15 +146,19 @@ const Dashboard = () => {
         <h2>Tu Resumen de Estudio</h2>
       </div>
       
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr 320px', gap: '1.5rem' }}>
+        {/* Columna izquierda: Racha y Categorías */}
+        <div className="dashboard-left" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <StudyStreak />
+          <QuickActions />
+        </div>
+        {/* Columna central: Stats y Actividad */}
         <div className="dashboard-main">
           <StatsSummary stats={stats} />
           <RecentActivity activities={recentActivity} />
         </div>
-        
+        {/* Columna derecha: Recordatorio */}
         <div className="dashboard-sidebar">
-          <StudyStreak />
-          <QuickActions />
           <StudyReminder />
         </div>
       </div>

@@ -836,7 +836,7 @@ const AppContent: React.FC = () => {
         <CookieManager />
         {/* <AuthDiagnostic /> */}
       </UserContext.Provider>
-      <HelpWhatsAppButton />
+      {!isAuthenticated && <HelpWhatsAppButton />}
     </>
   );
 };

@@ -3,11 +3,16 @@
 /* Contenedor principal */
 .materias-main {
   display: flex;
-  padding: 2rem;
+  padding-top: 2rem;
+  padding-bottom: 0;
+  padding-left: 2rem;
+  padding-right: 2rem;
   gap: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   min-height: calc(100vh - 70px);
+  width: 100vw;
+  box-sizing: border-box;
 }
 
 /* Vista Admin específica */
@@ -20,12 +25,28 @@
 .left-column {
   width: 280px;
   flex-shrink: 0;
+  min-height: calc(100vh - 70px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
 }
 
 /* Sección de lista de materias */
 .materias-list-section {
   flex: 1;
   min-width: 0;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 2rem 2.5rem;
+  box-sizing: border-box;
+  min-height: calc(100vh - 70px);
+  display: flex;
+  flex-direction: column;
 }
 
 /* h2 removed for cleaner view
@@ -51,24 +72,24 @@
 
 /* Botón crear materia */
 .create-materia-button {
-  background: linear-gradient(135deg, #6147FF 0%, #7c3aed 100%);
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, rgb(238, 242, 255) 0%, rgb(224, 231, 255) 100%);
+  color: #4F46E5;
+  border: 1.5px solid #e0e7ff;
   padding: 0.875rem 1.5rem;
   border-radius: 12px;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(79,70,229,0.07);
 }
 
 .create-materia-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.3);
+  box-shadow: 0 6px 20px rgba(79,70,229,0.13);
 }
 
 .create-materia-button i {
@@ -676,4 +697,17 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.streak-card,
+.category-dropdown-tracker {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.materias-list-section, .left-column {
+  border: none !important;
+  border-width: 0 !important;
 }

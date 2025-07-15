@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { db } from './config';
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 interface RankingEntry {
   studentId: string;
@@ -229,42 +230,42 @@ export const updateInstitutionRankings = functions.https.onCall(async (request) 
  * Cloud Function programada para actualizar rankings de todas las instituciones
  * Se ejecuta cada 30 minutos
  */
-export const scheduledRankingsUpdate = functions.runWith({ timeoutSeconds: 540, memory: '1GB' }).pubsub.schedule('every 30 minutes').onRun(async (context) => {
+export const scheduledRankingsUpdate = onSchedule(
+  {
+    schedule: 'every 30 minutes',
+    timeoutSeconds: 540,
+    memory: '1GiB',
+    region: 'us-central1',
+    serviceAccount: 'simonkey-5c78f@appspot.gserviceaccount.com' // Service account por defecto
+  },
+  async (event) => {
     try {
       console.log('[scheduledRankingsUpdate] Iniciando actualización programada de rankings');
-      
       // Obtener todas las instituciones
       const institutionsSnapshot = await db.collection('schoolInstitutions').get();
-      
       console.log(`[scheduledRankingsUpdate] Total de instituciones: ${institutionsSnapshot.size}`);
-      
       let successCount = 0;
       let errorCount = 0;
-      
       // Procesar cada institución
       for (const institutionDoc of institutionsSnapshot.docs) {
         const institutionId = institutionDoc.id;
-        
         try {
           console.log(`[scheduledRankingsUpdate] Procesando institución: ${institutionId}`);
-          
           // Actualizar rankings para esta institución
           await updateInstitutionRankingsInternal(institutionId);
-          
           successCount++;
         } catch (error) {
           console.error(`[scheduledRankingsUpdate] Error procesando institución ${institutionId}:`, error);
           errorCount++;
         }
       }
-      
       console.log(`[scheduledRankingsUpdate] Actualización completada. Éxito: ${successCount}, Errores: ${errorCount}`);
-      
     } catch (error) {
       console.error('[scheduledRankingsUpdate] Error general:', error);
       throw error;
     }
-  });
+  }
+);
 
 /**
  * Función interna para actualizar rankings de una institución

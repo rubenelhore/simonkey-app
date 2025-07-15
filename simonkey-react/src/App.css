@@ -114,3 +114,12 @@ html, body {
   width: 100% !important;
   box-sizing: border-box;
 }
+
+.rbc-current-time-indicator {
+  position: absolute;
+  z-index: 2;
+  height: 2px;
+  background: #e11d48 !important; /* rojo profesional */
+  box-shadow: 0 0 6px #e11d48;
+  pointer-events: none;
+}

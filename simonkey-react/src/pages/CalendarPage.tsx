@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { es as esES } from 'date-fns/locale';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { db, collection, addDoc, query, where, getDocs, Timestamp, doc, updateDoc, deleteDoc, getDoc } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +23,59 @@ interface StudyEvent {
   type: 'quiz' | 'smart' | 'custom';
   notebookId?: string;
   notebookTitle?: string;
+  date?: Date; // <-- Para eventos personalizados con hora
+  details?: string; // <-- Para detalles opcionales
+}
+
+// Configuración de localización para react-big-calendar
+const locales = {
+  'es': esES,
+};
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
+  getDay,
+  locales,
+});
+
+// Toolbar personalizado para ocultar el botón 'Hoy'
+import { ToolbarProps } from 'react-big-calendar';
+function CustomToolbar(toolbar: ToolbarProps<{ title: string; start: Date; end: Date; type: string; notebookId?: string }, object>) {
+  return (
+    <div className="rbc-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <span className="rbc-btn-group">
+        <button type="button" onClick={() => toolbar.onNavigate('PREV')}>Anterior</button>
+        <button type="button" onClick={() => toolbar.onNavigate('NEXT')}>Siguiente</button>
+      </span>
+      <span className="rbc-toolbar-label" style={{ fontWeight: 700, fontSize: 18 }}>{toolbar.label}</span>
+      <span className="rbc-btn-group" style={{ display: 'flex', gap: 0 }}>
+        {["day", "week", "month"].map((view, idx) => (
+          <button
+            key={view}
+            type="button"
+            className={toolbar.view === view ? 'rbc-active' : ''}
+            onClick={() => toolbar.onView(view as any)}
+            style={{
+              // Unir botones: sin margen entre ellos, solo el primero puede tener border-radius a la izquierda y el último a la derecha
+              marginLeft: 0,
+              borderRadius: idx === 0 ? '6px 0 0 6px' : idx === 2 ? '0 6px 6px 0' : '0',
+              fontWeight: toolbar.view === view ? 700 : 400,
+              borderRight: idx < 2 ? '1px solid #e0e7ef' : 'none',
+              borderLeft: 'none',
+              borderTop: '1.5px solid #e0e7ef',
+              borderBottom: '1.5px solid #e0e7ef',
+              background: toolbar.view === view ? '#e0e7ff' : '#fff',
+              color: toolbar.view === view ? '#6147FF' : '#333',
+              zIndex: 1
+            }}
+          >
+            {view === 'day' ? 'Día' : view === 'week' ? 'Semana' : 'Mes'}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
 }
 
 const CalendarPage: React.FC = () => {
@@ -38,6 +93,21 @@ const CalendarPage: React.FC = () => {
   const { isSchoolStudent } = useUserType();
   const { schoolNotebooks } = useSchoolStudentData();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  // Estado para la vista del calendario
+  const [calendarView, setCalendarView] = useState<"day" | "week" | "month">("month");
+  // Día actual para la vista de día
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d;
+  }, []);
+  const todayEvents = eventsByDate[today.toDateString()] || [];
+  // Estado para la fecha actual del calendario
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<any>(null); // Nuevo estado para el evento seleccionado
+  const [showEventDetailsModal, setShowEventDetailsModal] = useState(false); // Nuevo estado para el modal de detalles
+  const [savingEvent, setSavingEvent] = useState(false); // Nuevo estado para feedback de guardado
+  const [deletingEvent, setDeletingEvent] = useState(false); // Nuevo estado para feedback de borrado
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
@@ -282,13 +352,13 @@ const CalendarPage: React.FC = () => {
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const date = data.date && data.date.toDate ? data.date.toDate() : new Date(data.date);
-        const key = date.toDateString();
-        if (!allEvents[key]) allEvents[key] = [];
-        allEvents[key].push({ 
-          id: docSnap.id, 
+        // Usar el id como clave única
+        allEvents[docSnap.id] = [{
+          id: docSnap.id,
           title: data.title,
-          type: 'custom'
-        });
+          type: 'custom',
+          date: date
+        }];
       });
       
       // 2. Cargar eventos de estudio para cada notebook
@@ -351,7 +421,6 @@ const CalendarPage: React.FC = () => {
   // Guardar evento en Firestore
   const handleCreateEvent = async () => {
     if (!newEventDate || !newEventTitle.trim() || !user) return;
-    const key = newEventDate.toDateString();
     const eventData = {
       userId: user.uid,
       date: Timestamp.fromDate(newEventDate),
@@ -359,10 +428,20 @@ const CalendarPage: React.FC = () => {
       createdAt: Timestamp.now()
     };
     const docRef = await addDoc(collection(db, 'calendarEvents'), eventData);
-    setEventsByDate(prev => ({
-      ...prev,
-      [key]: prev[key] ? [...prev[key], { id: docRef.id, title: newEventTitle.trim(), type: 'custom' }] : [{ id: docRef.id, title: newEventTitle.trim(), type: 'custom' }]
-    }));
+    setEventsByDate(prev => {
+      // En vez de agrupar por día, agregamos el evento con la fecha completa
+      const newEvent: StudyEvent & { date: Date } = {
+        id: docRef.id,
+        title: newEventTitle.trim(),
+        type: 'custom',
+        date: newEventDate
+      };
+      // Creamos una copia plana de todos los eventos previos
+      const allEvents: Record<string, (StudyEvent & { date?: Date })[]> = { ...prev };
+      // Usamos el id como clave única para evitar colisiones
+      allEvents[docRef.id] = [newEvent];
+      return allEvents;
+    });
     setShowCreateEventModal(false);
   };
 
@@ -393,6 +472,67 @@ const CalendarPage: React.FC = () => {
     setEditingEventTitle('');
     // Cerrar el popup después de eliminar el evento
     closeEventModal();
+  };
+
+  // Nueva función para abrir el modal de detalles al hacer click en un evento
+  const handleSelectEvent = (event: any) => {
+    setSelectedEvent(event);
+    setShowEventDetailsModal(true);
+  };
+
+  // Nueva función para cerrar el modal de detalles
+  const closeEventDetailsModal = () => {
+    setShowEventDetailsModal(false);
+    setSelectedEvent(null);
+  };
+
+  // Nueva función para guardar cambios en el evento personalizado
+  const handleSaveEventDetails = async () => {
+    if (!selectedEvent || !selectedEvent.id) return;
+    setSavingEvent(true);
+    try {
+      await updateDoc(doc(db, 'calendarEvents', selectedEvent.id), {
+        title: selectedEvent.title,
+        date: Timestamp.fromDate(new Date(selectedEvent.date)),
+        details: selectedEvent.details || ''
+      });
+      setEventsByDate(prev => {
+        const updated = { ...prev };
+        if (updated[selectedEvent.id]) {
+          updated[selectedEvent.id][0] = {
+            ...updated[selectedEvent.id][0],
+            title: selectedEvent.title,
+            date: new Date(selectedEvent.date),
+            details: selectedEvent.details || ''
+          };
+        }
+        return updated;
+      });
+      closeEventDetailsModal();
+    } catch (e) {
+      alert('Error al guardar los cambios. Intenta de nuevo.');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  // Nueva función para borrar el evento personalizado desde el modal
+  const handleDeleteEventFromModal = async () => {
+    if (!selectedEvent || !selectedEvent.id) return;
+    setDeletingEvent(true);
+    try {
+      await deleteDoc(doc(db, 'calendarEvents', selectedEvent.id));
+      setEventsByDate(prev => {
+        const updated = { ...prev };
+        delete updated[selectedEvent.id];
+        return updated;
+      });
+      closeEventDetailsModal();
+    } catch (e) {
+      alert('Error al eliminar el evento. Intenta de nuevo.');
+    } finally {
+      setDeletingEvent(false);
+    }
   };
 
   // Formato de fecha para mostrar
@@ -486,159 +626,110 @@ const CalendarPage: React.FC = () => {
     return eventos.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [eventsByDate, weekStart, weekEnd]);
 
+  // Adaptar eventos a formato de react-big-calendar
+  const allEvents = useMemo(() => {
+    const result: { id: string; title: string; start: Date; end: Date; type: string; notebookId?: string; details?: string; allDay?: boolean }[] = [];
+    Object.values(eventsByDate).forEach(events => {
+      events.forEach(ev => {
+        let startDate: Date | null = null;
+        if ('date' in ev && ev.date instanceof Date) {
+          startDate = ev.date;
+        } else if ((ev as any).date && (ev as any).date.toDate) {
+          startDate = (ev as any).date.toDate();
+        }
+        if (!startDate) startDate = new Date();
+        // Si es quiz o smart, marcar como allDay y ajustar hora a 00:00
+        if (ev.type === 'quiz' || ev.type === 'smart') {
+          const allDayDate = new Date(startDate);
+          allDayDate.setHours(0, 0, 0, 0);
+          result.push({
+            id: ev.id,
+            title: ev.title,
+            start: allDayDate,
+            end: allDayDate,
+            type: ev.type,
+            notebookId: ev.notebookId,
+            details: ev.details || '',
+            allDay: true
+          });
+        } else {
+          result.push({
+            id: ev.id,
+            title: ev.title,
+            start: startDate,
+            end: new Date(startDate.getTime() + 60 * 60 * 1000),
+            type: ev.type,
+            notebookId: ev.notebookId,
+            details: ev.details || '',
+            allDay: false
+          });
+        }
+      });
+    });
+    return result;
+  }, [eventsByDate]);
+
   return (
     <>
       <HeaderWithHamburger title="Calendario" />
-      <div style={{ minHeight: 'calc(100vh - 80px)', background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)', display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', padding: '0 0' }}>
-        {/* Módulo lateral izquierdo */}
-        <aside style={{
-          width: 280,
-          minWidth: 220,
-          maxWidth: 320,
-          background: 'white',
-          borderRadius: 28,
-          boxShadow: '0 2px 8px rgba(97,71,255,0.05)',
-          padding: 32,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-          marginLeft: 32,
-          marginRight: 32,
-          marginTop: 32,
-          marginBottom: 32,
-          minHeight: 724
-        }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 24, color: '#6147FF', letterSpacing: 1 }}>Acciones</h2>
-          <button style={{
-            background: 'linear-gradient(90deg, #6147FF 0%, #A685E2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 16,
-            padding: '16px 28px',
-            fontSize: 18,
-            fontWeight: 600,
-            marginBottom: 20,
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(97,71,255,0.08)',
-            transition: 'background 0.2s'
-          }}
-          onClick={openCreateEventModal}
-          >
-            + Crear evento
-          </button>
-          <div style={{ marginTop: 32, color: '#888', fontSize: 16, textAlign: 'center' }}>
-            Aquí podrás crear, ver y gestionar tus eventos del calendario.
-          </div>
-          
-          {/* Leyenda de tipos de eventos */}
-          <div style={{ 
-            marginTop: 40, 
-            padding: 20, 
-            background: '#f8f9fa', 
-            borderRadius: 12, 
-            width: '100%' 
-          }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#6147FF', marginBottom: 12 }}>Tipos de eventos</h3>
-            <div style={{ fontSize: 14, color: '#666' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }}></div>
-                <span>📝 Quiz disponible</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}></div>
-                <span>🧠 Estudio inteligente</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6147FF' }}></div>
-                <span>📅 Evento personalizado</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+      <div style={{ minHeight: 'calc(100vh - 80px)', background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '0 0' }}>
         {/* Calendario principal */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', minHeight: 640, maxWidth: '100%', marginRight: 32 }}>
-          <div style={{ width: '100%', maxWidth: 1400, minWidth: 0, height: 480, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginTop: 32 }}>
-            <Calendar
-              onChange={(newValue) => {
-                if (!showEventModal) {
-                  setValue(newValue);
-                }
-              }}
-              value={showEventModal ? null : value}
-              locale="es-ES"
-              className="big-calendar formal-calendar"
-              onClickDay={handleDayClick}
-              tileContent={renderTileContent}
-              tileClassName={tileClassName}
-            />
-          </div>
-          {/* Módulo de acciones para esta semana */}
-          <div style={{
-            width: '100%',
-            maxWidth: 1400,
-            margin: '24px 0 0 0',
-            background: 'white',
-            borderRadius: 20,
-            boxShadow: '0 4px 24px rgba(97,71,255,0.07)',
-            padding: '40px 48px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            height: 210,
-            overflow: 'hidden',
-            position: 'relative'
-          }}>
-            <h3 style={{ 
-              fontSize: '1.3rem', 
-              fontWeight: 700, 
-              color: '#6147FF', 
-              marginBottom: 16
-            }}>Acciones para esta semana</h3>
-              {eventosSemana.length === 0 ? (
-                <div style={{ color: '#888', fontSize: 20, textAlign: 'center', width: '100%', margin: '24px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                  <span role="img" aria-label="changuito durmiendo" style={{ fontSize: 28 }}>🙈💤</span>
-                  No hay eventos para esta semana
-                </div>
-              ) : (
-                <ul style={{ color: '#333', fontSize: 18, margin: 0, padding: 0, listStyle: 'none', width: '100%' }}>
-                  {eventosSemana.map((ev, idx) => {
-                    const getEventIcon = () => {
-                      switch(ev.type) {
-                        case 'quiz': return '📝';
-                        case 'smart': return '🧠';
-                        default: return '📅';
-                      }
-                    };
-                    
-                    return (
-                      <li key={idx} style={{ 
-                        marginBottom: 10,
-                        cursor: ev.type !== 'custom' ? 'pointer' : 'default',
-                        transition: 'color 0.2s'
-                      }}
-                      onClick={() => {
-                        if (ev.type !== 'custom' && ev.notebookId) {
-                          navigate('/study', { state: { selectedNotebookId: ev.notebookId } });
-                        }
-                      }}
-                      onMouseEnter={(e) => {
-                        if (ev.type !== 'custom') {
-                          e.currentTarget.style.color = '#6147FF';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = '#333';
-                      }}
-                      >
-                        <span style={{ marginRight: 8 }}>{getEventIcon()}</span>
-                        <b>{ev.date.toLocaleDateString('es-ES', { weekday: 'long' })}:</b> {ev.title}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-          </div>
+        <div style={{ width: '100%', maxWidth: 1400, minWidth: 0, background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(79,70,229,0.07)', padding: '18px 18px 0 18px', marginTop: 32 }}>
+          <BigCalendar
+            localizer={localizer}
+            events={allEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 700, width: '100%' }}
+            views={{ month: true, week: true, day: true }}
+            view={calendarView}
+            onView={v => setCalendarView(v as any)}
+            defaultView="month"
+            date={currentDate}
+            onNavigate={date => setCurrentDate(date)}
+            selectable
+            onSelectSlot={(slotInfo: { start: Date }) => {
+              if (calendarView === 'day' && slotInfo.start) {
+                setNewEventDate(new Date(slotInfo.start)); // Asegura que la hora seleccionada se use
+                setShowCreateEventModal(true);
+              } else {
+                setCalendarView('day');
+                setCurrentDate(slotInfo.start);
+              }
+            }}
+            onSelectEvent={handleSelectEvent}
+            messages={{
+              month: 'Mes',
+              week: 'Semana',
+              day: 'Día',
+              today: 'Hoy',
+              previous: 'Anterior',
+              next: 'Siguiente',
+              agenda: 'Agenda',
+              date: 'Fecha',
+              time: 'Hora',
+              event: 'Evento',
+              noEventsInRange: 'No hay eventos en este rango',
+            }}
+            toolbar={true}
+            components={{ toolbar: CustomToolbar }}
+            popup={true}
+            culture="es"
+            min={new Date(1970, 0, 1, 0, 0)}
+            max={new Date(1970, 0, 1, 23, 59)}
+            slotPropGetter={(date) => {
+              const hour = date.getHours && typeof date.getHours === 'function' ? date.getHours() : null;
+              if (hour !== null && hour >= 0 && hour < 6) {
+                return {
+                  style: {
+                    background: '#f3f4f6', // gris profesional
+                    opacity: 1
+                  }
+                };
+              }
+              return { style: {} };
+            }}
+          />
         </div>
       </div>
       {/* Modal de eventos del día */}
@@ -796,6 +887,121 @@ const CalendarPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Modal de detalles del evento seleccionado */}
+      {showEventDetailsModal && selectedEvent && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.25)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        onClick={closeEventDetailsModal}
+        >
+          <div style={{
+            background: 'white',
+            borderRadius: 18,
+            boxShadow: '0 8px 32px rgba(97,71,255,0.12)',
+            padding: '40px 32px 32px 32px',
+            minWidth: 340,
+            maxWidth: 400,
+            textAlign: 'center',
+            position: 'relative',
+          }}
+          onClick={e => e.stopPropagation()}
+          >
+            <button onClick={closeEventDetailsModal} style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              background: 'none',
+              border: 'none',
+              fontSize: 22,
+              color: '#6147FF',
+              cursor: 'pointer',
+              fontWeight: 700
+            }}>&times;</button>
+            <h2 style={{ color: '#6147FF', fontWeight: 700, fontSize: '1.3rem', marginBottom: 16 }}>
+              Detalles del evento
+            </h2>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Título:</label><br />
+              <input type="text" value={selectedEvent.title} onChange={e => setSelectedEvent({ ...selectedEvent, title: e.target.value })} style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6, width: '90%' }} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Fecha:</label><br />
+              <input type="date" value={selectedEvent.date ? new Date(selectedEvent.date).toISOString().split('T')[0] : ''}
+                onChange={e => {
+                  if (e.target.value && selectedEvent.date) {
+                    const [year, month, day] = e.target.value.split('-');
+                    const prev = new Date(selectedEvent.date);
+                    const newDate = new Date(Number(year), Number(month) - 1, Number(day), prev.getHours(), prev.getMinutes());
+                    setSelectedEvent({ ...selectedEvent, date: newDate });
+                  }
+                }}
+                style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6 }} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Hora:</label><br />
+              <input type="time" value={selectedEvent.date ? new Date(selectedEvent.date).toISOString().substring(11,16) : ''}
+                onChange={e => {
+                  if (e.target.value && selectedEvent.date) {
+                    const [hours, minutes] = e.target.value.split(':');
+                    const prev = new Date(selectedEvent.date);
+                    const newDate = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate(), Number(hours), Number(minutes));
+                    setSelectedEvent({ ...selectedEvent, date: newDate });
+                  }
+                }}
+                style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6, minWidth: 90 }} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Detalles:</label><br />
+              <textarea value={selectedEvent.details || ''} onChange={e => setSelectedEvent({ ...selectedEvent, details: e.target.value })} style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6, width: '90%', minHeight: 60 }} placeholder="Agrega detalles del evento (opcional)" />
+            </div>
+            <button style={{
+              background: savingEvent ? '#A685E2' : 'linear-gradient(90deg, #6147FF 0%, #A685E2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 12,
+              padding: '12px 32px',
+              fontSize: 18,
+              fontWeight: 600,
+              cursor: savingEvent ? 'not-allowed' : 'pointer',
+              boxShadow: '0 2px 8px rgba(97,71,255,0.08)',
+              transition: 'background 0.2s',
+              marginRight: 12,
+              opacity: savingEvent ? 0.7 : 1
+            }}
+            onClick={handleSaveEventDetails}
+            disabled={savingEvent || deletingEvent}
+            >
+              {savingEvent ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+            <button style={{
+              background: deletingEvent ? '#eee' : '#fff',
+              color: '#c00',
+              border: '1.5px solid #c00',
+              borderRadius: 12,
+              padding: '12px 32px',
+              fontSize: 18,
+              fontWeight: 600,
+              cursor: deletingEvent ? 'not-allowed' : 'pointer',
+              marginLeft: 12,
+              opacity: deletingEvent ? 0.7 : 1
+            }}
+            onClick={handleDeleteEventFromModal}
+            disabled={deletingEvent || savingEvent}
+            >
+              {deletingEvent ? 'Eliminando...' : 'Borrar evento'}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Modal dummy para crear evento */}
       {showCreateEventModal && (
         <div style={{
@@ -834,18 +1040,36 @@ const CalendarPage: React.FC = () => {
             <h2 style={{ color: '#6147FF', fontWeight: 700, fontSize: '1.3rem', marginBottom: 16 }}>
               Crear evento
             </h2>
-            <div style={{ marginBottom: 18 }}>
+            <div>
               <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Fecha:</label><br />
-              <input type="date" value={newEventDate ? newEventDate.toISOString().split('T')[0] : ''} 
+              <input type="date" value={newEventDate ? newEventDate.toISOString().split('T')[0] : ''}
                 onChange={e => {
-                  if (e.target.value) {
+                  if (e.target.value && newEventDate) {
+                    const [year, month, day] = e.target.value.split('-');
+                    const prev = newEventDate;
+                    const newDate = new Date(Number(year), Number(month) - 1, Number(day), prev.getHours(), prev.getMinutes());
+                    setNewEventDate(newDate);
+                  } else if (e.target.value) {
                     const [year, month, day] = e.target.value.split('-');
                     setNewEventDate(new Date(Number(year), Number(month) - 1, Number(day)));
                   } else {
                     setNewEventDate(null);
                   }
-                }} 
+                }}
                 style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6 }} />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Hora:</label><br />
+              <input type="time" value={newEventDate ? newEventDate.toISOString().substring(11,16) : ''}
+                onChange={e => {
+                  if (e.target.value && newEventDate) {
+                    const [hours, minutes] = e.target.value.split(':');
+                    const prev = newEventDate;
+                    const newDate = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate(), Number(hours), Number(minutes));
+                    setNewEventDate(newDate);
+                  }
+                }}
+                style={{ fontSize: 16, padding: 8, borderRadius: 8, border: '1.5px solid #e0e7ef', marginTop: 6, minWidth: 90 }} />
             </div>
             <div style={{ marginBottom: 24 }}>
               <label style={{ fontWeight: 600, color: '#6147FF', fontSize: 16 }}>Título del evento:</label><br />
