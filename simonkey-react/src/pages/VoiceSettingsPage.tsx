@@ -203,7 +203,7 @@ const VoiceSettingsPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando configuraciones de voz...</p>
       </div>
     );

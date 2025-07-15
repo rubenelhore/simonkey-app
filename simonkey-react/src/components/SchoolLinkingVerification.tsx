@@ -499,7 +499,7 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     return (
       <div className="school-linking-verification">
         <div className="loading-overlay">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Cargando datos de vinculación...</p>
         </div>
       </div>

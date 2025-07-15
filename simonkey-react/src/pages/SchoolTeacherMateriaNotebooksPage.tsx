@@ -357,7 +357,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
   if (loading || authLoading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando cuadernos...</p>
       </div>
     );

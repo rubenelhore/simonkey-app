@@ -1024,7 +1024,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
       {loading && (
         <div className="loading-overlay">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Procesando...</p>
         </div>
       )}

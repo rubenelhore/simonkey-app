@@ -108,10 +108,10 @@ const StudyStreak = () => {
             weeklyGoal: streakData.weeklyGoal
           });
         } else {
-          // Si no existe, crear uno nuevo
+          // Si no existe, crear uno nuevo con racha en 0
           streakData.days[dayOfWeek] = true;
           streakData.lastVisit = today;
-          streakData.currentStreak = 1;
+          streakData.currentStreak = 0; // Iniciar en 0, no en 1
           
           // Crear el documento de racha
           await updateDoc(streakRef, {

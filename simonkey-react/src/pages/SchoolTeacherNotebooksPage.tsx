@@ -487,7 +487,7 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
     console.log('⏳ SchoolTeacherNotebooksPage - loading...');
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando tus cuadernos escolares...</p>
       </div>
     );

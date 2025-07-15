@@ -288,7 +288,7 @@ const SchoolTutorPage: React.FC = () => {
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando progreso del estudiante...</p>
       </div>
     );

@@ -730,7 +730,7 @@ const ConceptDetail: React.FC = () => {
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando concepto...</p>
       </div>
     );

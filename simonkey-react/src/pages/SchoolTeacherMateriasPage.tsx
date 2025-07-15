@@ -5,7 +5,6 @@ import { useUserType } from '../hooks/useUserType';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import StreakTracker from '../components/StreakTracker';
 import MateriaItem from '../components/MateriaItem';
 import '../styles/Materias.css';
 import '../styles/SchoolSystem.css';
@@ -151,7 +150,6 @@ const SchoolTeacherMateriasPage: React.FC = () => {
       />
       <main className="materias-main">
         <div className="left-column">
-          <StreakTracker />
           <div className="teacher-info-card">
             <h3>👨‍🏫 Panel del Profesor</h3>
             <p>• Explora tus materias asignadas</p>

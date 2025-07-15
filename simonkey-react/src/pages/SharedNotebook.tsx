@@ -134,7 +134,7 @@ const SharedNotebook: React.FC = () => {
   if (authLoading || isLoading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando cuaderno compartido...</p>
       </div>
     );

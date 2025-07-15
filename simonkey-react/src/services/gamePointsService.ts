@@ -10,7 +10,8 @@ import {
   limit,
   getDocs,
   Timestamp,
-  arrayUnion
+  arrayUnion,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -244,6 +245,37 @@ class GamePointsService {
       // Limpiar historial si es muy largo
       if (notebookPoints.pointsHistory.length > 100) {
         await this.cleanupHistory(userId, notebookId);
+      }
+      
+      // Crear sesión de juego para que cuente en la racha
+      try {
+        const gameSessionRef = doc(collection(db, 'gameSessions'));
+        const sessionTimestamp = new Date();
+        await setDoc(gameSessionRef, {
+          userId,
+          notebookId,
+          gameId,
+          gameName,
+          timestamp: Timestamp.fromDate(sessionTimestamp),
+          duration: 60, // Duración estimada en segundos
+          points: finalPoints,
+          bonusType,
+          completed: true
+        });
+        console.log('[GamePointsService] Sesión de juego creada para racha con timestamp:', sessionTimestamp.toISOString());
+        
+        // Disparar evento para actualizar la racha inmediatamente
+        window.dispatchEvent(new CustomEvent('gameCompleted', { 
+          detail: { 
+            userId, 
+            gameName, 
+            points: finalPoints,
+            timestamp: sessionTimestamp
+          } 
+        }));
+      } catch (sessionError) {
+        console.error('[GamePointsService] Error creando sesión de juego:', sessionError);
+        // No lanzar error, continuar aunque falle la sesión
       }
       
       return {

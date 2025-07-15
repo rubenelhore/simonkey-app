@@ -34,6 +34,7 @@ const SchoolNotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [cuaderno, setCuaderno] = useState<any>(null);
+  const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
   const [cargando, setCargando] = useState<boolean>(false);
@@ -74,6 +75,10 @@ const SchoolNotebookDetail = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setCuaderno({ id: docSnap.id, ...data });
+          // Guardar el ID de la materia si existe
+          if (data.idMateria) {
+            setMateriaId(data.idMateria);
+          }
         } else {
           console.error("No such school notebook!");
           navigate('/school/teacher');
@@ -325,7 +330,7 @@ const SchoolNotebookDetail = () => {
   if (!cuaderno) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando cuaderno escolar...</p>
       </div>
     );
@@ -335,7 +340,10 @@ const SchoolNotebookDetail = () => {
     <div className="notebook-detail-container">
       <header className="notebook-detail-header">
         <div className="header-content">
-          <button onClick={() => navigate('/school/teacher')} className="back-button">
+          <button 
+            onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate('/school/teacher')} 
+            className="back-button"
+          >
             <i className="fas fa-arrow-left"></i>
           </button>
           

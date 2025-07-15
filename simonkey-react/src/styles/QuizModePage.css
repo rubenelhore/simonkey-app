@@ -326,6 +326,7 @@
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-color);
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .quiz-progress {
@@ -348,10 +349,19 @@
   transition: width 0.3s ease;
 }
 
-.progress-text {
-  font-size: 14px;
-  color: var(--text-medium);
-  font-weight: 500;
+.quiz-header .progress-text {
+  font-size: 16px !important;
+  color: var(--text-dark) !important;
+  font-weight: 600 !important;
+  order: -1;
+  width: 100%;
+  text-align: center;
+  margin-bottom: 15px;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  text-shadow: none !important;
 }
 
 /* Timer */

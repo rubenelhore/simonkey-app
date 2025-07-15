@@ -49,6 +49,7 @@ const SchoolNotebookConcepts: React.FC = () => {
   const navigate = useNavigate();
   const [concepto, setConcepto] = useState<Concept | null>(null);
   const [cuaderno, setCuaderno] = useState<any>(null);
+  const [materiaId, setMateriaId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
@@ -113,7 +114,13 @@ const SchoolNotebookConcepts: React.FC = () => {
           return;
         }
         
-        setCuaderno({ id: cuadernoSnap.id, ...cuadernoSnap.data() });
+        const cuadernoData = cuadernoSnap.data();
+        setCuaderno({ id: cuadernoSnap.id, ...cuadernoData });
+        
+        // Guardar el ID de la materia si existe
+        if (cuadernoData.idMateria) {
+          setMateriaId(cuadernoData.idMateria);
+        }
         
         const conceptos = conceptoSnap.data().conceptos;
         const idx = parseInt(index);
@@ -343,8 +350,12 @@ const SchoolNotebookConcepts: React.FC = () => {
         });
       }
       
-      // Navegar al notebook
-      navigate(`/school/notebooks/${notebookId}`);
+      // Navegar a la lista de notebooks de la materia si existe, sino al notebook
+      if (materiaId) {
+        navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+      } else {
+        navigate(`/school/notebooks/${notebookId}`);
+      }
       
     } catch (error) {
       console.error('Error eliminando concepto:', error);
@@ -539,7 +550,7 @@ const SchoolNotebookConcepts: React.FC = () => {
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando concepto...</p>
       </div>
     );
@@ -551,7 +562,7 @@ const SchoolNotebookConcepts: React.FC = () => {
         <h2>Error</h2>
         <p>{error || "No se pudo cargar el concepto"}</p>
         <button 
-          onClick={() => navigate(`/school/notebooks/${notebookId}`)}
+          onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate(`/school/notebooks/${notebookId}`)}
           className="back-button"
         >
           <i className="fas fa-arrow-left"></i>
@@ -566,7 +577,7 @@ const SchoolNotebookConcepts: React.FC = () => {
         <div className="header-content">
           <div className="breadcrumb">
             <button 
-              onClick={() => navigate(`/school/notebooks/${notebookId}`)}
+              onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate(`/school/notebooks/${notebookId}`)}
               className="back-button"
             >
               <i className="fas fa-arrow-left"></i>

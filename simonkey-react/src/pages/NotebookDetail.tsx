@@ -619,7 +619,7 @@ const NotebookDetail = () => {
   if (!cuaderno) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando cuaderno...</p>
       </div>
     );
