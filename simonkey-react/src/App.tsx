@@ -183,7 +183,7 @@ const HomePageContent: React.FC = () => {
         }}>
           <div style={{
             width: '100%',
-            background: '#e5e7eb',
+            background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
             padding: '22px 0 22px 0', // menos padding vertical
             margin: 0,
             display: 'flex',

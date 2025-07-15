@@ -56,7 +56,7 @@ const HomePage: React.FC = () => {
         margin: '32px 0 24px 0',
       }}>
         <div style={{
-          background: '#fff',
+          background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
           borderRadius: 14,
           boxShadow: '0 2px 12px rgba(79,70,229,0.07)',
           border: '1.5px solid #e5e7eb',
