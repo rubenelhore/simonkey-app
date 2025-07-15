@@ -304,6 +304,314 @@ export class RankingService {
     
     return ranking.lastUpdated.toDate() < tenMinutesAgo;
   }
+
+  /**
+   * Genera o actualiza el ranking de una materia específica
+   */
+  async generateSubjectRanking(institutionId: string, subjectId: string): Promise<void> {
+    try {
+      console.log(`[RankingService] Generando ranking para materia ${subjectId} en institución ${institutionId}`);
+      
+      // Obtener información de la materia
+      const subjectDoc = await getDoc(doc(db, 'schoolSubjects', subjectId));
+      if (!subjectDoc.exists()) {
+        console.error(`[RankingService] Materia ${subjectId} no encontrada`);
+        return;
+      }
+      
+      const subjectData = subjectDoc.data();
+      const subjectName = subjectData.nombre || subjectData.name || 'Sin nombre';
+      
+      // Obtener todos los estudiantes de la institución
+      const studentsQuery = query(
+        collection(db, 'users'),
+        where('subscription', '==', 'school'),
+        where('schoolRole', '==', 'student'),
+        where('idInstitucion', '==', institutionId)
+      );
+      
+      const studentsSnapshot = await getDocs(studentsQuery);
+      const studentScores: Array<{id: string, name: string, score: number}> = [];
+      
+      // Recopilar scores de todos los estudiantes para esta materia
+      for (const studentDoc of studentsSnapshot.docs) {
+        const studentData = studentDoc.data();
+        const studentId = studentDoc.id;
+        
+        // Obtener KPIs del estudiante
+        const kpisDoc = await getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard'));
+        if (kpisDoc.exists()) {
+          const kpis = kpisDoc.data();
+          const materiaKpis = kpis.materias?.[subjectId];
+          
+          if (materiaKpis && materiaKpis.scoreMateria > 0) {
+            studentScores.push({
+              id: studentId,
+              name: studentData.displayName || studentData.nombre || 'Estudiante',
+              score: materiaKpis.scoreMateria
+            });
+          }
+        }
+      }
+      
+      // Ordenar por score descendente
+      studentScores.sort((a, b) => b.score - a.score);
+      
+      // Crear el documento de ranking
+      const ranking: SubjectRanking = {
+        type: 'subject',
+        subjectId,
+        subjectName,
+        institutionId,
+        lastUpdated: Timestamp.now(),
+        totalStudents: studentScores.length,
+        students: studentScores.slice(0, 100).map((student, index) => ({
+          studentId: student.id,
+          name: student.name,
+          score: student.score,
+          position: index + 1
+        }))
+      };
+      
+      // Guardar el ranking
+      const rankingRef = doc(db, 'institutionRankings', institutionId, 'rankings', `subject_${subjectId}`);
+      await setDoc(rankingRef, ranking);
+      
+      console.log(`[RankingService] Ranking generado para materia ${subjectName} con ${ranking.totalStudents} estudiantes`);
+      
+    } catch (error) {
+      console.error('[RankingService] Error generando ranking de materia:', error);
+    }
+  }
+
+  /**
+   * Genera o actualiza el ranking de un cuaderno específico
+   */
+  async generateNotebookRanking(institutionId: string, notebookId: string): Promise<void> {
+    try {
+      console.log(`[RankingService] Generando ranking para cuaderno ${notebookId} en institución ${institutionId}`);
+      
+      // Obtener información del cuaderno
+      const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+      if (!notebookDoc.exists()) {
+        console.error(`[RankingService] Cuaderno ${notebookId} no encontrado`);
+        return;
+      }
+      
+      const notebookData = notebookDoc.data();
+      const notebookName = notebookData.title || 'Sin nombre';
+      const subjectId = notebookData.idMateria || '';
+      
+      // Obtener todos los estudiantes de la institución
+      const studentsQuery = query(
+        collection(db, 'users'),
+        where('subscription', '==', 'school'),
+        where('schoolRole', '==', 'student'),
+        where('idInstitucion', '==', institutionId)
+      );
+      
+      const studentsSnapshot = await getDocs(studentsQuery);
+      const studentScores: Array<{id: string, name: string, score: number}> = [];
+      
+      // Recopilar scores de todos los estudiantes para este cuaderno
+      for (const studentDoc of studentsSnapshot.docs) {
+        const studentData = studentDoc.data();
+        const studentId = studentDoc.id;
+        
+        // Obtener KPIs del estudiante
+        const kpisDoc = await getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard'));
+        if (kpisDoc.exists()) {
+          const kpis = kpisDoc.data();
+          const cuadernoKpis = kpis.cuadernos?.[notebookId];
+          
+          if (cuadernoKpis && cuadernoKpis.scoreCuaderno > 0) {
+            studentScores.push({
+              id: studentId,
+              name: studentData.displayName || studentData.nombre || 'Estudiante',
+              score: cuadernoKpis.scoreCuaderno
+            });
+          }
+        }
+      }
+      
+      // Ordenar por score descendente
+      studentScores.sort((a, b) => b.score - a.score);
+      
+      // Crear el documento de ranking
+      const ranking: NotebookRanking = {
+        type: 'notebook',
+        notebookId,
+        notebookName,
+        subjectId,
+        institutionId,
+        lastUpdated: Timestamp.now(),
+        totalStudents: studentScores.length,
+        students: studentScores.slice(0, 50).map((student, index) => ({
+          studentId: student.id,
+          name: student.name,
+          score: student.score,
+          position: index + 1
+        }))
+      };
+      
+      // Guardar el ranking
+      const rankingRef = doc(db, 'institutionRankings', institutionId, 'rankings', `notebook_${notebookId}`);
+      await setDoc(rankingRef, ranking);
+      
+      console.log(`[RankingService] Ranking generado para cuaderno ${notebookName} con ${ranking.totalStudents} estudiantes`);
+      
+    } catch (error) {
+      console.error('[RankingService] Error generando ranking de cuaderno:', error);
+    }
+  }
+
+  /**
+   * Calcula los rankings de un estudiante en sus materias y cuadernos
+   */
+  async calculateStudentRankings(userId: string): Promise<{
+    subjectRankings: Record<string, { position: number; totalStudents: number; percentile: number }>;
+    notebookRankings: Record<string, { position: number; totalStudents: number; percentile: number }>;
+    globalPercentile: number;
+  }> {
+    try {
+      console.log(`[RankingService] Calculando rankings para estudiante: ${userId}`);
+      
+      // Obtener datos del estudiante
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      const userData = userDoc.data();
+      const institutionId = userData.idInstitucion;
+      
+      if (!institutionId) {
+        console.log('[RankingService] Usuario sin institución asociada');
+        return {
+          subjectRankings: {},
+          notebookRankings: {},
+          globalPercentile: 0
+        };
+      }
+
+      // Obtener KPIs del estudiante
+      const kpisDoc = await getDoc(doc(db, 'users', userId, 'kpis', 'dashboard'));
+      if (!kpisDoc.exists()) {
+        console.log('[RankingService] No se encontraron KPIs para el estudiante');
+        return {
+          subjectRankings: {},
+          notebookRankings: {},
+          globalPercentile: 0
+        };
+      }
+
+      const kpis = kpisDoc.data();
+      const subjectRankings: Record<string, { position: number; totalStudents: number; percentile: number }> = {};
+      const notebookRankings: Record<string, { position: number; totalStudents: number; percentile: number }> = {};
+
+      // Calcular rankings por materia
+      if (kpis.materias) {
+        console.log(`[RankingService] Procesando ${Object.keys(kpis.materias).length} materias`);
+        for (const [subjectId, subjectKpis] of Object.entries(kpis.materias)) {
+          console.log(`[RankingService] Buscando ranking para materia ${subjectId}`);
+          let ranking = await this.getSubjectRanking(institutionId, subjectId);
+          
+          // Si no existe el ranking o necesita actualización, generarlo
+          if (!ranking || this.needsUpdate(ranking)) {
+            console.log(`[RankingService] Generando/actualizando ranking para materia ${subjectId}`);
+            await this.generateSubjectRanking(institutionId, subjectId);
+            ranking = await this.getSubjectRanking(institutionId, subjectId);
+          }
+          
+          if (ranking) {
+            console.log(`[RankingService] Ranking encontrado para materia ${subjectId}, total estudiantes: ${ranking.totalStudents}`);
+            const position = this.getStudentPosition(ranking, userId);
+            if (position !== null) {
+              const percentile = Math.round(((ranking.totalStudents - position + 1) / ranking.totalStudents) * 100);
+              subjectRankings[subjectId] = {
+                position,
+                totalStudents: ranking.totalStudents,
+                percentile
+              };
+              console.log(`[RankingService] Estudiante en posición ${position} de ${ranking.totalStudents} (percentil ${percentile}%)`);
+            } else {
+              console.log(`[RankingService] Estudiante no encontrado en ranking de materia ${subjectId}`);
+            }
+          } else {
+            console.log(`[RankingService] No se pudo generar ranking para materia ${subjectId}`);
+          }
+        }
+      } else {
+        console.log(`[RankingService] No hay materias en los KPIs del estudiante`);
+      }
+
+      // Calcular rankings por cuaderno
+      if (kpis.cuadernos) {
+        console.log(`[RankingService] Procesando ${Object.keys(kpis.cuadernos).length} cuadernos`);
+        for (const [notebookId, notebookKpis] of Object.entries(kpis.cuadernos)) {
+          console.log(`[RankingService] Buscando ranking para cuaderno ${notebookId}`);
+          let ranking = await this.getNotebookRanking(institutionId, notebookId);
+          
+          // Si no existe el ranking o necesita actualización, generarlo
+          if (!ranking || this.needsUpdate(ranking)) {
+            console.log(`[RankingService] Generando/actualizando ranking para cuaderno ${notebookId}`);
+            await this.generateNotebookRanking(institutionId, notebookId);
+            ranking = await this.getNotebookRanking(institutionId, notebookId);
+          }
+          
+          if (ranking) {
+            console.log(`[RankingService] Ranking encontrado para cuaderno ${notebookId}, total estudiantes: ${ranking.totalStudents}`);
+            const position = this.getStudentPosition(ranking, userId);
+            if (position !== null) {
+              const percentile = Math.round(((ranking.totalStudents - position + 1) / ranking.totalStudents) * 100);
+              notebookRankings[notebookId] = {
+                position,
+                totalStudents: ranking.totalStudents,
+                percentile
+              };
+              console.log(`[RankingService] Estudiante en posición ${position} de ${ranking.totalStudents} (percentil ${percentile}%)`);
+            } else {
+              console.log(`[RankingService] Estudiante no encontrado en ranking de cuaderno ${notebookId}`);
+            }
+          } else {
+            console.log(`[RankingService] No se pudo generar ranking para cuaderno ${notebookId}`);
+          }
+        }
+      } else {
+        console.log(`[RankingService] No hay cuadernos en los KPIs del estudiante`);
+      }
+
+      console.log(`[RankingService] Rankings calculados - Materias: ${Object.keys(subjectRankings).length}, Cuadernos: ${Object.keys(notebookRankings).length}`);
+
+      // Calcular percentil global promedio
+      let globalPercentile = 0;
+      const allPercentiles: number[] = [];
+      
+      // Agregar percentiles de materias
+      Object.values(subjectRankings).forEach(ranking => {
+        allPercentiles.push(ranking.percentile);
+      });
+      
+      // Agregar percentiles de cuadernos
+      Object.values(notebookRankings).forEach(ranking => {
+        allPercentiles.push(ranking.percentile);
+      });
+      
+      // Calcular promedio si hay percentiles
+      if (allPercentiles.length > 0) {
+        globalPercentile = Math.round(allPercentiles.reduce((sum, p) => sum + p, 0) / allPercentiles.length);
+      }
+
+      return {
+        subjectRankings,
+        notebookRankings,
+        globalPercentile
+      };
+    } catch (error) {
+      console.error('[RankingService] Error calculando rankings del estudiante:', error);
+      throw error;
+    }
+  }
 }
 
 // Exportar instancia única

@@ -1,4 +1,4 @@
-import { db, functions } from './firebase';
+import { db } from './firebase';
 import { rankingService } from './rankingService';
 import { saveCurrentPositionToHistory } from '../utils/createPositionHistory';
 import { studyStreakService } from './studyStreakService';
@@ -14,7 +14,6 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 
 interface DashboardKPIs {
   global: {
@@ -1006,30 +1005,15 @@ export class KPIService {
           }
           
           // Actualizar percentil global
-          kpis.global.percentilPromedioGlobal = rankings.globalPercentile;
-          console.log(`[KPIService] Percentil global actualizado: ${rankings.globalPercentile}%`);
+          kpis.global.percentilPromedioGlobal = rankings.globalPercentile || 0;
+          console.log(`[KPIService] Percentil global actualizado: ${rankings.globalPercentile || 0}%`);
           
           // Guardar KPIs actualizados con rankings
           await setDoc(kpisDocRef, kpis);
           console.log(`[KPIService] KPIs actualizados con rankings reales`);
           
-          // Actualizar rankings pre-calculados de la institución
-          if (userData?.idInstitucion) {
-            console.log(`[KPIService] Actualizando rankings pre-calculados para institución: ${userData.idInstitucion}`);
-            try {
-              // Llamar a la Cloud Function de forma asíncrona (no esperamos)
-              const updateRankings = httpsCallable(functions, 'updateInstitutionRankings');
-              updateRankings({ institutionId: userData.idInstitucion })
-                .then(result => {
-                  console.log('[KPIService] Rankings pre-calculados actualizados:', result.data);
-                })
-                .catch(error => {
-                  console.error('[KPIService] Error actualizando rankings pre-calculados:', error);
-                });
-            } catch (error) {
-              console.error('[KPIService] Error llamando función de rankings:', error);
-            }
-          }
+          // Los rankings ahora se actualizan automáticamente en calculateStudentRankings
+          // cuando detecta que no existen o están desactualizados
           
         } catch (rankingError) {
           console.error('[KPIService] Error calculando rankings:', rankingError);
