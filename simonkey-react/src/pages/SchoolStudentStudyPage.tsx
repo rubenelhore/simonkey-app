@@ -759,7 +759,7 @@ const SchoolStudentStudyPage = () => {
   if (loading || notebooksLoading) {
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando tu área de estudio...</p>
       </div>
     );

@@ -46,7 +46,7 @@ const SchoolUserGuard: React.FC<SchoolUserGuardProps> = ({ children }) => {
     console.log('⏳ SchoolUserGuard - Mostrando loading...');
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando permisos escolares...</p>
       </div>
     );

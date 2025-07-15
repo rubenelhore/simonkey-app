@@ -135,7 +135,7 @@ const EmailVerificationPage: React.FC = () => {
       <div className="email-verification-page">
         <div className="verification-container">
           <div className="loading-spinner">
-            <div className="spinner"></div>
+            <div className="loading-spinner"></div>
             <p>Cargando...</p>
           </div>
         </div>

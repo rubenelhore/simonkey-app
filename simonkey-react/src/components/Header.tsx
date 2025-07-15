@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom'; // Añadimos useLocation
 import './Header.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell } from '@fortawesome/free-solid-svg-icons';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [hasNotification, setHasNotification] = useState(true); // Simulado: true si hay evento en calendario
+  const [showNotifications, setShowNotifications] = useState(false); // Added for notifications menu
+  const [hasNotification] = useState(false); // Placeholder, replace with real logic if needed
   const location = useLocation(); // Usamos el hook useLocation para acceder a la ubicación actual
 
   const toggleMenu = () => {

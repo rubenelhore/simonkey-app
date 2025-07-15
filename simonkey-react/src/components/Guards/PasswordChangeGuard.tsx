@@ -25,7 +25,7 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
     console.log('🔐 PasswordChangeGuard mostrando loading');
     return (
       <div className="loading-container">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Verificando seguridad...</p>
       </div>
     );

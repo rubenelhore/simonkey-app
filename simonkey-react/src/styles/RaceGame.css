@@ -489,13 +489,33 @@
 }
 
 .game-over-modal .back-button {
-  background: #6147ff;
-  color: white;
+  background: #6147ff !important;
+  border: none;
+  color: white !important;
+  padding: 18px 40px;
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0 auto;
+  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.3);
+  min-width: 220px;
+  justify-content: center;
 }
 
 .game-over-modal .back-button:hover {
-  background: #4c3bff;
+  background: #4c3bff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(97, 71, 255, 0.5);
+}
+
+.game-over-modal .back-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Loading */

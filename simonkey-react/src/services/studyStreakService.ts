@@ -119,8 +119,8 @@ export class StudyStreakService {
       const studySessionsQuery = query(
         collection(db, 'studySessions'),
         where('userId', '==', userId),
-        where('startTime', '>=', startOfDay),
-        where('startTime', '<', endOfDay)
+        where('startTime', '>=', Timestamp.fromDate(startOfDay)),
+        where('startTime', '<', Timestamp.fromDate(endOfDay))
       );
 
       const studySessionsSnap = await getDocs(studySessionsQuery);
@@ -139,8 +139,8 @@ export class StudyStreakService {
       // Verificar quizzes
       const quizResultsQuery = query(
         collection(db, 'users', userId, 'quizResults'),
-        where('timestamp', '>=', startOfDay),
-        where('timestamp', '<', endOfDay)
+        where('timestamp', '>=', Timestamp.fromDate(startOfDay)),
+        where('timestamp', '<', Timestamp.fromDate(endOfDay))
       );
 
       const quizResultsSnap = await getDocs(quizResultsQuery);
@@ -154,8 +154,8 @@ export class StudyStreakService {
       // Verificar mini quizzes
       const miniQuizResultsQuery = query(
         collection(db, 'users', userId, 'miniQuizResults'),
-        where('timestamp', '>=', startOfDay),
-        where('timestamp', '<', endOfDay)
+        where('timestamp', '>=', Timestamp.fromDate(startOfDay)),
+        where('timestamp', '<', Timestamp.fromDate(endOfDay))
       );
 
       const miniQuizResultsSnap = await getDocs(miniQuizResultsQuery);
@@ -170,8 +170,8 @@ export class StudyStreakService {
       const gameSessionsQuery = query(
         collection(db, 'gameSessions'),
         where('userId', '==', userId),
-        where('timestamp', '>=', startOfDay),
-        where('timestamp', '<', endOfDay)
+        where('timestamp', '>=', Timestamp.fromDate(startOfDay)),
+        where('timestamp', '<', Timestamp.fromDate(endOfDay))
       );
 
       const gameSessionsSnap = await getDocs(gameSessionsQuery);
@@ -180,9 +180,10 @@ export class StudyStreakService {
       // Verificar si hay al menos una sesión de juego con duración > 0
       for (const doc of gameSessionsSnap.docs) {
         const session = doc.data();
+        console.log('[StudyStreakService] Datos de sesión de juego:', session);
         const duration = session.duration || 0;
-        if (duration > 0) {
-          console.log('[StudyStreakService] ✅ Encontrada sesión de juego con duración:', duration);
+        if (duration > 0 || session.completed) {
+          console.log('[StudyStreakService] ✅ Encontrada sesión de juego válida con duración:', duration, 'completada:', session.completed);
           return true;
         }
       }

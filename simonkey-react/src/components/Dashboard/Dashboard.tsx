@@ -134,7 +134,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="dashboard-loading">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando estadísticas...</p>
       </div>
     );

@@ -78,24 +78,33 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       const userId = auth.currentUser.uid;
       let conceptsList: Concept[] = [];
 
+      console.log('🧩 PuzzleGame - Cargando conceptos para notebook:', notebookId);
       // Check if school notebook
       const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
 
       if (notebookDoc.exists()) {
+        console.log('🏫 Notebook escolar encontrado');
         // School notebook
         const conceptsQuery = query(
           collection(db, 'schoolConcepts'),
-          where('notebookId', '==', notebookId)
+          where('cuadernoId', '==', notebookId)
         );
         
         const conceptsSnapshot = await getDocs(conceptsQuery);
+        console.log('📚 Documentos de conceptos encontrados:', conceptsSnapshot.size);
+        
         conceptsSnapshot.forEach((doc) => {
           const data = doc.data();
-          conceptsList.push({
-            id: doc.id,
-            term: data.termino || data.term || '',
-            definition: data.definicion || data.definition || ''
-          });
+          console.log('📄 Documento de concepto:', doc.id, data);
+          if (data.conceptos && Array.isArray(data.conceptos)) {
+            data.conceptos.forEach((concepto: any, index: number) => {
+              conceptsList.push({
+                id: `${doc.id}_${index}`,
+                term: concepto.término || concepto.term || '',
+                definition: concepto.definición || concepto.definition || ''
+              });
+            });
+          }
         });
       } else {
         // Regular notebook
@@ -120,6 +129,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         });
       }
 
+      console.log('🎯 Total de conceptos cargados:', conceptsList.length);
       setConcepts(conceptsList);
       
       // Start with 3 random concepts
@@ -129,7 +139,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       
       setLoading(false);
     } catch (error) {
-      console.error('Error loading concepts:', error);
+      console.error('❌ Error loading concepts:', error);
       setLoading(false);
     }
   };
@@ -342,7 +352,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     return (
       <div className="puzzle-game-container">
         <div className="loading-spinner">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Cargando conceptos...</p>
         </div>
       </div>

@@ -85,7 +85,7 @@ const CloudFunctionsTester: React.FC = () => {
 
       {loading && (
         <div className="loading-message">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Ejecutando función...</p>
         </div>
       )}

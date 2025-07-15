@@ -787,7 +787,7 @@ const StudyLogicVerification: React.FC = () => {
 
       {loading && (
         <div className="loading-overlay">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Cargando datos...</p>
         </div>
       )}

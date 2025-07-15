@@ -655,8 +655,8 @@ const Materias: React.FC = () => {
       {migrationStatus && migrationMessage && (
         <div className={`migration-notification ${migrationStatus}`}>
           <div className="migration-notification-content">
-            {migrationStatus === 'checking' && <span className="spinner">⏳</span>}
-            {migrationStatus === 'migrating' && <span className="spinner">🔄</span>}
+            {migrationStatus === 'checking' && <span className="loading-spinner">⏳</span>}
+            {migrationStatus === 'migrating' && <span className="loading-spinner">🔄</span>}
             {migrationStatus === 'completed' && <span className="icon">✅</span>}
             {migrationStatus === 'error' && <span className="icon">❌</span>}
             <span className="message">{migrationMessage}</span>

@@ -53,17 +53,40 @@ const StreakTracker: React.FC = () => {
       const userId = effectiveUserId;
       console.log('[StreakTracker] Usando userId:', userId, 'Firebase UID:', user.uid);
       
-      // Actualizar la racha si ha estudiado hoy
-      const currentStreak = await studyStreakService.updateStreakIfStudied(userId);
+      // Primero verificar si ha estudiado hoy
+      const hasStudiedToday = await studyStreakService.hasStudiedToday(userId);
+      
+      // Solo actualizar la racha si ha estudiado
+      let currentStreak = 0;
+      const streakData = await studyStreakService.getUserStreak(userId);
+      
+      if (hasStudiedToday) {
+        currentStreak = await studyStreakService.updateStreakIfStudied(userId);
+      } else {
+        // Si no ha estudiado hoy, verificar si la racha sigue activa
+        if (streakData.lastStudyDate) {
+          const today = new Date();
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          
+          // Solo mantener la racha si estudió ayer
+          if (streakData.lastStudyDate.toDateString() === yesterday.toDateString()) {
+            currentStreak = streakData.currentStreak;
+          } else {
+            // La racha se rompió, mostrar 0
+            currentStreak = 0;
+          }
+        } else {
+          // Nunca ha estudiado, mostrar 0
+          currentStreak = 0;
+        }
+      }
       
       // Obtener los días de estudio de la semana actual
       const weekStudyDays = await studyStreakService.getWeekStudyDays(userId);
       
-      // Verificar si ha estudiado hoy
-      const hasStudiedToday = await studyStreakService.hasStudiedToday(userId);
-      
-      // Calcular el bonus de puntos
-      const streakBonus = studyStreakService.getStreakBonus(currentStreak);
+      // Calcular el bonus de puntos solo si hay racha
+      const streakBonus = currentStreak > 0 ? studyStreakService.getStreakBonus(currentStreak) : 0;
       
       console.log('[StreakTracker] Racha actual:', currentStreak);
       console.log('[StreakTracker] Días de estudio esta semana:', weekStudyDays);
@@ -92,7 +115,21 @@ const StreakTracker: React.FC = () => {
       fetchAndUpdateStreak();
     }, 5 * 60 * 1000);
     
-    return () => clearInterval(interval);
+    // Escuchar evento de juego completado para actualizar inmediatamente
+    const handleGameCompleted = (event: CustomEvent) => {
+      console.log('[StreakTracker] Juego completado detectado, actualizando racha...', event.detail);
+      // Esperar un poco para que la sesión se guarde en Firebase
+      setTimeout(() => {
+        fetchAndUpdateStreak();
+      }, 1000);
+    };
+    
+    window.addEventListener('gameCompleted', handleGameCompleted as EventListener);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gameCompleted', handleGameCompleted as EventListener);
+    };
   }, [user, effectiveUserId]);
 
   if (loading) {
@@ -114,7 +151,7 @@ const StreakTracker: React.FC = () => {
       </div>
       
       {/* Mostrar bonus de puntos */}
-      {streakData.consecutiveDays > 0 && (
+      {streakData.consecutiveDays > 0 && streakData.hasStudiedToday && (
         <div className="streak-bonus">
           <span className="bonus-label">Bonus: </span>
           <span className="bonus-points">+{streakData.streakBonus.toLocaleString()}pts</span>
@@ -140,9 +177,9 @@ const StreakTracker: React.FC = () => {
       {(streakData.consecutiveDays === 0 || !streakData.hasStudiedToday) && (
         <div className="streak-motivation">
           <p className="motivation-text">
-            {streakData.consecutiveDays > 0 
-              ? "¡Sigue así! Estudia al menos 1 minuto para mantener tu racha"
-              : "Estudia al menos 1 minuto para comenzar tu racha"}
+            {streakData.consecutiveDays === 0 
+              ? "Estudia al menos 1 minuto para comenzar tu racha"
+              : "¡Sigue así! Estudia al menos 1 minuto para mantener tu racha"}
           </p>
         </div>
       )}

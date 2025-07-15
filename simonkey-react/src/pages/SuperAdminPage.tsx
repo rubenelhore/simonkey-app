@@ -782,7 +782,7 @@ const SuperAdminPage: React.FC = () => {
     return (
       <div className="super-admin-container">
         <div className="loading-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Verificando permisos de súper admin...</p>
         </div>
       </div>
@@ -881,7 +881,7 @@ const SuperAdminPage: React.FC = () => {
         <div className="tab-content">
           {loading && (
             <div className="loading-overlay">
-              <div className="spinner"></div>
+              <div className="loading-spinner"></div>
               <p>Cargando datos...</p>
             </div>
           )}
@@ -906,7 +906,7 @@ const SuperAdminPage: React.FC = () => {
               
               {loading ? (
                 <div className="loading-message">
-                  <div className="spinner"></div>
+                  <div className="loading-spinner"></div>
                   <p>Cargando usuarios...</p>
                 </div>
               ) : (
@@ -1184,7 +1184,7 @@ const SuperAdminPage: React.FC = () => {
 
               {syncLoading && (
                 <div className="loading-overlay">
-                  <div className="spinner"></div>
+                  <div className="loading-spinner"></div>
                   <p>Sincronizando usuarios escolares...</p>
                 </div>
               )}

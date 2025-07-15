@@ -68,7 +68,7 @@ const Onboarding: React.FC<OnboardingProps> = (props) => {
     console.log('🎬 OnboardingComponent - Mostrando loading');
     return (
       <div className="onboarding-loading">
-        <div className="spinner"></div>
+        <div className="loading-spinner"></div>
         <p>Cargando...</p>
       </div>
     );

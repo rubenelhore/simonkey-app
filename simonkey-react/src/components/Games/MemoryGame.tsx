@@ -71,20 +71,28 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
       let concepts: Concept[] = [];
 
       if (notebookDoc.exists()) {
+        console.log('🧩 MemoryGame - Notebook escolar encontrado');
         // School notebook - get concepts from schoolConcepts
         const conceptsQuery = query(
           collection(db, 'schoolConcepts'),
-          where('notebookId', '==', notebookId)
+          where('cuadernoId', '==', notebookId)
         );
         
         const conceptsSnapshot = await getDocs(conceptsQuery);
+        console.log('📚 Documentos de conceptos encontrados:', conceptsSnapshot.size);
+        
         conceptsSnapshot.forEach((doc) => {
           const data = doc.data();
-          concepts.push({
-            id: doc.id,
-            term: data.termino || data.term || '',
-            definition: data.definicion || data.definition || ''
-          });
+          console.log('📄 Documento de concepto:', doc.id, data);
+          if (data.conceptos && Array.isArray(data.conceptos)) {
+            data.conceptos.forEach((concepto: any, index: number) => {
+              concepts.push({
+                id: `${doc.id}_${index}`,
+                term: concepto.término || concepto.term || '',
+                definition: concepto.definición || concepto.definition || ''
+              });
+            });
+          }
         });
       } else {
         // Regular notebook - get concepts from user's conceptos
@@ -109,6 +117,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
         });
       }
 
+      console.log('🎯 Total de conceptos cargados:', concepts.length);
+      
       // Shuffle and take max 5 concepts
       const shuffled = concepts.sort(() => Math.random() - 0.5).slice(0, 5);
       
@@ -312,7 +322,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     return (
       <div className="memory-game-container">
         <div className="loading-spinner">
-          <div className="spinner"></div>
+          <div className="loading-spinner"></div>
           <p>Cargando conceptos...</p>
         </div>
       </div>
