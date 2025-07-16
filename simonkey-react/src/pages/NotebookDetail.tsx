@@ -295,7 +295,16 @@ const NotebookDetail = () => {
           console.error('Detalles del error:', cloudFunctionError.details);
         }
         
-        throw new Error(`Error en Cloud Function: ${cloudFunctionError.message || cloudFunctionError}`);
+        // Manejar errores específicos
+        if (cloudFunctionError.code === 'functions/deadline-exceeded') {
+          throw new Error('El archivo es muy grande y tardó demasiado en procesarse. Intenta con un archivo más pequeño (máximo 10MB recomendado).');
+        } else if (cloudFunctionError.code === 'functions/invalid-argument') {
+          throw new Error(cloudFunctionError.message || 'El archivo no es válido o es demasiado grande.');
+        } else if (cloudFunctionError.code === 'functions/resource-exhausted') {
+          throw new Error('Has alcanzado el límite diario de generación de conceptos. Intenta mañana o actualiza tu plan.');
+        } else {
+          throw new Error(`Error procesando archivo: ${cloudFunctionError.message || 'Error desconocido'}`);
+        }
       }
 
       // Procesar resultados

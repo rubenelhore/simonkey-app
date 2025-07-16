@@ -2244,8 +2244,8 @@ export const onNotebookDeleted = functions.firestore
 export const generateConceptsFromFile = onCall(
   {
     maxInstances: 10,
-    timeoutSeconds: 60,
-    memory: "512MiB",
+    timeoutSeconds: 300,
+    memory: "2GiB",
     secrets: ["GEMINI_API_KEY"]
   },
   async (request) => {
@@ -2257,13 +2257,23 @@ export const generateConceptsFromFile = onCall(
     const { fileContent, notebookId, fileName, isSchoolNotebook = false, fileType = 'text' } = request.data;
     const userId = request.auth.uid;
 
+    // Validar tamaño del archivo (máximo 50MB en base64)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (fileContent && fileContent.length > MAX_FILE_SIZE) {
+      throw new HttpsError(
+        "invalid-argument", 
+        `El archivo es demasiado grande. Tamaño máximo permitido: 50MB`
+      );
+    }
+
     logger.info("🤖 Generando conceptos desde archivo", {
       userId,
       notebookId,
       fileName,
       isSchoolNotebook,
       fileType,
-      contentLength: fileContent?.length || 0
+      contentLength: fileContent?.length || 0,
+      sizeMB: fileContent ? (fileContent.length / 1024 / 1024).toFixed(2) : 0
     });
 
     try {
@@ -2377,52 +2387,29 @@ export const generateConceptsFromFile = onCall(
 
       // Prompt optimizado para extraer conceptos educativos
       const prompt = `
-Eres un experto generador de tarjetas de estudio efectivas. Tu tarea es analizar el documento y extraer los conceptos importantes.
+Eres un experto creando tarjetas de estudio efectivas. Analiza el documento y extrae los conceptos clave.
 
-## OBJETIVO
-Crear conceptos de estudio que sean:
-- **Específicos y memorizables**: Cada concepto debe ser una unidad de información clara
-- **Educativamente valiosos**: Información que realmente importa para el aprendizaje
-- **Bien estructurados**: Con definición clara
+## REGLAS DE EXTRACCIÓN  
 
-## ESTRATEGIA DE EXTRACCIÓN
+1. **Descarta las preguntas**  
+   - Ignora cualquier línea que contenga “¿” o “?”  
+   - Ignora frases que empiecen con palabras interrogativas (qué, cuál, quién, dónde, cuándo, por qué, how, who, what, which).
 
-### 1. PRIORIZA ESTOS TIPOS DE CONTENIDO:
-- **Preguntas y respuestas**: Si hay Q&A, cada par es un concepto potencial
-- **Datos y estadísticas**: Números importantes, rankings, cantidades
-- **Definiciones**: Términos que se explican o definen
-- **Procesos y mecanismos**: Cómo funciona algo, pasos, procedimientos
+2. **Identifica la respuesta** (concepto) y su explicación breve.  
 
-### 2. EVITA:
-- Metadatos técnicos del documento
-- Información redundante o repetitiva
+3. **Límites de longitud**  
+   - **Término** ≤ 50 caracteres, sin signos de puntuación salvo tildes.  
+   - **Definición** ≤ 200 caracteres, clara y concisa.  
+   - Si la explicación excede el límite, simplifícala conservando el sentido.
 
-### 3. ESTRUCTURA IDEAL DE CONCEPTO:
-- **Término**: Nombre simple y directo del concepto (máx 50 chars)
-- **Definición**: Explicación clara y concisa (máx 200 chars)
+4. **Independencia término‑definición**  
+   - El término no debe aparecer en la definición ni la definición en el término.
 
-## EJEMPLOS DE BUENOS CONCEPTOS:
+5. **Elimina duplicados y cruces**  
+   - Al finalizar, analiza el json. ELIMINA las tarjetas que tengan el mismo término o definición. OJO: Lee bien, si ves que dos json se parecen, quedate con el primero.
 
-Para el texto: "¿Cuál es el país con más pirámides en el mundo? Sudán tiene más pirámides que Egipto, con más de 200 estructuras antiguas."
-
-**Concepto:**
-- término: "Sudán"
-- definicion: "Posee más pirámides que Egipto, con más de 200 estructuras antiguas"
-
-## INSTRUCCIONES ESPECÍFICAS:
-
-1. **Extrae máximo ${limits.maxConceptsPerFile} conceptos** de alta calidad
-2. **Cada concepto debe ser una unidad de información independiente**
-3. **Prioriza información sorprendente o contraintuitiva**
-4. **Incluye datos numéricos cuando estén disponibles**
-5. **Para Q&A, crea conceptos tanto de la pregunta como de la respuesta**
-6. **Mantén un balance entre cantidad y calidad**
-7. **Son tarjetas de estudio, por lo que es importante que el concepto no haga referencia a la definición ni la definición al concepto**
-
-## REGLAS CRÍTICAS PARA EL TÉRMINO:
-- **Solo el nombre del concepto**: "Sudán", "Hígado", "Chino Mandarín"
-- **NO incluir descripciones**: Evita "Sudán: Más pirámides" o "Hígado: regeneración"
-- **NO incluir dos puntos (:)** en el término
+6. **Idioma**  
+   - Mantén término y definición en el idioma original del documento.
 
 ## FORMATO DE RESPUESTA:
 Responde ÚNICAMENTE con este JSON válido:
@@ -2432,17 +2419,9 @@ Responde ÚNICAMENTE con este JSON válido:
     {
       "termino": "Nombre simple del concepto",
       "definicion": "Explicación clara y concisa",
-      "ejemplos": ["Ejemplo 1 del documento", "Ejemplo 2 relacionado"],
-      "importancia": "Por qué es importante aprenderlo"
     }
   ]
 }
-
-## REGLAS FINALES:
-- Responde SOLO con el JSON, sin texto adicional
-- Asegúrate de que el JSON sea válido
-- Si el contenido es escaso, extrae al menos 1 concepto básico
-- FOCALÍZATE EN CONTENIDO EDUCATIVO REAL, NO METADATOS
 `;
 
       let result;
@@ -2452,6 +2431,23 @@ Responde ÚNICAMENTE con este JSON válido:
         try {
           // Convertir base64 a buffer
           const fileBuffer = Buffer.from(fileContent, 'base64');
+          
+          // Para archivos muy grandes, considerar procesar solo una parte
+          const fileSizeMB = fileBuffer.length / 1024 / 1024;
+          logger.info("📏 Tamaño del archivo", { 
+            fileName, 
+            sizeMB: fileSizeMB.toFixed(2),
+            sizeBytes: fileBuffer.length
+          });
+          
+          // Si el archivo es muy grande (>10MB), advertir
+          if (fileSizeMB > 10) {
+            logger.warn("⚠️ Archivo grande detectado", { 
+              fileName, 
+              sizeMB: fileSizeMB.toFixed(2),
+              warning: "El procesamiento puede tardar más tiempo"
+            });
+          }
           
           // Crear el archivo para Gemini
           const fileData = {
@@ -2464,13 +2460,39 @@ Responde ÚNICAMENTE con este JSON válido:
           logger.info("📁 Procesando archivo con Gemini", { 
             fileName, 
             mimeType, 
-            fileSize: fileBuffer.length 
+            fileSize: fileBuffer.length,
+            timestamp: new Date().toISOString()
           });
           
-          result = await model.generateContent([prompt, fileData]);
+          // Para archivos grandes, usar configuración más conservadora
+          if (fileSizeMB > 10) {
+            result = await model.generateContent([prompt, fileData]);
+          } else {
+            result = await model.generateContent([prompt, fileData]);
+          }
+          
+          logger.info("✅ Archivo procesado exitosamente", { 
+            fileName,
+            processingTime: new Date().toISOString()
+          });
         } catch (fileError: any) {
-          logger.error("❌ Error procesando archivo con Gemini", { error: fileError });
-          throw new HttpsError("internal", "Error procesando archivo: " + fileError.message);
+          logger.error("❌ Error procesando archivo con Gemini", { 
+            error: fileError.message,
+            errorCode: fileError.code,
+            errorDetails: fileError.details,
+            fileName,
+            fileType,
+            mimeType
+          });
+          
+          // Proporcionar mensajes de error más específicos
+          if (fileError.message?.includes('timeout')) {
+            throw new HttpsError("deadline-exceeded", "El archivo es muy grande y tardó demasiado en procesarse. Intenta con un archivo más pequeño.");
+          } else if (fileError.message?.includes('size')) {
+            throw new HttpsError("invalid-argument", "El archivo excede el tamaño máximo permitido por el servicio de IA.");
+          } else {
+            throw new HttpsError("internal", `Error procesando archivo: ${fileError.message}`);
+          }
         }
       } else {
         // Procesar como texto plano (fallback)

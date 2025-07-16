@@ -30,6 +30,7 @@ interface CSVUserData {
   email: string;
   nombre: string;
   apellidos?: string;
+  categoria?: string;
   role?: string;
   institucion?: string;
   [key: string]: string | undefined;
@@ -546,6 +547,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
   const getCategoryDisplayName = (category: SchoolCategory) => {
     const names: { [key: string]: string } = {
       [SchoolCategory.INSTITUCIONES]: 'Instituciones',
+      [SchoolCategory.USUARIOS]: 'Usuarios',
       [SchoolCategory.ADMINS]: 'Administradores',
       [SchoolCategory.PROFESORES]: 'Profesores',
       [SchoolCategory.MATERIAS]: 'Materias',
@@ -586,9 +588,28 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
   const validateCSVData = (data: CSVUserData[]): CSVUserData[] => {
     return data.filter((row, index) => {
-      if (!row.email || !row.nombre) {
-        console.warn(`Fila ${index + 2} ignorada: falta email o nombre`);
-        return false;
+      // Para categoria USUARIOS
+      if (creationData.categoria === SchoolCategory.USUARIOS) {
+        if (!row.email || !row.nombre_completo || !row.categoria) {
+          console.warn(`Fila ${index + 2} ignorada: falta email, nombre_completo o categoria`);
+          return false;
+        }
+        // Validar categoria permitida
+        const categoriasPermitidas = ['admin', 'profesor', 'alumno', 'tutor'];
+        if (!categoriasPermitidas.includes(row.categoria.toLowerCase())) {
+          console.warn(`Fila ${index + 2} ignorada: categoria inválida (${row.categoria})`);
+          return false;
+        }
+        // Separar nombre completo en nombre y apellidos
+        const nombreParts = row.nombre_completo.trim().split(' ');
+        row.nombre = nombreParts[0];
+        row.apellidos = nombreParts.slice(1).join(' ') || '';
+      } else {
+        // Para otras categorías (formato antiguo)
+        if (!row.email || !row.nombre) {
+          console.warn(`Fila ${index + 2} ignorada: falta email o nombre`);
+          return false;
+        }
       }
       // Validar formato de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -602,10 +623,18 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
   const downloadCSVTemplate = () => {
     let csvContent = '';
-    let headers = [];
-    let exampleRow = [];
+    let headers: string[] = [];
+    let exampleRow: string[] = [];
 
     switch (creationData.categoria) {
+      case SchoolCategory.USUARIOS:
+        headers = ['nombre_completo', 'email', 'categoria'];
+        csvContent = headers.join(',') + '\n';
+        csvContent += 'Juan Pérez García,admin@escuela.com,admin\n';
+        csvContent += 'María González López,profesor@escuela.com,profesor\n';
+        csvContent += 'Carlos Rodríguez Martín,alumno@escuela.com,alumno\n';
+        csvContent += 'Ana Martínez Sánchez,tutor@escuela.com,tutor\n';
+        break;
       case SchoolCategory.ADMINS:
         headers = ['email', 'nombre', 'apellidos'];
         exampleRow = ['admin@escuela.com', 'Juan', 'Pérez García'];
@@ -627,8 +656,10 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         return;
     }
 
-    csvContent = headers.join(',') + '\n';
-    csvContent += exampleRow.join(',') + '\n';
+    if (creationData.categoria !== SchoolCategory.USUARIOS) {
+      csvContent = headers.join(',') + '\n';
+      csvContent += exampleRow.join(',') + '\n';
+    }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -666,19 +697,21 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
 
     // Determinar el rol basado en la categoría
     let role = '';
-    switch (creationData.categoria) {
-      case SchoolCategory.ADMINS:
-        role = 'admin';
-        break;
-      case SchoolCategory.PROFESORES:
-        role = 'teacher';
-        break;
-      case SchoolCategory.ALUMNOS:
-        role = 'student';
-        break;
-      case SchoolCategory.TUTORES:
-        role = 'tutor';
-        break;
+    if (creationData.categoria !== SchoolCategory.USUARIOS) {
+      switch (creationData.categoria) {
+        case SchoolCategory.ADMINS:
+          role = 'admin';
+          break;
+        case SchoolCategory.PROFESORES:
+          role = 'teacher';
+          break;
+        case SchoolCategory.ALUMNOS:
+          role = 'student';
+          break;
+        case SchoolCategory.TUTORES:
+          role = 'tutor';
+          break;
+      }
     }
 
     // Procesar usuarios en lotes de 5 para evitar sobrecarga
@@ -688,12 +721,31 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
       const promises = batch.map(async (userData, batchIndex) => {
         const rowIndex = i + batchIndex;
         try {
+          // Determinar el rol para cada usuario si es categoría USUARIOS
+          let userRole = role;
+          if (creationData.categoria === SchoolCategory.USUARIOS && userData.categoria) {
+            switch (userData.categoria.toLowerCase()) {
+              case 'admin':
+                userRole = 'admin';
+                break;
+              case 'profesor':
+                userRole = 'teacher';
+                break;
+              case 'alumno':
+                userRole = 'student';
+                break;
+              case 'tutor':
+                userRole = 'tutor';
+                break;
+            }
+          }
+          
           await createSchoolUser({
             userData: {
               email: userData.email,
               nombre: userData.nombre,
               apellidos: userData.apellidos || '',
-              role: role,
+              role: userRole,
               additionalData: {
                 idInstitucion: userData.institucion || '',
                 idAdmin: '',
@@ -756,6 +808,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
           >
             <option value="">Selecciona una categoría</option>
             <option value={SchoolCategory.INSTITUCIONES}>Institución</option>
+            <option value={SchoolCategory.USUARIOS}>Usuarios (Carga Masiva)</option>
             <option value={SchoolCategory.ADMINS}>Admin</option>
             <option value={SchoolCategory.PROFESORES}>Profesor</option>
             <option value={SchoolCategory.ALUMNOS}>Alumno</option>
@@ -764,7 +817,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         </div>
 
         {/* Sección 2: Información Básica */}
-        {creationData.categoria && (
+        {creationData.categoria && creationData.categoria !== SchoolCategory.USUARIOS && (
           <div className="creation-section">
             <div className="section-header">
               <h3><i className="fas fa-edit"></i> Información Básica</h3>
@@ -801,34 +854,25 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
               </button>
               
               {/* Botón para carga masiva */}
-              {(creationData.categoria === SchoolCategory.ADMINS || 
-                creationData.categoria === SchoolCategory.PROFESORES ||
-                creationData.categoria === SchoolCategory.ALUMNOS ||
-                creationData.categoria === SchoolCategory.TUTORES) && (
-                <button
-                  onClick={() => setShowBulkUpload(!showBulkUpload)}
-                  className="bulk-upload-button"
-                  style={{ marginLeft: '10px' }}
-                >
-                  <i className="fas fa-file-csv"></i> Carga Masiva CSV
-                </button>
-              )}
             </div>
           </div>
         )}
 
         {/* Sección de Carga Masiva */}
-        {showBulkUpload && creationData.categoria && (
+        {((showBulkUpload && creationData.categoria !== SchoolCategory.USUARIOS) || 
+          creationData.categoria === SchoolCategory.USUARIOS) && creationData.categoria && (
           <div className="creation-section bulk-upload-section">
             <div className="section-header">
               <h3><i className="fas fa-upload"></i> Carga Masiva de {getCategoryDisplayName(creationData.categoria)}</h3>
-              <button 
-                onClick={() => setShowBulkUpload(false)}
-                className="close-button"
-                style={{ marginLeft: 'auto' }}
-              >
-                <i className="fas fa-times"></i>
-              </button>
+              {creationData.categoria !== SchoolCategory.USUARIOS && (
+                <button 
+                  onClick={() => setShowBulkUpload(false)}
+                  className="close-button"
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
             </div>
             
             <div className="bulk-upload-content">
@@ -866,8 +910,17 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
                         <tr>
                           <th>#</th>
                           <th>Email</th>
-                          <th>Nombre</th>
-                          <th>Apellidos</th>
+                          {creationData.categoria === SchoolCategory.USUARIOS ? (
+                            <>
+                              <th>Nombre Completo</th>
+                              <th>Categoría</th>
+                            </>
+                          ) : (
+                            <>
+                              <th>Nombre</th>
+                              <th>Apellidos</th>
+                            </>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -875,8 +928,17 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
                           <tr key={index}>
                             <td>{index + 1}</td>
                             <td>{row.email}</td>
-                            <td>{row.nombre}</td>
-                            <td>{row.apellidos || '-'}</td>
+                            {creationData.categoria === SchoolCategory.USUARIOS ? (
+                              <>
+                                <td>{row.nombre_completo || `${row.nombre} ${row.apellidos || ''}`}</td>
+                                <td>{row.categoria}</td>
+                              </>
+                            ) : (
+                              <>
+                                <td>{row.nombre}</td>
+                                <td>{row.apellidos || '-'}</td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -958,7 +1020,7 @@ const SchoolCreation: React.FC<SchoolCreationProps> = ({ onRefresh }) => {
         )}
 
         {/* Sección 3: Lista Completa */}
-        {creationData.categoria && (
+        {creationData.categoria && creationData.categoria !== SchoolCategory.USUARIOS && (
           <div className="creation-section">
             <div className="section-header">
               <h3><i className="fas fa-list"></i> Lista de {getCategoryDisplayName(creationData.categoria)}</h3>

@@ -143,6 +143,7 @@ const StudyModePage = () => {
   const [reviewedConceptIds, setReviewedConceptIds] = useState<Set<string>>(new Set());
   const [masteredConceptIds, setMasteredConceptIds] = useState<Set<string>>(new Set());
   const [reviewingConceptIds, setReviewingConceptIds] = useState<Set<string>>(new Set());
+  const [sm3UpdatedConceptIds, setSm3UpdatedConceptIds] = useState<Set<string>>(new Set());
   
   // Estado para el ID efectivo del usuario (para usuarios escolares)
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);

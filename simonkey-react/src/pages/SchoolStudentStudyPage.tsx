@@ -86,6 +86,7 @@ const SchoolStudentStudyPage = () => {
   const [reviewedConceptIds, setReviewedConceptIds] = useState<Set<string>>(new Set());
   const [masteredConceptIds, setMasteredConceptIds] = useState<Set<string>>(new Set());
   const [reviewingConceptIds, setReviewingConceptIds] = useState<Set<string>>(new Set());
+  const [sm3UpdatedConceptIds, setSm3UpdatedConceptIds] = useState<Set<string>>(new Set());
 
   // Verificar autorización
   useEffect(() => {
@@ -332,6 +333,7 @@ const SchoolStudentStudyPage = () => {
       setReviewedConceptIds(new Set());
       setMasteredConceptIds(new Set());
       setReviewingConceptIds(new Set());
+      setSm3UpdatedConceptIds(new Set());
       
       // Iniciar timer de sesión
       setSessionTimer(Date.now());
@@ -363,15 +365,20 @@ const SchoolStudentStudyPage = () => {
       // Para estudiantes escolares, usar identificador específico
       const studentKey = `student_${auth.currentUser.uid}`;
       
-      // IMPORTANTE: Solo actualizar SM-3 si es estudio inteligente
+      // IMPORTANTE: Solo actualizar SM-3 si es estudio inteligente Y no se ha actualizado antes en esta sesión
       // Los estudios libres NO deben afectar al algoritmo de espaciamiento
-      if (studyMode === StudyMode.SMART) {
+      if (studyMode === StudyMode.SMART && !sm3UpdatedConceptIds.has(conceptId)) {
         // Actualizar respuesta usando SM-3 con datos específicos del estudiante
         await studyService.updateConceptResponse(
           studentKey,
           conceptId,
           quality
         );
+        // Marcar este concepto como ya actualizado en SM-3 para esta sesión
+        setSm3UpdatedConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
+        console.log('✅ SM-3 actualizado para concepto:', conceptId, '(primera y única vez en esta sesión)');
+      } else if (studyMode === StudyMode.SMART && sm3UpdatedConceptIds.has(conceptId)) {
+        console.log('⚠️ Concepto ya actualizado en SM-3 esta sesión, evitando actualización duplicada:', conceptId);
       } else {
         console.log('📚 Estudio Libre - NO se actualiza el algoritmo SM-3');
       }
@@ -591,6 +598,7 @@ const SchoolStudentStudyPage = () => {
     setShowMiniQuiz(false);
     setMiniQuizPassed(false);
     setStudySessionValidated(false);
+    setSm3UpdatedConceptIds(new Set());
     
     setMetrics({
       totalConcepts: 0,

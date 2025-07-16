@@ -463,6 +463,7 @@ export interface SchoolTutor {
  */
 export enum SchoolCategory {
   INSTITUCIONES = 'instituciones',
+  USUARIOS = 'usuarios',
   ADMINS = 'admins',
   ADMINS_II = 'admins_ii',
   PROFESORES = 'profesores',

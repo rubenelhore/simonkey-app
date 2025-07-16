@@ -172,7 +172,7 @@ const SignupPage: React.FC = () => {
     <div className="signup-container">
       <div className="signup-card">
         <div className="signup-header">
-          <img src={simonLogo} alt="Simio Simón" className="simon-logo" />
+          <img src="/img/favicon.svg" alt="Simio Simón" className="simon-logo" />
           <h1><a href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <span style={{ color: 'black' }}>Simon</span>
               <span style={{ color: 'black' }}>key</span>

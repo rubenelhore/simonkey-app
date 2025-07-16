@@ -222,12 +222,8 @@ const SchoolNotebookDetail = () => {
       }
 
       if (totalConcepts > 0) {
-        setLoadingText("Creando datos de aprendizaje...");
-        
-        // Crear datos de aprendizaje para los nuevos conceptos
-        if (conceptIds.length > 0) {
-          await createInitialLearningDataForConcepts(conceptIds, auth.currentUser.uid, id);
-        }
+        // NO crear datos de aprendizaje aquí - cada estudiante debe tener sus propios datos
+        // Los datos se crearán cuando cada estudiante estudie por primera vez
 
         // Recargar los conceptos
         const q = query(
@@ -281,12 +277,8 @@ const SchoolNotebookDetail = () => {
         creadoEn: serverTimestamp()
       });
 
-      // Crear datos de aprendizaje iniciales para el nuevo concepto
-      await createInitialLearningDataForConcepts(
-        [conceptoManual.id], 
-        auth.currentUser?.uid || '', 
-        id
-      );
+      // NO crear datos de aprendizaje aquí - cada estudiante debe tener sus propios datos
+      // Los datos se crearán cuando cada estudiante estudie por primera vez
 
       // Limpiar el formulario
       setNuevoConcepto({

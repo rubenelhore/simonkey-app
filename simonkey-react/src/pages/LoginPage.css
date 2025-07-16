@@ -43,7 +43,7 @@
   .simon-logo {
     width: 100px;
     height: 100px;
-    margin-bottom: 15px;
+    margin-bottom: 0 !important;
     animation: bounce 2s infinite alternate;
   }
   

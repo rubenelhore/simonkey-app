@@ -227,7 +227,7 @@ const HomePageContent: React.FC = () => {
       <section className="about-simonkey" style={{ width: '100%', background: '#f9fafb', padding: '0 0 0 0', textAlign: 'center', display: 'block', margin: 0, marginTop: '12px', marginBottom: '48px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 48 }}>
           <div style={{ flex: '0 0 400px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-            <img src="/img/chango-feliz.png" alt="Chango feliz" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', marginLeft: 0 }} />
+            <img src="/img/chango-feliz.jpg" alt="Chango feliz" style={{ width: 400, height: 400, borderRadius: '50%', objectFit: 'cover', marginLeft: 0 }} />
           </div>
           <div style={{ flex: 2, minWidth: 0, textAlign: 'left' }}>
             <div style={{ textAlign: 'center' }}>
