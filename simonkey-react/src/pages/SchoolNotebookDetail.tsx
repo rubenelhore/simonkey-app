@@ -34,6 +34,7 @@ const SchoolNotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [cuaderno, setCuaderno] = useState<any>(null);
+  const [isStudent, setIsStudent] = useState<boolean>(false);
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
@@ -78,6 +79,13 @@ const SchoolNotebookDetail = () => {
           // Guardar el ID de la materia si existe
           if (data.idMateria) {
             setMateriaId(data.idMateria);
+          }
+          
+          // Verificar si el usuario es estudiante
+          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setIsStudent(userData.schoolRole === 'student');
           }
         } else {
           console.error("No such school notebook!");
@@ -349,6 +357,14 @@ const SchoolNotebookDetail = () => {
         <section className="concepts-section">
           <h2>Conceptos del Cuaderno</h2>
           
+          {cuaderno.isFrozen && isStudent ? (
+            <div className="frozen-notebook-message">
+              <i className="fas fa-snowflake"></i>
+              <h3>Cuaderno Congelado</h3>
+              <p>Este cuaderno ha sido congelado por el profesor. No puedes ver los conceptos ni realizar actividades de estudio en este momento.</p>
+              <p>Tu puntaje congelado: <strong>{cuaderno.frozenScore?.toFixed(2) || 'N/A'}</strong></p>
+            </div>
+          ) : (
           <div className="concepts-list">
             {conceptosDocs.length === 0 ? (
               <div className="empty-state">
@@ -389,6 +405,7 @@ const SchoolNotebookDetail = () => {
               </>
             )}
           </div>
+          )}
         </section>
       </main>
 

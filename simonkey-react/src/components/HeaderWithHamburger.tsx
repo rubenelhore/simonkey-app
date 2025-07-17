@@ -297,6 +297,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           {/* Solo mostrar el logo si NO hay back button */}
           {!showBackButton && (
             <div className="logo2-title-group" style={{ cursor: 'pointer' }} onClick={() => navigate('/materias')}>
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
+                <span>Simon</span>
+                <span>key</span>
+              </h1>
               <img
                 src="/img/favicon.svg"
                 alt="Logo Simonkey"
@@ -305,10 +309,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 height="24"
                 style={{ filter: 'brightness(0) invert(1)' }}
               />  
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
-                <span>Simon</span>
-                <span>key</span>
-              </h1>
             </div>
           )}
           
@@ -502,7 +502,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 <p>Nuestro equipo de soporte está aquí para ayudarte:</p>
                 <div className="support-contact">
                   <i className="fas fa-envelope"></i>
-                  <span>soporte@simonkey.com</span>
+                  <span>ruben@simonkey.ai</span>
                 </div>
                 <p className="support-note">
                   Te responderemos en menos de 24 horas con toda la información que necesites.

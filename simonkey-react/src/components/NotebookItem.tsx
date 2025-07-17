@@ -15,9 +15,12 @@ interface NotebookItemProps {
   onToggleActions: (notebookId: string) => void; // Nueva función para alternar las acciones
   isSchoolNotebook?: boolean; // Nuevo prop
   onAddConcept?: (id: string) => void; // Nueva función para agregar conceptos
+  isFrozen?: boolean; // Nuevo prop para indicar si el cuaderno está congelado
+  onFreeze?: (id: string) => void; // Nueva función para congelar/descongelar
+  isTeacher?: boolean; // Para mostrar botón de congelar solo a profesores
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -200,7 +203,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
       className="notebook-card"
     >
       <div 
-        className="notebook-card-content" 
+        className={`notebook-card-content ${isFrozen ? 'frozen' : ''}`}
         onClick={handleCardClick}
         style={{ '--notebook-color': notebookColor } as React.CSSProperties}
       >
@@ -254,7 +257,15 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
             </button>
           </div>
         ) : (
-          <h3>{editableTitle}</h3>
+          <>
+            <h3>{editableTitle}</h3>
+            {isFrozen && (
+              <div className="frozen-badge">
+                <i className="fas fa-snowflake"></i>
+                <span>Congelado</span>
+              </div>
+            )}
+          </>
         )}
       </div>
       {showActions && (
@@ -336,6 +347,26 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               }}
             >
               <i className="fas fa-trash"></i>
+            </button>
+          )}
+          {isTeacher && onFreeze && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(isFrozen ? '¿Estás seguro de que deseas descongelar este cuaderno?' : '¿Estás seguro de que deseas congelar este cuaderno? Los alumnos no podrán estudiar ni ver los conceptos.')) {
+                  onFreeze(id);
+                }
+              }} 
+              className={`action-freeze ${isFrozen ? 'frozen' : ''}`} 
+              title={isFrozen ? "Descongelar cuaderno" : "Congelar cuaderno"}
+              disabled={hasError}
+              style={{ 
+                backgroundColor: isFrozen ? '#ef4444' : notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
+            >
+              <i className={`fas ${isFrozen ? 'fa-sun' : 'fa-snowflake'}`}></i>
             </button>
           )}
         </div>

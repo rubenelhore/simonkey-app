@@ -7,24 +7,24 @@ const funcionalidades = [
     description: 'Agrupa, edita y gestiona todos tus conceptos en un solo lugar de forma intuitiva.'
   },
   {
-    title: 'Practica con quizzes personalizados',
-    description: 'Genera quizzes adaptados a tu nivel y enfócate en los conceptos que más necesitas repasar.'
+    title: 'Estudia inteligentemente',
+    description: 'Usa el poder de la IA y la repetición espaciada para optimizar tu aprendizaje y retención.'
   },
   {
-    title: 'Recibe recordatorios inteligentes',
-    description: 'Simonkey te avisa cuándo es el mejor momento para repasar y no olvidar lo aprendido.'
+    title: 'Practica con quizzes personalizados',
+    description: 'Genera quizzes adaptados a tu nivel y enfócate en los conceptos que más necesitas repasar.'
   },
   {
     title: 'Accede a estadísticas de tu progreso',
     description: 'Visualiza tu avance, identifica áreas de mejora y celebra tus logros de estudio.'
   },
   {
-    title: 'Texto dummy para funcionalidad futura',
-    description: 'Próximamente nuevas herramientas para potenciar aún más tu aprendizaje.'
+    title: 'Compite por ser el mejor en tu clase',
+    description: 'Sube en el ranking, gana puntos y demuestra que eres el estudiante más dedicado.'
   },
   {
-    title: 'Colabora y comparte con tu equipo',
-    description: 'Invita a otros usuarios, comparte conceptos y trabaja en conjunto para aprender más rápido.'
+    title: 'Recordatorios inteligentes',
+    description: 'Simonkey te avisa cuándo es el mejor momento para repasar y no olvidar lo aprendido.'
   },
 ];
 

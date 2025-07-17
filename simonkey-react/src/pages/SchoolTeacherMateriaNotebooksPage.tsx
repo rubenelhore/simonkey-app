@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotebookList from '../components/NotebookList';
 import { db } from '../services/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -19,6 +19,9 @@ interface SchoolNotebook {
   createdAt: any;
   updatedAt: any;
   conceptCount?: number;
+  isFrozen?: boolean;
+  frozenScore?: number;
+  frozenAt?: any;
 }
 
 interface SchoolSubject {
@@ -350,6 +353,78 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     }
   };
 
+  const handleFreezeNotebook = async (id: string) => {
+    try {
+      const notebook = notebooks.find(n => n.id === id);
+      if (!notebook) return;
+
+      const batch = writeBatch(db);
+      const notebookRef = doc(db, 'schoolNotebooks', id);
+      
+      if (notebook.isFrozen) {
+        // Descongelar
+        batch.update(notebookRef, {
+          isFrozen: false,
+          frozenScore: null,
+          frozenAt: null,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Congelar
+        // Primero calcular el score actual de todos los estudiantes
+        const studentsQuery = query(
+          collection(db, 'learningData'),
+          where('cuadernoId', '==', id)
+        );
+        
+        const learningDataSnapshot = await getDocs(studentsQuery);
+        let totalScore = 0;
+        const studentScores = new Map<string, number>();
+        
+        learningDataSnapshot.forEach((doc) => {
+          const data = doc.data();
+          const score = data.efactor || 2.5; // Factor SM-3
+          const userId = data.usuarioId;
+          
+          if (!studentScores.has(userId)) {
+            studentScores.set(userId, 0);
+          }
+          studentScores.set(userId, studentScores.get(userId)! + score);
+        });
+        
+        // Calcular promedio
+        if (studentScores.size > 0) {
+          studentScores.forEach(score => totalScore += score);
+          totalScore = totalScore / studentScores.size;
+        }
+        
+        batch.update(notebookRef, {
+          isFrozen: true,
+          frozenScore: totalScore,
+          frozenAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      await batch.commit();
+      
+      // Actualizar localmente
+      setNotebooks(prev => prev.map(n => 
+        n.id === id ? { 
+          ...n, 
+          isFrozen: !n.isFrozen,
+          frozenScore: !n.isFrozen ? totalScore : undefined,
+          frozenAt: !n.isFrozen ? new Date() : undefined
+        } : n
+      ));
+      
+      console.log('✅ Notebook freeze state updated successfully');
+    } catch (error) {
+      console.error("Error updating notebook freeze state:", error);
+      alert('Error al actualizar el estado del cuaderno. Por favor, intenta de nuevo.');
+    }
+  };
+
   const handleBack = () => {
     navigate('/school/teacher');
   };
@@ -395,7 +470,10 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
                   (notebook.updatedAt && typeof notebook.updatedAt.toDate === 'function' ? 
                     notebook.updatedAt.toDate() : 
                     new Date()),
-                conceptCount: notebook.conceptCount || 0
+                conceptCount: notebook.conceptCount || 0,
+                isFrozen: notebook.isFrozen,
+                frozenScore: notebook.frozenScore,
+                frozenAt: notebook.frozenAt
               }))} 
               onDeleteNotebook={handleDelete} 
               onEditNotebook={handleEdit}
@@ -404,6 +482,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
               showCreateButton={true}
               isSchoolTeacher={true}
               materiaColor={materia?.color}
+              onFreezeNotebook={handleFreezeNotebook}
             />
         </div>
       </main>

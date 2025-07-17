@@ -1253,6 +1253,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
     checkFreeStudyLimit,
     checkSmartStudyLimit,
     getAllConceptsFromNotebook,
+    getLearningDataForNotebook,
     logStudyActivity,
     updateFreeStudyUsage,
     updateSmartStudyUsage,

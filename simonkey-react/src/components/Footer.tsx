@@ -22,6 +22,10 @@ const Footer: React.FC = () => {
             <div className="footer-column">
               <div className="footer-logo">
                 <a href="/" className="logo">
+                  <span className="logo-text">
+                    <span style={{ color: 'white' }}>Simon</span>
+                    <span style={{ color: 'white' }}>key</span>
+                  </span>
                   <img
                     src="/img/favicon.svg"
                     alt="Logo Simonkey"
@@ -29,10 +33,6 @@ const Footer: React.FC = () => {
                     width="24"
                     height="24"
                   />
-                  <span className="logo-text">
-                    <span style={{ color: 'white' }}>Simon</span>
-                    <span style={{ color: 'white' }}>key</span>
-                  </span>
                 </a>
               </div>
               <p className="footer-description">

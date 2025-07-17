@@ -17,6 +17,7 @@ import '../styles/MiniQuiz.css';
 interface MiniQuizProps {
   notebookId: string;
   notebookTitle: string;
+  sessionConcepts?: Concept[]; // Conceptos repasados en la sesión actual
   onComplete: (passed: boolean, score: number) => void;
   onClose: () => void;
 }
@@ -24,6 +25,7 @@ interface MiniQuizProps {
 const MiniQuiz: React.FC<MiniQuizProps> = ({ 
   notebookId, 
   notebookTitle, 
+  sessionConcepts,
   onComplete, 
   onClose 
 }) => {
@@ -147,50 +149,88 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         throw new Error('Usuario no autenticado');
       }
 
-      // Obtener conceptos del cuaderno según el tipo de usuario
-      const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
-      console.log('[MINI QUIZ] Buscando conceptos en colección:', collectionName);
-      
-      const conceptsQuery = query(
-        collection(db, collectionName),
-        where('cuadernoId', '==', notebookId)
-      );
-      
-      const conceptDocs = await getDocs(conceptsQuery);
-      const allConcepts: Concept[] = [];
-      
-      // Procesar los documentos de conceptos
-      for (const doc of conceptDocs.docs) {
-        const conceptosData = doc.data().conceptos || [];
-        conceptosData.forEach((concepto: any, index: number) => {
-          allConcepts.push({
-            id: `${doc.id}-${index}`,
-            término: concepto.término,
-            definición: concepto.definición,
-            fuente: concepto.fuente,
-            usuarioId: concepto.usuarioId,
-            docId: doc.id,
-            index,
-            notasPersonales: concepto.notasPersonales,
-            reviewId: concepto.reviewId,
-            dominado: concepto.dominado
-          } as Concept);
-        });
+      let quizConcepts: Concept[] = [];
+      let allNotebookConcepts: Concept[] = [];
+
+      // Si se proporcionaron conceptos de la sesión, usarlos para el quiz
+      if (sessionConcepts && sessionConcepts.length > 0) {
+        console.log('[MINI QUIZ] Usando conceptos de la sesión actual:', sessionConcepts.length);
+        quizConcepts = [...sessionConcepts];
+        
+        // Aún necesitamos todos los conceptos del cuaderno para las opciones incorrectas
+        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        const conceptsQuery = query(
+          collection(db, collectionName),
+          where('cuadernoId', '==', notebookId)
+        );
+        
+        const conceptDocs = await getDocs(conceptsQuery);
+        for (const doc of conceptDocs.docs) {
+          const conceptosData = doc.data().conceptos || [];
+          conceptosData.forEach((concepto: any, index: number) => {
+            allNotebookConcepts.push({
+              id: concepto.id || `${doc.id}-${index}`,
+              término: concepto.término,
+              definición: concepto.definición,
+              fuente: concepto.fuente,
+              usuarioId: concepto.usuarioId,
+              docId: doc.id,
+              index,
+              notasPersonales: concepto.notasPersonales,
+              reviewId: concepto.reviewId,
+              dominado: concepto.dominado
+            } as Concept);
+          });
+        }
+      } else {
+        // Fallback: obtener todos los conceptos del cuaderno
+        console.log('[MINI QUIZ] No hay conceptos de sesión, usando todos los conceptos del cuaderno');
+        
+        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        const conceptsQuery = query(
+          collection(db, collectionName),
+          where('cuadernoId', '==', notebookId)
+        );
+        
+        const conceptDocs = await getDocs(conceptsQuery);
+        for (const doc of conceptDocs.docs) {
+          const conceptosData = doc.data().conceptos || [];
+          conceptosData.forEach((concepto: any, index: number) => {
+            allNotebookConcepts.push({
+              id: concepto.id || `${doc.id}-${index}`,
+              término: concepto.término,
+              definición: concepto.definición,
+              fuente: concepto.fuente,
+              usuarioId: concepto.usuarioId,
+              docId: doc.id,
+              index,
+              notasPersonales: concepto.notasPersonales,
+              reviewId: concepto.reviewId,
+              dominado: concepto.dominado
+            } as Concept);
+          });
+        }
+        quizConcepts = [...allNotebookConcepts];
       }
 
-      if (allConcepts.length === 0) {
+      if (quizConcepts.length === 0) {
         throw new Error('No hay conceptos disponibles para el mini quiz');
       }
 
-      // Seleccionar 5 conceptos aleatorios (o todos si hay menos de 5)
-      const maxQuestions = Math.min(5, allConcepts.length);
-      const shuffledConcepts = allConcepts.sort(() => 0.5 - Math.random());
+      // Seleccionar 5 conceptos aleatorios de los conceptos repasados (o todos si hay menos de 5)
+      const maxQuestions = Math.min(5, quizConcepts.length);
+      const shuffledConcepts = quizConcepts.sort(() => 0.5 - Math.random());
       const selectedConcepts = shuffledConcepts.slice(0, maxQuestions);
+      
+      // Si no tenemos todos los conceptos del cuaderno, usar los de la sesión para las opciones
+      if (allNotebookConcepts.length === 0) {
+        allNotebookConcepts = [...quizConcepts];
+      }
 
       // Generar preguntas
       const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
-        // Seleccionar 3 distractores aleatorios
-        const otherConcepts = allConcepts.filter(c => c.id !== concept.id);
+        // Seleccionar 3 distractores aleatorios de todos los conceptos del cuaderno
+        const otherConcepts = allNotebookConcepts.filter(c => c.id !== concept.id);
         const distractors = otherConcepts
           .sort(() => 0.5 - Math.random())
           .slice(0, 3);
@@ -228,7 +268,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       console.error('Error generating mini quiz questions:', error);
       throw error;
     }
-  }, [notebookId]);
+  }, [notebookId, sessionConcepts, isSchoolStudent]);
 
   // Iniciar mini quiz
   const startMiniQuiz = async () => {

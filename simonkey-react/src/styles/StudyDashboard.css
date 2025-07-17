@@ -505,4 +505,76 @@
 .games-card:hover .header-ticket-number {
   color: #FF8E53;
   transition: color 0.3s ease;
+}
+
+/* Frozen dashboard styles */
+.frozen-dashboard {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 2rem;
+}
+
+.frozen-message-card {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border: 2px solid #2196f3;
+  border-radius: 20px;
+  padding: 3rem;
+  text-align: center;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(33, 150, 243, 0.15);
+}
+
+.frozen-message-card .frozen-icon {
+  font-size: 4rem;
+  color: #2196f3;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.frozen-message-card h3 {
+  font-size: 2rem;
+  color: #1976d2;
+  margin: 0 0 1rem 0;
+  font-weight: 700;
+}
+
+.frozen-message-card p {
+  font-size: 1.1rem;
+  color: #424242;
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.frozen-score {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid rgba(33, 150, 243, 0.3);
+}
+
+.frozen-score p {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1565c0;
+  margin-bottom: 1rem;
+}
+
+.frozen-score-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #0d47a1;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 } 

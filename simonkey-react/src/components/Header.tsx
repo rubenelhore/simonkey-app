@@ -38,78 +38,79 @@ const Header: React.FC = () => {
     <header className="header">
       <div className="header-container">
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
-          <div className="nav-top">
-            <Link to="/" className="logo" onClick={(e) => {
-              e.preventDefault();
-              if (location.pathname === '/') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              } else {
-                window.location.href = '/';
-              }
-              closeMenu();
-            }}>
-              <img
-                src="/img/favicon.svg"
-                alt="Logo Simonkey"
-                className="logo-img"
-                width="24"
-                height="24"
+          <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link to="/" className="logo" onClick={(e) => {
+                e.preventDefault();
+                if (location.pathname === '/') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  window.location.href = '/';
+                }
+                closeMenu();
+              }}>
+                <h1 style={{ margin: '0px', fontSize: '1.5rem', fontWeight: 700, color: '#000' }}>
+                  <span style={{ color: 'var(--primary)' }}>Simon</span><span>key</span>
+                </h1>
+              </Link>
+              <img 
+                alt="Logo Simonkey" 
+                className="logo-img" 
+                width="24" 
+                height="24" 
+                src="/img/favicon.svg" 
               />
-              <span className="logo-text">
-                <span style={{ color: 'black' }}>Simon</span>
-                <span style={{ color: 'black' }}>key</span>
-              </span>
-            </Link>
+            </div>
             {/* Botón hamburguesa */}
             <button className="hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>
             </button>
-            {/* Menú de notificaciones */}
-            {showNotifications && (
-              <div style={{
-                position: 'absolute',
-                top: 50,
-                right: 20,
-                background: 'white',
-                border: '1px solid #eee',
-                borderRadius: 8,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                padding: 16,
-                minWidth: 220,
-                zIndex: 10,
-                overflow: 'visible',
-              }}>
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  aria-label="Cerrar notificaciones"
-                  style={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    background: 'none',
-                    border: 'none',
-                    fontSize: 20,
-                    color: '#888',
-                    cursor: 'pointer',
-                    padding: 4,
-                    zIndex: 2
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-                <strong>Notificaciones</strong>
-                <div style={{ marginTop: 8 }}>
-                  {hasNotification ? (
-                    <div>¡Tienes un evento en el calendario!</div>
-                  ) : (
-                    <div>No tienes notificaciones nuevas.</div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
+          {/* Menú de notificaciones */}
+          {showNotifications && (
+            <div style={{
+              position: 'absolute',
+              top: 50,
+              right: 20,
+              background: 'white',
+              border: '1px solid #eee',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              padding: 16,
+              minWidth: 220,
+              zIndex: 10,
+              overflow: 'visible',
+            }}>
+              <button
+                onClick={() => setShowNotifications(false)}
+                aria-label="Cerrar notificaciones"
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 20,
+                  color: '#888',
+                  cursor: 'pointer',
+                  padding: 4,
+                  zIndex: 2
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <strong>Notificaciones</strong>
+              <div style={{ marginTop: 8 }}>
+                {hasNotification ? (
+                  <div>¡Tienes un evento en el calendario!</div>
+                ) : (
+                  <div>No tienes notificaciones nuevas.</div>
+                )}
+              </div>
+            </div>
+          )}
           
           <div className="nav-menu">
             <div className="nav-links">

@@ -22,6 +22,9 @@ interface Notebook {
   sharedBy?: string;
   color?: string;
   category?: string;
+  isFrozen?: boolean;
+  frozenScore?: number;
+  frozenAt?: Date;
 }
 
 interface NotebookListProps {
@@ -39,6 +42,7 @@ interface NotebookListProps {
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
   materiaColor?: string;
+  onFreezeNotebook?: (id: string) => void;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -55,7 +59,8 @@ const NotebookList: React.FC<NotebookListProps> = ({
   onCloseCategoryModal,
   onClearSelectedCategory,
   onRefreshCategories,
-  materiaColor
+  materiaColor,
+  onFreezeNotebook
 }) => {
   console.log('🔍 DEBUG - NotebookList renderizando con:', {
     notebooksCount: notebooks?.length || 0,
@@ -682,6 +687,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onToggleActions={handleToggleActions}
                 isSchoolNotebook={isSchoolTeacher}
                 onAddConcept={onAddConcept}
+                isFrozen={notebook.isFrozen}
+                onFreeze={onFreezeNotebook}
+                isTeacher={isSchoolTeacher}
               />
             ))}
           </div>

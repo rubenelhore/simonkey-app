@@ -4,6 +4,8 @@ import { db, auth } from '../../services/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece, faArrowLeft, faClock, faTrophy, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
+import { useStudyService } from '../../hooks/useStudyService';
+import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
 import '../../styles/PuzzleGame.css';
 
 interface Concept {
@@ -43,7 +45,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [maxCombo, setMaxCombo] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
+  const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
+  const studyService = useStudyService();
 
   // Timer
   useEffect(() => {
@@ -75,61 +79,43 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
 
     setLoading(true);
     try {
-      const userId = auth.currentUser.uid;
-      let conceptsList: Concept[] = [];
-
-      console.log('🧩 PuzzleGame - Cargando conceptos para notebook:', notebookId);
-      // Check if school notebook
-      const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-
-      if (notebookDoc.exists()) {
-        console.log('🏫 Notebook escolar encontrado');
-        // School notebook
-        const conceptsQuery = query(
-          collection(db, 'schoolConcepts'),
-          where('cuadernoId', '==', notebookId)
-        );
-        
-        const conceptsSnapshot = await getDocs(conceptsQuery);
-        console.log('📚 Documentos de conceptos encontrados:', conceptsSnapshot.size);
-        
-        conceptsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          console.log('📄 Documento de concepto:', doc.id, data);
-          if (data.conceptos && Array.isArray(data.conceptos)) {
-            data.conceptos.forEach((concepto: any, index: number) => {
-              conceptsList.push({
-                id: `${doc.id}_${index}`,
-                term: concepto.término || concepto.term || '',
-                definition: concepto.definición || concepto.definition || ''
-              });
-            });
-          }
-        });
-      } else {
-        // Regular notebook
-        const conceptsQuery = query(
-          collection(db, 'conceptos'),
-          where('cuadernoId', '==', notebookId),
-          where('usuarioId', '==', userId)
-        );
-        
-        const conceptsSnapshot = await getDocs(conceptsQuery);
-        conceptsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.conceptos && Array.isArray(data.conceptos)) {
-            data.conceptos.forEach((concepto: any, index: number) => {
-              conceptsList.push({
-                id: `${doc.id}_${index}`,
-                term: concepto.término || concepto.term || '',
-                definition: concepto.definición || concepto.definition || ''
-              });
-            });
-          }
-        });
+      // Obtener el ID efectivo del usuario
+      const effectiveUserData = await getEffectiveUserId();
+      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
+      // Obtener TODOS los conceptos del cuaderno primero
+      let allConcepts: any[] = await studyService.getAllConceptsFromNotebook(userId, notebookId);
+      console.log('🧩 Total de conceptos en el cuaderno:', allConcepts.length);
+      
+      // Obtener datos de aprendizaje para filtrar solo conceptos repasados
+      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
+      console.log('📚 Datos de aprendizaje encontrados:', learningData.length);
+      
+      // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
+      const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
+      
+      // Filtrar solo los conceptos que han sido repasados
+      const reviewedConcepts = allConcepts.filter(concept => 
+        reviewedConceptIds.has(concept.id)
+      );
+      
+      console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
+      
+      if (reviewedConcepts.length < 3) {
+        console.log('⚠️ No hay suficientes conceptos repasados para el juego (mínimo 3)');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
       }
+      
+      // Convertir al formato que espera el juego
+      const conceptsList: Concept[] = reviewedConcepts.map(concept => ({
+        id: concept.id,
+        term: concept.término || '',
+        definition: concept.definición || ''
+      }));
 
-      console.log('🎯 Total de conceptos cargados:', conceptsList.length);
+      console.log('🎯 Total de conceptos repasados para el juego:', conceptsList.length);
       setConcepts(conceptsList);
       
       // Start with 3 random concepts
@@ -354,6 +340,27 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         <div className="loading-container">
           <div className="loading-circle"></div>
           <p className="loading-text">Cargando</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (noReviewedConcepts) {
+    return (
+      <div className="puzzle-game-container">
+        <div className="no-concepts-message">
+          <button className="back-button" onClick={onBack}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+          </button>
+          <div className="empty-state">
+            <i className="fas fa-graduation-cap"></i>
+            <h2>¡Primero necesitas estudiar!</h2>
+            <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
+            <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+            <button className="primary-button" onClick={onBack}>
+              Volver
+            </button>
+          </div>
         </div>
       </div>
     );

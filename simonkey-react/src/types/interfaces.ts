@@ -36,6 +36,15 @@ export enum StudyMode {
 }
 
 /**
+ * Intensity levels for intelligent study
+ */
+export enum StudyIntensity {
+  WARM_UP = 'warm_up',    // 5 concepts - 1 session
+  PROGRESS = 'progress',   // 10 concepts - 1.5 sessions
+  ROCKET = 'rocket'        // 20 concepts - 2 sessions
+}
+
+/**
  * Datos de aprendizaje para algoritmo SM-3
  */
 export interface LearningData {
@@ -48,6 +57,7 @@ export interface LearningData {
   quality: number;           // Calidad de la respuesta (0-5)
   consecutiveCorrect: number; // Respuestas correctas consecutivas
   consecutiveIncorrect: number; // Respuestas incorrectas consecutivas
+  hasBeenReviewed?: boolean; // Si el concepto ha sido repasado alguna vez (nuevo campo)
 }
 
 /**

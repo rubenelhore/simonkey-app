@@ -8,8 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import { useGamePoints } from '../hooks/useGamePoints';
 import { useTickets } from '../hooks/useTickets';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faSnowflake } from '@fortawesome/free-solid-svg-icons';
 import { studyStreakService } from '../services/studyStreakService';
+import { useUserType } from '../hooks/useUserType';
 import '../styles/StudyDashboard.css';
 
 // Función auxiliar para obtener datos de aprendizaje
@@ -60,11 +61,13 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [studyLimits, setStudyLimits] = useState<any>(null);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
+  const [notebookFrozenData, setNotebookFrozenData] = useState<{ isFrozen: boolean; frozenScore?: number } | null>(null);
   
   const navigate = useNavigate();
   const studyService = useStudyService(userSubscription);
   const { points: gamePoints } = useGamePoints(notebook?.id);
   const { tickets } = useTickets(notebook?.id);
+  const { isSchoolStudent } = useUserType();
 
   // Debug prop validation
   useEffect(() => {
@@ -87,6 +90,31 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
       });
     }
   }, [userId]);
+  
+  // Efecto para verificar si el cuaderno está congelado
+  useEffect(() => {
+    const checkNotebookFrozen = async () => {
+      if (!notebook || !isSchoolStudent) {
+        setNotebookFrozenData(null);
+        return;
+      }
+      
+      try {
+        const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebook.id));
+        if (notebookDoc.exists()) {
+          const data = notebookDoc.data();
+          setNotebookFrozenData({
+            isFrozen: data.isFrozen || false,
+            frozenScore: data.frozenScore
+          });
+        }
+      } catch (error) {
+        console.error('Error al verificar estado del cuaderno:', error);
+      }
+    };
+    
+    checkNotebookFrozen();
+  }, [notebook?.id, isSchoolStudent]);
 
   // Efecto para cargar datos cuando cambie el cuaderno, usuario, puntos de juego o racha
   useEffect(() => {
@@ -729,6 +757,28 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     return null;
   }
 
+  // Si el cuaderno está congelado, mostrar mensaje especial
+  if (notebookFrozenData?.isFrozen && isSchoolStudent) {
+    return (
+      <div className="study-dashboard frozen-dashboard">
+        <div className="frozen-message-card">
+          <FontAwesomeIcon icon={faSnowflake} className="frozen-icon" />
+          <h3>Cuaderno Congelado</h3>
+          <p>Este cuaderno ha sido congelado por el profesor.</p>
+          <p>No puedes realizar actividades de estudio en este momento.</p>
+          {notebookFrozenData.frozenScore !== undefined && (
+            <div className="frozen-score">
+              <p>Tu puntaje congelado:</p>
+              <div className="frozen-score-value">
+                {notebookFrozenData.frozenScore.toFixed(2)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="study-dashboard" onClick={(e) => {
       console.log('[STUDY DASHBOARD] Dashboard container clicked', e.target);

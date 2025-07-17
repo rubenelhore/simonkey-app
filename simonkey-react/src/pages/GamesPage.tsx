@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGamepad, faArrowLeft, faTicket, faClock, faTrophy } from '@fortawesome/free-solid-svg-icons';
+import { faGamepad, faArrowLeft, faTicket, faClock, faTrophy, faSnowflake } from '@fortawesome/free-solid-svg-icons';
 import MemoryGame from '../components/Games/MemoryGame';
 import PuzzleGame from '../components/Games/PuzzleGame';
 import RaceGame from '../components/Games/RaceGame';
@@ -10,6 +10,9 @@ import QuizBattle from '../components/Games/QuizBattle';
 import TicketDisplay from '../components/TicketDisplay';
 import { useTickets } from '../hooks/useTickets';
 import { useGamePoints } from '../hooks/useGamePoints';
+import { db, auth } from '../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useUserType } from '../hooks/useUserType';
 import '../styles/GamesPage.css';
 
 const GamesPage: React.FC = () => {
@@ -19,9 +22,29 @@ const GamesPage: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [pendingGame, setPendingGame] = useState<string | null>(null);
+  const [isNotebookFrozen, setIsNotebookFrozen] = useState(false);
   const { tickets, loading: ticketsLoading, consumeTicket } = useTickets(notebookId);
   const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints(notebookId);
+  const { isSchoolStudent } = useUserType();
 
+  // Verificar si el cuaderno está congelado
+  useEffect(() => {
+    const checkNotebookFrozen = async () => {
+      if (!notebookId || !isSchoolStudent) return;
+      
+      try {
+        const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+        if (notebookDoc.exists() && notebookDoc.data().isFrozen) {
+          setIsNotebookFrozen(true);
+        }
+      } catch (error) {
+        console.error('Error al verificar estado del cuaderno:', error);
+      }
+    };
+    
+    checkNotebookFrozen();
+  }, [notebookId, isSchoolStudent]);
+  
   // Recargar puntos cuando se regrese de un juego
   useEffect(() => {
     if (!selectedGame) {
@@ -31,6 +54,12 @@ const GamesPage: React.FC = () => {
 
   const handleGameClick = async (gameId: string, gameName: string) => {
     if (!notebookId) return;
+    
+    // Verificar si el cuaderno está congelado
+    if (isNotebookFrozen) {
+      alert('Este cuaderno está congelado. No puedes jugar en este momento.');
+      return;
+    }
     
     // Si no hay tickets disponibles, mostrar mensaje
     if (!tickets || tickets.availableTickets === 0) {
@@ -139,6 +168,14 @@ const GamesPage: React.FC = () => {
             <button onClick={() => navigate('/notebooks')} className="select-notebook-btn">
               Seleccionar Cuaderno
             </button>
+          </div>
+        )}
+        
+        {notebookId && isNotebookFrozen && (
+          <div className="frozen-notebook-warning">
+            <FontAwesomeIcon icon={faSnowflake} className="frozen-icon" />
+            <h3>Cuaderno Congelado</h3>
+            <p>Este cuaderno está congelado por el profesor. No puedes jugar en este momento.</p>
           </div>
         )}
 
