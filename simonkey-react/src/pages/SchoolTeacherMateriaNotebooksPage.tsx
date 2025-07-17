@@ -360,6 +360,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
 
       const batch = writeBatch(db);
       const notebookRef = doc(db, 'schoolNotebooks', id);
+      let calculatedScore = 0; // Variable para el score calculado
       
       if (notebook.isFrozen) {
         // Descongelar
@@ -398,6 +399,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
           totalScore = totalScore / studentScores.size;
         }
         
+        calculatedScore = totalScore; // Guardar el score calculado
+        
         batch.update(notebookRef, {
           isFrozen: true,
           frozenScore: totalScore,
@@ -413,7 +416,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         n.id === id ? { 
           ...n, 
           isFrozen: !n.isFrozen,
-          frozenScore: !n.isFrozen ? totalScore : undefined,
+          frozenScore: !n.isFrozen ? calculatedScore : undefined,
           frozenAt: !n.isFrozen ? new Date() : undefined
         } : n
       ));

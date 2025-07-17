@@ -430,6 +430,52 @@
   transform: scaleX(1);
 }
 
+/* Estilos del semáforo de dominio */
+.concept-card.traffic-light-red {
+  background: linear-gradient(135deg, #fff 0%, #fee2e2 100%);
+  border-color: #fecaca;
+}
+
+.concept-card.traffic-light-red:hover {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #f87171;
+  box-shadow: 0 6px 16px rgba(248, 113, 113, 0.2);
+}
+
+.concept-card.traffic-light-red h4 {
+  color: #991b1b;
+}
+
+.concept-card.traffic-light-yellow {
+  background: linear-gradient(135deg, #fff 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+
+.concept-card.traffic-light-yellow:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.2);
+}
+
+.concept-card.traffic-light-yellow h4 {
+  color: #92400e;
+}
+
+.concept-card.traffic-light-green {
+  background: linear-gradient(135deg, #fff 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
+}
+
+.concept-card.traffic-light-green:hover {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #34d399;
+  box-shadow: 0 6px 16px rgba(52, 211, 153, 0.2);
+}
+
+.concept-card.traffic-light-green h4 {
+  color: #065f46;
+}
+
 /* Estilos para la tarjeta de añadir concepto */
 .add-concept-card-container {
   padding-top: 1rem;

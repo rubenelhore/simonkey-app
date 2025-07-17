@@ -51,11 +51,29 @@ const SchoolNotebookDetail = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('upload');
   
+  // Estado para los datos de aprendizaje (para el semáforo)
+  const [learningDataMap, setLearningDataMap] = useState<Map<string, number>>(new Map());
+  
   // Referencia para el modal
   const modalRef = useRef<HTMLDivElement>(null);
   
   // Usar el hook de estudio
   const studyService = useStudyService();
+  
+  // Función para obtener el color del semáforo según el interval
+  const getTrafficLightColor = (conceptId: string): string => {
+    const interval = learningDataMap.get(conceptId) || 1;
+    
+    if (interval === 1) {
+      return 'red'; // Rojo - Necesita práctica urgente
+    } else if (interval === 6) {
+      return 'yellow'; // Amarillo - Dominio medio
+    } else if (interval > 6) {
+      return 'green'; // Verde - Bien dominado
+    } else {
+      return 'red'; // Por defecto rojo para intervals < 6
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,9 +101,11 @@ const SchoolNotebookDetail = () => {
           
           // Verificar si el usuario es estudiante
           const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          let isCurrentUserStudent = false;
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setIsStudent(userData.schoolRole === 'student');
+            isCurrentUserStudent = userData.schoolRole === 'student';
+            setIsStudent(isCurrentUserStudent);
           }
         } else {
           console.error("No such school notebook!");
@@ -106,6 +126,38 @@ const SchoolNotebookDetail = () => {
         })) as ConceptDoc[];
         
         setConceptosDocs(conceptosData);
+        
+        // Cargar datos de aprendizaje para el semáforo (solo para estudiantes)
+        if (auth.currentUser && conceptosData.length > 0 && isCurrentUserStudent) {
+          const learningMap = new Map<string, number>();
+          
+          try {
+            // Obtener todos los IDs de conceptos
+            const allConceptIds = conceptosData.flatMap(doc => 
+              doc.conceptos.map(c => c.id)
+            );
+            
+            // Cargar datos de aprendizaje para cada concepto
+            for (const conceptId of allConceptIds) {
+              const learningDataRef = doc(db, 'users', auth.currentUser.uid, 'learningData', conceptId);
+              const learningDataSnap = await getDoc(learningDataRef);
+              
+              if (learningDataSnap.exists()) {
+                const data = learningDataSnap.data();
+                // Usar el interval del algoritmo SM-3
+                learningMap.set(conceptId, data.interval || 1);
+              } else {
+                // Si no existe, es un concepto nuevo (interval = 1)
+                learningMap.set(conceptId, 1);
+              }
+            }
+            
+            setLearningDataMap(learningMap);
+            console.log('🚦 Datos de aprendizaje cargados para semáforo escolar');
+          } catch (error) {
+            console.warn('⚠️ Error cargando datos de aprendizaje:', error);
+          }
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -380,15 +432,18 @@ const SchoolNotebookDetail = () => {
               <>
                 <div className="concept-cards">
                   {conceptosDocs.flatMap((doc) => 
-                    doc.conceptos.map((concepto, conceptIndex) => (
-                      <div 
-                        key={`${doc.id}-${conceptIndex}`}
-                        className="concept-card"
-                        onClick={() => navigate(`/school/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`)}
-                      >
-                        <h4>{concepto.término}</h4>
-                      </div>
-                    ))
+                    doc.conceptos.map((concepto, conceptIndex) => {
+                      const trafficLightColor = isStudent ? getTrafficLightColor(concepto.id) : '';
+                      return (
+                        <div 
+                          key={`${doc.id}-${conceptIndex}`}
+                          className={`concept-card ${isStudent ? `traffic-light-${trafficLightColor}` : ''}`}
+                          onClick={() => navigate(`/school/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`)}
+                        >
+                          <h4>{concepto.término}</h4>
+                        </div>
+                      );
+                    })
                   )}
                   
                   {/* Tarjeta para añadir nuevos conceptos */}
