@@ -414,9 +414,9 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   if (loading) {
     return (
       <div className="quiz-battle-container">
-        <div className="loading-spinner">
-          <div className="loading-spinner"></div>
-          <p>Preparando batalla...</p>
+        <div className="loading-container">
+          <div className="loading-circle"></div>
+          <p className="loading-text">Cargando</p>
         </div>
       </div>
     );

@@ -1,0 +1,50 @@
+{
+  "default": {
+    "SUPER_ADMIN": {
+      "maxNotebooks": -1,
+      "maxConceptsPerNotebook": -1,
+      "canDeleteAndRecreate": true,
+      "permissions": {
+        "canViewAllData": true,
+        "canEditAllData": true,
+        "canUseStudySection": true,
+        "canManageUsers": true
+      }
+    },
+    "FREE": {
+      "maxNotebooks": 4,
+      "maxConceptsPerNotebook": 100,
+      "canDeleteAndRecreate": false,
+      "permissions": {
+        "canViewAllData": false,
+        "canEditAllData": false,
+        "canUseStudySection": true,
+        "canManageUsers": false
+      }
+    },
+    "PRO": {
+      "maxNotebooks": -1,
+      "maxConceptsPerNotebook": 100,
+      "maxNotebooksPerWeek": 10,
+      "maxConceptsPerWeek": 100,
+      "canDeleteAndRecreate": true,
+      "permissions": {
+        "canViewAllData": false,
+        "canEditAllData": false,
+        "canUseStudySection": true,
+        "canManageUsers": false
+      }
+    },
+    "SCHOOL": {
+      "maxNotebooks": -1,
+      "maxConceptsPerNotebook": -1,
+      "canDeleteAndRecreate": true,
+      "permissions": {
+        "canViewAllData": false,
+        "canEditAllData": false,
+        "canUseStudySection": true,
+        "canManageUsers": false
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "default": {
+    "ADMIN": {
+      "canViewAllData": true,
+      "canEditAllData": false,
+      "canUseStudySection": true,
+      "canManageUsers": false
+    },
+    "TEACHER": {
+      "canViewAllData": false,
+      "canEditAllData": true,
+      "canUseStudySection": true,
+      "canManageUsers": false
+    },
+    "STUDENT": {
+      "canViewAllData": false,
+      "canEditAllData": false,
+      "canUseStudySection": true,
+      "canManageUsers": false
+    },
+    "TUTOR": {
+      "canViewAllData": false,
+      "canEditAllData": false,
+      "canUseStudySection": true,
+      "canManageUsers": false
+    }
+  }
+}

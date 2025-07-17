@@ -1,0 +1,170 @@
+{
+  "11O6VkRho3I1rV9xjLub": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "race_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752514484,
+      "_nanoseconds": 474000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "5BQArJkwmIHZj8ZLLF97": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "race_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752514229,
+      "_nanoseconds": 150000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "6hNm6SJuYTzqz3OziIh3": {
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "notebookId": "sTS5UvFPFl6kOZvG8UKA",
+    "gameId": "memory_sTS5UvFPFl6kOZvG8UKA",
+    "gameName": "Memorama",
+    "timestamp": {
+      "_seconds": 1752698835,
+      "_nanoseconds": 524000000
+    },
+    "duration": 60,
+    "points": 68,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "L1TpG2vTMvgPqmrcfKWa": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "race_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752514229,
+      "_nanoseconds": 181000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "LufpsdnfmXXlskOs7U9E": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "race_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752514484,
+      "_nanoseconds": 409000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "br6E4GNgC9KZEIk1rYSC": {
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "notebookId": "eJhgoCQqvqcWHclygPCq",
+    "gameId": "race_eJhgoCQqvqcWHclygPCq",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752693207,
+      "_nanoseconds": 346000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "fEC8umFpIuI2xiZRHuN6": {
+    "userId": "0UOpz84hhdXgX8l2E199ssbGRJ32",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "memory_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Memorama",
+    "timestamp": {
+      "_seconds": 1752598013,
+      "_nanoseconds": 48000000
+    },
+    "duration": 60,
+    "points": 117,
+    "bonusType": "speed",
+    "completed": true
+  },
+  "nTvIQNfj3sgFRpjAdw6Q": {
+    "userId": "t1pPKX2HchSMyDYn2IADJENyAZ23",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "puzzle_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Puzzle de Definiciones",
+    "timestamp": {
+      "_seconds": 1752598463,
+      "_nanoseconds": 12000000
+    },
+    "duration": 60,
+    "points": 74,
+    "bonusType": "speed",
+    "completed": true
+  },
+  "rT1pWA1rCArfjbfjl1MW": {
+    "userId": "0UOpz84hhdXgX8l2E199ssbGRJ32",
+    "notebookId": "fu4f2mUvuNN32ckJCvPI",
+    "gameId": "race_fu4f2mUvuNN32ckJCvPI",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752597773,
+      "_nanoseconds": 553000000
+    },
+    "duration": 60,
+    "points": 122,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "sPP5SkulWV48tFql0zyC": {
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "notebookId": "eJhgoCQqvqcWHclygPCq",
+    "gameId": "race_eJhgoCQqvqcWHclygPCq",
+    "gameName": "Carrera de Conceptos",
+    "timestamp": {
+      "_seconds": 1752693207,
+      "_nanoseconds": 285000000
+    },
+    "duration": 60,
+    "points": 96,
+    "bonusType": "perfect",
+    "completed": true
+  },
+  "x7OUwPp7sg7q1Leo6WDJ": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "quiz_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Quiz Battle",
+    "timestamp": {
+      "_seconds": 1752514427,
+      "_nanoseconds": 897000000
+    },
+    "duration": 60,
+    "points": 157,
+    "bonusType": "streak",
+    "completed": true
+  },
+  "xKYV3JfeR4zIzzJb4IwE": {
+    "userId": "0UOpz84hhdXgX8l2E199ssbGRJ32",
+    "notebookId": "yrawaFELK0NfW4MTbkzN",
+    "gameId": "puzzle_yrawaFELK0NfW4MTbkzN",
+    "gameName": "Puzzle de Definiciones",
+    "timestamp": {
+      "_seconds": 1752597993,
+      "_nanoseconds": 278000000
+    },
+    "duration": 60,
+    "points": 70,
+    "bonusType": "speed",
+    "completed": true
+  }
+}

@@ -3,6 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
 import { studyStreakService } from '../services/studyStreakService';
 import { useAuth } from '../contexts/AuthContext';
+import { debugStreakDisplay } from '../utils/debugStreakDisplay';
 
 interface StreakDisplayData {
   days: {
@@ -92,6 +93,21 @@ const StreakTracker: React.FC = () => {
       console.log('[StreakTracker] Días de estudio esta semana:', weekStudyDays);
       console.log('[StreakTracker] Ha estudiado hoy:', hasStudiedToday);
       console.log('[StreakTracker] Bonus de racha:', streakBonus);
+      
+      // Log adicional para depuración
+      const today = new Date();
+      console.log('[StreakTracker] Fecha actual:', today.toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }));
+      console.log('[StreakTracker] getDay():', today.getDay());
+      
+      // Debug adicional
+      if (userId === 'dTjO1PRNgRgvmOYItXhHseqpOY72') {
+        debugStreakDisplay(userId);
+      }
       
       setStreakData({
         days: weekStudyDays,

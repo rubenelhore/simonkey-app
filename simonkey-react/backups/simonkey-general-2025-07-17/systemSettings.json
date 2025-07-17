@@ -1,0 +1,18 @@
+{
+  "app": {
+    "appVersion": "1.0.0",
+    "maintenanceMode": false,
+    "registrationEnabled": true,
+    "emailVerificationRequired": true,
+    "maxLoginAttempts": 5,
+    "sessionTimeout": 3600,
+    "createdAt": {
+      "_seconds": 1750784704,
+      "_nanoseconds": 417000000
+    },
+    "updatedAt": {
+      "_seconds": 1750784704,
+      "_nanoseconds": 417000000
+    }
+  }
+}

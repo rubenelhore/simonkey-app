@@ -357,9 +357,9 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   if (loading) {
     return (
       <div className="race-game-container">
-        <div className="loading-spinner">
-          <div className="loading-spinner"></div>
-          <p>Cargando pista...</p>
+        <div className="loading-container">
+          <div className="loading-circle"></div>
+          <p className="loading-text">Cargando</p>
         </div>
       </div>
     );

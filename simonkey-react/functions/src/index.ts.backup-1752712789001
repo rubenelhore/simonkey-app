@@ -20,7 +20,7 @@ admin.initializeApp();
 // Usar la base de datos simonkey-general
 const getDb = () => {
   // En firebase-admin 12.x, usar getFirestore con el nombre de la base de datos
-  return getFirestore();
+  return getFirestore('simonkey-general');
 };
 
 // Configuración de límites por tipo de suscripción

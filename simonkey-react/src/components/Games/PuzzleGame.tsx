@@ -351,9 +351,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   if (loading) {
     return (
       <div className="puzzle-game-container">
-        <div className="loading-spinner">
-          <div className="loading-spinner"></div>
-          <p>Cargando conceptos...</p>
+        <div className="loading-container">
+          <div className="loading-circle"></div>
+          <p className="loading-text">Cargando</p>
         </div>
       </div>
     );

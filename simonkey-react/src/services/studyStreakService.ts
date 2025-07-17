@@ -289,7 +289,8 @@ export class StudyStreakService {
 
       console.log('[StudyStreakService] Obteniendo días de estudio de la semana:', {
         startOfWeek: startOfWeek.toISOString(),
-        endOfWeek: endOfWeek.toISOString()
+        endOfWeek: endOfWeek.toISOString(),
+        userId: userId
       });
 
       // Mapeo de días (getDay() devuelve 0=domingo, 1=lunes, etc.)
@@ -324,6 +325,7 @@ export class StudyStreakService {
       );
 
       const studySessionsSnap = await getDocs(studySessionsQuery);
+      console.log('[StudyStreakService] Sesiones de estudio encontradas:', studySessionsSnap.size);
       
       // Marcar días con sesiones de estudio
       studySessionsSnap.forEach(doc => {
@@ -335,7 +337,14 @@ export class StudyStreakService {
           const dayKey = dayMapping[dayOfWeek];
           if (dayKey) {
             weekDays[dayKey] = true;
-            console.log('[StudyStreakService] Marcando día con estudio:', dayKey, 'fecha:', date.toLocaleDateString());
+            console.log('[StudyStreakService] Marcando día con estudio:', {
+              dayKey,
+              fecha: date.toLocaleDateString('es-ES'),
+              hora: date.toLocaleTimeString('es-ES'),
+              dayOfWeek,
+              sessionId: doc.id,
+              duration
+            });
           }
         }
       });
@@ -348,6 +357,7 @@ export class StudyStreakService {
       );
 
       const quizResultsSnap = await getDocs(quizResultsQuery);
+      console.log('[StudyStreakService] Quizzes encontrados:', quizResultsSnap.size);
       
       // Marcar días con quizzes
       quizResultsSnap.forEach(doc => {
@@ -358,7 +368,14 @@ export class StudyStreakService {
           const dayKey = dayMapping[dayOfWeek];
           if (dayKey) {
             weekDays[dayKey] = true;
-            console.log('[StudyStreakService] Marcando día con quiz:', dayKey, 'fecha:', date.toLocaleDateString());
+            console.log('[StudyStreakService] Marcando día con quiz:', {
+              dayKey,
+              fecha: date.toLocaleDateString('es-ES'),
+              hora: date.toLocaleTimeString('es-ES'),
+              dayOfWeek,
+              quizId: doc.id,
+              score: quiz.score
+            });
           }
         }
       });
@@ -394,6 +411,7 @@ export class StudyStreakService {
       );
 
       const gameSessionsSnap = await getDocs(gameSessionsQuery);
+      console.log('[StudyStreakService] Sesiones de juego encontradas:', gameSessionsSnap.size);
 
       // Marcar días con sesiones de juego
       gameSessionsSnap.forEach(doc => {
@@ -405,6 +423,15 @@ export class StudyStreakService {
           const dayKey = dayMapping[dayOfWeek];
           if (dayKey) {
             weekDays[dayKey] = true;
+            console.log('[StudyStreakService] Marcando día con juego:', {
+              dayKey,
+              fecha: date.toLocaleDateString('es-ES'),
+              hora: date.toLocaleTimeString('es-ES'),
+              dayOfWeek,
+              gameId: doc.id,
+              gameType: session.gameType,
+              duration
+            });
           }
         }
       });

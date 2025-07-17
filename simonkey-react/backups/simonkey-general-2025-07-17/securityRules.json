@@ -1,0 +1,23 @@
+{
+  "firestore": {
+    "version": "1.0.0",
+    "rules": {
+      "users": {
+        "read": "request.auth != null && (request.auth.uid == resource.data.id || resource.data.subscription == \"SUPER_ADMIN\")",
+        "write": "request.auth != null && request.auth.uid == resource.data.id"
+      },
+      "notebooks": {
+        "read": "request.auth != null && resource.data.userId == request.auth.uid",
+        "write": "request.auth != null && resource.data.userId == request.auth.uid"
+      },
+      "conceptos": {
+        "read": "request.auth != null && resource.data.userId == request.auth.uid",
+        "write": "request.auth != null && resource.data.userId == request.auth.uid"
+      }
+    },
+    "createdAt": {
+      "_seconds": 1750784705,
+      "_nanoseconds": 771000000
+    }
+  }
+}

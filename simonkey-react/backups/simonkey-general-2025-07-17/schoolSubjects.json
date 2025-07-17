@@ -1,0 +1,77 @@
+{
+  "RJ9TD4GhppiECyRN5a6b": {
+    "nombre": "Materia Dummy",
+    "color": "#4CAF50",
+    "idProfesor": "school_1751668708884_3vw8vu87t",
+    "idAdmin": "school_1751668685966_9k45ca5b4",
+    "idEscuela": "tLWRBUUcdRgWoo2DGrIl",
+    "createdAt": {
+      "_seconds": 1751991226,
+      "_nanoseconds": 267000000
+    },
+    "updatedAt": {
+      "_seconds": 1751991226,
+      "_nanoseconds": 267000000
+    }
+  },
+  "Yk4rXiHzyBxFjQr1s9MT": {
+    "nombre": "Español",
+    "color": "#6147FF",
+    "idProfesor": "M8068CWT7FNuYlmXxUE0pGGAYHO2",
+    "idAdmin": "school_1751668685966_9k45ca5b4",
+    "idEscuela": "tLWRBUUcdRgWoo2DGrIl",
+    "createdAt": {
+      "_seconds": 1751735284,
+      "_nanoseconds": 423000000
+    },
+    "updatedAt": {
+      "_seconds": 1751735284,
+      "_nanoseconds": 423000000
+    }
+  },
+  "g6rLNggRCUXwro05uwgW": {
+    "nombre": "Historia de la Cultura",
+    "color": "#FF8C00",
+    "idProfesor": "dhDz7Qr4O7YoRA3M0HXCXPjFWk63",
+    "idAdmin": "VEXsxGg4ZVZjvNBtqhofolEFlCx2",
+    "idEscuela": "8tQM99C4hyAXdwoyamq9",
+    "createdAt": {
+      "_seconds": 1752510196,
+      "_nanoseconds": 558000000
+    },
+    "updatedAt": {
+      "_seconds": 1752510196,
+      "_nanoseconds": 558000000
+    }
+  },
+  "zN6gjKDGFDoG4SCtqML3": {
+    "nombre": "Matemáticas Avanzadas",
+    "color": "#9C27B0",
+    "idProfesor": "school_1751668708884_3vw8vu87t",
+    "idAdmin": "school_1751668685966_9k45ca5b4",
+    "idEscuela": "tLWRBUUcdRgWoo2DGrIl",
+    "createdAt": {
+      "_seconds": 1751733001,
+      "_nanoseconds": 579000000
+    },
+    "updatedAt": {
+      "_seconds": 1751733001,
+      "_nanoseconds": 579000000
+    }
+  },
+  "zNja9AxLVIqjx4nJKYXy": {
+    "nombre": "Matemáticas",
+    "color": "#FF6B6B",
+    "idProfesor": "school_1751668708884_3vw8vu87t",
+    "idAdmin": "school_1751668685966_9k45ca5b4",
+    "idEscuela": "tLWRBUUcdRgWoo2DGrIl",
+    "createdAt": {
+      "_seconds": 1751669380,
+      "_nanoseconds": 132000000
+    },
+    "updatedAt": {
+      "_seconds": 1751669380,
+      "_nanoseconds": 132000000
+    }
+  }
+}

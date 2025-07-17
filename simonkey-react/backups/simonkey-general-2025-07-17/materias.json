@@ -1,0 +1,212 @@
+{
+  "0aiDxsw1xwkWo4YwZwF6": {
+    "title": "Heridas",
+    "color": "#FF6B6B",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752683061,
+      "_nanoseconds": 508000000
+    },
+    "updatedAt": {
+      "_seconds": 1752683061,
+      "_nanoseconds": 508000000
+    }
+  },
+  "3Q3rdzLn2dwMkjvKiXtS": {
+    "title": "Gastronomía",
+    "color": "#FF8C00",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752013422,
+      "_nanoseconds": 808000000
+    },
+    "category": "Primer Semestre",
+    "updatedAt": {
+      "_seconds": 1752608103,
+      "_nanoseconds": 548000000
+    }
+  },
+  "7Tch58rmTAk1BEVZ0QtI": {
+    "title": "Historia",
+    "color": "#FFD700",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1751994312,
+      "_nanoseconds": 838000000
+    },
+    "category": "Primer Semestre",
+    "updatedAt": {
+      "_seconds": 1752608103,
+      "_nanoseconds": 681000000
+    }
+  },
+  "CHjgs5Qy2FBHvrVOG0XY": {
+    "title": "we",
+    "color": "#6147FF",
+    "category": "",
+    "userId": "38U4Y2lriSfpWsnQ1vh9F2Zs9wm2",
+    "createdAt": {
+      "_seconds": 1751991762,
+      "_nanoseconds": 740000000
+    },
+    "updatedAt": {
+      "_seconds": 1751991762,
+      "_nanoseconds": 740000000
+    }
+  },
+  "EiIWdMo6c2GyG3jQHhKA": {
+    "title": "Filosofía",
+    "color": "#9C27B0",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752538354,
+      "_nanoseconds": 155000000
+    },
+    "category": "Primer Semestre",
+    "updatedAt": {
+      "_seconds": 1752608103,
+      "_nanoseconds": 813000000
+    }
+  },
+  "NTeOviuZc7QBMN7WChpP": {
+    "title": "Historia de la Filosofía I",
+    "color": "#FFD700",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752015914,
+      "_nanoseconds": 773000000
+    },
+    "updatedAt": {
+      "_seconds": 1752015914,
+      "_nanoseconds": 773000000
+    }
+  },
+  "QjImvjU8mEYFCHFib048": {
+    "title": "Biología",
+    "color": "#4CAF50",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752608147,
+      "_nanoseconds": 405000000
+    },
+    "updatedAt": {
+      "_seconds": 1752608147,
+      "_nanoseconds": 405000000
+    }
+  },
+  "QxJrtC89c8LvRBgfnOG3": {
+    "title": "Finanzas IV",
+    "color": "#9C27B0",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752697459,
+      "_nanoseconds": 871000000
+    },
+    "updatedAt": {
+      "_seconds": 1752697459,
+      "_nanoseconds": 871000000
+    }
+  },
+  "Uap0B4NJnctTRFwVCgU9": {
+    "title": "Teléfonos",
+    "color": "#4CAF50",
+    "category": "",
+    "userId": "pwSj7LMwyrVk1T8aa6sYUK72AIu2",
+    "createdAt": {
+      "_seconds": 1752281564,
+      "_nanoseconds": 264000000
+    },
+    "updatedAt": {
+      "_seconds": 1752281564,
+      "_nanoseconds": 264000000
+    }
+  },
+  "V66QkQWUtvhSOmgCSeCT": {
+    "title": "Mecánica de Fluidos",
+    "color": "#4CAF50",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752542942,
+      "_nanoseconds": 568000000
+    },
+    "updatedAt": {
+      "_seconds": 1752542942,
+      "_nanoseconds": 568000000
+    }
+  },
+  "b1hICBbZ5saBgdmVHuKa": {
+    "title": "Historia del Arte",
+    "color": "#6147FF",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1751994320,
+      "_nanoseconds": 22000000
+    },
+    "updatedAt": {
+      "_seconds": 1751994320,
+      "_nanoseconds": 22000000
+    }
+  },
+  "b8uJqAhjxlomTbEUqJOP": {
+    "title": "Cultura General",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1751928349,
+      "_nanoseconds": 52000000
+    },
+    "color": "#4CAF50",
+    "updatedAt": {
+      "_seconds": 1751928353,
+      "_nanoseconds": 686000000
+    }
+  },
+  "cHTGJSOPTlKRvqt0nUaq": {
+    "title": "Matemáticas",
+    "color": "#6147FF",
+    "category": "",
+    "userId": "5wYd579mryWaPfZkNZxfC1akVj93",
+    "createdAt": {
+      "_seconds": 1752626067,
+      "_nanoseconds": 50000000
+    },
+    "updatedAt": {
+      "_seconds": 1752626067,
+      "_nanoseconds": 50000000
+    }
+  },
+  "dG7YXpLy3rVV2qkiolpd": {
+    "title": "Gobierno y Protección de Datos",
+    "color": "#FF8C00",
+    "category": "",
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "createdAt": {
+      "_seconds": 1752604338,
+      "_nanoseconds": 625000000
+    },
+    "updatedAt": {
+      "_seconds": 1752604338,
+      "_nanoseconds": 625000000
+    }
+  },
+  "wQg3gtZKKGQwYeH2d7kC": {
+    "title": "Memoria General",
+    "color": "#6147FF",
+    "category": "",
+    "userId": "UbExrUfnAqPVTzx7vUL36xVKDQx2",
+    "createdAt": {
+      "_seconds": 1752272746,
+      "_nanoseconds": 202000000
+    },
+    "updatedAt": {
+      "_seconds": 1752272746,
+      "_nanoseconds": 202000000
+    }
+  }
+}

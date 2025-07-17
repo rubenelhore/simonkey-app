@@ -1,0 +1,50 @@
+{
+  "5wYd579mryWaPfZkNZxfC1akVj93_1 semestre": {
+    "userId": "5wYd579mryWaPfZkNZxfC1akVj93",
+    "name": "1 semestre",
+    "createdAt": {
+      "_seconds": 1752625991,
+      "_nanoseconds": 427000000
+    },
+    "updatedAt": {
+      "_seconds": 1752625991,
+      "_nanoseconds": 427000000
+    }
+  },
+  "5wYd579mryWaPfZkNZxfC1akVj93_Alumnos de 3 semestre": {
+    "userId": "5wYd579mryWaPfZkNZxfC1akVj93",
+    "name": "Alumnos de 3 semestre",
+    "createdAt": {
+      "_seconds": 1752626019,
+      "_nanoseconds": 821000000
+    },
+    "updatedAt": {
+      "_seconds": 1752626019,
+      "_nanoseconds": 821000000
+    }
+  },
+  "dTjO1PRNgRgvmOYItXhHseqpOY72_Primer Semestre": {
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "name": "Primer Semestre",
+    "createdAt": {
+      "_seconds": 1752608103,
+      "_nanoseconds": 938000000
+    },
+    "updatedAt": {
+      "_seconds": 1752608103,
+      "_nanoseconds": 938000000
+    }
+  },
+  "pwSj7LMwyrVk1T8aa6sYUK72AIu2_Ricardo De Pascual": {
+    "userId": "pwSj7LMwyrVk1T8aa6sYUK72AIu2",
+    "name": "Ricardo De Pascual",
+    "createdAt": {
+      "_seconds": 1752281604,
+      "_nanoseconds": 691000000
+    },
+    "updatedAt": {
+      "_seconds": 1752281604,
+      "_nanoseconds": 691000000
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "0UOpz84hhdXgX8l2E199ssbGRJ32_g6rLNggRCUXwro05uwgW_1752386400000": {
+    "userId": "0UOpz84hhdXgX8l2E199ssbGRJ32",
+    "institutionId": "8tQM99C4hyAXdwoyamq9",
+    "subjectId": "g6rLNggRCUXwro05uwgW",
+    "position": 4,
+    "totalStudents": 4,
+    "score": 2055,
+    "weekStart": {
+      "_seconds": 1752386400,
+      "_nanoseconds": 0
+    },
+    "weekEnd": {
+      "_seconds": 1752991200,
+      "_nanoseconds": 0
+    },
+    "createdAt": {
+      "_seconds": 1752620804,
+      "_nanoseconds": 268000000
+    }
+  },
+  "DgmoHAps00ZAGcxhzToW5Npovqt1_g6rLNggRCUXwro05uwgW_1752386400000": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "institutionId": "8tQM99C4hyAXdwoyamq9",
+    "subjectId": "g6rLNggRCUXwro05uwgW",
+    "position": 1,
+    "totalStudents": 4,
+    "score": 9426,
+    "weekStart": {
+      "_seconds": 1752386400,
+      "_nanoseconds": 0
+    },
+    "weekEnd": {
+      "_seconds": 1752991200,
+      "_nanoseconds": 0
+    },
+    "createdAt": {
+      "_seconds": 1752618980,
+      "_nanoseconds": 447000000
+    }
+  },
+  "fL8S2CakfchpgT59PmXPOZSkpF52_g6rLNggRCUXwro05uwgW_1752386400000": {
+    "userId": "fL8S2CakfchpgT59PmXPOZSkpF52",
+    "institutionId": "8tQM99C4hyAXdwoyamq9",
+    "subjectId": "g6rLNggRCUXwro05uwgW",
+    "position": 2,
+    "totalStudents": 4,
+    "score": 8730,
+    "weekStart": {
+      "_seconds": 1752386400,
+      "_nanoseconds": 0
+    },
+    "weekEnd": {
+      "_seconds": 1752991200,
+      "_nanoseconds": 0
+    },
+    "createdAt": {
+      "_seconds": 1752618635,
+      "_nanoseconds": 396000000
+    }
+  },
+  "t1pPKX2HchSMyDYn2IADJENyAZ23_g6rLNggRCUXwro05uwgW_1752386400000": {
+    "userId": "t1pPKX2HchSMyDYn2IADJENyAZ23",
+    "institutionId": "8tQM99C4hyAXdwoyamq9",
+    "subjectId": "g6rLNggRCUXwro05uwgW",
+    "position": 3,
+    "totalStudents": 4,
+    "score": 3339,
+    "weekStart": {
+      "_seconds": 1752386400,
+      "_nanoseconds": 0
+    },
+    "weekEnd": {
+      "_seconds": 1752991200,
+      "_nanoseconds": 0
+    },
+    "createdAt": {
+      "_seconds": 1752621364,
+      "_nanoseconds": 865000000
+    }
+  }
+}

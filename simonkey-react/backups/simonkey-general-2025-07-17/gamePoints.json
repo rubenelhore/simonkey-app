@@ -1,0 +1,1209 @@
+{
+  "0UOpz84hhdXgX8l2E199ssbGRJ32": {
+    "userId": "0UOpz84hhdXgX8l2E199ssbGRJ32",
+    "notebookPoints": {
+      "fu4f2mUvuNN32ckJCvPI": {
+        "notebookId": "fu4f2mUvuNN32ckJCvPI",
+        "lastWeekReset": {
+          "_seconds": 1752597697,
+          "_nanoseconds": 236000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752597697,
+          "_nanoseconds": 236000000
+        },
+        "weeklyPoints": 172,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752597773,
+              "_nanoseconds": 317000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752597773317_9wgc3c5b2",
+            "timestamp": {
+              "_seconds": 1752597773,
+              "_nanoseconds": 317000000
+            },
+            "gameId": "race_fu4f2mUvuNN32ckJCvPI",
+            "gameName": "Carrera de Conceptos",
+            "points": 122,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 172,
+        "gameScores": {
+          "quiz": 0,
+          "memory": 0,
+          "puzzle": 0,
+          "race": 122
+        },
+        "monthlyPoints": 172
+      },
+      "yrawaFELK0NfW4MTbkzN": {
+        "notebookId": "yrawaFELK0NfW4MTbkzN",
+        "lastWeekReset": {
+          "_seconds": 1752597939,
+          "_nanoseconds": 408000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752597939,
+          "_nanoseconds": 408000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752597993,
+              "_nanoseconds": 36000000
+            }
+          }
+        ],
+        "weeklyPoints": 237,
+        "pointsHistory": [
+          {
+            "id": "1752597993035_7d4k5iefc",
+            "timestamp": {
+              "_seconds": 1752597993,
+              "_nanoseconds": 35000000
+            },
+            "gameId": "puzzle_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Puzzle de Definiciones",
+            "points": 70,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          },
+          {
+            "id": "1752598012906_g7pg9l32f",
+            "timestamp": {
+              "_seconds": 1752598012,
+              "_nanoseconds": 906000000
+            },
+            "gameId": "memory_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Memorama",
+            "points": 117,
+            "description": "Memorama completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          }
+        ],
+        "totalPoints": 237,
+        "gameScores": {
+          "quiz": 0,
+          "puzzle": 70,
+          "memory": 117,
+          "race": 0
+        },
+        "monthlyPoints": 237
+      }
+    }
+  },
+  "38U4Y2lriSfpWsnQ1vh9F2Zs9wm2": {
+    "userId": "38U4Y2lriSfpWsnQ1vh9F2Zs9wm2",
+    "lastWeekReset": {
+      "_seconds": 1752260635,
+      "_nanoseconds": 163000000
+    },
+    "lastMonthReset": {
+      "_seconds": 1752260635,
+      "_nanoseconds": 163000000
+    },
+    "gameScores": {
+      "memory": 0,
+      "puzzle": 0,
+      "race": 0,
+      "quiz": 0
+    },
+    "pointsHistory": [],
+    "achievements": [],
+    "weeklyPoints": 50,
+    "totalPoints": 50,
+    "monthlyPoints": 50,
+    "notebookPoints": {
+      "dQbRljnknDG7kG0u2J5Y": {
+        "notebookId": "dQbRljnknDG7kG0u2J5Y",
+        "totalPoints": 0,
+        "weeklyPoints": 0,
+        "monthlyPoints": 0,
+        "lastWeekReset": {
+          "_seconds": 1752263980,
+          "_nanoseconds": 63000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752263980,
+          "_nanoseconds": 63000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": []
+      }
+    }
+  },
+  "DgmoHAps00ZAGcxhzToW5Npovqt1": {
+    "userId": "DgmoHAps00ZAGcxhzToW5Npovqt1",
+    "notebookPoints": {
+      "fu4f2mUvuNN32ckJCvPI": {
+        "notebookId": "fu4f2mUvuNN32ckJCvPI",
+        "lastWeekReset": {
+          "_seconds": 1752513396,
+          "_nanoseconds": 695000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752513396,
+          "_nanoseconds": 695000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752513497,
+              "_nanoseconds": 10000000
+            }
+          }
+        ],
+        "weeklyPoints": 445,
+        "pointsHistory": [
+          {
+            "id": "1752513497009_ekob6k9vy",
+            "timestamp": {
+              "_seconds": 1752513497,
+              "_nanoseconds": 9000000
+            },
+            "gameId": "quiz_fu4f2mUvuNN32ckJCvPI",
+            "gameName": "Quiz Battle",
+            "points": 314,
+            "description": "Quiz Battle completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          },
+          {
+            "id": "1752513884032_3u51ztx9l",
+            "timestamp": {
+              "_seconds": 1752513884,
+              "_nanoseconds": 32000000
+            },
+            "gameId": "puzzle_fu4f2mUvuNN32ckJCvPI",
+            "gameName": "Puzzle de Definiciones",
+            "points": 81,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          }
+        ],
+        "totalPoints": 445,
+        "gameScores": {
+          "puzzle": 81,
+          "memory": 0,
+          "race": 0,
+          "quiz": 314
+        },
+        "monthlyPoints": 445
+      },
+      "yrawaFELK0NfW4MTbkzN": {
+        "notebookId": "yrawaFELK0NfW4MTbkzN",
+        "lastWeekReset": {
+          "_seconds": 1752514194,
+          "_nanoseconds": 502000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752514194,
+          "_nanoseconds": 502000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752514228,
+              "_nanoseconds": 744000000
+            }
+          },
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752514228,
+              "_nanoseconds": 746000000
+            }
+          }
+        ],
+        "gameScores": {
+          "memory": 0,
+          "race": 192,
+          "puzzle": 0,
+          "quiz": 157
+        },
+        "weeklyPoints": 641,
+        "pointsHistory": [
+          {
+            "id": "1752514228744_3l5efh19a",
+            "timestamp": {
+              "_seconds": 1752514228,
+              "_nanoseconds": 744000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752514228746_7pe35zb9t",
+            "timestamp": {
+              "_seconds": 1752514228,
+              "_nanoseconds": 746000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752514427419_izqhalpv3",
+            "timestamp": {
+              "_seconds": 1752514427,
+              "_nanoseconds": 419000000
+            },
+            "gameId": "quiz_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Quiz Battle",
+            "points": 157,
+            "description": "Quiz Battle completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          },
+          {
+            "id": "1752514484194_i1w6kqjw8",
+            "timestamp": {
+              "_seconds": 1752514484,
+              "_nanoseconds": 194000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752514484196_np3dmxb6c",
+            "timestamp": {
+              "_seconds": 1752514484,
+              "_nanoseconds": 196000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 641,
+        "monthlyPoints": 641
+      }
+    }
+  },
+  "UbExrUfnAqPVTzx7vUL36xVKDQx2": {
+    "userId": "UbExrUfnAqPVTzx7vUL36xVKDQx2",
+    "notebookPoints": {
+      "yASC4EZUIKtu99NNIiFp": {
+        "notebookId": "yASC4EZUIKtu99NNIiFp",
+        "lastWeekReset": {
+          "_seconds": 1752273601,
+          "_nanoseconds": 823000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752273601,
+          "_nanoseconds": 823000000
+        },
+        "weeklyPoints": 173,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752275539,
+              "_nanoseconds": 93000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752275539093_4skzb5n8t",
+            "timestamp": {
+              "_seconds": 1752275539,
+              "_nanoseconds": 93000000
+            },
+            "gameId": "race_yASC4EZUIKtu99NNIiFp",
+            "gameName": "Carrera de Conceptos",
+            "points": 73,
+            "description": "Carrera de Conceptos completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          }
+        ],
+        "totalPoints": 173,
+        "gameScores": {
+          "puzzle": 0,
+          "quiz": 0,
+          "race": 73,
+          "memory": 0
+        },
+        "monthlyPoints": 173
+      }
+    }
+  },
+  "dTjO1PRNgRgvmOYItXhHseqpOY72": {
+    "userId": "dTjO1PRNgRgvmOYItXhHseqpOY72",
+    "lastWeekReset": {
+      "_seconds": 1752192835,
+      "_nanoseconds": 751000000
+    },
+    "lastMonthReset": {
+      "_seconds": 1752192835,
+      "_nanoseconds": 751000000
+    },
+    "gameScores": {
+      "race": 269,
+      "memory": 0,
+      "puzzle": 66,
+      "quiz": 314
+    },
+    "weeklyPoints": 1537,
+    "achievements": [
+      {
+        "id": "FIRST_GAME",
+        "name": "Primer Juego",
+        "description": "Completa tu primer juego",
+        "points": 50,
+        "icon": "🎮",
+        "unlockedAt": {
+          "_seconds": 1752193734,
+          "_nanoseconds": 954000000
+        }
+      },
+      {
+        "id": "FIRST_GAME",
+        "name": "Primer Juego",
+        "description": "Completa tu primer juego",
+        "points": 50,
+        "icon": "🎮",
+        "unlockedAt": {
+          "_seconds": 1752193734,
+          "_nanoseconds": 956000000
+        }
+      },
+      {
+        "id": "ALL_GAMES",
+        "name": "Explorador",
+        "description": "Juega todos los tipos de juegos",
+        "points": 100,
+        "icon": "🌟",
+        "unlockedAt": {
+          "_seconds": 1752255441,
+          "_nanoseconds": 499000000
+        }
+      },
+      {
+        "id": "POINTS_1000",
+        "name": "Coleccionista",
+        "description": "Acumula 1000 puntos",
+        "points": 150,
+        "icon": "💎",
+        "unlockedAt": {
+          "_seconds": 1752256373,
+          "_nanoseconds": 827000000
+        }
+      },
+      {
+        "id": "POINTS_1000",
+        "name": "Coleccionista",
+        "description": "Acumula 1000 puntos",
+        "points": 150,
+        "icon": "💎",
+        "unlockedAt": {
+          "_seconds": 1752256373,
+          "_nanoseconds": 829000000
+        }
+      }
+    ],
+    "pointsHistory": [
+      {
+        "id": "1752193734954_gpj152w3o",
+        "timestamp": {
+          "_seconds": 1752193734,
+          "_nanoseconds": 954000000
+        },
+        "gameId": "race",
+        "gameName": "Carrera de Conceptos",
+        "points": 192,
+        "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+        "bonusType": "perfect"
+      },
+      {
+        "id": "1752193734956_4onp0jwr2",
+        "timestamp": {
+          "_seconds": 1752193734,
+          "_nanoseconds": 956000000
+        },
+        "gameId": "race",
+        "gameName": "Carrera de Conceptos",
+        "points": 192,
+        "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+        "bonusType": "perfect"
+      },
+      {
+        "id": "1752193807228_qn1270kpn",
+        "timestamp": {
+          "_seconds": 1752193807,
+          "_nanoseconds": 228000000
+        },
+        "gameId": "puzzle",
+        "gameName": "Puzzle de Definiciones",
+        "points": 66,
+        "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+        "bonusType": "speed"
+      },
+      {
+        "id": "1752255004839_t0lyp20jv",
+        "timestamp": {
+          "_seconds": 1752255004,
+          "_nanoseconds": 839000000
+        },
+        "gameId": "quiz",
+        "gameName": "Quiz Battle",
+        "points": 314,
+        "description": "Quiz Battle completado - ¡Bonus de racha!",
+        "bonusType": "streak"
+      },
+      {
+        "id": "1752255441499_7c8ot48f6",
+        "timestamp": {
+          "_seconds": 1752255441,
+          "_nanoseconds": 499000000
+        },
+        "gameId": "puzzle_3SpdXnUBC9J08fHwV4iR",
+        "gameName": "Puzzle de Definiciones",
+        "points": 69,
+        "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+        "bonusType": "speed"
+      },
+      {
+        "id": "1752256373827_69b0vk2wn",
+        "timestamp": {
+          "_seconds": 1752256373,
+          "_nanoseconds": 827000000
+        },
+        "gameId": "race_3SpdXnUBC9J08fHwV4iR",
+        "gameName": "Carrera de Conceptos",
+        "points": 77,
+        "description": "Carrera de Conceptos completado - ¡Bonus de racha!",
+        "bonusType": "streak"
+      },
+      {
+        "id": "1752256373829_x87tpuev3",
+        "timestamp": {
+          "_seconds": 1752256373,
+          "_nanoseconds": 829000000
+        },
+        "gameId": "race_3SpdXnUBC9J08fHwV4iR",
+        "gameName": "Carrera de Conceptos",
+        "points": 77,
+        "description": "Carrera de Conceptos completado - ¡Bonus de racha!",
+        "bonusType": "streak"
+      }
+    ],
+    "totalPoints": 1537,
+    "monthlyPoints": 1537,
+    "notebookPoints": {
+      "81cT8Neg3UbL7jrWnbvg": {
+        "notebookId": "81cT8Neg3UbL7jrWnbvg",
+        "lastWeekReset": {
+          "_seconds": 1752257508,
+          "_nanoseconds": 294000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752257508,
+          "_nanoseconds": 294000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752257635,
+              "_nanoseconds": 816000000
+            }
+          }
+        ],
+        "gameScores": {
+          "race": 96,
+          "quiz": 314,
+          "puzzle": 0,
+          "memory": 0
+        },
+        "weeklyPoints": 556,
+        "pointsHistory": [
+          {
+            "id": "1752257635816_7wi23pvjt",
+            "timestamp": {
+              "_seconds": 1752257635,
+              "_nanoseconds": 816000000
+            },
+            "gameId": "quiz_81cT8Neg3UbL7jrWnbvg",
+            "gameName": "Quiz Battle",
+            "points": 314,
+            "description": "Quiz Battle completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          },
+          {
+            "id": "1752258176640_d1ht2q8cd",
+            "timestamp": {
+              "_seconds": 1752258176,
+              "_nanoseconds": 640000000
+            },
+            "gameId": "race_81cT8Neg3UbL7jrWnbvg",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752258176643_5ol1l3aet",
+            "timestamp": {
+              "_seconds": 1752258176,
+              "_nanoseconds": 643000000
+            },
+            "gameId": "race_81cT8Neg3UbL7jrWnbvg",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 556,
+        "monthlyPoints": 556
+      },
+      "017KxbOzoSXtWFZN5duF": {
+        "notebookId": "017KxbOzoSXtWFZN5duF",
+        "totalPoints": 0,
+        "weeklyPoints": 0,
+        "monthlyPoints": 0,
+        "lastWeekReset": {
+          "_seconds": 1752349697,
+          "_nanoseconds": 225000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752349697,
+          "_nanoseconds": 225000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": []
+      },
+      "3SpdXnUBC9J08fHwV4iR": {
+        "notebookId": "3SpdXnUBC9J08fHwV4iR",
+        "lastWeekReset": {
+          "_seconds": 1752263924,
+          "_nanoseconds": 39000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752263924,
+          "_nanoseconds": 39000000
+        },
+        "weeklyPoints": 414,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752351584,
+              "_nanoseconds": 647000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752351584647_b0dnm7lo7",
+            "timestamp": {
+              "_seconds": 1752351584,
+              "_nanoseconds": 647000000
+            },
+            "gameId": "quiz_3SpdXnUBC9J08fHwV4iR",
+            "gameName": "Quiz Battle",
+            "points": 314,
+            "description": "Quiz Battle completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          }
+        ],
+        "totalPoints": 414,
+        "gameScores": {
+          "race": 0,
+          "puzzle": 0,
+          "memory": 0,
+          "quiz": 314
+        },
+        "monthlyPoints": 414
+      },
+      "dR1zVCfB0RVQUWU8C5WE": {
+        "notebookId": "dR1zVCfB0RVQUWU8C5WE",
+        "lastWeekReset": {
+          "_seconds": 1752538731,
+          "_nanoseconds": 811000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752538731,
+          "_nanoseconds": 811000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752538997,
+              "_nanoseconds": 771000000
+            }
+          }
+        ],
+        "weeklyPoints": 307,
+        "pointsHistory": [
+          {
+            "id": "1752538997771_qq9qa3prh",
+            "timestamp": {
+              "_seconds": 1752538997,
+              "_nanoseconds": 771000000
+            },
+            "gameId": "memory_dR1zVCfB0RVQUWU8C5WE",
+            "gameName": "Memorama",
+            "points": 92,
+            "description": "Memorama completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752539056667_2d0499rjo",
+            "timestamp": {
+              "_seconds": 1752539056,
+              "_nanoseconds": 667000000
+            },
+            "gameId": "race_dR1zVCfB0RVQUWU8C5WE",
+            "gameName": "Carrera de Conceptos",
+            "points": 97,
+            "description": "Carrera de Conceptos completado - ¡Bonus de racha!",
+            "bonusType": "streak"
+          },
+          {
+            "id": "1752539114196_y8hnnavpc",
+            "timestamp": {
+              "_seconds": 1752539114,
+              "_nanoseconds": 196000000
+            },
+            "gameId": "puzzle_dR1zVCfB0RVQUWU8C5WE",
+            "gameName": "Puzzle de Definiciones",
+            "points": 68,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          }
+        ],
+        "totalPoints": 307,
+        "gameScores": {
+          "race": 97,
+          "puzzle": 68,
+          "memory": 92,
+          "quiz": 0
+        },
+        "monthlyPoints": 307
+      },
+      "Z4iwmXjwWZq7nIj4ItUZ": {
+        "notebookId": "Z4iwmXjwWZq7nIj4ItUZ",
+        "lastWeekReset": {
+          "_seconds": 1752539200,
+          "_nanoseconds": 28000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752539200,
+          "_nanoseconds": 28000000
+        },
+        "weeklyPoints": 443,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752539385,
+              "_nanoseconds": 104000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752539385104_evmdw2lm5",
+            "timestamp": {
+              "_seconds": 1752539385,
+              "_nanoseconds": 104000000
+            },
+            "gameId": "quiz_Z4iwmXjwWZq7nIj4ItUZ",
+            "gameName": "Quiz Battle",
+            "points": 393,
+            "description": "Quiz Battle completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 443,
+        "gameScores": {
+          "memory": 0,
+          "quiz": 393,
+          "race": 0,
+          "puzzle": 0
+        },
+        "monthlyPoints": 443
+      },
+      "mvmHetSIo3xqtDpsJX1Q": {
+        "notebookId": "mvmHetSIo3xqtDpsJX1Q",
+        "lastWeekReset": {
+          "_seconds": 1752604512,
+          "_nanoseconds": 692000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752604512,
+          "_nanoseconds": 692000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752604865,
+              "_nanoseconds": 993000000
+            }
+          }
+        ],
+        "weeklyPoints": 279,
+        "pointsHistory": [
+          {
+            "id": "1752604865993_uy7get4gv",
+            "timestamp": {
+              "_seconds": 1752604865,
+              "_nanoseconds": 993000000
+            },
+            "gameId": "memory_mvmHetSIo3xqtDpsJX1Q",
+            "gameName": "Memorama",
+            "points": 107,
+            "description": "Memorama completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752604923492_2yyt95ivo",
+            "timestamp": {
+              "_seconds": 1752604923,
+              "_nanoseconds": 492000000
+            },
+            "gameId": "race_mvmHetSIo3xqtDpsJX1Q",
+            "gameName": "Carrera de Conceptos",
+            "points": 122,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 279,
+        "gameScores": {
+          "race": 122,
+          "quiz": 0,
+          "puzzle": 0,
+          "memory": 107
+        },
+        "monthlyPoints": 279
+      },
+      "24wdi18zrFXIM9xOS1Iy": {
+        "notebookId": "24wdi18zrFXIM9xOS1Iy",
+        "lastWeekReset": {
+          "_seconds": 1752683254,
+          "_nanoseconds": 471000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752683254,
+          "_nanoseconds": 471000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": [],
+        "weeklyPoints": 50,
+        "totalPoints": 50,
+        "monthlyPoints": 50
+      },
+      "eJhgoCQqvqcWHclygPCq": {
+        "notebookId": "eJhgoCQqvqcWHclygPCq",
+        "lastWeekReset": {
+          "_seconds": 1752357274,
+          "_nanoseconds": 425000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752357274,
+          "_nanoseconds": 425000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752359475,
+              "_nanoseconds": 986000000
+            }
+          }
+        ],
+        "gameScores": {
+          "puzzle": 66,
+          "memory": 0,
+          "quiz": 0,
+          "race": 96
+        },
+        "weeklyPoints": 308,
+        "pointsHistory": [
+          {
+            "id": "1752359475986_hi17butnd",
+            "timestamp": {
+              "_seconds": 1752359475,
+              "_nanoseconds": 986000000
+            },
+            "gameId": "puzzle_eJhgoCQqvqcWHclygPCq",
+            "gameName": "Puzzle de Definiciones",
+            "points": 66,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          },
+          {
+            "id": "1752693207173_fxuklb9ve",
+            "timestamp": {
+              "_seconds": 1752693207,
+              "_nanoseconds": 173000000
+            },
+            "gameId": "race_eJhgoCQqvqcWHclygPCq",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752693207174_1zzpb1hpj",
+            "timestamp": {
+              "_seconds": 1752693207,
+              "_nanoseconds": 174000000
+            },
+            "gameId": "race_eJhgoCQqvqcWHclygPCq",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 308,
+        "monthlyPoints": 308
+      },
+      "nvxgUd33a3OjFMg1KCWy": {
+        "notebookId": "nvxgUd33a3OjFMg1KCWy",
+        "totalPoints": 0,
+        "weeklyPoints": 0,
+        "monthlyPoints": 0,
+        "lastWeekReset": {
+          "_seconds": 1752697833,
+          "_nanoseconds": 473000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752697833,
+          "_nanoseconds": 473000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": []
+      },
+      "sTS5UvFPFl6kOZvG8UKA": {
+        "notebookId": "sTS5UvFPFl6kOZvG8UKA",
+        "lastWeekReset": {
+          "_seconds": 1752698008,
+          "_nanoseconds": 150000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752698008,
+          "_nanoseconds": 150000000
+        },
+        "weeklyPoints": 118,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752698835,
+              "_nanoseconds": 260000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752698835260_lq4jddvm8",
+            "timestamp": {
+              "_seconds": 1752698835,
+              "_nanoseconds": 260000000
+            },
+            "gameId": "memory_sTS5UvFPFl6kOZvG8UKA",
+            "gameName": "Memorama",
+            "points": 68,
+            "description": "Memorama completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          }
+        ],
+        "totalPoints": 118,
+        "gameScores": {
+          "puzzle": 0,
+          "race": 0,
+          "memory": 68,
+          "quiz": 0
+        },
+        "monthlyPoints": 118
+      }
+    }
+  },
+  "fL8S2CakfchpgT59PmXPOZSkpF52": {
+    "userId": "fL8S2CakfchpgT59PmXPOZSkpF52",
+    "notebookPoints": {
+      "fu4f2mUvuNN32ckJCvPI": {
+        "notebookId": "fu4f2mUvuNN32ckJCvPI",
+        "totalPoints": 0,
+        "weeklyPoints": 0,
+        "monthlyPoints": 0,
+        "lastWeekReset": {
+          "_seconds": 1752511854,
+          "_nanoseconds": 515000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752511854,
+          "_nanoseconds": 515000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": []
+      },
+      "yrawaFELK0NfW4MTbkzN": {
+        "notebookId": "yrawaFELK0NfW4MTbkzN",
+        "lastWeekReset": {
+          "_seconds": 1752512584,
+          "_nanoseconds": 910000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752512584,
+          "_nanoseconds": 910000000
+        },
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752512774,
+              "_nanoseconds": 623000000
+            }
+          }
+        ],
+        "weeklyPoints": 414,
+        "pointsHistory": [
+          {
+            "id": "1752512774623_7zomrv883",
+            "timestamp": {
+              "_seconds": 1752512774,
+              "_nanoseconds": 623000000
+            },
+            "gameId": "memory_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Memorama",
+            "points": 103,
+            "description": "Memorama completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          },
+          {
+            "id": "1752512806953_c2id5w5x6",
+            "timestamp": {
+              "_seconds": 1752512806,
+              "_nanoseconds": 953000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752512806954_gpuq8i5nu",
+            "timestamp": {
+              "_seconds": 1752512806,
+              "_nanoseconds": 954000000
+            },
+            "gameId": "race_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Carrera de Conceptos",
+            "points": 96,
+            "description": "Carrera de Conceptos completado - ¡Puntuación perfecta!",
+            "bonusType": "perfect"
+          },
+          {
+            "id": "1752512966558_wrwmpcj0s",
+            "timestamp": {
+              "_seconds": 1752512966,
+              "_nanoseconds": 558000000
+            },
+            "gameId": "puzzle_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Puzzle de Definiciones",
+            "points": 69,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          }
+        ],
+        "totalPoints": 414,
+        "gameScores": {
+          "quiz": 0,
+          "puzzle": 69,
+          "memory": 103,
+          "race": 96
+        },
+        "monthlyPoints": 414
+      }
+    }
+  },
+  "t1pPKX2HchSMyDYn2IADJENyAZ23": {
+    "userId": "t1pPKX2HchSMyDYn2IADJENyAZ23",
+    "notebookPoints": {
+      "fu4f2mUvuNN32ckJCvPI": {
+        "notebookId": "fu4f2mUvuNN32ckJCvPI",
+        "totalPoints": 0,
+        "weeklyPoints": 0,
+        "monthlyPoints": 0,
+        "lastWeekReset": {
+          "_seconds": 1752598139,
+          "_nanoseconds": 489000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752598139,
+          "_nanoseconds": 489000000
+        },
+        "gameScores": {
+          "memory": 0,
+          "puzzle": 0,
+          "race": 0,
+          "quiz": 0
+        },
+        "pointsHistory": [],
+        "achievements": []
+      },
+      "yrawaFELK0NfW4MTbkzN": {
+        "notebookId": "yrawaFELK0NfW4MTbkzN",
+        "lastWeekReset": {
+          "_seconds": 1752598300,
+          "_nanoseconds": 958000000
+        },
+        "lastMonthReset": {
+          "_seconds": 1752598300,
+          "_nanoseconds": 958000000
+        },
+        "weeklyPoints": 124,
+        "achievements": [
+          {
+            "id": "FIRST_GAME",
+            "name": "Primer Juego",
+            "description": "Completa tu primer juego",
+            "points": 50,
+            "icon": "🎮",
+            "unlockedAt": {
+              "_seconds": 1752598462,
+              "_nanoseconds": 780000000
+            }
+          }
+        ],
+        "pointsHistory": [
+          {
+            "id": "1752598462780_xflgeoi7x",
+            "timestamp": {
+              "_seconds": 1752598462,
+              "_nanoseconds": 780000000
+            },
+            "gameId": "puzzle_yrawaFELK0NfW4MTbkzN",
+            "gameName": "Puzzle de Definiciones",
+            "points": 74,
+            "description": "Puzzle de Definiciones completado - ¡Bonus de velocidad!",
+            "bonusType": "speed"
+          }
+        ],
+        "totalPoints": 124,
+        "gameScores": {
+          "quiz": 0,
+          "memory": 0,
+          "race": 0,
+          "puzzle": 74
+        },
+        "monthlyPoints": 124
+      }
+    }
+  }
+}
