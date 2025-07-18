@@ -5,7 +5,7 @@
 
 .contact-hero {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 80px 0;
+  padding: 16px 0;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -31,6 +31,13 @@
   }
 }
 
+.contact-hero .container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .contact-title {
   font-size: 3rem;
   font-weight: 700;
@@ -43,17 +50,19 @@
 .contact-subtitle {
   font-size: 1.25rem;
   color: rgba(255, 255, 255, 0.9);
-  max-width: 600px;
+  max-width: 1000px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .contact-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 60px;
-  padding: 80px 0;
+  gap: 32px;
+  padding: 32px 0;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -124,6 +133,9 @@
   font-size: 1.5rem;
   color: #1F2937;
   margin-bottom: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contact-methods {

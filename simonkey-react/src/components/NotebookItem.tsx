@@ -299,6 +299,25 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
         ) : (
           <>
             <h3>{editableTitle}</h3>
+            {domainProgress && domainProgress.total > 0 && (
+              <div className="dominio-progress-bar">
+                <div
+                  className="dominio-progress-segment green"
+                  title={`Dominado: ${domainProgress.dominated} conceptos (${Math.round((domainProgress.dominated / domainProgress.total) * 100)}%)`}
+                  style={{ width: `${Math.round((domainProgress.dominated / domainProgress.total) * 100)}%` }}
+                ></div>
+                <div
+                  className="dominio-progress-segment yellow"
+                  title={`Aprendiz: ${domainProgress.learning} conceptos (${Math.round((domainProgress.learning / domainProgress.total) * 100)}%)`}
+                  style={{ width: `${Math.round((domainProgress.learning / domainProgress.total) * 100)}%` }}
+                ></div>
+                <div
+                  className="dominio-progress-segment red"
+                  title={`Por dominar: ${domainProgress.notStarted} conceptos (${Math.round((domainProgress.notStarted / domainProgress.total) * 100)}%)`}
+                  style={{ width: `${Math.round((domainProgress.notStarted / domainProgress.total) * 100)}%` }}
+                ></div>
+              </div>
+            )}
             {isFrozen && (
               <div className="frozen-indicator-subtle">
                 <i className="fas fa-snowflake"></i>
@@ -418,26 +437,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
                 style={{ backgroundColor: color }}
                 onClick={() => handleColorChange(color)}
                 title={`Seleccionar color ${color}`}
-              />
+              >
+                {/* Content for color option */}
+              </button>
             ))}
           </div>
         </div>
       )}
-      
-      {/* Popup de congelado */}
-      {showFrozenTooltip && isFrozen && (
-        <div className="frozen-popup-overlay">
-          <div className="frozen-popup">
-            <div className="frozen-popup-icon">
-              <i className="fas fa-snowflake"></i>
-            </div>
-            <h3>¡Cuaderno Congelado! ❄️</h3>
-            <p>"{editableTitle}" ha sido congelado exitosamente</p>
-            <p className="frozen-popup-info">Los estudiantes no podrán acceder mientras esté congelado</p>
-          </div>
-        </div>
-      )}
-      
     </div>
   );
 };

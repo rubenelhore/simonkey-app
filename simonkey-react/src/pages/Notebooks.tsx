@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import CategoryDropdown from '../components/CategoryDropdown';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
+import { getDomainProgressForNotebook } from '../utils/domainProgress';
 
 const Notebooks: React.FC = () => {
   const { materiaId } = useParams<{ materiaId: string }>();
@@ -209,89 +210,59 @@ const Notebooks: React.FC = () => {
     loadUserData();
   }, [user]);
 
-  // Calcular progreso de dominio para estudiantes escolares
+  // Determine which notebooks to use based on user type
+  let effectiveNotebooks = [];
+  let isLoading = false;
+  
+  if (isSchoolAdmin) {
+    // Para admin escolar, usar los notebooks cargados específicamente
+    effectiveNotebooks = adminNotebooks.map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || '',
+      conceptCount: notebook.conceptCount || 0
+    }));
+    isLoading = adminNotebooksLoading;
+  } else if (isSchoolStudent) {
+    // Para estudiantes escolares
+    effectiveNotebooks = (schoolNotebooks || []).map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || user?.uid || '',
+      conceptCount: notebook.conceptCount || 0
+    }));
+    isLoading = schoolNotebooksLoading;
+  } else {
+    // Para usuarios regulares
+    effectiveNotebooks = notebooks || [];
+    isLoading = notebooksLoading;
+  }
+    
+  // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
+  if (materiaId && !isSchoolAdmin) {
+    effectiveNotebooks = effectiveNotebooks.filter(notebook => {
+      // Para estudiantes escolares, el campo es 'idMateria', para usuarios regulares es 'materiaId'
+      const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
+      return notebookMateriaId === materiaId;
+    });
+  }
+
+  // Ahora sí, calcula el domainProgress para todos los cuadernos
   useEffect(() => {
-    const calculateDomainProgress = async () => {
-      if (!isSchoolStudent || !user) return;
-      
-      // Determine which notebooks to use based on user type
-      let notebooksToProcess: any[] = [];
-      if (isSchoolStudent) {
-        notebooksToProcess = schoolNotebooks || [];
-      }
-      
-      // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
-      if (materiaId) {
-        notebooksToProcess = notebooksToProcess.filter(notebook => {
-          const notebookMateriaId = notebook.idMateria;
-          return notebookMateriaId === materiaId;
-        });
-      }
-      
-      const progressMap = new Map<string, any>();
-      
-      for (const notebook of notebooksToProcess) {
+    const calculateAllDomainProgress = async () => {
+      if (!effectiveNotebooks || effectiveNotebooks.length === 0) return;
+      const progressMap = new Map();
+      for (const notebook of effectiveNotebooks) {
         try {
-          // Obtener todos los conceptos del cuaderno usando el servicio unificado
-          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebook.id);
-          const conceptsQuery = query(
-            collection(db, conceptsCollection),
-            where('cuadernoId', '==', notebook.id)
-          );
-          const conceptsSnapshot = await getDocs(conceptsQuery);
-          
-          let dominated = 0;
-          let learning = 0;
-          let notStarted = 0;
-          let total = 0;
-          
-          // Procesar cada documento de conceptos
-          for (const conceptDoc of conceptsSnapshot.docs) {
-            const conceptData = conceptDoc.data();
-            const concepts = conceptData.conceptos || [];
-            
-            for (const concept of concepts) {
-              total++;
-              
-              // Obtener datos de aprendizaje del concepto
-              const learningDataRef = doc(db, 'users', user.uid, 'learningData', concept.id);
-              const learningDataSnap = await getDoc(learningDataRef);
-              
-              if (learningDataSnap.exists()) {
-                const data = learningDataSnap.data();
-                const repetitions = data.repetitions || 0;
-                
-                if (repetitions === 0) {
-                  notStarted++;
-                } else if (repetitions === 1) {
-                  learning++;
-                } else {
-                  dominated++;
-                }
-              } else {
-                notStarted++;
-              }
-            }
-          }
-          
-          progressMap.set(notebook.id, {
-            total,
-            dominated,
-            learning,
-            notStarted
-          });
+          const progress = await getDomainProgressForNotebook(notebook.id);
+          progressMap.set(notebook.id, progress);
         } catch (error) {
           console.error(`Error calculating progress for notebook ${notebook.id}:`, error);
         }
       }
-      
       setNotebooksDomainProgress(progressMap);
     };
-    
-    if (isSchoolStudent) {
-      calculateDomainProgress();
-    }
-  }, [isSchoolStudent, schoolNotebooks, user, materiaId]);
+    calculateAllDomainProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveNotebooks, user]);
 
   const handleCreate = async () => {
     console.log("Notebook created successfully");
@@ -515,41 +486,6 @@ const Notebooks: React.FC = () => {
     setSelectedCategory(null);
   };
 
-  // Determine which notebooks to use based on user type
-  let effectiveNotebooks = [];
-  let isLoading = false;
-  
-  if (isSchoolAdmin) {
-    // Para admin escolar, usar los notebooks cargados específicamente
-    effectiveNotebooks = adminNotebooks.map(notebook => ({
-      ...notebook,
-      userId: notebook.userId || '',
-      conceptCount: notebook.conceptCount || 0
-    }));
-    isLoading = adminNotebooksLoading;
-  } else if (isSchoolStudent) {
-    // Para estudiantes escolares
-    effectiveNotebooks = (schoolNotebooks || []).map(notebook => ({
-      ...notebook,
-      userId: notebook.userId || user?.uid || '',
-      conceptCount: notebook.conceptCount || 0
-    }));
-    isLoading = schoolNotebooksLoading;
-  } else {
-    // Para usuarios regulares
-    effectiveNotebooks = notebooks || [];
-    isLoading = notebooksLoading;
-  }
-    
-  // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
-  if (materiaId && !isSchoolAdmin) {
-    effectiveNotebooks = effectiveNotebooks.filter(notebook => {
-      // Para estudiantes escolares, el campo es 'idMateria', para usuarios regulares es 'materiaId'
-      const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
-      return notebookMateriaId === materiaId;
-    });
-  }
-
   if (isLoading) {
     return (
       <div className="loading-container">
@@ -580,20 +516,20 @@ const Notebooks: React.FC = () => {
       />
       {/* Overlay y menú lateral ya están dentro del header */}
       <main className="notebooks-main notebooks-main-no-sidebar">
+        {isSchoolAdmin && (
+          <div className="admin-info-message" style={{
+            background: '#f0ebff',
+            border: '1px solid #6147FF',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            color: '#4a5568'
+          }}>
+            <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
+            <span>Como administrador, tienes acceso de solo lectura a los cuadernos y conceptos.</span>
+          </div>
+        )}
         <div className="notebooks-list-section notebooks-list-section-full">
-          {isSchoolAdmin && (
-            <div className="admin-info-message" style={{
-              background: '#f0ebff',
-              border: '1px solid #6147FF',
-              borderRadius: '8px',
-              padding: '1rem',
-              marginBottom: '1rem',
-              color: '#4a5568'
-            }}>
-              <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
-              <span>Como administrador, tienes acceso de solo lectura a los cuadernos y conceptos.</span>
-            </div>
-          )}
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,

@@ -662,9 +662,6 @@ const NotebookList: React.FC<NotebookListProps> = ({
             <button 
               className="create-notebook-button"
               onClick={() => setShowCreateModal(true)}
-              style={{
-                background: materiaColor ? `linear-gradient(135deg, ${materiaColor} 0%, ${materiaColor} 100%)` : undefined
-              }}
             >
               <i className="fas fa-plus"></i>
               <span>Crear nuevo cuaderno</span>
@@ -681,6 +678,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
             />
           </div>
         </div>
+        <hr className="notebook-divider" />
       </div>
 
       {/* Subsección de categoría seleccionada o todos los cuadernos */}

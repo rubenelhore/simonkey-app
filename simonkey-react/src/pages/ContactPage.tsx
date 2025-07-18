@@ -3,8 +3,12 @@ import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import './ContactPage.css';
-import Header from '../components/Header';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import Footer from '../components/Footer';
+import HelpWhatsAppButton from '../components/HelpWhatsAppButton';
+
+const whatsappNumber = '+525580125707';
+const whatsappLink = `https://wa.me/${whatsappNumber.replace('+', '')}?text=%C2%A1Hola!%20necesito%20apoyo%20con%20Simonkey`;
 
 const ContactPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -82,28 +86,30 @@ const ContactPage: React.FC = () => {
     {
       icon: '📱',
       title: 'WhatsApp',
-      info: '+52 55 8012 5707',
+      info: (
+        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '0.5em' }}>
+          ¡Contáctanos! <i className="fas fa-external-link-alt" style={{ fontSize: '1em' }}></i>
+        </a>
+      ),
       description: 'Soporte rápido'
     }
   ];
 
   return (
     <>
-      <Header />
-      <div className="contact-page">
-        <div className="contact-hero">
-          <div className="container">
-            <h1 className="contact-title">Contáctanos</h1>
-            <p className="contact-subtitle">
-              Estamos aquí para ayudarte con cualquier pregunta o comentario
-            </p>
-          </div>
-        </div>
-
+      <HeaderWithHamburger title="Centro de ayuda" />
+      {/* Eliminar el div contact-page y dejar el contenido directo */}
+      <div className="contact-hero">
         <div className="container">
-          <div className="contact-content">
+          <h1 className="contact-title">Contáctanos</h1>
+          <p className="contact-subtitle">
+            Estamos aquí para ayudarte, contáctanos y compártenos tus sugerencias o comentarios
+          </p>
+        </div>
+      </div>
+      <div className="container">
+        <div className="contact-content">
             <div className="contact-form-section">
-              <h2>Envíanos un mensaje</h2>
               <form onSubmit={handleSubmit} className="contact-form">
                 <div className="form-group">
                   <label htmlFor="name">Nombre completo</label>
@@ -182,7 +188,6 @@ const ContactPage: React.FC = () => {
             </div>
 
             <div className="contact-info-section">
-              <h2>Otras formas de contactarnos</h2>
               <div className="contact-methods">
                 {contactMethods.map((method, index) => (
                   <div key={index} className="contact-method">
@@ -204,8 +209,9 @@ const ContactPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-      <Footer />
+      <footer className="notebooks-footer">
+        <p>&copy; {new Date().getFullYear()} Simonkey - Todos los derechos reservados</p>
+      </footer>
     </>
   );
 };
