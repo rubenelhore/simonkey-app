@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { SchoolNotebook, SchoolTeacher, SchoolSubject, SchoolAdmin } from '../types/interfaces';
+import { Notebook, SchoolTeacher, SchoolSubject, SchoolAdmin } from '../types/interfaces';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useSchoolNotebooks = () => {
   const { user, userProfile } = useAuth();
-  const [schoolNotebooks, setSchoolNotebooks] = useState<SchoolNotebook[]>([]);
+  const [schoolNotebooks, setSchoolNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -93,8 +93,9 @@ export const useSchoolNotebooks = () => {
             const notebooksList = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-              color: doc.data().color || '#6147FF'
-            })) as SchoolNotebook[];
+              color: doc.data().color || '#6147FF',
+              type: 'school' as const
+            })) as Notebook[];
             
             // Ordenar manualmente por createdAt descendente
             notebooksList.sort((a, b) => {

@@ -9,6 +9,7 @@ import { createNotebook } from '../services/notebookService';
 import '../styles/Notebooks.css';
 import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import FreezeModal from './FreezeModal';
 
 // Define la interfaz Notebook localmente en lugar de importarla
 interface Notebook {
@@ -25,6 +26,13 @@ interface Notebook {
   isFrozen?: boolean;
   frozenScore?: number;
   frozenAt?: Date;
+  domainProgress?: {
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
+  isStudent?: boolean;
 }
 
 interface NotebookListProps {
@@ -42,7 +50,7 @@ interface NotebookListProps {
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
   materiaColor?: string;
-  onFreezeNotebook?: (id: string) => void;
+  onFreezeNotebook?: (id: string, type: 'now' | 'scheduled', scheduledDate?: Date) => void;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -97,6 +105,14 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const [showAddNotebookModal, setShowAddNotebookModal] = useState(false);
   const [categoryToAddNotebook, setCategoryToAddNotebook] = useState<string | null>(null);
   const [selectedNotebooksToAdd, setSelectedNotebooksToAdd] = useState<string[]>([]);
+  
+  // Estados para el modal de congelación
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [freezeModalData, setFreezeModalData] = useState<{
+    notebookId: string;
+    notebookTitle: string;
+    isFrozen: boolean;
+  } | null>(null);
 
   console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
 
@@ -375,6 +391,25 @@ const NotebookList: React.FC<NotebookListProps> = ({
       console.error('❌ Error updating notebook category:', error);
       throw error;
     }
+  };
+
+  // Función para manejar el clic en congelar
+  const handleFreezeClick = (notebookId: string, notebookTitle: string, isFrozen: boolean) => {
+    setFreezeModalData({
+      notebookId,
+      notebookTitle,
+      isFrozen
+    });
+    setShowFreezeModal(true);
+  };
+  
+  // Función para confirmar congelación/descongelación
+  const handleFreezeConfirm = (type: 'now' | 'scheduled', scheduledDate?: Date) => {
+    if (freezeModalData && onFreezeNotebook) {
+      onFreezeNotebook(freezeModalData.notebookId, type, scheduledDate);
+    }
+    setShowFreezeModal(false);
+    setFreezeModalData(null);
   };
 
   // Función para guardar una categoría en la colección de categorías
@@ -688,8 +723,10 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 isSchoolNotebook={isSchoolTeacher}
                 onAddConcept={onAddConcept}
                 isFrozen={notebook.isFrozen}
-                onFreeze={onFreezeNotebook}
+                onFreeze={(id) => handleFreezeClick(id, notebook.title, notebook.isFrozen || false)}
                 isTeacher={isSchoolTeacher}
+                domainProgress={notebook.domainProgress}
+                isStudent={notebook.isStudent}
               />
             ))}
           </div>
@@ -995,6 +1032,20 @@ const NotebookList: React.FC<NotebookListProps> = ({
             </form>
           </div>
         </div>
+      )}
+      
+      {/* Modal de congelación - Solo uno para todos los notebooks */}
+      {freezeModalData && (
+        <FreezeModal
+          isOpen={showFreezeModal}
+          isFrozen={freezeModalData.isFrozen}
+          notebookTitle={freezeModalData.notebookTitle}
+          onClose={() => {
+            setShowFreezeModal(false);
+            setFreezeModalData(null);
+          }}
+          onConfirm={handleFreezeConfirm}
+        />
       )}
     </>
   );

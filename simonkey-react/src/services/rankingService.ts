@@ -10,6 +10,7 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
+import { UnifiedNotebookService } from './unifiedNotebookService';
 
 interface RankingEntry {
   studentId: string;
@@ -213,16 +214,15 @@ export class RankingService {
       }
 
       // 5. Crear rankings por cuaderno
-      const notebooksQuery = query(
-        collection(db, 'schoolNotebooks'),
-        where('idEscuela', '==', institutionId)
+      // Usar UnifiedNotebookService para obtener notebooks escolares
+      const allNotebooks = await UnifiedNotebookService.getStudentNotebooks([]);
+      const schoolNotebooks = allNotebooks.filter(nb => 
+        nb.type === 'school' && nb.idEscuela === institutionId
       );
-
-      const notebooksSnapshot = await getDocs(notebooksQuery);
       
-      for (const notebookDoc of notebooksSnapshot.docs) {
-        const notebookData = notebookDoc.data();
-        const notebookId = notebookDoc.id;
+      for (const notebook of schoolNotebooks) {
+        const notebookId = notebook.id;
+        const notebookData = notebook;
         const notebookScores: Array<{id: string, name: string, score: number}> = [];
         
         // Recopilar scores de todos los estudiantes para este cuaderno

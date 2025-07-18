@@ -12,7 +12,7 @@ import {
   SchoolAdmin,
   SchoolTeacher,
   SchoolSubject,
-  SchoolNotebook,
+  Notebook,
   SchoolStudent,
   SchoolTutor,
   UserSubscriptionType,
@@ -59,7 +59,7 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     admins: SchoolAdmin[];
     teachers: SchoolTeacher[];
     subjects: SchoolSubject[];
-    notebooks: SchoolNotebook[];
+    notebooks: Notebook[];
     students: SchoolStudent[];
     tutors: SchoolTutor[];
   }>({
@@ -167,7 +167,7 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
       const notebooks = notebooksSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as SchoolNotebook[];
+      })) as Notebook[];
       console.log('📓 Cuadernos cargados:', notebooks);
 
       // Cargar todos los estudiantes

@@ -5,7 +5,7 @@ import {
   SchoolInstitution,
   SchoolAdmin,
   SchoolTeacher,
-  SchoolNotebook,
+  Notebook,
   SchoolStudent,
   SchoolTutor,
   SchoolSubject,

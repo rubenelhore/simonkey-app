@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
-import { Concept } from '../types/interfaces';
+import { Concept, Notebook } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
+import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 
 import { 
   doc, 
@@ -38,7 +39,7 @@ const NotebookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const [cuaderno, setCuaderno] = useState<any>(null);
+  const [cuaderno, setCuaderno] = useState<Notebook | null>(null);
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
@@ -58,6 +59,9 @@ const NotebookDetail = () => {
   // Estado para los datos de aprendizaje (para el semáforo)
   const [learningDataMap, setLearningDataMap] = useState<Map<string, number>>(new Map());
   
+  // Estado para el filtro de dominio
+  const [dominioFilter, setDominioFilter] = useState<'all' | 'red' | 'yellow' | 'green'>('all');
+  
   // Referencia para el modal
   const modalRef = useRef<HTMLDivElement>(null);
   
@@ -70,18 +74,16 @@ const NotebookDetail = () => {
   // Log para debug
   console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
   
-  // Función para obtener el color del semáforo según el interval
+  // Función para obtener el color del semáforo según las repeticiones
   const getTrafficLightColor = (conceptId: string): string => {
-    const interval = learningDataMap.get(conceptId) || 1;
+    const repetitions = learningDataMap.get(conceptId) || 0;
     
-    if (interval === 1) {
-      return 'red'; // Rojo - Necesita práctica urgente
-    } else if (interval === 6) {
-      return 'yellow'; // Amarillo - Dominio medio
-    } else if (interval > 6) {
-      return 'green'; // Verde - Bien dominado
+    if (repetitions === 0) {
+      return 'red'; // Rojo - Concepto nuevo, nunca estudiado
+    } else if (repetitions === 1) {
+      return 'yellow'; // Amarillo - Estudiado una vez
     } else {
-      return 'red'; // Por defecto rojo para intervals < 6
+      return 'green'; // Verde - Estudiado 2 o más veces
     }
   };
 
@@ -97,18 +99,14 @@ const NotebookDetail = () => {
       }
       
       try {
-        // Fetch notebook details
-        // Use schoolNotebooks collection for school students and admins
-        const notebooksCollection = (isSchoolStudent || isSchoolAdmin) ? 'schoolNotebooks' : 'notebooks';
-        const docRef = doc(db, notebooksCollection, id);
-        const docSnap = await getDoc(docRef);
+        // Fetch notebook using unified service
+        const notebook = await UnifiedNotebookService.getNotebook(id);
         
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setCuaderno({ id: docSnap.id, ...data });
+        if (notebook) {
+          setCuaderno(notebook);
           // Guardar el materiaId si existe
-          if (data.materiaId) {
-            setMateriaId(data.materiaId);
+          if (notebook.idMateria) {
+            setMateriaId(notebook.idMateria || null);
           }
         } else {
           console.error("No such notebook!");
@@ -117,8 +115,8 @@ const NotebookDetail = () => {
         }
         
         // Fetch concept documents for this notebook
-        // Use schoolConcepts collection for school students and admins
-        const conceptsCollection = (isSchoolStudent || isSchoolAdmin) ? 'schoolConcepts' : 'conceptos';
+        // Determine concepts collection based on notebook type
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id);
         const q = query(
           collection(db, conceptsCollection),
           where('cuadernoId', '==', id)
@@ -151,11 +149,11 @@ const NotebookDetail = () => {
                 
                 if (learningDataSnap.exists()) {
                   const data = learningDataSnap.data();
-                  // Usar el interval del algoritmo SM-3
-                  learningMap.set(conceptId, data.interval || 1);
+                  // Usar las repeticiones del algoritmo SM-3
+                  learningMap.set(conceptId, data.repetitions || 0);
                 } else {
-                  // Si no existe, es un concepto nuevo (interval = 1)
-                  learningMap.set(conceptId, 1);
+                  // Si no existe, es un concepto nuevo (0 repeticiones)
+                  learningMap.set(conceptId, 0);
                 }
               }
               
@@ -296,25 +294,29 @@ const NotebookDetail = () => {
     setLoadingText("Procesando archivos...");
 
     try {
-      // Verificar que el cuaderno existe y pertenece al usuario
-      const notebookRef = doc(db, 'notebooks', id);
-      const notebookDoc = await getDoc(notebookRef);
+      // Verificar que el cuaderno existe
+      const notebook = await UnifiedNotebookService.getNotebook(id);
       
-      if (!notebookDoc.exists()) {
+      if (!notebook) {
         throw new Error('El cuaderno no existe');
       }
       
-      const notebookData = notebookDoc.data();
-      console.log('- Notebook data:', notebookData);
-      console.log('- Notebook owner:', notebookData?.userId);
+      console.log('- Notebook data:', notebook);
+      console.log('- Notebook type:', notebook.type);
       console.log('- Current user:', auth.currentUser.uid);
       
-      if (notebookData?.userId !== auth.currentUser.uid) {
+      // Verificar permisos según el tipo de notebook
+      if (notebook.type === 'personal' && notebook.userId !== auth.currentUser.uid) {
         throw new Error('No tienes permisos para modificar este cuaderno');
       }
+      
+      // Para notebooks escolares, verificar que no sea estudiante
+      if (notebook.type === 'school' && isSchoolStudent) {
+        throw new Error('Los estudiantes no pueden añadir conceptos a cuadernos escolares');
+      }
 
-      // Preparar archivos para el procesamiento (indicar que NO es cuaderno escolar)
-      const processedFiles = await prepareFilesForGeneration(archivos, false);
+      // Preparar archivos para el procesamiento
+      const processedFiles = await prepareFilesForGeneration(archivos, notebook.type === 'school');
       console.log('📁 Archivos procesados:', processedFiles.length);
       setLoadingText("Generando conceptos con IA...");
 
@@ -467,6 +469,12 @@ const NotebookDetail = () => {
       alert('Como estudiante escolar, no puedes añadir conceptos.');
       return;
     }
+    
+    // También verificar para notebooks escolares
+    if (cuaderno?.type === 'school' && isSchoolStudent) {
+      alert('Los estudiantes no pueden añadir conceptos a cuadernos escolares.');
+      return;
+    }
 
     if (!nuevoConcepto.término || !nuevoConcepto.definición) {
       alert("Por favor completa todos los campos obligatorios");
@@ -477,6 +485,8 @@ const NotebookDetail = () => {
     setLoadingText("Guardando concepto...");
 
     try {
+      // Obtener la colección correcta
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id);
       const conceptoManual: Concept = {
         término: nuevoConcepto.término,
         definición: nuevoConcepto.definición,
@@ -488,7 +498,7 @@ const NotebookDetail = () => {
       if (conceptosDocs.length > 0) {
         const existingDoc = conceptosDocs.find(doc => doc.cuadernoId === id);
         if (existingDoc) {
-          const conceptosRef = doc(db, 'conceptos', existingDoc.id);
+          const conceptosRef = doc(db, conceptsCollection, existingDoc.id);
           await updateDoc(conceptosRef, {
             conceptos: arrayUnion(conceptoManual)
           });
@@ -504,7 +514,7 @@ const NotebookDetail = () => {
 
       if (!updatedConceptosDoc) {
         // Si no existe un documento, crear uno nuevo usando un ID generado
-        const newDocRef = doc(collection(db, 'conceptos'));
+        const newDocRef = doc(collection(db, conceptsCollection));
         const newDocId = newDocRef.id;
         
         await setDoc(newDocRef, {
@@ -727,10 +737,128 @@ const NotebookDetail = () => {
 
       <main className="notebook-detail-main">
         <section className="concepts-section">
-          <h2>Conceptos del Cuaderno</h2>
+          <div className="concepts-header">
+            <h2>Conceptos del Cuaderno</h2>
+            {/* Mostrar filtros: para estudiantes escolares si el notebook no está congelado, o para usuarios regulares */}
+            {((isSchoolStudent && !cuaderno.isFrozen) || 
+              (!isSchoolStudent && !isSchoolAdmin)) && 
+              conceptosDocs.length > 0 && (
+              <div className="dominio-filters">
+                <button 
+                  className={`dominio-filter-btn all ${dominioFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setDominioFilter('all')}
+                >
+                  Todos
+                </button>
+                <button 
+                  className={`dominio-filter-btn red ${dominioFilter === 'red' ? 'active' : ''}`}
+                  onClick={() => setDominioFilter('red')}
+                >
+                  <span className="filter-circle red"></span>
+                  Por dominar
+                </button>
+                <button 
+                  className={`dominio-filter-btn yellow ${dominioFilter === 'yellow' ? 'active' : ''}`}
+                  onClick={() => setDominioFilter('yellow')}
+                >
+                  <span className="filter-circle yellow"></span>
+                  Aprendiz
+                </button>
+                <button 
+                  className={`dominio-filter-btn green ${dominioFilter === 'green' ? 'active' : ''}`}
+                  onClick={() => setDominioFilter('green')}
+                >
+                  <span className="filter-circle green"></span>
+                  Dominado
+                </button>
+              </div>
+            )}
+            
+            {/* Barra de progreso de dominio */}
+            {((isSchoolStudent && !cuaderno.isFrozen) || 
+              (!isSchoolStudent && !isSchoolAdmin)) && 
+              conceptosDocs.length > 0 && (
+              <div className="dominio-progress-container">
+                {(() => {
+                  const allConcepts = conceptosDocs.flatMap(doc => doc.conceptos);
+                  const totalConcepts = allConcepts.length;
+                  
+                  if (totalConcepts === 0) return null;
+                  
+                  const dominadoCount = allConcepts.filter(c => {
+                    const color = getTrafficLightColor(c.id);
+                    return color === 'green';
+                  }).length;
+                  
+                  const aprendizCount = allConcepts.filter(c => {
+                    const color = getTrafficLightColor(c.id);
+                    return color === 'yellow';
+                  }).length;
+                  
+                  const porDominarCount = allConcepts.filter(c => {
+                    const color = getTrafficLightColor(c.id);
+                    return color === 'red';
+                  }).length;
+                  
+                  const dominadoPercentage = Math.round((dominadoCount / totalConcepts) * 100);
+                  const aprendizPercentage = Math.round((aprendizCount / totalConcepts) * 100);
+                  const porDominarPercentage = Math.round((porDominarCount / totalConcepts) * 100);
+                  
+                  return (
+                    <>
+                      <div className="dominio-progress-bar">
+                        <div 
+                          className="dominio-progress-segment green" 
+                          style={{ width: `${dominadoPercentage}%` }}
+                          title={`Dominado: ${dominadoCount} conceptos (${dominadoPercentage}%)`}
+                        />
+                        <div 
+                          className="dominio-progress-segment yellow" 
+                          style={{ width: `${aprendizPercentage}%` }}
+                          title={`Aprendiz: ${aprendizCount} conceptos (${aprendizPercentage}%)`}
+                        />
+                        <div 
+                          className="dominio-progress-segment red" 
+                          style={{ width: `${porDominarPercentage}%` }}
+                          title={`Por dominar: ${porDominarCount} conceptos (${porDominarPercentage}%)`}
+                        />
+                      </div>
+                      <div className="dominio-progress-labels">
+                        <div className="progress-label">
+                          <span className="label-dot green"></span>
+                          <span>{dominadoPercentage}% Dominado</span>
+                        </div>
+                        <div className="progress-label">
+                          <span className="label-dot yellow"></span>
+                          <span>{aprendizPercentage}% Aprendiz</span>
+                        </div>
+                        <div className="progress-label">
+                          <span className="label-dot red"></span>
+                          <span>{porDominarPercentage}% Por dominar</span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
           
           <div className="concepts-list">
-            {conceptosDocs.length === 0 ? (
+            {cuaderno.isFrozen && cuaderno.type === 'school' && isSchoolStudent ? (
+              <div className="frozen-notebook-message">
+                <i className="fas fa-snowflake"></i>
+                <h3>Cuaderno Congelado</h3>
+                <p>Este cuaderno ha sido congelado por tu profesor.</p>
+                <p>No puedes estudiar ni ver los conceptos en este momento.</p>
+                {cuaderno.frozenScore !== undefined && (
+                  <div className="frozen-score-display">
+                    <span>Tu puntuación al momento de congelar:</span>
+                    <span className="score">{cuaderno.frozenScore}%</span>
+                  </div>
+                )}
+              </div>
+            ) : conceptosDocs.length === 0 ? (
               <div className="empty-state">
                 <p>Aún no hay conceptos en este cuaderno.</p>
                 {!isSchoolStudent && !isSchoolAdmin ? (
@@ -765,6 +893,13 @@ const NotebookDetail = () => {
                   {conceptosDocs.flatMap((doc) => 
                     doc.conceptos.map((concepto, conceptIndex) => {
                       const trafficLightColor = getTrafficLightColor(concepto.id);
+                      
+                      // Filtrar según el filtro de dominio seleccionado
+                      // Aplicar filtro para estudiantes escolares también si el notebook no está congelado
+                      if (dominioFilter !== 'all' && trafficLightColor !== dominioFilter) {
+                        return null;
+                      }
+                      
                       return (
                         <div 
                           key={`${doc.id}-${conceptIndex}`}
@@ -785,11 +920,12 @@ const NotebookDetail = () => {
                           <h4>{concepto.término}</h4>
                         </div>
                       );
-                    })
+                    }).filter(Boolean)
                   )}
                   
                   {/* Tarjeta para añadir nuevos conceptos - Solo para usuarios no escolares ni admin */}
-                  {!isSchoolStudent && !isSchoolAdmin && (
+                  {!isSchoolStudent && !isSchoolAdmin && 
+                   !cuaderno.isFrozen && (
                     <div 
                       className="add-concept-card" 
                       onClick={() => openModalWithTab('upload')}
@@ -807,7 +943,7 @@ const NotebookDetail = () => {
         </section>
       </main>
 
-      {/* Modal - Solo visible para usuarios no escolares */}
+      {/* Modal - Solo visible para usuarios con permisos */}
       {isModalOpen && !isSchoolStudent && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) {

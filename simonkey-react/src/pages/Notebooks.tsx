@@ -16,6 +16,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import CategoryDropdown from '../components/CategoryDropdown';
+import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 
 const Notebooks: React.FC = () => {
   const { materiaId } = useParams<{ materiaId: string }>();
@@ -86,6 +87,7 @@ const Notebooks: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
 
   // Cargar datos de la materia
   useEffect(() => {
@@ -127,27 +129,23 @@ const Notebooks: React.FC = () => {
       
       setAdminNotebooksLoading(true);
       try {
-        const notebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('idMateria', '==', materiaId)
-        );
-        
-        const notebooksSnapshot = await getDocs(notebooksQuery);
-        const notebooksData = notebooksSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          conceptCount: 0 // Por defecto
-        }));
+        // Usar el servicio unificado para obtener notebooks del profesor/materia
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
         
         // Contar conceptos para cada notebook
         for (const notebook of notebooksData) {
           try {
+            const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebook.id);
             const conceptsSnapshot = await getDocs(
-              collection(db, 'schoolNotebooks', notebook.id, 'concepts')
+              query(collection(db, conceptsCollection), where('cuadernoId', '==', notebook.id))
             );
-            notebook.conceptCount = conceptsSnapshot.size;
+            notebook.conceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+              const data = doc.data();
+              return total + (data.conceptos?.length || 0);
+            }, 0);
           } catch (error) {
             console.error(`Error counting concepts for notebook ${notebook.id}:`, error);
+            notebook.conceptCount = 0;
           }
         }
         
@@ -210,6 +208,90 @@ const Notebooks: React.FC = () => {
     
     loadUserData();
   }, [user]);
+
+  // Calcular progreso de dominio para estudiantes escolares
+  useEffect(() => {
+    const calculateDomainProgress = async () => {
+      if (!isSchoolStudent || !user) return;
+      
+      // Determine which notebooks to use based on user type
+      let notebooksToProcess: any[] = [];
+      if (isSchoolStudent) {
+        notebooksToProcess = schoolNotebooks || [];
+      }
+      
+      // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
+      if (materiaId) {
+        notebooksToProcess = notebooksToProcess.filter(notebook => {
+          const notebookMateriaId = notebook.idMateria;
+          return notebookMateriaId === materiaId;
+        });
+      }
+      
+      const progressMap = new Map<string, any>();
+      
+      for (const notebook of notebooksToProcess) {
+        try {
+          // Obtener todos los conceptos del cuaderno usando el servicio unificado
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebook.id);
+          const conceptsQuery = query(
+            collection(db, conceptsCollection),
+            where('cuadernoId', '==', notebook.id)
+          );
+          const conceptsSnapshot = await getDocs(conceptsQuery);
+          
+          let dominated = 0;
+          let learning = 0;
+          let notStarted = 0;
+          let total = 0;
+          
+          // Procesar cada documento de conceptos
+          for (const conceptDoc of conceptsSnapshot.docs) {
+            const conceptData = conceptDoc.data();
+            const concepts = conceptData.conceptos || [];
+            
+            for (const concept of concepts) {
+              total++;
+              
+              // Obtener datos de aprendizaje del concepto
+              const learningDataRef = doc(db, 'users', user.uid, 'learningData', concept.id);
+              const learningDataSnap = await getDoc(learningDataRef);
+              
+              if (learningDataSnap.exists()) {
+                const data = learningDataSnap.data();
+                const repetitions = data.repetitions || 0;
+                
+                if (repetitions === 0) {
+                  notStarted++;
+                } else if (repetitions === 1) {
+                  learning++;
+                } else {
+                  dominated++;
+                }
+              } else {
+                notStarted++;
+              }
+            }
+          }
+          
+          progressMap.set(notebook.id, {
+            total,
+            dominated,
+            learning,
+            notStarted
+          });
+        } catch (error) {
+          console.error(`Error calculating progress for notebook ${notebook.id}:`, error);
+        }
+      }
+      
+      setNotebooksDomainProgress(progressMap);
+    };
+    
+    if (isSchoolStudent) {
+      calculateDomainProgress();
+    }
+  }, [isSchoolStudent, schoolNotebooks, user, materiaId]);
 
   const handleCreate = async () => {
     console.log("Notebook created successfully");
@@ -529,7 +611,12 @@ const Notebooks: React.FC = () => {
                 (notebook.updatedAt && typeof notebook.updatedAt.toDate === 'function' ? 
                   notebook.updatedAt.toDate() : 
                   new Date()),
-              conceptCount: notebook.conceptCount || 0
+              conceptCount: notebook.conceptCount || 0,
+              domainProgress: notebooksDomainProgress.get(notebook.id),
+              isStudent: isSchoolStudent,
+              isFrozen: notebook.isFrozen,
+              frozenScore: notebook.frozenScore,
+              frozenAt: notebook.frozenAt
             }))} 
             onDeleteNotebook={(isSchoolStudent || isSchoolAdmin) ? undefined : handleDelete} 
             onEditNotebook={(isSchoolStudent || isSchoolAdmin) ? undefined : handleEdit}

@@ -18,9 +18,16 @@ interface NotebookItemProps {
   isFrozen?: boolean; // Nuevo prop para indicar si el cuaderno está congelado
   onFreeze?: (id: string) => void; // Nueva función para congelar/descongelar
   isTeacher?: boolean; // Para mostrar botón de congelar solo a profesores
+  domainProgress?: { // Nuevo prop para el progreso de dominio
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
+  isStudent?: boolean; // Para mostrar el progreso solo a estudiantes
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -28,6 +35,18 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   const [notebookColor, setNotebookColor] = useState(color || '#6147FF'); // Color predeterminado
   const [hasError, setHasError] = useState(false); // Estado para manejar errores
   const [isButtonClick, setIsButtonClick] = useState(false); // Estado para prevenir onBlur cuando se hace clic en botón
+  const [showFrozenTooltip, setShowFrozenTooltip] = useState(false); // Estado para mostrar tooltip de congelado
+  
+  // Mostrar automáticamente el tooltip cuando se congela
+  useEffect(() => {
+    if (isFrozen) {
+      setShowFrozenTooltip(true);
+      const timer = setTimeout(() => {
+        setShowFrozenTooltip(false);
+      }, 5000); // Mostrar por 5 segundos
+      return () => clearTimeout(timer);
+    }
+  }, [isFrozen]);
 
   useEffect(() => {
     setEditableTitle(title);
@@ -44,6 +63,11 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   const handleView = () => {
+    // Si el cuaderno está congelado y no es profesor, no permitir abrir
+    if (isFrozen && !isTeacher) {
+      return;
+    }
+    
     // Detectar si estamos dentro de una materia
     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
     const materiaId = materiaMatch ? materiaMatch[1] : null;
@@ -62,6 +86,12 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     if (hasError) {
       return;
     }
+    
+    // Si el cuaderno está congelado y no es profesor, no permitir abrir acciones
+    if (isFrozen && !isTeacher) {
+      return;
+    }
+    
     onToggleActions(id);
   };
 
@@ -197,6 +227,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
       onColorChange(id, newColor);
     }
   };
+  
+  const handleFreezeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onFreeze) {
+      onFreeze(id);
+    }
+  };
 
   return (
     <div 
@@ -205,7 +242,10 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
       <div 
         className={`notebook-card-content ${isFrozen ? 'frozen' : ''}`}
         onClick={handleCardClick}
-        style={{ '--notebook-color': notebookColor } as React.CSSProperties}
+        style={{ 
+          '--notebook-color': notebookColor,
+          cursor: (isFrozen && !isTeacher) ? 'not-allowed' : 'pointer'
+        } as React.CSSProperties}
       >
         {isEditing ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -260,7 +300,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           <>
             <h3>{editableTitle}</h3>
             {isFrozen && (
-              <div className="frozen-badge">
+              <div className="frozen-indicator-subtle">
                 <i className="fas fa-snowflake"></i>
                 <span>Congelado</span>
               </div>
@@ -291,19 +331,21 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               <i className="fas fa-plus"></i>
             </button>
           )}
-          <button 
-            onClick={handleView} 
-            className="action-view" 
-            title="Ver cuaderno"
-            disabled={hasError}
-            style={{ 
-              backgroundColor: notebookColor,
-              opacity: hasError ? 0.5 : 1, 
-              cursor: hasError ? 'not-allowed' : 'pointer' 
-            }}
-          >
-            <i className="fas fa-eye"></i>
-          </button>
+          {!(isFrozen && !isTeacher) && (
+            <button 
+              onClick={handleView} 
+              className="action-view" 
+              title="Ver cuaderno"
+              disabled={hasError}
+              style={{ 
+                backgroundColor: notebookColor,
+                opacity: hasError ? 0.5 : 1, 
+                cursor: hasError ? 'not-allowed' : 'pointer' 
+              }}
+            >
+              <i className="fas fa-eye"></i>
+            </button>
+          )}
           {onColorChange && (
             <button 
               onClick={handleColorClick} 
@@ -351,12 +393,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           )}
           {isTeacher && onFreeze && (
             <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                if (window.confirm(isFrozen ? '¿Estás seguro de que deseas descongelar este cuaderno?' : '¿Estás seguro de que deseas congelar este cuaderno? Los alumnos no podrán estudiar ni ver los conceptos.')) {
-                  onFreeze(id);
-                }
-              }} 
+              onClick={handleFreezeClick}
               className={`action-freeze ${isFrozen ? 'frozen' : ''}`} 
               title={isFrozen ? "Descongelar cuaderno" : "Congelar cuaderno"}
               disabled={hasError}
@@ -386,6 +423,21 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           </div>
         </div>
       )}
+      
+      {/* Popup de congelado */}
+      {showFrozenTooltip && isFrozen && (
+        <div className="frozen-popup-overlay">
+          <div className="frozen-popup">
+            <div className="frozen-popup-icon">
+              <i className="fas fa-snowflake"></i>
+            </div>
+            <h3>¡Cuaderno Congelado! ❄️</h3>
+            <p>"{editableTitle}" ha sido congelado exitosamente</p>
+            <p className="frozen-popup-info">Los estudiantes no podrán acceder mientras esté congelado</p>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };

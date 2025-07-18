@@ -10,7 +10,7 @@ import MiniQuiz from '../components/MiniQuiz';
 import { useStudyService } from '../hooks/useStudyService';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { useUserType } from '../hooks/useUserType';
-import { Concept, ResponseQuality, StudyMode, SchoolNotebook, StudySessionMetrics } from '../types/interfaces';
+import { Concept, ResponseQuality, StudyMode, Notebook, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import '../styles/SchoolSystem.css';
 import Confetti from 'react-confetti';
@@ -27,7 +27,7 @@ const SchoolStudentStudyPage = () => {
     navigate('/materias', { replace: true });
   }, [navigate]);
   
-  const [selectedNotebook, setSelectedNotebook] = useState<SchoolNotebook | null>(null);
+  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>(StudyMode.SMART);
   
   // Estado para los conceptos y la sesión de estudio

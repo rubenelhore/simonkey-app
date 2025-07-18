@@ -18,7 +18,7 @@ import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
 import { rankingUpdateService } from '../services/rankingUpdateService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faSpinner, faSnowflake } from '@fortawesome/free-solid-svg-icons';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -74,6 +74,9 @@ const StudyModePage = () => {
     message: '',
     type: 'info'
   });
+  
+  // Estado para mostrar mensaje de cuaderno congelado
+  const [showFrozenMessage, setShowFrozenMessage] = useState<boolean>(false);
   
   // Estado para el Mini Quiz
   const [showMiniQuiz, setShowMiniQuiz] = useState<boolean>(false);
@@ -260,7 +263,10 @@ const StudyModePage = () => {
               id: notebook.id,
               title: notebook.title,
               color: notebook.color || '#6147FF',
-              materiaId: notebook.idMateria
+              type: 'school' as const,
+              idMateria: notebook.idMateria,
+              isFrozen: notebook.isFrozen || false,
+              frozenScore: notebook.frozenScore
             }));
         } else {
           // Regular notebooks filtrados por materia
@@ -275,6 +281,7 @@ const StudyModePage = () => {
             id: doc.id,
             title: doc.data().title,
             color: doc.data().color || '#6147FF',
+            type: doc.data().type || 'personal' as const,
             materiaId: doc.data().materiaId
           }));
         }
@@ -1814,9 +1821,20 @@ const StudyModePage = () => {
                               {(notebooks as Notebook[]).map((notebook, index) => (
                                 <div
                                   key={notebook.id || index}
-                                  className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-                                  onClick={() => handleSelectNotebook(notebook)}
-                                  style={{ borderColor: notebook.color }}
+                                  className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
+                                  onClick={() => {
+                                    if (notebook.isFrozen) {
+                                      setShowFrozenMessage(true);
+                                      setTimeout(() => setShowFrozenMessage(false), 3000);
+                                    } else {
+                                      handleSelectNotebook(notebook);
+                                    }
+                                  }}
+                                  style={{ 
+                                    borderColor: notebook.color,
+                                    opacity: notebook.isFrozen ? 0.6 : 1,
+                                    cursor: notebook.isFrozen ? 'not-allowed' : 'pointer'
+                                  }}
                                 >
                                   <div className="notebook-color" style={{ backgroundColor: notebook.color }}>
                                     {selectedNotebook?.id === notebook.id && (
@@ -1827,11 +1845,28 @@ const StudyModePage = () => {
                                   </div>
                                   <div className="notebook-info">
                                     <div className="notebook-title">{notebook.title}</div>
+                                    {notebook.isFrozen && (
+                                      <div className="notebook-frozen-status">
+                                        <i className="fas fa-snowflake"></i>
+                                        <span>Congelado</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ))}
                             </div>
                           </div>
+                          
+                          {/* Mensaje de cuaderno congelado */}
+                          {showFrozenMessage && (
+                            <div className="frozen-message-overlay">
+                              <div className="frozen-message">
+                                <i className="fas fa-snowflake frozen-icon"></i>
+                                <p>Este cuaderno está congelado ❄️</p>
+                                <p className="frozen-subtitle">No puedes estudiar mientras esté congelado</p>
+                              </div>
+                            </div>
+                          )}
                           
                           {selectedNotebook && (
                             <>

@@ -78,7 +78,7 @@ import AuthCleaner from './components/AuthCleaner';
 import AuthUnlocker from './components/AuthUnlocker';
 // Importar AuthDiagnostic
 // import AuthDiagnostic from './components/AuthDiagnostic';
-import SchoolNotebookDetail from './pages/SchoolNotebookDetail';
+// SchoolNotebookDetail ya no es necesario, se usa NotebookDetail para todo
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 import SuperAdminRoute from './pages/SuperAdminRoute';
 // Importar utilidad para arreglar perfil de usuario (solo en desarrollo)
@@ -811,7 +811,7 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <SchoolUserGuard>
-                    <SchoolNotebookDetail />
+                    <NotebookDetailWrapper />
                   </SchoolUserGuard>
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />

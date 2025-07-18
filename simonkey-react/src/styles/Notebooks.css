@@ -546,6 +546,7 @@ button[type="submit"]:hover {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.75rem;
   position: relative;
+  padding: 15px; /* Añadir padding para dar espacio a los badges */
 }
 
 /* Posición fija para el botón de crear cuaderno */
@@ -571,7 +572,7 @@ button[type="submit"]:hover {
 .notebook-card {
   background: linear-gradient(135deg, var(--card-background) 0%, rgba(255, 255, 255, 0.95) 100%);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible; /* Cambiado para permitir que el badge sobresalga */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -3115,21 +3116,229 @@ body.modal-open .notebooks-hamburger-btn {
 
 .frozen-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: #3b82f6;
+  top: -10px;
+  right: -10px;
+  background: linear-gradient(135deg, #4a90e2 0%, #3b82f6 100%);
   color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 4px;
-  z-index: 1;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  gap: 6px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  border: 2px solid white;
+  animation: frozenPulse 2s ease-in-out infinite;
+  transform: rotate(-5deg);
+  letter-spacing: 0.5px;
 }
 
 .frozen-badge i {
-  font-size: 12px;
+  font-size: 16px;
+  animation: snowflakeRotate 3s linear infinite;
+}
+
+@keyframes frozenPulse {
+  0%, 100% {
+    transform: rotate(-5deg) scale(1);
+  }
+  50% {
+    transform: rotate(-5deg) scale(1.05);
+  }
+}
+
+@keyframes snowflakeRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Popup de congelado */
+.frozen-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.frozen-popup {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 400px;
+  border: 3px solid #4a90e2;
+  transform: scale(0);
+  animation: popupBounce 0.5s ease-out forwards;
+  pointer-events: auto;
+}
+
+.frozen-popup-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #4a90e2 0%, #3b82f6 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 24px rgba(74, 144, 226, 0.3);
+}
+
+.frozen-popup-icon i {
+  font-size: 40px;
+  color: white;
+  animation: snowflakeRotate 3s linear infinite;
+}
+
+.frozen-popup h3 {
+  margin: 0 0 15px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.frozen-popup p {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.frozen-popup-info {
+  font-size: 16px !important;
+  color: #6b7280 !important;
+  font-weight: 400 !important;
+}
+
+@keyframes popupBounce {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Indicador sutil de congelado */
+.frozen-indicator-subtle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #e0f2fe;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0c4a6e;
+}
+
+.frozen-indicator-subtle i {
+  font-size: 14px;
+  color: #0284c7;
+}
+
+/* Domain Progress Indicator Styles */
+.domain-progress-indicator {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-circles {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.progress-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  position: relative;
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.progress-circle:hover {
+  transform: scale(1.1);
+}
+
+.progress-circle.green {
+  background: #10b981;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.progress-circle.yellow {
+  background: #f59e0b;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.progress-circle.red {
+  background: #ef4444;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.progress-circle .count {
+  font-size: 0.7rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.progress-fill.green {
+  background: #10b981;
+}
+
+.progress-fill.yellow {
+  background: #f59e0b;
+}
+
+/* Ajustes para cuando hay indicador de progreso */
+.notebook-card-content.has-progress {
+  padding-bottom: 1rem;
 }

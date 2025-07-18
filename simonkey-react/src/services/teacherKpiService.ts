@@ -9,6 +9,8 @@ import {
   getDoc,
   Timestamp
 } from 'firebase/firestore';
+import { UnifiedNotebookService } from './unifiedNotebookService';
+import { UnifiedConceptService } from './unifiedConceptService';
 
 interface TeacherMetrics {
   global: {
@@ -163,16 +165,13 @@ export class TeacherKpiService {
       const notebooksBySubject = new Map<string, string[]>();
 
       for (const subjectId of subjectIds) {
-        const notebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('idMateria', '==', subjectId)
-        );
-        const notebooksSnap = await getDocs(notebooksQuery);
+        // Usar UnifiedNotebookService para obtener notebooks del profesor
+        const subjectNotebooks = await UnifiedNotebookService.getTeacherNotebooks([subjectId]);
         
         const notebookIds: string[] = [];
-        notebooksSnap.forEach(doc => {
-          allNotebooks.push({ id: doc.id, ...doc.data() });
-          notebookIds.push(doc.id);
+        subjectNotebooks.forEach(notebook => {
+          allNotebooks.push(notebook);
+          notebookIds.push(notebook.id);
         });
         
         notebooksBySubject.set(subjectId, notebookIds);
@@ -276,19 +275,8 @@ export class TeacherKpiService {
         let notebookStudySessions = 0;
         let studentsWithNotebookData = 0;
 
-        // Obtener número total de conceptos del cuaderno
-        const conceptsQuery = query(
-          collection(db, 'schoolConcepts'),
-          where('cuadernoId', '==', notebook.id)
-        );
-        const conceptsSnap = await getDocs(conceptsQuery);
-        let totalConcepts = 0;
-        conceptsSnap.forEach(doc => {
-          const data = doc.data();
-          if (data.conceptos && Array.isArray(data.conceptos)) {
-            totalConcepts += data.conceptos.length;
-          }
-        });
+        // Obtener número total de conceptos del cuaderno usando el servicio unificado
+        const totalConcepts = await UnifiedConceptService.getConceptCount(notebook.id);
 
         // Calcular métricas de cada estudiante para este cuaderno
         for (const studentId of notebookStudents) {

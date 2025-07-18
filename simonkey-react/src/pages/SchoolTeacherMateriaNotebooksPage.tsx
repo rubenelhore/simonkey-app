@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotebookList from '../components/NotebookList';
 import { db } from '../services/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc, writeBatch, Timestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useUserType } from '../hooks/useUserType';
+import { UnifiedNotebookService } from '../services/unifiedNotebookService';
+import { UnifiedConceptService } from '../services/unifiedConceptService';
 
 interface SchoolNotebook {
   id: string;
@@ -74,35 +76,26 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
           });
         }
 
-        // Cargar cuadernos de la materia
-        const notebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('idMateria', '==', materiaId)
-        );
-        
-        const notebooksSnapshot = await getDocs(notebooksQuery);
+        // Cargar cuadernos de la materia usando el servicio unificado
+        const unifiedNotebooks = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
         const notebooksData: SchoolNotebook[] = [];
         
-        for (const docSnap of notebooksSnapshot.docs) {
-          const data = docSnap.data();
-          
-          // Contar conceptos de cada cuaderno
-          const conceptsQuery = query(
-            collection(db, 'schoolConcepts'),
-            where('notebookId', '==', docSnap.id)
-          );
-          const conceptsSnapshot = await getDocs(conceptsQuery);
+        for (const notebook of unifiedNotebooks) {
+          // Contar conceptos usando el servicio unificado
+          const conceptCount = await UnifiedConceptService.getConceptCount(notebook.id);
           
           notebooksData.push({
-            id: docSnap.id,
-            title: data.title,
-            descripcion: data.descripcion,
-            color: data.color || '#6147FF',
-            idMateria: data.idMateria,
-            userId: data.userId,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-            conceptCount: conceptsSnapshot.size
+            id: notebook.id,
+            title: notebook.title,
+            color: notebook.color || '#6147FF',
+            idMateria: notebook.idMateria || materiaId,
+            userId: notebook.userId,
+            createdAt: notebook.createdAt,
+            updatedAt: notebook.updatedAt,
+            conceptCount: conceptCount,
+            isFrozen: notebook.isFrozen,
+            frozenScore: notebook.frozenScore,
+            frozenAt: notebook.frozenAt
           });
         }
         
@@ -158,15 +151,16 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
       const newNotebook = {
         title,
         color,
+        type: 'school' as const,
         idMateria: materiaId,
         userId: user.uid,
-        descripcion: '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        idProfesor: user.uid,
+        idEscuela: userProfile?.idEscuela || userProfile?.schoolData?.idEscuela,
+        descripcion: ''
       };
       
-      const docRef = await addDoc(collection(db, 'schoolNotebooks'), newNotebook);
-      console.log("Cuaderno escolar creado con ID:", docRef.id);
+      const notebookId = await UnifiedNotebookService.createNotebook(newNotebook);
+      console.log("Cuaderno escolar creado con ID:", notebookId);
       
       // SINCRONIZACIÓN AUTOMÁTICA: Asignar el cuaderno a todos los estudiantes de esta materia
       try {
@@ -186,8 +180,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
           const studentData = studentDoc.data();
           const currentNotebooks = studentData.idCuadernos || [];
           
-          if (!currentNotebooks.includes(docRef.id)) {
-            currentNotebooks.push(docRef.id);
+          if (!currentNotebooks.includes(notebookId)) {
+            currentNotebooks.push(notebookId);
             await updateDoc(doc(db, 'users', studentDoc.id), {
               idCuadernos: currentNotebooks,
               updatedAt: serverTimestamp()
@@ -203,35 +197,26 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         // No interrumpir el flujo principal si falla la sincronización
       }
       
-      // Recargar los cuadernos
-      const notebooksQuery = query(
-        collection(db, 'schoolNotebooks'),
-        where('idMateria', '==', materiaId)
-      );
-      
-      const notebooksSnapshot = await getDocs(notebooksQuery);
+      // Recargar los cuadernos usando el servicio unificado
+      const unifiedNotebooks = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
       const notebooksData: SchoolNotebook[] = [];
       
-      for (const docSnap of notebooksSnapshot.docs) {
-        const data = docSnap.data();
-        
-        // Contar conceptos de cada cuaderno
-        const conceptsQuery = query(
-          collection(db, 'schoolConcepts'),
-          where('notebookId', '==', docSnap.id)
-        );
-        const conceptsSnapshot = await getDocs(conceptsQuery);
+      for (const notebook of unifiedNotebooks) {
+        // Contar conceptos usando el servicio unificado
+        const conceptCount = await UnifiedConceptService.getConceptCount(notebook.id);
         
         notebooksData.push({
-          id: docSnap.id,
-          title: data.title,
-          descripcion: data.descripcion,
-          color: data.color || '#6147FF',
-          idMateria: data.idMateria,
-          userId: data.userId,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          conceptCount: conceptsSnapshot.size
+          id: notebook.id,
+          title: notebook.title,
+          color: notebook.color || '#6147FF',
+          idMateria: notebook.idMateria || materiaId,
+          userId: notebook.userId,
+          createdAt: notebook.createdAt,
+          updatedAt: notebook.updatedAt,
+          conceptCount: conceptCount,
+          isFrozen: notebook.isFrozen,
+          frozenScore: notebook.frozenScore,
+          frozenAt: notebook.frozenAt
         });
       }
       
@@ -285,20 +270,21 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         // No interrumpir el flujo principal si falla la sincronización
       }
       
-      // Ahora eliminar todos los conceptos del cuaderno
+      // Ahora eliminar todos los conceptos del cuaderno usando el servicio unificado
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id);
       const conceptsQuery = query(
-        collection(db, 'schoolConcepts'),
-        where('notebookId', '==', id)
+        collection(db, conceptsCollection),
+        where('cuadernoId', '==', id)
       );
       const conceptsSnapshot = await getDocs(conceptsQuery);
       
-      // Eliminar cada concepto
+      // Eliminar cada documento de conceptos
       for (const conceptDoc of conceptsSnapshot.docs) {
-        await deleteDoc(doc(db, 'schoolConcepts', conceptDoc.id));
+        await deleteDoc(doc(db, conceptsCollection, conceptDoc.id));
       }
       
-      // Finalmente eliminar el cuaderno
-      await deleteDoc(doc(db, 'schoolNotebooks', id));
+      // Finalmente eliminar el cuaderno usando el servicio unificado
+      await UnifiedNotebookService.deleteNotebook(id);
       console.log("Cuaderno escolar eliminado");
       
       // Actualizar el estado local
@@ -312,10 +298,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
   // Los profesores SÍ pueden editar el título del cuaderno
   const handleEdit = async (id: string, newTitle: string) => {
     try {
-      const notebookRef = doc(db, "schoolNotebooks", id);
-      await updateDoc(notebookRef, { 
-        title: newTitle,
-        updatedAt: serverTimestamp()
+      await UnifiedNotebookService.updateNotebook(id, { 
+        title: newTitle
       });
       console.log("Título del cuaderno escolar actualizado");
       
@@ -334,10 +318,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
   // Los profesores SÍ pueden cambiar el color del cuaderno
   const handleColorChange = async (id: string, newColor: string) => {
     try {
-      const notebookRef = doc(db, 'schoolNotebooks', id);
-      await updateDoc(notebookRef, {
-        color: newColor,
-        updatedAt: serverTimestamp()
+      await UnifiedNotebookService.updateNotebook(id, {
+        color: newColor
       });
       console.log("Color del cuaderno escolar actualizado");
       
@@ -353,23 +335,28 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     }
   };
 
-  const handleFreezeNotebook = async (id: string) => {
+  const handleFreezeNotebook = async (id: string, type: 'now' | 'scheduled', scheduledDate?: Date) => {
     try {
       const notebook = notebooks.find(n => n.id === id);
       if (!notebook) return;
 
-      const batch = writeBatch(db);
-      const notebookRef = doc(db, 'schoolNotebooks', id);
       let calculatedScore = 0; // Variable para el score calculado
       
       if (notebook.isFrozen) {
         // Descongelar
-        batch.update(notebookRef, {
-          isFrozen: false,
-          frozenScore: null,
-          frozenAt: null,
-          updatedAt: serverTimestamp()
-        });
+        if (type === 'now') {
+          await UnifiedNotebookService.updateNotebook(id, {
+            isFrozen: false,
+            frozenScore: undefined,
+            frozenAt: undefined,
+            scheduledUnfreezeAt: undefined
+          });
+        } else if (type === 'scheduled' && scheduledDate) {
+          // Programar descongelación
+          await UnifiedNotebookService.updateNotebook(id, {
+            scheduledUnfreezeAt: Timestamp.fromDate(scheduledDate)
+          });
+        }
       } else {
         // Congelar
         // Primero calcular el score actual de todos los estudiantes
@@ -401,15 +388,20 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         
         calculatedScore = totalScore; // Guardar el score calculado
         
-        batch.update(notebookRef, {
-          isFrozen: true,
-          frozenScore: totalScore,
-          frozenAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
+        if (type === 'now') {
+          await UnifiedNotebookService.updateNotebook(id, {
+            isFrozen: true,
+            frozenScore: totalScore,
+            frozenAt: Timestamp.now(),
+            scheduledFreezeAt: undefined
+          });
+        } else if (type === 'scheduled' && scheduledDate) {
+          // Programar congelación
+          await UnifiedNotebookService.updateNotebook(id, {
+            scheduledFreezeAt: Timestamp.fromDate(scheduledDate)
+          });
+        }
       }
-      
-      await batch.commit();
       
       // Actualizar localmente
       setNotebooks(prev => prev.map(n => 

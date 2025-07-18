@@ -8,9 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import { useGamePoints } from '../hooks/useGamePoints';
 import { useTickets } from '../hooks/useTickets';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { UnifiedConceptService } from '../services/unifiedConceptService';
 import { faSpinner, faSnowflake } from '@fortawesome/free-solid-svg-icons';
 import { studyStreakService } from '../services/studyStreakService';
 import { useUserType } from '../hooks/useUserType';
+import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import '../styles/StudyDashboard.css';
 
 // Función auxiliar para obtener datos de aprendizaje
@@ -168,79 +170,24 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
     let completedFreeSessions = 0;
     
     try {
-      // 1. CONSULTA REAL: Obtener conceptos del cuaderno
+      // 1. CONSULTA REAL: Obtener conceptos del cuaderno usando el servicio unificado
       console.log('Consultando conceptos reales...');
       
-      // Intentar diferentes estructuras de datos de Firebase
-      const conceptsQueries = [
-        // Estructura 1: notebooks/{notebookId}/concepts
-        query(collection(db, 'notebooks', notebookId, 'concepts')),
-        // Estructura 2: users/{userId}/notebooks/{notebookId}/concepts  
-        query(collection(db, 'users', userId, 'notebooks', notebookId, 'concepts')),
-        // Estructura 3: conceptos con filtros
-        query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId)),
-        // Estructura 4: conceptos con filtros de usuario
-        query(collection(db, 'conceptos'), where('cuadernoId', '==', notebookId), where('usuarioId', '==', userId)),
-        // Estructura 5: conceptos escolares (para usuarios escolares)
-        query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', notebookId))
-      ];
-      
-      let conceptDocs = null;
-      let queryIndex = 0;
-      
-      // Intentar cada consulta hasta que una funcione
-      for (const conceptQuery of conceptsQueries) {
-        try {
-          console.log(`Intentando consulta ${queryIndex + 1}...`);
-          conceptDocs = await getDocs(conceptQuery);
-          if (!conceptDocs.empty) {
-            console.log(`✅ Consulta ${queryIndex + 1} exitosa, encontrados ${conceptDocs.size} documentos`);
-            break;
-          } else {
-            console.log(`⚠️ Consulta ${queryIndex + 1} vacía`);
-          }
-        } catch (error) {
-          console.log(`❌ Consulta ${queryIndex + 1} falló:`, error);
-        }
-        queryIndex++;
-      }
+      const concepts = await UnifiedConceptService.getConcepts(notebookId);
+      console.log(`✅ Encontrados ${concepts.length} conceptos usando UnifiedConceptService`);
       
       // Procesar conceptos encontrados
-      if (conceptDocs && !conceptDocs.empty) {
-        conceptDocs.forEach((doc) => {
-          const data = doc.data();
-          console.log('Documento de concepto:', data);
+      if (concepts.length > 0) {
+        concepts.forEach((concept) => {
+          console.log('Documento de concepto:', concept);
           
-          // Manejar diferentes estructuras de datos
-          if (data.conceptos && Array.isArray(data.conceptos)) {
-            // Estructura con array de conceptos
-            totalConcepts += data.conceptos.length;
-            data.conceptos.forEach((concepto: any) => {
-              if (concepto.dominado) {
-                masteredConcepts++;
-              }
-              if (concepto.reviewId) {
-                smartStudiesCount++;
-              }
-            });
-          } else if (data.término && data.definición) {
-            // Estructura con concepto individual
-            totalConcepts++;
-            if (data.dominado) {
-              masteredConcepts++;
-            }
-            if (data.reviewId) {
-              smartStudiesCount++;
-            }
-          } else if (data.term && data.definition) {
-            // Estructura alternativa en inglés
-            totalConcepts++;
-            if (data.mastered) {
-              masteredConcepts++;
-            }
-            if (data.reviewId) {
-              smartStudiesCount++;
-            }
+          // El servicio unificado ya devuelve conceptos con estructura estándar
+          totalConcepts++;
+          if (concept.dominado) {
+            masteredConcepts++;
+          }
+          if (concept.reviewId) {
+            smartStudiesCount++;
           }
         });
       } else {

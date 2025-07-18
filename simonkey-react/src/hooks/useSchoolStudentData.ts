@@ -10,10 +10,10 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
-import { SchoolNotebook, SchoolSubject } from '../types/interfaces';
+import { Notebook, SchoolSubject } from '../types/interfaces';
 
 interface UseSchoolStudentDataReturn {
-  schoolNotebooks: SchoolNotebook[];
+  schoolNotebooks: Notebook[];
   schoolSubjects: SchoolSubject[];
   loading: boolean;
   error: Error | null;
@@ -21,7 +21,7 @@ interface UseSchoolStudentDataReturn {
 
 export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
   const { user, userProfile } = useAuth();
-  const [schoolNotebooks, setSchoolNotebooks] = useState<SchoolNotebook[]>([]);
+  const [schoolNotebooks, setSchoolNotebooks] = useState<Notebook[]>([]);
   const [schoolSubjects, setSchoolSubjects] = useState<SchoolSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -99,14 +99,15 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
               return {
                 id: notebookDoc.id,
                 ...notebookDoc.data(),
-                color: notebookDoc.data().color || '#6147FF'
-              } as SchoolNotebook;
+                color: notebookDoc.data().color || '#6147FF',
+                type: 'school' as const
+              } as Notebook;
             }
             return null;
           });
           
           const notebooksResults = await Promise.all(notebookPromises);
-          const notebooksList = notebooksResults.filter(notebook => notebook !== null) as SchoolNotebook[];
+          const notebooksList = notebooksResults.filter((notebook): notebook is Notebook => notebook !== null);
           
           // console.log('📚 Cuadernos escolares cargados:', notebooksList.length);
           // notebooksList.forEach(notebook => {

@@ -10,6 +10,7 @@ import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebookColor } from '../services/notebookService';
+import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -98,16 +99,12 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
           // Buscar cuadernos de las materias
           if (subjectIds.length > 0) {
             console.log('\n📓 Buscando cuadernos de las materias...');
-            const notebooksQuery = query(
-              collection(db, 'schoolNotebooks'),
-              where('idMateria', 'in', subjectIds)
-            );
-            const notebooksSnapshot = await getDocs(notebooksQuery);
-            console.log(`📊 Cuadernos encontrados: ${notebooksSnapshot.size}`);
+            // Usar UnifiedNotebookService para obtener notebooks
+            const notebooks = await UnifiedNotebookService.getTeacherNotebooks(subjectIds);
+            console.log(`📊 Cuadernos encontrados: ${notebooks.length}`);
             
-            notebooksSnapshot.docs.forEach((doc, index) => {
-              const data = doc.data();
-              console.log(`  - Cuaderno ${index + 1}:`, doc.id, data);
+            notebooks.forEach((notebook: any, index: number) => {
+              console.log(`  - Cuaderno ${index + 1}:`, notebook.id, notebook);
             });
           } else {
             console.log('❌ No hay materias asignadas al profesor');

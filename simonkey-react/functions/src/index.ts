@@ -14,6 +14,9 @@ import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Importar funciones de congelación programada
+export { processScheduledFreezeUnfreeze, processScheduledFreezeUnfreezeManual } from './scheduledFreezeUnfreeze';
+
 // Inicializar Firebase Admin
 admin.initializeApp();
 

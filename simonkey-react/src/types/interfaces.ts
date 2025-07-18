@@ -186,13 +186,30 @@ export interface Notebook {
   id: string;
   title: string;
   color: string;
+  type: 'personal' | 'school'; // Tipo de cuaderno
   category?: string; // Nueva categoría para agrupar cuadernos
-  userId?: string;
-  materiaId?: string; // ID de la materia a la que pertenece
-  idMateria?: string; // ID de la materia para notebooks escolares
+  
+  // Campos comunes
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   conceptCount?: number;
+  isFrozen?: boolean; // Si el cuaderno está congelado
+  frozenScore?: number; // Puntaje al momento de congelar
+  frozenAt?: Timestamp; // Fecha de congelación
+  
+  // Campos para congelación programada
+  scheduledFreezeAt?: Timestamp; // Fecha programada para congelar
+  scheduledUnfreezeAt?: Timestamp; // Fecha programada para descongelar
+  
+  // Campos para notebooks personales
+  userId?: string; // ID del usuario propietario
+  shareId?: string; // ID para compartir públicamente
+  
+  // Campos para notebooks escolares
+  idMateria?: string; // ID de la materia para notebooks escolares
+  idEscuela?: string; // ID de la escuela
+  idProfesor?: string; // ID del profesor que lo creó
+  idAdmin?: string; // ID del admin de la escuela
 }
 
 /**
@@ -432,12 +449,6 @@ export interface SchoolSubject {
   updatedAt?: Timestamp;
 }
 
-/**
- * Cuaderno escolar (extending existing Notebook interface)
- */
-export interface SchoolNotebook extends Notebook {
-  idMateria: string;
-}
 
 /**
  * Alumno escolar
