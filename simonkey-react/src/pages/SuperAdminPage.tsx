@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
 import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
-import { deleteUserWithConfirmation, syncSchoolUsers, migrateUsers } from '../services/firebaseFunctions';
+import { deleteUserData, syncSchoolUsers, migrateUsers } from '../services/firebaseFunctions';
 import SchoolLinking from '../components/SchoolLinking';
 import SchoolCreation from '../components/SchoolCreation';
 import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
@@ -416,27 +416,20 @@ const SuperAdminPage: React.FC = () => {
       // Limpiar réplicas antes de eliminar el usuario
       await cleanupUserReplicas(userId);
       
-      // Usar la nueva función con Firebase Functions
-      await deleteUserWithConfirmation(
-        userId,
-        userName,
-        // onProgress callback
-        (message) => {
-          console.log('📊 Progreso de eliminación:', message);
-          // Aquí podrías mostrar un toast o notificación
-        },
-        // onSuccess callback
-        (result) => {
-          console.log('✅ Usuario eliminado exitosamente:', result);
-          alert(`✅ Usuario "${userName}" eliminado exitosamente!\n\n${result.message}`);
-          loadData(); // Recargar la lista de usuarios
-        },
-        // onError callback
-        (error) => {
-          console.error('❌ Error eliminando usuario:', error);
-          alert(`❌ Error eliminando usuario: ${error}`);
-        }
-      );
+      // Usar la función con Firebase Functions
+      const result = await deleteUserData({ userId, deletedBy: 'superadmin' });
+      const data = result.data as any;
+      
+      if (data.success) {
+        console.log('✅ Usuario eliminado exitosamente:', data);
+        alert(`✅ Usuario "${userName}" eliminado exitosamente!\n\nElementos eliminados:\n` +
+          `- Cuadernos: ${data.deletedItems.notebooks}\n` +
+          `- Conceptos: ${data.deletedItems.concepts}\n` +
+          `- Sesiones de estudio: ${data.deletedItems.studySessions}`);
+        loadData(); // Recargar la lista de usuarios
+      } else {
+        throw new Error(data.message || 'Error desconocido');
+      }
       
     } catch (error) {
       console.error('Error en deleteUser:', error);

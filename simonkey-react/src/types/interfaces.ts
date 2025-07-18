@@ -1,6 +1,20 @@
 import { Timestamp } from 'firebase/firestore';
 
 /**
+ * Representa un material de estudio (archivo subido)
+ */
+export interface Material {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  uploadedAt: Timestamp;
+  notebookId: string;
+  userId: string;
+}
+
+/**
  * Representa un concepto de estudio
  */
 export interface Concept {
@@ -14,6 +28,7 @@ export interface Concept {
   notasPersonales?: string;
   reviewId?: string;
   dominado?: boolean;
+  materialId?: string; // Referencia al material del que se extrajo
   // Otros campos que puedas necesitar
 }
 

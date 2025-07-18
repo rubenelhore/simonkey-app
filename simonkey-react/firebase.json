@@ -45,7 +45,10 @@
       ],
       "environmentVariables": {
         "GEMINI_API_KEY": "AIzaSyC5A8uXWL3oYGgaNCeBMn4NCHYjcSWfc3g"
-      }
+      },
+      "runtime": "nodejs20",
+      "serviceAccount": "cloud-functions-builder@simonkey-5c78f.iam.gserviceaccount.com",
+      "buildServiceAccount": "projects/simonkey-5c78f/serviceAccounts/cloud-functions-builder@simonkey-5c78f.iam.gserviceaccount.com"
     }
   ]
 }

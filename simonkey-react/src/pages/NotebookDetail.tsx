@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
-import { Concept, Notebook } from '../types/interfaces';
+import { Concept, Notebook, Material } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
@@ -20,6 +20,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { generateConcepts, prepareFilesForGeneration } from '../services/firebaseFunctions';
+import { MaterialService } from '../services/materialService';
 import '../styles/NotebookDetail.css';
 import ReactDOM from 'react-dom';
 
@@ -61,6 +62,15 @@ const NotebookDetail = () => {
   
   // Estado para el filtro de dominio
   const [dominioFilter, setDominioFilter] = useState<'all' | 'red' | 'yellow' | 'green'>('all');
+  
+  // Estado para la previsualización de archivos
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
+  
+  // Estado para los materiales del notebook
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const [loadingMaterials, setLoadingMaterials] = useState<boolean>(false);
   
   // Referencia para el modal
   const modalRef = useRef<HTMLDivElement>(null);
@@ -168,6 +178,19 @@ const NotebookDetail = () => {
           // No fallar completamente, solo mostrar un warning
           setConceptosDocs([]);
         }
+        
+        // Cargar materiales del notebook
+        try {
+          setLoadingMaterials(true);
+          const notebookMaterials = await MaterialService.getNotebookMaterials(id);
+          setMaterials(notebookMaterials);
+          console.log('📚 Materiales cargados:', notebookMaterials.length);
+        } catch (materialsError) {
+          console.warn('⚠️ Error cargando materiales:', materialsError);
+          setMaterials([]);
+        } finally {
+          setLoadingMaterials(false);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -211,11 +234,16 @@ const NotebookDetail = () => {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setIsModalOpen(false);
+        if (isPreviewOpen) {
+          setIsPreviewOpen(false);
+          setPreviewFile(null);
+        } else if (isModalOpen) {
+          setIsModalOpen(false);
+        }
       }
     }
     
-    if (isModalOpen) {
+    if (isModalOpen || isPreviewOpen) {
       document.addEventListener('keydown', handleKeyDown);
     } else {
       document.removeEventListener('keydown', handleKeyDown);
@@ -224,11 +252,111 @@ const NotebookDetail = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isModalOpen]);
+  }, [isModalOpen, isPreviewOpen]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setArchivos(Array.from(e.target.files));
+    }
+  };
+
+  // Componente para previsualizar archivos de texto
+  const TextFilePreview = ({ file }: { file: File }) => {
+    const [textContent, setTextContent] = useState<string>('Cargando...');
+    
+    useEffect(() => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setTextContent(e.target?.result as string);
+      };
+      reader.onerror = () => {
+        setTextContent('Error al leer el archivo');
+      };
+      reader.readAsText(file);
+    }, [file]);
+
+    return (
+      <pre style={{ 
+        maxHeight: '80vh', 
+        overflow: 'auto', 
+        backgroundColor: '#f5f5f5', 
+        padding: '1rem',
+        borderRadius: '4px',
+        whiteSpace: 'pre-wrap',
+        wordWrap: 'break-word'
+      }}>
+        {textContent}
+      </pre>
+    );
+  };
+
+  // Componente para previsualizar archivos con URL
+  const FilePreviewWithURL = ({ file }: { file: File }) => {
+    const [fileURL, setFileURL] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (!file) {
+        setFileURL(null);
+        return;
+      }
+      
+      const url = URL.createObjectURL(file);
+      setFileURL(url);
+
+      return () => {
+        if (url) {
+          URL.revokeObjectURL(url);
+        }
+      };
+    }, [file]);
+
+    const fileType = file.type;
+
+    if (!fileURL) {
+      return <div>Cargando...</div>;
+    }
+
+    if (fileType.startsWith('image/')) {
+      return (
+        <div style={{ textAlign: 'center', padding: '1rem', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={fileURL} alt={file.name} style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+        </div>
+      );
+    } else if (fileType === 'application/pdf') {
+      return (
+        <div style={{ height: '80vh' }}>
+          <iframe
+            src={fileURL}
+            title={file.name}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+      );
+    } else {
+      return null;
+    }
+  };
+
+  // Función para renderizar la previsualización según el tipo de archivo
+  const renderFilePreview = () => {
+    if (!previewFile) return null;
+
+    const fileType = previewFile.type;
+
+    if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+      return <FilePreviewWithURL file={previewFile} />;
+    } else if (fileType.startsWith('text/') || fileType === 'application/json' || fileType === 'application/javascript' || !fileType) {
+      return <TextFilePreview file={previewFile} />;
+    } else {
+      return (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <i className="fas fa-file" style={{ fontSize: '4rem', color: '#ccc', marginBottom: '1rem' }}></i>
+          <p>No se puede previsualizar este tipo de archivo</p>
+          <p style={{ fontSize: '0.9rem', color: '#666' }}>Tipo: {fileType || 'Desconocido'}</p>
+          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>Nombre: {previewFile.name}</p>
+          <p style={{ fontSize: '0.85rem', color: '#666' }}>Tamaño: {(previewFile.size / 1024).toFixed(2)} KB</p>
+        </div>
+      );
     }
   };
 
@@ -315,8 +443,27 @@ const NotebookDetail = () => {
         throw new Error('Los estudiantes no pueden añadir conceptos a cuadernos escolares');
       }
 
-      // Preparar archivos para el procesamiento
-      const processedFiles = await prepareFilesForGeneration(archivos, notebook.type === 'school');
+      // Primero subir los materiales (con URLs de marcador de posición)
+      setLoadingText("Guardando materiales...");
+      let uploadedMaterials: Material[] = [];
+      try {
+        uploadedMaterials = await MaterialService.uploadMultipleMaterials(archivos, id);
+        console.log('📤 Materiales guardados:', uploadedMaterials.length);
+        
+        // Actualizar la lista de materiales en el UI
+        setMaterials([...materials, ...uploadedMaterials]);
+      } catch (uploadError) {
+        console.error('⚠️ Error guardando materiales:', uploadError);
+        // Continuar sin materiales, no es crítico
+      }
+
+      // Preparar archivos para el procesamiento, pasando los materiales subidos
+      setLoadingText("Preparando archivos...");
+      const processedFiles = await prepareFilesForGeneration(
+        archivos, 
+        notebook.type === 'school',
+        uploadedMaterials.map(m => ({ id: m.id, name: m.name }))
+      );
       console.log('📁 Archivos procesados:', processedFiles.length);
       setLoadingText("Generando conceptos con IA...");
 
@@ -410,6 +557,10 @@ const NotebookDetail = () => {
           // No fallar aquí, los conceptos ya se generaron en la Cloud Function
         }
 
+        // Los materiales ya fueron subidos al principio, no necesitamos hacerlo de nuevo
+        setLoadingText("Finalizando...");
+        
+        // Siempre mostrar éxito porque los conceptos se generaron
         alert(`¡Éxito! Se generaron ${totalConcepts} conceptos.`);
         setIsModalOpen(false);
         setArchivos([]);
@@ -736,6 +887,92 @@ const NotebookDetail = () => {
       </header>
 
       <main className="notebook-detail-main">
+        {/* Sección de Materiales */}
+        {materials.length > 0 && (
+          <section className="materials-section">
+            <div className="section-header">
+              <h2>Materiales de Estudio</h2>
+            </div>
+            <div className="materials-list">
+              {materials.map((material) => (
+                <div 
+                  key={material.id} 
+                  className={`material-card ${selectedMaterialId === material.id ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedMaterialId(selectedMaterialId === material.id ? null : material.id);
+                  }}
+                >
+                  <div className="material-info">
+                    <i className={`fas ${
+                      material.type.includes('pdf') ? 'fa-file-pdf' :
+                      material.type.includes('image') ? 'fa-file-image' :
+                      material.type.includes('text') ? 'fa-file-alt' :
+                      'fa-file'
+                    }`}></i>
+                    <span className="material-name">{material.name}</span>
+                    <span className="material-size">
+                      {(material.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                  </div>
+                  <div className="material-actions">
+                    <button
+                      className="view-material-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (material.url.startsWith('placeholder://')) {
+                          alert('Este material aún está siendo procesado. Por favor, intenta más tarde.');
+                          return;
+                        }
+                        // Abrir en una nueva pestaña para evitar problemas de CORS
+                        window.open(material.url, '_blank');
+                      }}
+                      title="Ver material"
+                      disabled={material.url.startsWith('placeholder://')}
+                    >
+                      <i className="fas fa-eye"></i>
+                    </button>
+                    {!material.url.startsWith('placeholder://') ? (
+                      <a
+                        href={material.url}
+                        download={material.name}
+                        className="download-material-btn"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Descargar"
+                      >
+                        <i className="fas fa-download"></i>
+                      </a>
+                    ) : (
+                      <button
+                        className="download-material-btn pending"
+                        disabled
+                        title="Material siendo procesado"
+                      >
+                        <i className="fas fa-spinner fa-spin"></i>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {selectedMaterialId && (
+              <div className="material-filter-info">
+                <i className="fas fa-filter"></i>
+                <span>Mostrando conceptos del material seleccionado</span>
+                <button 
+                  className="clear-filter-btn"
+                  onClick={() => setSelectedMaterialId(null)}
+                >
+                  Limpiar filtro
+                </button>
+              </div>
+            )}
+            <div className="materials-note">
+              <i className="fas fa-info-circle"></i>
+              <span>Usa <i className="fas fa-eye"></i> para previsualizar o <i className="fas fa-download"></i> para descargar el material</span>
+            </div>
+          </section>
+        )}
+        
         <section className="concepts-section">
           <div className="concepts-header">
             <h2>Conceptos del Cuaderno</h2>
@@ -900,6 +1137,11 @@ const NotebookDetail = () => {
                         return null;
                       }
                       
+                      // Filtrar por material seleccionado
+                      if (selectedMaterialId && concepto.materialId !== selectedMaterialId) {
+                        return null;
+                      }
+                      
                       return (
                         <div 
                           key={`${doc.id}-${conceptIndex}`}
@@ -999,7 +1241,30 @@ const NotebookDetail = () => {
                         <p><strong>{archivos.length === 1 ? 'Archivo seleccionado:' : 'Archivos seleccionados:'}</strong></p>
                         <ul>
                           {archivos.map((file, index) => (
-                            <li key={index}>{file.name}</li>
+                            <li key={index}>
+                              <span className="file-name">{file.name}</span>
+                              <div className="file-actions">
+                                <button 
+                                  className="preview-button"
+                                  onClick={() => {
+                                    setPreviewFile(file);
+                                    setIsPreviewOpen(true);
+                                  }}
+                                  title="Previsualizar"
+                                >
+                                  <i className="fas fa-eye"></i>
+                                </button>
+                                <button 
+                                  className="remove-button"
+                                  onClick={() => {
+                                    setArchivos(archivos.filter((_, i) => i !== index));
+                                  }}
+                                  title="Eliminar"
+                                >
+                                  <i className="fas fa-times"></i>
+                                </button>
+                              </div>
+                            </li>
                           ))}
                         </ul>
                       </>
@@ -1060,6 +1325,30 @@ const NotebookDetail = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      
+      {/* Modal de previsualización */}
+      {isPreviewOpen && ReactDOM.createPortal(
+        <div className="modal-overlay" onClick={() => setIsPreviewOpen(false)}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <h3>{previewFile?.name}</h3>
+              <button 
+                className="close-preview-button"
+                onClick={() => {
+                  setIsPreviewOpen(false);
+                  setPreviewFile(null);
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="preview-content">
+              {renderFilePreview()}
             </div>
           </div>
         </div>,

@@ -8,6 +8,8 @@
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { beforeUserCreated } from "firebase-functions/v2/identity";
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
@@ -17,8 +19,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Importar funciones de congelación programada
 export { processScheduledFreezeUnfreeze, processScheduledFreezeUnfreezeManual } from './scheduledFreezeUnfreeze';
 
-// Inicializar Firebase Admin
-admin.initializeApp();
+// Inicializar Firebase Admin con el bucket de Storage
+admin.initializeApp({
+  storageBucket: 'simonkey-5c78f.appspot.com'
+});
 
 // Usar la base de datos simonkey-general
 const getDb = () => {
@@ -1646,11 +1650,16 @@ export const migrateUsers = onCall(
  * - Centraliza la lógica de eliminación en el backend
  * - Mejora la seguridad y consistencia del sistema
  */
-export const onUserDeletionCreated = functions.firestore
-  .document('userDeletions/{userId}')
-  .onCreate(async (snap, context) => {
-    const userId = context.params.userId;
-    const deletionData = snap.data();
+export const onUserDeletionCreated = onDocumentCreated(
+  {
+    document: 'userDeletions/{userId}',
+    region: 'us-central1',
+    memory: '256MiB',
+    timeoutSeconds: 300
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const deletionData = event.data?.data();
     
     logger.info("🗑️ Procesando eliminación automática de usuario", { 
       userId, 
@@ -1668,7 +1677,7 @@ export const onUserDeletionCreated = functions.firestore
       }
 
       // Actualizar estado a 'processing'
-      await snap.ref.update({
+      await event.data?.ref.update({
         status: 'processing',
         processingStartedAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -1700,7 +1709,7 @@ export const onUserDeletionCreated = functions.firestore
       }
 
       // Actualizar el documento con el resultado
-      await snap.ref.update({
+      await event.data?.ref.update({
         status: authDeleted ? 'completed' : 'failed',
         authAccountDeleted: authDeleted,
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1725,7 +1734,7 @@ export const onUserDeletionCreated = functions.firestore
 
       // Actualizar estado a fallido
       try {
-        await snap.ref.update({
+        await event.data?.ref.update({
           status: 'failed',
           autoProcessingError: error.message,
           completedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -1753,9 +1762,17 @@ export const onUserDeletionCreated = functions.firestore
  * - Evita cuentas "huérfanas" en Firebase Auth
  * - Establece límites y configuraciones por defecto
  */
-export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => {
-  const userId = user.uid;
-  const email = user.email;
+// Temporarily using v1 for Auth triggers until v2 identity triggers are properly supported
+// TODO: Migrate to v2 when Firebase CLI supports it
+export const onAuthUserCreated = functions
+  .region('us-central1')
+  .runWith({
+    memory: '256MB',
+    timeoutSeconds: 300
+  })
+  .auth.user().onCreate(async (user) => {
+    const userId = user.uid;
+    const email = user.email;
   
   logger.info("👤 Nuevo usuario creado en Firebase Auth, verificando si necesita perfil en Firestore", { 
     userId, 
@@ -1963,11 +1980,16 @@ export const onAuthUserCreated = functions.auth.user().onCreate(async (user) => 
  * - Garantiza consistencia en la inicialización
  * - Realiza tareas de preparación del entorno del usuario
  */
-export const onUserProfileCreated = functions.firestore
-  .document('users/{userId}')
-  .onCreate(async (snap, context) => {
-    const userId = context.params.userId;
-    const userData = snap.data();
+export const onUserProfileCreated = onDocumentCreated(
+  {
+    document: 'users/{userId}',
+    region: 'us-central1',
+    memory: '256MiB',
+    timeoutSeconds: 300
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const userData = event.data?.data();
     
     logger.info("👤 Nuevo perfil de usuario creado, inicializando configuraciones", { 
       userId, 
@@ -2079,11 +2101,16 @@ export const onUserProfileCreated = functions.firestore
  * - Evita datos huérfanos y referencias rotas
  * - Optimiza el rendimiento eliminando datos innecesarios
  */
-export const onNotebookDeleted = functions.firestore
-  .document('notebooks/{notebookId}')
-  .onDelete(async (snap, context) => {
-    const notebookId = context.params.notebookId;
-    const notebookData = snap.data();
+export const onNotebookDeleted = onDocumentDeleted(
+  {
+    document: 'notebooks/{notebookId}',
+    region: 'us-central1',
+    memory: '256MiB',
+    timeoutSeconds: 300
+  },
+  async (event) => {
+    const notebookId = event.params.notebookId;
+    const notebookData = event.data?.data();
     
     logger.info("📚 Notebook eliminado, iniciando limpieza automática", { 
       notebookId, 
@@ -2257,7 +2284,7 @@ export const generateConceptsFromFile = onCall(
       throw new HttpsError("unauthenticated", "Debes estar autenticado");
     }
 
-    const { fileContent, notebookId, fileName, isSchoolNotebook = false, fileType = 'text' } = request.data;
+    const { fileContent, notebookId, fileName, isSchoolNotebook = false, fileType = 'text', materialId } = request.data;
     const userId = request.auth.uid;
 
     // Validar tamaño del archivo (máximo 50MB en base64)
@@ -2275,6 +2302,7 @@ export const generateConceptsFromFile = onCall(
       fileName,
       isSchoolNotebook,
       fileType,
+      materialId,
       contentLength: fileContent?.length || 0,
       sizeMB: fileContent ? (fileContent.length / 1024 / 1024).toFixed(2) : 0
     });
@@ -2569,7 +2597,8 @@ Responde ÚNICAMENTE con este JSON válido:
             definición: concept.definicion,
             fuente: fileName || 'Archivo subido',
             ejemplos: concept.ejemplos || [],
-            importancia: concept.importancia || ''
+            importancia: concept.importancia || '',
+            materialId: materialId || null
           })),
           creadoEn: admin.firestore.FieldValue.serverTimestamp()
         };
@@ -2579,7 +2608,8 @@ Responde ÚNICAMENTE con este JSON válido:
         
         logger.info("✅ Conceptos guardados en schoolConcepts", {
           conceptCount: validConcepts.length,
-          conceptIds
+          conceptIds,
+          materialId: materialId || 'no-material'
         });
       } else {
         // Guardar en conceptos (colección normal)
@@ -2593,7 +2623,8 @@ Responde ÚNICAMENTE con este JSON válido:
             definición: concept.definicion,
             fuente: fileName || 'Archivo subido',
             ejemplos: concept.ejemplos || [],
-            importancia: concept.importancia || ''
+            importancia: concept.importancia || '',
+            materialId: materialId || null
           })),
           creadoEn: admin.firestore.FieldValue.serverTimestamp()
         };
@@ -2603,7 +2634,8 @@ Responde ÚNICAMENTE con este JSON válido:
         
         logger.info("✅ Conceptos guardados en conceptos", {
           conceptCount: validConcepts.length,
-          conceptIds
+          conceptIds,
+          materialId: materialId || 'no-material'
         });
       }
 
@@ -3024,6 +3056,156 @@ const extractConceptsFromText = (text: string): any[] => {
   
   return concepts.slice(0, 10); // Máximo 10 conceptos de respaldo
 };
+
+/**
+ * Función para subir materiales a Firebase Storage desde Cloud Functions
+ * Evita problemas de CORS al subir desde el servidor
+ */
+export const uploadMaterialToStorage = onCall(
+  {
+    cors: true,
+    invoker: "public"
+  },
+  async (request) => {
+    const db = getDb();
+    
+    try {
+      // Verificar que el usuario esté autenticado
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Usuario no autenticado");
+      }
+
+      const { materialId, fileName, fileContent, notebookId, userId, fileType } = request.data;
+
+      // Validar datos requeridos
+      if (!materialId || !fileName || !fileContent || !notebookId || !userId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Faltan datos requeridos para subir el material"
+        );
+      }
+
+      // Verificar que el usuario sea el propietario
+      if (request.auth.uid !== userId) {
+        throw new HttpsError(
+          "permission-denied",
+          "No tienes permisos para subir este material"
+        );
+      }
+
+      logger.info("📤 Subiendo material a Storage", {
+        materialId,
+        fileName,
+        notebookId,
+        userId
+      });
+
+      // Obtener referencia al bucket de Storage
+      const bucket = admin.storage().bucket();
+      
+      // Crear la ruta del archivo con un nombre único para evitar conflictos
+      const timestamp = Date.now();
+      const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `materials/${userId}/${notebookId}/${materialId}_${timestamp}_${safeFileName}`;
+      const file = bucket.file(filePath);
+
+      logger.info("📦 Preparando archivo para subir", {
+        filePath,
+        fileSize: fileContent.length,
+        fileType
+      });
+
+      // Convertir base64 a buffer
+      let buffer;
+      try {
+        buffer = Buffer.from(fileContent, 'base64');
+        logger.info("✅ Buffer creado exitosamente", { bufferSize: buffer.length });
+      } catch (bufferError: any) {
+        logger.error("❌ Error creando buffer", { error: bufferError.message });
+        throw new HttpsError("invalid-argument", "Error procesando el archivo");
+      }
+
+      // Subir el archivo
+      try {
+        await file.save(buffer, {
+          metadata: {
+            contentType: fileType || 'application/octet-stream',
+            metadata: {
+              materialId,
+              notebookId,
+              userId,
+              uploadedAt: new Date().toISOString()
+            }
+          }
+        });
+        logger.info("✅ Archivo guardado en Storage exitosamente");
+      } catch (saveError: any) {
+        logger.error("❌ Error guardando archivo en Storage", { 
+          error: saveError.message,
+          code: saveError.code
+        });
+        throw new HttpsError("internal", "Error guardando el archivo en Storage");
+      }
+
+      // Hacer el archivo público y obtener la URL
+      try {
+        await file.makePublic();
+        logger.info("✅ Archivo hecho público");
+      } catch (publicError: any) {
+        logger.error("❌ Error haciendo archivo público", { 
+          error: publicError.message,
+          code: publicError.code
+        });
+        // Continuar sin hacer público, pero registrar el error
+      }
+
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      logger.info("✅ Material subido exitosamente", {
+        materialId,
+        publicUrl,
+        filePath
+      });
+
+      // Actualizar el documento en Firestore con la URL real
+      try {
+        await db.collection('materials').doc(materialId).update({
+          url: publicUrl,
+          pending: false,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        logger.info("✅ Documento actualizado en Firestore");
+      } catch (updateError: any) {
+        logger.error("❌ Error actualizando documento en Firestore", {
+          error: updateError.message,
+          materialId
+        });
+        // No fallar la función si solo falla la actualización
+      }
+
+      return {
+        success: true,
+        url: publicUrl,
+        message: "Material subido exitosamente"
+      };
+
+    } catch (error: any) {
+      logger.error("❌ Error subiendo material", {
+        error: error.message,
+        code: error.code
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Error subiendo material: ${error.message}`
+      );
+    }
+  }
+);
 
 // Exportar las funciones de rankings
 export { updateInstitutionRankings, scheduledRankingsUpdate } from './updateRankings';

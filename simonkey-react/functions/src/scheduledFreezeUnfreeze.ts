@@ -1,28 +1,26 @@
-import * as functions from 'firebase-functions';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 
-// Inicializar admin si no está inicializado
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const db = admin.firestore();
+// La inicialización de admin se hace en index.ts
+// Por lo tanto, solo accedemos a firestore cuando sea necesario
 
 /**
  * Cloud Function que se ejecuta cada 15 minutos para procesar
  * congelaciones y descongelaciones programadas
  */
-export const processScheduledFreezeUnfreeze = functions
-  .runWith({
-    timeoutSeconds: 300, // 5 minutos de timeout
-    memory: '512MB'
-  })
-  .pubsub
-  .schedule('every 15 minutes')
-  .timeZone('America/Mexico_City') // Ajusta según tu zona horaria
-  .onRun(async (context) => {
+export const processScheduledFreezeUnfreeze = onSchedule(
+  {
+    schedule: 'every 15 minutes',
+    timeZone: 'America/Mexico_City',
+    region: 'us-central1',
+    memory: '512MiB',
+    timeoutSeconds: 300
+  },
+  async (event) => {
     console.log('🕐 Iniciando procesamiento de congelaciones/descongelaciones programadas');
     
+    const db = admin.firestore();
     const now = admin.firestore.Timestamp.now();
     const batch = db.batch();
     let updateCount = 0;
@@ -49,7 +47,7 @@ export const processScheduledFreezeUnfreeze = functions
         console.log(`❄️ Congelando notebook: ${doc.id} - ${notebookData.title}`);
         
         // Calcular score promedio de estudiantes
-        const frozenScore = await calculateAverageScore(doc.id);
+        const frozenScore = await calculateAverageScore(doc.id, db);
         
         batch.update(doc.ref, {
           isFrozen: true,
@@ -68,7 +66,7 @@ export const processScheduledFreezeUnfreeze = functions
         console.log(`❄️ Congelando school notebook: ${doc.id} - ${notebookData.title}`);
         
         // Calcular score promedio de estudiantes
-        const frozenScore = await calculateAverageScore(doc.id);
+        const frozenScore = await calculateAverageScore(doc.id, db);
         
         batch.update(doc.ref, {
           isFrozen: true,
@@ -162,7 +160,7 @@ export const processScheduledFreezeUnfreeze = functions
 /**
  * Calcula el score promedio de todos los estudiantes para un cuaderno
  */
-async function calculateAverageScore(notebookId: string): Promise<number> {
+async function calculateAverageScore(notebookId: string, db: admin.firestore.Firestore): Promise<number> {
   try {
     const learningDataSnapshot = await db.collection('learningData')
       .where('cuadernoId', '==', notebookId)
@@ -200,24 +198,68 @@ async function calculateAverageScore(notebookId: string): Promise<number> {
 /**
  * Cloud Function manual para procesar inmediatamente (útil para pruebas)
  */
-export const processScheduledFreezeUnfreezeManual = functions
-  .runWith({
-    timeoutSeconds: 300,
-    memory: '512MB'
-  })
-  .https
-  .onRequest(async (req, res) => {
+export const processScheduledFreezeUnfreezeManual = onRequest(
+  {
+    region: 'us-central1',
+    memory: '512MiB',
+    timeoutSeconds: 300
+  },
+  async (req, res) => {
     // Verificar autenticación básica (ajusta según tus necesidades)
     const authToken = req.headers.authorization;
-    if (authToken !== `Bearer ${functions.config().admin?.token}`) {
+    // TODO: Actualizar a usar variables de entorno en lugar de functions.config()
+    if (authToken !== `Bearer ${process.env.ADMIN_TOKEN || 'your-secret-token'}`) {
       res.status(401).send('Unauthorized');
       return;
     }
     
     try {
-      // Ejecutar la misma lógica
-      await processScheduledFreezeUnfreeze.run(null as any);
-      res.status(200).send('Procesamiento completado exitosamente');
+      // Ejecutar la misma lógica del procesamiento programado
+      console.log('🕐 Procesamiento manual iniciado');
+      
+      const db = admin.firestore();
+      const now = admin.firestore.Timestamp.now();
+      const batch = db.batch();
+      let updateCount = 0;
+      
+      // Procesar congelaciones
+      const notebooksToFreeze = await db.collection('notebooks')
+        .where('scheduledFreezeAt', '<=', now)
+        .where('isFrozen', '!=', true)
+        .get();
+      
+      for (const doc of notebooksToFreeze.docs) {
+        batch.update(doc.ref, {
+          isFrozen: true,
+          frozenAt: now,
+          scheduledFreezeAt: admin.firestore.FieldValue.delete()
+        });
+        updateCount++;
+      }
+      
+      // Procesar descongelaciones
+      const notebooksToUnfreeze = await db.collection('notebooks')
+        .where('scheduledUnfreezeAt', '<=', now)
+        .where('isFrozen', '==', true)
+        .get();
+      
+      for (const doc of notebooksToUnfreeze.docs) {
+        batch.update(doc.ref, {
+          isFrozen: false,
+          frozenAt: admin.firestore.FieldValue.delete(),
+          scheduledUnfreezeAt: admin.firestore.FieldValue.delete()
+        });
+        updateCount++;
+      }
+      
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: `Procesamiento completado. ${updateCount} cuadernos actualizados.`
+      });
     } catch (error) {
       console.error('Error en procesamiento manual:', error);
       res.status(500).send('Error procesando congelaciones/descongelaciones');
