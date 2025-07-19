@@ -81,8 +81,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const isSchoolStudent = normalizedSubscription === UserSubscriptionType.SCHOOL || 
                          normalizedSubscription === 'school';
   
-  console.log('🔍 useStudyService - userSubscription:', userSubscription);
-  console.log('🔍 useStudyService - isSchoolStudent:', isSchoolStudent);
+  // Logs comentados para evitar spam en consola
+  // console.log('🔍 useStudyService - userSubscription:', userSubscription);
+  // console.log('🔍 useStudyService - isSchoolStudent:', isSchoolStudent);
   
   /**
    * Obtiene el ID efectivo del usuario, asegurándose de usar el ID correcto para usuarios escolares

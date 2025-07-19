@@ -1,0 +1,60 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Función auxiliar para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Función para verificar si el usuario es el propietario del archivo
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Función para verificar si el usuario es un profesor escolar
+    function isSchoolTeacher() {
+      return request.auth != null && 
+             request.auth.token.schoolRole == 'teacher';
+    }
+    
+    // Función para verificar si el usuario es un administrador escolar
+    function isSchoolAdmin() {
+      return request.auth != null && 
+             request.auth.token.schoolRole == 'admin';
+    }
+    
+    // Reglas para materiales
+    match /materials/{userId}/{notebookId}/{fileName} {
+      // Permitir lectura a usuarios autenticados
+      allow read: if isAuthenticated();
+      
+      // Permitir escritura al propietario
+      allow write: if isOwner(userId);
+      
+      // Permitir escritura a profesores escolares
+      allow write: if isSchoolTeacher();
+      
+      // Permitir escritura a administradores escolares
+      allow write: if isSchoolAdmin();
+    }
+    
+    // Reglas alternativas si los custom claims no funcionan
+    match /materials/{userId}/{notebookId}/{fileName} {
+      allow read: if isAuthenticated();
+      
+      // Permitir escritura si el usuario es el propietario o tiene rol de profesor/admin
+      allow write: if isAuthenticated() && (
+        isOwner(userId) ||
+        // Verificar en Firestore si es profesor o admin
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.schoolRole == 'teacher' ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.schoolRole == 'admin'
+      );
+    }
+    
+    // Regla general para otros archivos (mantener restricciones existentes)
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Denegar escritura por defecto
+    }
+  }
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotebookList from '../components/NotebookList';
-import { db } from '../services/firebase';
+import { db, auth } from '../services/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc, writeBatch, Timestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import '../styles/SchoolSystem.css';
@@ -31,6 +31,7 @@ interface SchoolSubject {
   nombre: string;
   descripcion?: string;
   color?: string;
+  idEscuela?: string;
 }
 
 const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
@@ -72,7 +73,8 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
             id: materiaDoc.id,
             nombre: materiaData.nombre,
             descripcion: materiaData.descripcion,
-            color: materiaData.color || '#6147FF'
+            color: materiaData.color || '#6147FF',
+            idEscuela: materiaData.idEscuela
           });
         }
 
@@ -148,6 +150,53 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     if (!user || !materiaId || !title || !color) return;
     
     try {
+      // Debug logging
+      console.log("🔍 Debug handleCreate:");
+      console.log("userProfile:", userProfile);
+      console.log("userProfile?.idEscuela:", userProfile?.idEscuela);
+      console.log("userProfile?.schoolData:", userProfile?.schoolData);
+      
+      // Verificar el token del usuario
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdTokenResult();
+        console.log("🔐 Token claims:", token.claims);
+        console.log("🔐 Token roles:", token.claims.roles);
+        console.log("🔐 Token schoolRole:", token.claims.schoolRole);
+      }
+      
+      // Obtener idEscuela del documento del usuario si no está en userProfile
+      let idEscuela = userProfile?.idEscuela || userProfile?.schoolData?.idEscuela;
+      
+      if (!idEscuela && user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          idEscuela = userData.idEscuela || userData.schoolData?.idEscuela;
+          console.log("📚 idEscuela desde usuario:", idEscuela);
+        }
+      }
+      
+      // Si aún no tenemos idEscuela, obtenerlo de la materia
+      if (!idEscuela && materia) {
+        idEscuela = materia.idEscuela;
+        console.log("🏫 idEscuela desde materia:", idEscuela);
+      }
+      
+      // Si todavía no lo tenemos, intentar obtenerlo directamente del documento de la materia
+      if (!idEscuela && materiaId) {
+        const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+        if (materiaDoc.exists()) {
+          idEscuela = materiaDoc.data().idEscuela;
+          console.log("📖 idEscuela desde documento materia:", idEscuela);
+        }
+      }
+      
+      if (!idEscuela) {
+        console.error("❌ No se encontró idEscuela");
+        alert("Error: No se pudo identificar la escuela. Por favor, contacte al administrador.");
+        return;
+      }
+      
       const newNotebook = {
         title,
         color,
@@ -155,7 +204,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         idMateria: materiaId,
         userId: user.uid,
         idProfesor: user.uid,
-        idEscuela: userProfile?.idEscuela || userProfile?.schoolData?.idEscuela,
+        idEscuela: idEscuela,
         descripcion: ''
       };
       

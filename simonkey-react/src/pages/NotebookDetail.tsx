@@ -82,8 +82,8 @@ const NotebookDetail = () => {
   // Usar el hook para detectar el tipo de usuario
   const { isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   
-  // Log para debug
-  console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
+  // Log para debug - comentado para evitar spam en consola
+  // console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
   
   // Función para obtener el color del semáforo según las repeticiones
   const getTrafficLightColor = (conceptId: string): string => {
@@ -127,7 +127,7 @@ const NotebookDetail = () => {
         
         // Fetch concept documents for this notebook
         // Determine concepts collection based on notebook type
-        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id);
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
         const q = query(
           collection(db, conceptsCollection),
           where('cuadernoId', '==', id)
@@ -542,8 +542,12 @@ const NotebookDetail = () => {
         // Intentar recargar los conceptos, pero no fallar si hay error de permisos
         try {
           console.log('🔄 Recargando conceptos...');
+          // Usar la colección correcta según el tipo de notebook
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+          console.log('📚 Usando colección:', conceptsCollection);
+          
           const q = query(
-            collection(db, 'conceptos'),
+            collection(db, conceptsCollection),
             where('cuadernoId', '==', id)
           );
           const querySnapshot = await getDocs(q);
@@ -552,7 +556,7 @@ const NotebookDetail = () => {
             ...doc.data()
           })) as ConceptDoc[];
           setConceptosDocs(conceptosData);
-          console.log('✅ Conceptos recargados exitosamente');
+          console.log('✅ Conceptos recargados exitosamente desde', conceptsCollection);
         } catch (reloadError: any) {
           console.warn('⚠️ No se pudieron recargar los conceptos, pero se generaron correctamente:', reloadError.message);
           // No fallar aquí, los conceptos ya se generaron en la Cloud Function
@@ -561,10 +565,16 @@ const NotebookDetail = () => {
         // Los materiales ya fueron subidos al principio, no necesitamos hacerlo de nuevo
         setLoadingText("Finalizando...");
         
+        console.log('🎯 Punto de control: antes del alert de éxito');
+        
         // Siempre mostrar éxito porque los conceptos se generaron
         alert(`¡Éxito! Se generaron ${totalConcepts} conceptos.`);
+        
+        console.log('🎯 Punto de control: después del alert, cerrando modal');
         setIsModalOpen(false);
         setArchivos([]);
+        
+        console.log('🎯 Punto de control: todo completado exitosamente');
       } else {
         alert("No se pudieron generar conceptos. Por favor, intenta de nuevo.");
       }
@@ -572,8 +582,10 @@ const NotebookDetail = () => {
       console.error("Error generating concepts:", error);
       alert("Error al generar conceptos. Por favor, intenta de nuevo.");
     } finally {
+      console.log('🏁 Finally block: desactivando cargando');
       setCargando(false);
       setLoadingText("Cargando...");
+      console.log('🏁 Finally block: completado');
     }
   };
 
@@ -586,15 +598,16 @@ const NotebookDetail = () => {
 
     try {
       // Eliminar conceptos del cuaderno
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
       const q = query(
-        collection(db, 'conceptos'),
+        collection(db, conceptsCollection),
         where('cuadernoId', '==', id)
       );
       const querySnapshot = await getDocs(q);
       const conceptosToDelete = querySnapshot.docs.map(doc => doc.id);
       
       if (conceptosToDelete.length > 0) {
-        await deleteDoc(doc(db, 'conceptos', conceptosToDelete[0]));
+        await deleteDoc(doc(db, conceptsCollection, conceptosToDelete[0]));
         setConceptosDocs((prev: ConceptDoc[]) => prev.filter((doc: ConceptDoc) => !conceptosToDelete.includes(doc.id)));
       }
 
@@ -638,7 +651,7 @@ const NotebookDetail = () => {
 
     try {
       // Obtener la colección correcta
-      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id);
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
       const conceptoManual: Concept = {
         término: nuevoConcepto.término,
         definición: nuevoConcepto.definición,
@@ -745,8 +758,9 @@ const NotebookDetail = () => {
       console.log('\n2. Verificando conceptos en Firestore...');
       try {
         // Verificar en la colección normal
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
         const q = query(
-          collection(db, 'conceptos'),
+          collection(db, conceptsCollection),
           where('cuadernoId', '==', id)
         );
         const querySnapshot = await getDocs(q);
@@ -812,9 +826,10 @@ const NotebookDetail = () => {
         // 5. Verificar permisos
         console.log('\n5. Verificando permisos...');
         try {
-          const testQuery = query(collection(db, 'conceptos'), where('cuadernoId', '==', id));
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+          const testQuery = query(collection(db, conceptsCollection), where('cuadernoId', '==', id));
           await getDocs(testQuery);
-          console.log('✅ Permisos de lectura OK');
+          console.log('✅ Permisos de lectura OK en colección:', conceptsCollection);
         } catch (error) {
           console.log('❌ Error de permisos:', error);
         }
@@ -976,7 +991,7 @@ const NotebookDetail = () => {
             
             {/* Barra de progreso de dominio */}
             {((isSchoolStudent && !cuaderno.isFrozen) || 
-              (!isSchoolStudent && !isSchoolAdmin)) && 
+              (!isSchoolStudent && !isSchoolAdmin && !isSchoolTeacher)) && 
               conceptosDocs.length > 0 && (
               <div className="dominio-progress-container">
                 {(() => {
@@ -1081,7 +1096,7 @@ const NotebookDetail = () => {
             ) : conceptosDocs.length === 0 ? (
               <div className="empty-state">
                 <p>Aún no hay conceptos en este cuaderno.</p>
-                {!isSchoolStudent && !isSchoolAdmin ? (
+                {(!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher ? (
                   <button
                     className="add-first-concept-button"
                     onClick={() => openModalWithTab("upload")}
@@ -1128,7 +1143,7 @@ const NotebookDetail = () => {
                       return (
                         <div 
                           key={`${doc.id}-${conceptIndex}`}
-                          className={`concept-card traffic-light-${trafficLightColor}`}
+                          className={`concept-card ${!isSchoolTeacher ? `traffic-light-${trafficLightColor}` : ''}`}
                           onClick={() => {
                             // Mantener el contexto de materia si existe
                             const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
@@ -1148,8 +1163,8 @@ const NotebookDetail = () => {
                     }).filter(Boolean)
                   )}
                   
-                  {/* Tarjeta para añadir nuevos conceptos - Solo para usuarios no escolares ni admin */}
-                  {!isSchoolStudent && !isSchoolAdmin && 
+                  {/* Tarjeta para añadir nuevos conceptos - Para usuarios no escolares ni admin, y para profesores */}
+                  {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) &&
                    !cuaderno.isFrozen && (
                     <div 
                       className="add-concept-card" 
@@ -1168,8 +1183,8 @@ const NotebookDetail = () => {
         </section>
       </main>
 
-      {/* Modal - Solo visible para usuarios con permisos */}
-      {isModalOpen && !isSchoolStudent && ReactDOM.createPortal(
+      {/* Modal - Solo visible para usuarios con permisos (incluye profesores) */}
+      {isModalOpen && (!isSchoolStudent || isSchoolTeacher) && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsModalOpen(false);

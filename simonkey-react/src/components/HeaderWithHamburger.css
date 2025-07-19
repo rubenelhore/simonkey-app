@@ -572,8 +572,40 @@
     gap: 0.5rem;
   }
   
+  .logo2-title-group {
+    display: none;
+  }
+  
   .page-title-section {
     margin: 0 0.5rem;
+    text-align: center !important;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Ocultar page-title-section cuando solo tiene subtitle (notebooks) */
+  .page-title-section:has(.page-title:empty) {
+    display: none;
+  }
+  
+  /* Centrar el título en móvil */
+  .page-title {
+    text-align: center !important;
+    width: 100%;
+  }
+  
+  /* Back button pegado a la izquierda en móvil */
+  .header-with-hamburger .back-button {
+    position: absolute !important;
+    left: 1rem !important;
+    margin: 0 !important;
+  }
+  
+  /* Hamburger button más pegado a la derecha en móvil */
+  .notebooks-hamburger-btn {
+    right: 1rem !important;
   }
   
   .page-title {
@@ -866,7 +898,7 @@ body .header-with-hamburger .logo2-title-group h1 * {
 
 @media (max-width: 768px) {
   .notification-btn {
-    right: calc(4.2rem + 28px + 20px);
+    right: calc(1rem + 35px);
     width: 28px;
     height: 21px;
   }
