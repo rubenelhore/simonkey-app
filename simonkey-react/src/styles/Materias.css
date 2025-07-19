@@ -28,11 +28,12 @@
   min-height: calc(100vh - 70px);
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  padding: 2rem 1.5rem;
-  box-sizing: border-box;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* Sección de lista de materias */
@@ -723,6 +724,23 @@
   border-radius: 0 !important;
 }
 
+.streak-tracker {
+  border: 2px dotted #cbd5e1 !important;
+  border-radius: 16px !important;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  margin-top: 0 !important;
+  padding-top: 1rem !important;
+}
+
+.streak-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
 .materias-list-section, .left-column {
   border: none !important;
   border-width: 0 !important;
@@ -733,4 +751,50 @@
   border-top: 1.5px solid #e5e7eb;
   margin: 0 0 1.2rem 0;
   width: 100%;
+}
+
+.add-first-concept-button {
+  background: linear-gradient(135deg, rgb(238, 242, 255) 0%, rgb(224, 231, 255) 100%);
+  color: #6147FF !important;
+  border: 1.5px solid #e0e7ff;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  margin: 0 !important;
+}
+.add-first-concept-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79,70,229,0.13);
+}
+.add-first-concept-button i {
+  font-size: 1.1rem;
+}
+
+.notebook-detail-container .concepts-list .empty-state .add-first-concept-button {
+  background: linear-gradient(135deg, rgb(238, 242, 255) 0%, rgb(224, 231, 255) 100%) !important;
+  color: #6147FF !important;
+  border: 1.5px solid #e0e7ff !important;
+  padding: 0.875rem 1.5rem !important;
+  border-radius: 12px !important;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  text-align: center !important;
+  margin: 0 auto !important;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.07) !important;
+  transition: all 0.3s ease !important;
+}
+.notebook-detail-container .concepts-list .empty-state .add-first-concept-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79,70,229,0.13) !important;
 }

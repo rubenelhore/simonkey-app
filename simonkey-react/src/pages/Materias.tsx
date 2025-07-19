@@ -15,6 +15,7 @@ import CategoryDropdown from '../components/CategoryDropdown';
 import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+import { studyStreakService } from '../services/studyStreakService';
 
 interface Materia {
   id: string;
@@ -66,58 +67,53 @@ const Materias: React.FC = () => {
 
   // Cargar materias del usuario
   useEffect(() => {
-    const loadMaterias = async () => {
+    const loadMateriasYStreak = async () => {
       if (!user) return;
-      
-      // Si es estudiante escolar, el otro useEffect manejará la carga
-      if (isSchoolStudent) {
-        return;
-      }
-      
+      if (isSchoolStudent) return;
       setLoading(true);
+      setLoadingStreak(true);
       try {
-        // Query para obtener las materias del usuario regular
+        // Query optimizada: solo una lectura para materias
         const materiasQuery = query(
           collection(db, 'materias'),
           where('userId', '==', user.uid)
         );
-        
-        const snapshot = await getDocs(materiasQuery);
-        const materiasData: Materia[] = [];
-        
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          
-          // Contar notebooks de cada materia
-          const notebooksQuery = query(
-            collection(db, 'notebooks'),
-            where('materiaId', '==', docSnap.id)
-          );
-          const notebooksSnapshot = await getDocs(notebooksQuery);
-          
-          materiasData.push({
-            id: docSnap.id,
-            title: data.title,
-            color: data.color || '#6147FF',
-            category: data.category,
-            userId: data.userId,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            notebookCount: notebooksSnapshot.size
-          });
-        }
-        
+        // Query optimizada: solo una lectura para racha
+        const streakDocRef = doc(db, 'users', user.uid, 'stats', 'studyStreak');
+        const [materiasSnap, streakDoc] = await Promise.all([
+          getDocs(materiasQuery),
+          getDoc(streakDocRef)
+        ]);
+        const materiasData: Materia[] = materiasSnap.docs.map(docSnap => ({
+          id: docSnap.id,
+          title: docSnap.data().title,
+          color: docSnap.data().color || '#6147FF',
+          category: docSnap.data().category,
+          userId: docSnap.data().userId,
+          createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+          updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+          notebookCount: docSnap.data().notebookCount || 0
+        }));
         setMaterias(materiasData);
         setError(null);
+        // Racha optimizada
+        const streakDataRaw = streakDoc.exists() ? streakDoc.data() : null;
+        setStreakData(streakDataRaw ? {
+          days: streakDataRaw.weekDays || {
+            monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: false, sunday: false
+          },
+          consecutiveDays: streakDataRaw.currentStreak || 0,
+          streakBonus:  streakDataRaw.currentStreak ? (streakDataRaw.currentStreak * 200) : 0,
+          hasStudiedToday: streakDataRaw.hasStudiedToday || false
+        } : null);
       } catch (err) {
-        console.error('Error loading materias:', err);
         setError(err as Error);
       } finally {
         setLoading(false);
+        setLoadingStreak(false);
       }
     };
-    
-    loadMaterias();
+    loadMateriasYStreak();
   }, [user, refreshTrigger, isSchoolStudent]);
 
   // Efecto específico para estudiantes escolares
@@ -488,7 +484,10 @@ const Materias: React.FC = () => {
     '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
   ];
 
-  if (loading || authLoading) {
+  const [streakData, setStreakData] = useState<any>(null);
+  const [loadingStreak, setLoadingStreak] = useState(true);
+
+  if (loading || authLoading || loadingStreak) {
     // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
       <div className="loading-container" style={{ 
@@ -674,13 +673,8 @@ const Materias: React.FC = () => {
       )}
       <main className="materias-main">
         <div className="left-column">
-          <StreakTracker />
-          <CategoryDropdown 
-            onCategorySelect={handleCategorySelect}
-            selectedCategory={selectedCategory}
-            onCreateCategory={handleCreateCategory}
-            refreshTrigger={refreshTrigger}
-          />
+          <StreakTracker streakData={streakData} />
+          {/* CategoryDropdown eliminado */}
         </div>
         <div className="materias-list-section">
           {materias.length === 0 ? (
@@ -772,7 +766,7 @@ const Materias: React.FC = () => {
               onCreateMateria={isSchoolStudent ? undefined : handleCreate}
               onViewMateria={handleView}
               showCreateButton={!isSchoolStudent}
-              selectedCategory={selectedCategory}
+              selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
               showCategoryModal={showCategoryModal}

@@ -255,9 +255,31 @@ const NotebookDetail = () => {
     };
   }, [isModalOpen, isPreviewOpen]);
 
+  const SUPPORTED_EXTENSIONS = ['txt', 'csv', 'jpg', 'jpeg', 'pdf'];
+  const SUPPORTED_MIME_TYPES = [
+    'text/plain',
+    'text/csv',
+    'image/jpeg',
+    'image/jpg',
+    'application/pdf'
+  ];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setArchivos(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(file => {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        const isValid = (ext && SUPPORTED_EXTENSIONS.includes(ext)) || SUPPORTED_MIME_TYPES.includes(file.type);
+        if (!isValid) {
+          alert('El documento "' + file.name + '" no es soportado por la plataforma. Solo se permiten archivos .TXT, .CSV, .JPG, .PDF');
+        }
+        return isValid;
+      });
+      setArchivos(validFiles);
+      // Limpia el valor del input para que onChange se dispare siempre
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
@@ -1094,15 +1116,16 @@ const NotebookDetail = () => {
                 )}
               </div>
             ) : conceptosDocs.length === 0 ? (
-              <div className="empty-state">
-                <p>Aún no hay conceptos en este cuaderno.</p>
-                {(!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher ? (
+              <div className="empty-state enhanced-empty-concepts">
+                <i className="fas fa-lightbulb" style={{ fontSize: '3.5rem', color: '#a78bfa', marginBottom: 16 }}></i>
+                <h3 style={{ color: '#6147FF', marginBottom: 12 }}>¡Aún no hay conceptos en este cuaderno!</h3>
+                {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
                   <button
                     className="add-first-concept-button"
                     onClick={() => openModalWithTab("upload")}
-                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', width: '100%' }}
+                    style={{ color: '#4F46E5' }}
                   >
-                    Añadir nuevos conceptos
+                    Sube tu primer documento
                   </button>
                 ) : isSchoolAdmin ? (
                   <p className="school-admin-info" style={{ 
@@ -1231,6 +1254,9 @@ const NotebookDetail = () => {
                       <i className="fas fa-cloud-upload-alt"></i>
                       <p>Haz clic aquí para seleccionar archivos</p>
                       <span>o arrastra y suelta archivos aquí</span>
+                      <span style={{ color: '#6147FF', fontWeight: 600, marginTop: 6, display: 'block', fontSize: '0.98rem' }}>
+                        Formatos soportados: .TXT, .CSV, .JPG, .PDF
+                      </span>
                     </div>
                   </label>
                   <div className="selected-files">

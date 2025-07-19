@@ -14,10 +14,19 @@ interface StreakDisplayData {
   hasStudiedToday: boolean;
 }
 
-const StreakTracker: React.FC = () => {
+interface StreakTrackerProps {
+  streakData?: {
+    days: { [key: string]: boolean };
+    consecutiveDays: number;
+    streakBonus: number;
+    hasStudiedToday: boolean;
+  };
+}
+
+const StreakTracker: React.FC<StreakTrackerProps> = ({ streakData: streakDataProp }) => {
   const [user] = useAuthState(auth);
   const { effectiveUserId } = useAuth();
-  const [streakData, setStreakData] = useState<StreakDisplayData>({
+  const [streakData, setStreakData] = useState<StreakDisplayData>(streakDataProp || {
     days: {
       monday: false,
       tuesday: false,
@@ -31,7 +40,7 @@ const StreakTracker: React.FC = () => {
     streakBonus: 0,
     hasStudiedToday: false
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!streakDataProp);
 
   // Días de la semana en español, abreviados
   const weekDays = [
@@ -124,6 +133,11 @@ const StreakTracker: React.FC = () => {
   };
 
   useEffect(() => {
+    if (streakDataProp) {
+      setStreakData(streakDataProp);
+      setLoading(false);
+      return;
+    }
     fetchAndUpdateStreak();
     
     // Actualizar cada 5 minutos para reflejar cambios en tiempo real
@@ -146,7 +160,7 @@ const StreakTracker: React.FC = () => {
       clearInterval(interval);
       window.removeEventListener('gameCompleted', handleGameCompleted as EventListener);
     };
-  }, [user, effectiveUserId]);
+  }, [streakDataProp, user, effectiveUserId]);
 
   if (loading) {
     return (
@@ -162,7 +176,7 @@ const StreakTracker: React.FC = () => {
       <div className="streak-counter">
         <span className="streak-fire">🔥</span>
         <span className="streak-days">
-          {streakData.consecutiveDays} {streakData.consecutiveDays === 1 ? 'día' : 'días'} consecutivos
+          {streakData.hasStudiedToday ? streakData.consecutiveDays : 0} {streakData.hasStudiedToday ? (streakData.consecutiveDays === 1 ? 'día' : 'días') : 'días'} consecutivos
         </span>
       </div>
       
@@ -174,17 +188,14 @@ const StreakTracker: React.FC = () => {
         </div>
       )}
       
+      {/* Mostrar siempre el calendario, pero solo resaltar si la racha es 2 o más */}
       <div className="streak-calendar">
         {weekDays.map((day) => (
           <div
             key={day.key}
-            className={`day-indicator ${streakData.days[day.key] ? 'active' : ''}`}
+            className={`day-indicator${streakData.consecutiveDays >= 2 && streakData.days[day.key] ? ' active' : ''}`}
           >
             <span className="day-label">{day.label}</span>
-            {/* Mostrar fuego si estudiaron ese día */}
-            {streakData.days[day.key] && (
-              <span className="day-fire">🔥</span>
-            )}
           </div>
         ))}
       </div>
