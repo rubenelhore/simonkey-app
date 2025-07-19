@@ -103,6 +103,9 @@ import Materias from './pages/Materias';
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
 import HelpWhatsAppButton from './components/HelpWhatsAppButton';
+import ExamPage from './pages/ExamPage';
+import ExamResultsPage from './pages/ExamResultsPage';
+import ExamDashboardPage from './pages/ExamDashboardPage';
 
 // Definir el tipo para el usuario
 interface User {
@@ -756,6 +759,42 @@ const AppContent: React.FC = () => {
             }
           />
           <Route path="/calendar" element={<CalendarPage />} />
+          
+          {/* Rutas para el sistema de exámenes */}
+          <Route
+            path="/exam/:examId"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ExamPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/exam/:examId/results"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ExamResultsPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/exam/:examId/dashboard"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <ExamDashboardPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
         </Routes>
         {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') && location.pathname !== '/super-admin' ? <MobileNavigation /> : null)}
         {/* Sistema de gestión de cookies - siempre visible */}

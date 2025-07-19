@@ -19,6 +19,9 @@ import { kpiService } from '../services/kpiService';
 import { rankingUpdateService } from '../services/rankingUpdateService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faSpinner, faSnowflake } from '@fortawesome/free-solid-svg-icons';
+import ExamCard from '../components/ExamCard';
+import { ExamService } from '../services/examService';
+import { SchoolExam } from '../types/exam.types';
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -34,6 +37,7 @@ const StudyModePage = () => {
   const [studyMode, setStudyMode] = useState<StudyMode>(StudyMode.SMART);
   const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.PROGRESS);
   const [totalNotebookConcepts, setTotalNotebookConcepts] = useState<number>(0);
+  const [activeExams, setActiveExams] = useState<SchoolExam[]>([]);
   
   // Estado para los conceptos y la sesión de estudio
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -287,6 +291,23 @@ const StudyModePage = () => {
         }
         
         setNotebooks(notebooksData);
+        
+        // Cargar exámenes activos para estudiantes escolares
+        if (isSchoolStudent && auth.currentUser) {
+          console.log('🎓 Cargando exámenes para estudiante:', {
+            studentId: auth.currentUser.uid,
+            materiaId: selectedMateria.id,
+            isSchoolStudent
+          });
+          const exams = await ExamService.getActiveExamsForStudent(
+            auth.currentUser.uid, 
+            selectedMateria.id
+          );
+          console.log('📝 Exámenes activos encontrados:', exams);
+          setActiveExams(exams);
+        } else {
+          setActiveExams([]);
+        }
         
         // Si solo hay un cuaderno en la materia, seleccionarlo automáticamente
         if (notebooksData.length === 1) {
@@ -1856,6 +1877,25 @@ const StudyModePage = () => {
                               ))}
                             </div>
                           </div>
+                          
+                          {/* Sección de Exámenes Activos - Solo para estudiantes escolares */}
+                          {isSchoolStudent && activeExams.length > 0 && (
+                            <div className="exams-section">
+                              <h3 className="exams-section-title">
+                                <i className="fas fa-file-alt"></i>
+                                Exámenes Pendientes
+                              </h3>
+                              <div className="exams-list">
+                                {activeExams.map(exam => (
+                                  <ExamCard 
+                                    key={exam.id} 
+                                    exam={exam} 
+                                    materiaId={selectedMateria.id}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           
                           {/* Mensaje de cuaderno congelado */}
                           {showFrozenMessage && (
