@@ -1,0 +1,207 @@
+/* Sección About Simonkey */
+.about-simonkey {
+  width: 100%;
+  background: #f9fafb;
+  padding: 0;
+  text-align: center;
+  display: block;
+  margin: 12px 0 48px;
+}
+
+/* Container principal */
+.about-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 48px;
+}
+
+/* Sección de imagen */
+.about-image {
+  flex: 0 0 400px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.monkey-image {
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-left: 0;
+}
+
+/* Sección de contenido */
+.about-content {
+  flex: 2 1 0%;
+  min-width: 0;
+  text-align: left;
+}
+
+.content-wrapper {
+  text-align: center;
+}
+
+/* Título */
+.about-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #111111;
+  margin: 0 0 10px;
+  text-align: center;
+  letter-spacing: 0.1px;
+}
+
+/* Subtítulo */
+.about-subtitle {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 1rem;
+  color: #6366f1;
+  margin-bottom: 18px;
+  text-align: center;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.05px;
+}
+
+/* Descripción */
+.about-description {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin-bottom: 16px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.about-description .highlight {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+/* Media Queries para tablets */
+@media (max-width: 1024px) {
+  .about-container {
+    gap: 32px;
+    padding: 0 2rem;
+  }
+
+  .about-image {
+    flex: 0 0 300px;
+  }
+
+  .monkey-image {
+    width: 300px;
+    height: 300px;
+  }
+
+  .about-title {
+    font-size: 2rem;
+  }
+
+  .about-description {
+    font-size: 1.05rem;
+  }
+}
+
+/* Media Queries para móviles grandes */
+@media (max-width: 768px) {
+  .about-simonkey {
+    margin: 20px 0 40px;
+  }
+
+  .about-container {
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px 1.5rem;
+  }
+
+  .about-image {
+    flex: none;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .monkey-image {
+    width: 250px;
+    height: 250px;
+  }
+
+  .about-content {
+    flex: none;
+    width: 100%;
+  }
+
+  .about-title {
+    font-size: 1.75rem;
+    margin-bottom: 12px;
+  }
+
+  .about-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+  }
+
+  .about-description {
+    font-size: 1rem;
+    padding: 0 10px;
+  }
+}
+
+/* Media Queries para móviles pequeños */
+@media (max-width: 480px) {
+  .about-simonkey {
+    margin: 15px 0 30px;
+  }
+
+  .about-container {
+    padding: 15px 1rem;
+    gap: 20px;
+  }
+
+  .monkey-image {
+    width: 200px;
+    height: 200px;
+  }
+
+  .about-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+
+  .about-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+    padding: 0 10px;
+  }
+
+  .about-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    padding: 0 5px;
+  }
+}
+
+/* Media Queries para móviles muy pequeños */
+@media (max-width: 360px) {
+  .monkey-image {
+    width: 160px;
+    height: 160px;
+  }
+
+  .about-title {
+    font-size: 1.35rem;
+  }
+
+  .about-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .about-description {
+    font-size: 0.9rem;
+  }
+}

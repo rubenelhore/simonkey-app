@@ -1,0 +1,191 @@
+/* Container principal */
+.join-simonkey-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Contenido principal */
+.join-simonkey-content {
+  width: 100%;
+  background: transparent;
+  padding: 54px 0 70px;
+  font-weight: 700;
+  font-size: 2.1rem;
+  color: #111827;
+  text-align: center;
+  letter-spacing: 0.1px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sección interna con gradiente */
+.join-simonkey-inner {
+  width: 100%;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  padding: 22px 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Header con el título principal */
+.join-simonkey-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 700px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  padding: 0 20px;
+}
+
+.header-text {
+  white-space: nowrap;
+  color: #111827;
+  font-weight: 700;
+}
+
+.header-arrow {
+  white-space: nowrap;
+  color: #111827;
+  font-weight: 700;
+  font-size: 1.2em;
+  margin: 0 8px;
+}
+
+.header-highlight {
+  white-space: nowrap;
+  color: #4f46e5;
+  font-weight: 800;
+}
+
+/* Sección de características */
+.join-simonkey-features {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0;
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0.03px;
+  color: #111827;
+  overflow: hidden;
+  padding: 10px 20px;
+}
+
+.feature-item {
+  flex: 1 1 0%;
+  text-align: center;
+  padding: 0 8px;
+  min-width: 0;
+}
+
+.feature-separator {
+  color: #b4b4b4;
+  font-weight: 400;
+  margin: 0 12px;
+  font-size: 1.1em;
+}
+
+/* Media Queries para móviles */
+@media (max-width: 768px) {
+  .join-simonkey-content {
+    padding: 30px 0 40px;
+    font-size: 1.5rem;
+  }
+
+  .join-simonkey-inner {
+    padding: 20px 0;
+  }
+
+  .join-simonkey-header {
+    margin-bottom: 20px;
+    gap: 5px;
+  }
+
+  .header-text,
+  .header-highlight {
+    font-size: 1.1rem;
+  }
+
+  .header-arrow {
+    font-size: 1.2rem;
+    margin: 0 4px;
+  }
+
+  /* En móviles, mostrar las características en columna */
+  .join-simonkey-features {
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.9rem;
+    padding: 10px 20px;
+  }
+
+  .feature-item {
+    width: 100%;
+    padding: 8px 0;
+  }
+
+  /* Ocultar separadores en móvil */
+  .feature-separator {
+    display: none;
+  }
+}
+
+/* Media Query para móviles muy pequeños */
+@media (max-width: 480px) {
+  .join-simonkey-content {
+    padding: 20px 0 30px;
+    font-size: 1.3rem;
+  }
+
+  .join-simonkey-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .header-text,
+  .header-highlight {
+    font-size: 1rem;
+  }
+
+  .header-arrow {
+    transform: rotate(90deg);
+    margin: 4px 0;
+  }
+
+  .join-simonkey-features {
+    font-size: 0.85rem;
+    gap: 10px;
+  }
+}
+
+/* Media Query para tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .join-simonkey-content {
+    font-size: 1.8rem;
+    padding: 40px 0 50px;
+  }
+
+  .join-simonkey-features {
+    font-size: 0.95rem;
+    padding: 10px 30px;
+  }
+
+  .feature-separator {
+    margin: 0 8px;
+  }
+}

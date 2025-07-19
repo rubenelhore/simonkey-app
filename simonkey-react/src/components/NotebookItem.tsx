@@ -298,26 +298,31 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           </div>
         ) : (
           <>
-            <h3>{editableTitle}</h3>
-            {domainProgress && domainProgress.total > 0 && (
-              <div className="dominio-progress-bar">
-                <div
-                  className="dominio-progress-segment green"
-                  title={`Dominado: ${domainProgress.dominated} conceptos (${Math.round((domainProgress.dominated / domainProgress.total) * 100)}%)`}
-                  style={{ width: `${Math.round((domainProgress.dominated / domainProgress.total) * 100)}%` }}
-                ></div>
-                <div
-                  className="dominio-progress-segment yellow"
-                  title={`Aprendiz: ${domainProgress.learning} conceptos (${Math.round((domainProgress.learning / domainProgress.total) * 100)}%)`}
-                  style={{ width: `${Math.round((domainProgress.learning / domainProgress.total) * 100)}%` }}
-                ></div>
-                <div
-                  className="dominio-progress-segment red"
-                  title={`Por dominar: ${domainProgress.notStarted} conceptos (${Math.round((domainProgress.notStarted / domainProgress.total) * 100)}%)`}
-                  style={{ width: `${Math.round((domainProgress.notStarted / domainProgress.total) * 100)}%` }}
-                ></div>
-              </div>
-            )}
+            <h3 style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: '0.5rem',
+              width: '100%'
+            }}>
+              <span style={{
+                flex: '1',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {editableTitle}
+              </span>
+              {domainProgress && domainProgress.total > 0 && (
+                <span style={{ 
+                  color: '#10b981', 
+                  fontSize: '1.1rem', 
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>
+                  {Math.round((domainProgress.dominated / domainProgress.total) * 100)}%
+                </span>
+              )}
+            </h3>
             {isFrozen && (
               <div className="frozen-indicator-subtle">
                 <i className="fas fa-snowflake"></i>

@@ -7,7 +7,7 @@ import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
 import '../styles/Notebooks.css';
-import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import FreezeModal from './FreezeModal';
 
@@ -113,6 +113,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     notebookTitle: string;
     isFrozen: boolean;
   } | null>(null);
+  
 
   console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
 
@@ -162,6 +163,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
     console.log('🔍 DEBUG - Selected category:', selectedCategory);
     console.log('🔍 DEBUG - Notebooks by selected category:', notebooksBySelectedCategory);
   }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, selectedCategory, notebooksBySelectedCategory]);
+  
+  // Por ahora, no cargar los datos de aprendizaje aquí para evitar el loop infinito
+  // Los notebooks ya vienen con domainProgress calculado desde el componente padre
 
   // Efecto para detectar clics fuera de los cuadernos y cerrar acciones
   useEffect(() => {

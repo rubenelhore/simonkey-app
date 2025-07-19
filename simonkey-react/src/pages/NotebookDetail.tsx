@@ -71,6 +71,7 @@ const NotebookDetail = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [loadingMaterials, setLoadingMaterials] = useState<boolean>(false);
+  const [showMaterialsList, setShowMaterialsList] = useState<boolean>(false);
   
   // Referencia para el modal
   const modalRef = useRef<HTMLDivElement>(null);
@@ -891,9 +892,57 @@ const NotebookDetail = () => {
         {materials.length > 0 && (
           <section className="materials-section">
             <div className="section-header">
-              <h2>Materiales de Estudio</h2>
+              <h2>
+                Materiales de Estudio
+                <button 
+                  className="toggle-materials-btn"
+                  onClick={() => setShowMaterialsList(!showMaterialsList)}
+                  title={showMaterialsList ? "Ocultar materiales" : "Mostrar materiales"}
+                >
+                  <i className={`fas fa-chevron-${showMaterialsList ? 'up' : 'down'}`}></i>
+                </button>
+              </h2>
+              {selectedMaterialId && showMaterialsList && (
+                <div className="material-actions">
+                  <button
+                    className="view-material-btn"
+                    onClick={() => {
+                      const selectedMaterial = materials.find(m => m.id === selectedMaterialId);
+                      if (selectedMaterial) {
+                        if (selectedMaterial.url.startsWith('placeholder://')) {
+                          alert('Este material aún está siendo procesado. Por favor, intenta más tarde.');
+                          return;
+                        }
+                        window.open(selectedMaterial.url, '_blank');
+                      }
+                    }}
+                    title="Ver material"
+                  >
+                    <i className="fas fa-eye"></i>
+                  </button>
+                  {materials.find(m => m.id === selectedMaterialId)?.url.startsWith('placeholder://') ? (
+                    <button
+                      className="download-material-btn pending"
+                      disabled
+                      title="Material siendo procesado"
+                    >
+                      <i className="fas fa-spinner fa-spin"></i>
+                    </button>
+                  ) : (
+                    <a
+                      href={materials.find(m => m.id === selectedMaterialId)?.url || '#'}
+                      download={materials.find(m => m.id === selectedMaterialId)?.name}
+                      className="download-material-btn"
+                      title="Descargar"
+                    >
+                      <i className="fas fa-download"></i>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="materials-list">
+            {showMaterialsList && (
+              <div className="materials-list">
               {materials.map((material) => (
                 <div 
                   key={material.id} 
@@ -914,102 +963,16 @@ const NotebookDetail = () => {
                       {(material.size / 1024 / 1024).toFixed(2)} MB
                     </span>
                   </div>
-                  <div className="material-actions">
-                    <button
-                      className="view-material-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (material.url.startsWith('placeholder://')) {
-                          alert('Este material aún está siendo procesado. Por favor, intenta más tarde.');
-                          return;
-                        }
-                        // Abrir en una nueva pestaña para evitar problemas de CORS
-                        window.open(material.url, '_blank');
-                      }}
-                      title="Ver material"
-                      disabled={material.url.startsWith('placeholder://')}
-                    >
-                      <i className="fas fa-eye"></i>
-                    </button>
-                    {!material.url.startsWith('placeholder://') ? (
-                      <a
-                        href={material.url}
-                        download={material.name}
-                        className="download-material-btn"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Descargar"
-                      >
-                        <i className="fas fa-download"></i>
-                      </a>
-                    ) : (
-                      <button
-                        className="download-material-btn pending"
-                        disabled
-                        title="Material siendo procesado"
-                      >
-                        <i className="fas fa-spinner fa-spin"></i>
-                      </button>
-                    )}
-                  </div>
                 </div>
               ))}
-            </div>
-            {selectedMaterialId && (
-              <div className="material-filter-info">
-                <i className="fas fa-filter"></i>
-                <span>Mostrando conceptos del material seleccionado</span>
-                <button 
-                  className="clear-filter-btn"
-                  onClick={() => setSelectedMaterialId(null)}
-                >
-                  Limpiar filtro
-                </button>
               </div>
             )}
-            <div className="materials-note">
-              <i className="fas fa-info-circle"></i>
-              <span>Usa <i className="fas fa-eye"></i> para previsualizar o <i className="fas fa-download"></i> para descargar el material</span>
-            </div>
           </section>
         )}
         
         <section className="concepts-section">
           <div className="concepts-header">
             <h2>Conceptos del Cuaderno</h2>
-            {/* Mostrar filtros: para estudiantes escolares si el notebook no está congelado, o para usuarios regulares */}
-            {((isSchoolStudent && !cuaderno.isFrozen) || 
-              (!isSchoolStudent && !isSchoolAdmin)) && 
-              conceptosDocs.length > 0 && (
-              <div className="dominio-filters">
-                <button 
-                  className={`dominio-filter-btn all ${dominioFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setDominioFilter('all')}
-                >
-                  Todos
-                </button>
-                <button 
-                  className={`dominio-filter-btn red ${dominioFilter === 'red' ? 'active' : ''}`}
-                  onClick={() => setDominioFilter('red')}
-                >
-                  <span className="filter-circle red"></span>
-                  Por dominar
-                </button>
-                <button 
-                  className={`dominio-filter-btn yellow ${dominioFilter === 'yellow' ? 'active' : ''}`}
-                  onClick={() => setDominioFilter('yellow')}
-                >
-                  <span className="filter-circle yellow"></span>
-                  Aprendiz
-                </button>
-                <button 
-                  className={`dominio-filter-btn green ${dominioFilter === 'green' ? 'active' : ''}`}
-                  onClick={() => setDominioFilter('green')}
-                >
-                  <span className="filter-circle green"></span>
-                  Dominado
-                </button>
-              </div>
-            )}
             
             {/* Barra de progreso de dominio */}
             {((isSchoolStudent && !cuaderno.isFrozen) || 
@@ -1061,18 +1024,38 @@ const NotebookDetail = () => {
                         />
                       </div>
                       <div className="dominio-progress-labels">
-                        <div className="progress-label">
+                        <button 
+                          className={`progress-label-btn ${dominioFilter === 'all' ? 'active' : ''}`}
+                          onClick={() => setDominioFilter('all')}
+                          title="Mostrar todos los conceptos"
+                        >
+                          <i className="fas fa-list"></i>
+                          <span>Todos</span>
+                        </button>
+                        <button 
+                          className={`progress-label-btn ${dominioFilter === 'green' ? 'active' : ''}`}
+                          onClick={() => setDominioFilter('green')}
+                          title={`${dominadoCount} conceptos dominados`}
+                        >
                           <span className="label-dot green"></span>
                           <span>{dominadoPercentage}% Dominado</span>
-                        </div>
-                        <div className="progress-label">
+                        </button>
+                        <button 
+                          className={`progress-label-btn ${dominioFilter === 'yellow' ? 'active' : ''}`}
+                          onClick={() => setDominioFilter('yellow')}
+                          title={`${aprendizCount} conceptos en aprendizaje`}
+                        >
                           <span className="label-dot yellow"></span>
                           <span>{aprendizPercentage}% Aprendiz</span>
-                        </div>
-                        <div className="progress-label">
+                        </button>
+                        <button 
+                          className={`progress-label-btn ${dominioFilter === 'red' ? 'active' : ''}`}
+                          onClick={() => setDominioFilter('red')}
+                          title={`${porDominarCount} conceptos por dominar`}
+                        >
                           <span className="label-dot red"></span>
                           <span>{porDominarPercentage}% Por dominar</span>
-                        </div>
+                        </button>
                       </div>
                     </>
                   );

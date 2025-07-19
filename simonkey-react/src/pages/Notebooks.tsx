@@ -18,6 +18,7 @@ import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import CategoryDropdown from '../components/CategoryDropdown';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import { getDomainProgressForNotebook } from '../utils/domainProgress';
+import { debugCompareDomainProgress } from '../utils/debugDomainProgress';
 
 const Notebooks: React.FC = () => {
   const { materiaId } = useParams<{ materiaId: string }>();
@@ -261,8 +262,18 @@ const Notebooks: React.FC = () => {
       setNotebooksDomainProgress(progressMap);
     };
     calculateAllDomainProgress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveNotebooks, user]);
+  }, [notebooks?.length, schoolNotebooks?.length, adminNotebooks?.length, user?.uid, materiaId]);
+  
+  // Función temporal de debug
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).debugNotebookProgress = async (notebookId: string) => {
+        console.log('🔍 Running domain progress debug...');
+        await debugCompareDomainProgress(notebookId);
+      };
+      console.log('💡 Debug function available: window.debugNotebookProgress(notebookId)');
+    }
+  }, []);
 
   const handleCreate = async () => {
     console.log("Notebook created successfully");
