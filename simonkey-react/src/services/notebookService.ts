@@ -14,7 +14,7 @@ interface Notebook {
 }
 
 // Create a new notebook
-export const createNotebook = async (userId: string, title: string, color: string = '#6147FF', category?: string, materiaId?: string) => {
+export const createNotebook = async (userId: string, title: string, color: string = '#6147FF', category?: string, materiaId?: string | undefined) => {
   // Verificar si el usuario puede crear un nuevo cuaderno
   const canCreate = await canCreateNotebook(userId);
   

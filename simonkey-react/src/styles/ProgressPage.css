@@ -31,6 +31,18 @@
 .progress-modules-right-row {
   display: flex;
   gap: 20px;
+  width: 100%;
+}
+
+.progress-modules-right-row .progress-module.kpi-module {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 33.33%;
+  width: 100%;
+  box-sizing: border-box;
+  /* Para igualar altura */
+  display: flex;
+  align-items: stretch;
 }
 
 /* KPI Modules */
@@ -481,6 +493,10 @@
   .charts-container {
     grid-template-columns: 1fr;
   }
+
+  .progress-modules-right-row .progress-module.kpi-module {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
@@ -500,6 +516,11 @@
   .progress-modules-right-row {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .progress-modules-right-row .progress-module.kpi-module {
+    max-width: 100%;
+    width: 100%;
   }
 
   .kpi-module {

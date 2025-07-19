@@ -226,14 +226,19 @@ const NotebookList: React.FC<NotebookListProps> = ({
       if (isSchoolTeacher && onCreateNotebook) {
         await onCreateNotebook(newNotebookTitle.trim(), newNotebookColor);
       } else {
-        // Si tenemos materiaId en las props, pasarlo a createNotebook
-        const materiaId = (window.location.pathname.match(/\/materias\/([^\/]+)/) || [])[1];
+        // Si tenemos materiaId en las props o en la URL, pasarlo a createNotebook
+        let materiaId: string | undefined = (window.location.pathname.match(/\/materias\/([^/]+)/) || [])[1];
+        if (!materiaId && typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const param = urlParams.get('materiaId');
+          materiaId = param ? param : undefined;
+        }
         const notebook = await createNotebook(
           user.uid, 
           newNotebookTitle.trim(),
           newNotebookColor, // usar el color seleccionado
           undefined, // categoría
-          materiaId // materiaId si estamos dentro de una materia
+          materiaId // string | undefined
         );
         console.log('✅ Notebook created:', notebook);
         

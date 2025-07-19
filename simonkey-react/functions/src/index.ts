@@ -2423,7 +2423,7 @@ Eres un experto creando tarjetas de estudio efectivas. Analiza el documento y ex
 ## REGLAS DE EXTRACCIÓN  
 
 1. **Descarta las preguntas**  
-   - Ignora cualquier línea que contenga “¿” o “?”  
+   - Ignora cualquier línea que contenga "¿" o "?"  
    - Ignora frases que empiecen con palabras interrogativas (qué, cuál, quién, dónde, cuándo, por qué, how, who, what, which).
 
 2. **Identifica la respuesta** (concepto) y su explicación breve.  
@@ -3209,3 +3209,35 @@ export const uploadMaterialToStorage = onCall(
 
 // Exportar las funciones de rankings
 export { updateInstitutionRankings, scheduledRankingsUpdate } from './updateRankings';
+
+// TRIGGER: Incrementa notebookCount en la materia al crear un cuaderno
+export const onNotebookCreated = functions.firestore
+  .document('notebooks/{notebookId}')
+  .onCreate(async (snap, context) => {
+    const notebookData = snap.data();
+    const materiaId = notebookData.materiaId;
+    if (materiaId) {
+      const materiaRef = admin.firestore().collection('materias').doc(materiaId);
+      await materiaRef.update({
+        notebookCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    return null;
+  });
+
+// TRIGGER: Decrementa notebookCount en la materia al eliminar un cuaderno
+export const onNotebookDeletedMateria = functions.firestore
+  .document('notebooks/{notebookId}')
+  .onDelete(async (snap, context) => {
+    const notebookData = snap.data();
+    const materiaId = notebookData.materiaId;
+    if (materiaId) {
+      const materiaRef = admin.firestore().collection('materias').doc(materiaId);
+      await materiaRef.update({
+        notebookCount: admin.firestore.FieldValue.increment(-1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    return null;
+  });

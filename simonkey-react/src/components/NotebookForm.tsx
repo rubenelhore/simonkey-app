@@ -3,6 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
+import { useLocation } from 'react-router-dom';
 
 interface NotebookFormProps {
   onNotebookCreated: () => void;
@@ -15,6 +16,7 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onNotebookCreated, onCancel
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +26,10 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onNotebookCreated, onCancel
     
     try {
       setIsSubmitting(true);
-      await createNotebook(user.uid, title);
+      // Extraer materiaId de la URL si existe
+      const match = location.pathname.match(/\/materias\/([^/]+)/);
+      const materiaId = match ? match[1] : undefined;
+      await createNotebook(user.uid, title, undefined, undefined, materiaId);
       setTitle(''); // Clear the form
       onNotebookCreated(); // Refresh the notebook list
     } catch (error: any) {
