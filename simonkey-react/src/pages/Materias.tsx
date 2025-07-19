@@ -62,6 +62,7 @@ const Materias: React.FC = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<string>('');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [adminMaterias, setAdminMaterias] = useState<any[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Cargar materias del usuario
   useEffect(() => {
@@ -481,6 +482,12 @@ const Materias: React.FC = () => {
     setSelectedCategory(null);
   };
 
+  const [newMateriaTitle, setNewMateriaTitle] = useState('');
+  const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
+  const colorPresets = [
+    '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
+  ];
+
   if (loading || authLoading) {
     // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
@@ -601,6 +608,8 @@ const Materias: React.FC = () => {
               onViewMateria={handleView}
               showCreateButton={!!selectedTeacher && selectedStudents.length > 0}
               selectedCategory={null}
+              showCreateModal={showCreateModal}
+              setShowCreateModal={setShowCreateModal}
               showCategoryModal={false}
               onCloseCategoryModal={() => {}}
               onClearSelectedCategory={() => {}}
@@ -674,20 +683,104 @@ const Materias: React.FC = () => {
           />
         </div>
         <div className="materias-list-section">
-          <MateriaList 
-            materias={materias}
-            onDeleteMateria={isSchoolStudent ? undefined : handleDelete}
-            onEditMateria={isSchoolStudent ? undefined : handleEdit}
-            onColorChange={isSchoolStudent ? undefined : handleColorChange}
-            onCreateMateria={isSchoolStudent ? undefined : handleCreate}
-            onViewMateria={handleView}
-            showCreateButton={!isSchoolStudent}
-            selectedCategory={selectedCategory}
-            showCategoryModal={showCategoryModal}
-            onCloseCategoryModal={() => setShowCategoryModal(false)}
-            onClearSelectedCategory={handleClearSelectedCategory}
-            onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
-          />
+          {materias.length === 0 ? (
+            <>
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                minHeight: '320px', background: '#fafafa', borderRadius: 16, border: '1.5px solid #e5e7eb',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '2.5rem 1.5rem', margin: '2rem 0'
+              }}>
+                <i className="fas fa-book-open" style={{ fontSize: 48, color: '#a78bfa', marginBottom: 16 }}></i>
+                <h3 style={{ color: '#6147FF', marginBottom: 20 }}>¡Aún no tienes materias creadas!</h3>
+                <button className="create-materia-button" onClick={() => {
+                  setShowCreateModal(true);
+                }}>
+                  <i className="fas fa-plus"></i> Crear nueva materia
+                </button>
+              </div>
+              {showCreateModal && (
+                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+                  <div className="modal-content create-materia-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h3>Crear nueva materia</h3>
+                      <button className="close-button" onClick={() => setShowCreateModal(false)}>
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!newMateriaTitle.trim()) return;
+                      await handleCreate(newMateriaTitle.trim(), newMateriaColor);
+                      setNewMateriaTitle('');
+                      setNewMateriaColor('#6147FF');
+                      setShowCreateModal(false);
+                    }} className="modal-body">
+                      <div className="form-group">
+                        <label htmlFor="materiaTitle">Nombre de la materia</label>
+                        <input
+                          id="materiaTitle"
+                          type="text"
+                          value={newMateriaTitle}
+                          onChange={e => setNewMateriaTitle(e.target.value)}
+                          placeholder="Ej: Matemáticas, Historia, etc."
+                          className="form-control"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Color de la materia</label>
+                        <div className="color-picker-grid">
+                          {colorPresets.map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              className={`color-preset ${newMateriaColor === color ? 'selected' : ''}`}
+                              style={{ backgroundColor: color }}
+                              onClick={() => setNewMateriaColor(color)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="cancel-button"
+                          onClick={() => setShowCreateModal(false)}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="create-button"
+                          disabled={!newMateriaTitle.trim()}
+                        >
+                          Crear materia
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <MateriaList 
+              materias={materias}
+              onDeleteMateria={isSchoolStudent ? undefined : handleDelete}
+              onEditMateria={isSchoolStudent ? undefined : handleEdit}
+              onColorChange={isSchoolStudent ? undefined : handleColorChange}
+              onCreateMateria={isSchoolStudent ? undefined : handleCreate}
+              onViewMateria={handleView}
+              showCreateButton={!isSchoolStudent}
+              selectedCategory={selectedCategory}
+              showCreateModal={showCreateModal}
+              setShowCreateModal={setShowCreateModal}
+              showCategoryModal={showCategoryModal}
+              onCloseCategoryModal={() => setShowCategoryModal(false)}
+              onClearSelectedCategory={handleClearSelectedCategory}
+              onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
+            />
+          )}
         </div>
       </main>
       <footer className="materias-footer">

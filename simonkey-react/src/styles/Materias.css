@@ -39,14 +39,15 @@
 .materias-list-section {
   flex: 1;
   min-width: 0;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  padding: 2rem 2.5rem;
+  background: #fff !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  padding: 0;
   box-sizing: border-box;
   min-height: calc(100vh - 70px);
   display: flex;
   flex-direction: column;
+  border: none !important;
 }
 
 /* h2 removed for cleaner view
@@ -134,7 +135,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
-  margin-top: 1.5rem;
+  margin: 0;
+  padding: 0;
+  background: none;
 }
 
 /* Wrapper de la tarjeta de materia */
@@ -143,12 +146,16 @@
   flex-direction: column;
   transition: all 0.3s ease;
   position: relative; /* Para que el color picker se posicione relativo a este elemento */
+  background: #fff !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* Tarjeta de materia */
 .materia-card {
   position: relative;
-  background: white;
+  background: #fff;
   border-radius: 16px;
   overflow: visible;
   transition: all 0.3s ease;
@@ -162,13 +169,17 @@
 }
 
 .materia-card-content {
-  padding: 1.5rem;
-  cursor: pointer;
-  border-left: 4px solid var(--materia-color, #6147FF);
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+    padding: 1.5rem;
+    cursor: pointer;
+    border-left: 4px solid var(--materia-color, #6147FF);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #fff;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
 }
 
 .materia-card-content h3 {
@@ -505,7 +516,9 @@
 
 /* Categorías */
 .categories-section {
-  margin-bottom: 3rem;
+  margin: 0;
+  padding: 0;
+  background: none;
 }
 
 .category-header-with-actions {
@@ -713,4 +726,11 @@
 .materias-list-section, .left-column {
   border: none !important;
   border-width: 0 !important;
+}
+
+.materias-divider {
+  border: none;
+  border-top: 1.5px solid #e5e7eb;
+  margin: 0 0 1.2rem 0;
+  width: 100%;
 }

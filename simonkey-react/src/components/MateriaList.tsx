@@ -27,6 +27,8 @@ interface MateriaListProps {
   onColorChange?: (id: string, color: string) => void;
   onViewMateria: (id: string) => void;
   selectedCategory?: string | null;
+  showCreateModal?: boolean;
+  setShowCreateModal?: (show: boolean) => void;
   showCategoryModal?: boolean;
   onCloseCategoryModal?: () => void;
   onClearSelectedCategory?: () => void;
@@ -43,6 +45,8 @@ const MateriaList: React.FC<MateriaListProps> = ({
   onColorChange,
   onViewMateria,
   selectedCategory,
+  showCreateModal = false,
+  setShowCreateModal,
   showCategoryModal = false,
   onCloseCategoryModal,
   onClearSelectedCategory,
@@ -50,7 +54,6 @@ const MateriaList: React.FC<MateriaListProps> = ({
   isAdminView = false
 }) => {
   const { user } = useAuth();
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMateriaTitle, setNewMateriaTitle] = useState('');
   const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -134,7 +137,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
       
       setNewMateriaTitle('');
       setNewMateriaColor('#6147FF');
-      setShowCreateModal(false);
+      if (setShowCreateModal) {
+        setShowCreateModal(false);
+      }
     } catch (error) {
       console.error("Error creating materia:", error);
       if (error instanceof Error && error.message.includes('Ya existe')) {
@@ -159,7 +164,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
     if (e.key === 'Enter') {
       handleCreateMateria(e as any);
     } else if (e.key === 'Escape') {
-      setShowCreateModal(false);
+      if (setShowCreateModal) {
+        setShowCreateModal(false);
+      }
       setNewMateriaTitle('');
       setErrorMessage('');
     }
@@ -332,8 +339,12 @@ const MateriaList: React.FC<MateriaListProps> = ({
         <div className="materia-list-header">
           {showCreateButton && (
             <button 
+              id="debug-create-materia-button"
               className="create-materia-button"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                console.log('Botón crear materia clickeado', { setShowCreateModal });
+                setShowCreateModal && setShowCreateModal(true);
+              }}
             >
               <i className="fas fa-plus"></i>
               <span>Crear nueva materia</span>
@@ -351,6 +362,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
           </div>
         </div>
       </div>
+      <hr className="materias-divider" />
 
       {/* Materias por categoría seleccionada */}
       {materiasBySelectedCategory.length > 0 && (
@@ -414,19 +426,19 @@ const MateriaList: React.FC<MateriaListProps> = ({
 
       {/* Modal para crear nueva materia */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-overlay" onClick={() => setShowCreateModal && setShowCreateModal(false)}>
           <div className="modal-content create-materia-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Crear nueva materia</h3>
               <button 
                 className="close-button" 
                 onClick={() => {
-                  setShowCreateModal(false);
+                  setShowCreateModal && setShowCreateModal(false);
                   setNewMateriaTitle('');
                   setErrorMessage('');
                 }}
               >
-                ×
+                <i className="fas fa-times"></i>
               </button>
             </div>
             <form onSubmit={handleCreateMateria} className="modal-body">
@@ -473,7 +485,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
                   type="button"
                   className="cancel-button"
                   onClick={() => {
-                    setShowCreateModal(false);
+                    setShowCreateModal && setShowCreateModal(false);
                     setNewMateriaTitle('');
                     setErrorMessage('');
                   }}

@@ -64,6 +64,7 @@ const ProgressPage: React.FC = () => {
   const [kpisData, setKpisData] = useState<any>(null);
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [cuadernosReales, setCuadernosReales] = useState<CuadernoData[]>([]);
+  const [progress, setProgress] = useState(0);
 
   // Cargar datos reales de KPIs al montar el componente
   useEffect(() => {
@@ -96,6 +97,23 @@ const ProgressPage: React.FC = () => {
       }, 100);
     }
   }, [cuadernosReales, selectedMateria, kpisData]);
+
+  /** Reemplaza el useEffect de la barra de progreso por uno más fluido **/
+  useEffect(() => {
+    if (loading && !kpisData) {
+      setProgress(0);
+      let current = 0;
+      const interval = setInterval(() => {
+        current += Math.random() * 0.5 + 0.7; // avance muy suave y continuo
+        if (current >= 100) {
+          current = 100;
+          clearInterval(interval);
+        }
+        setProgress(current);
+      }, 16); // ~60fps
+      return () => clearInterval(interval);
+    }
+  }, [loading, kpisData]);
 
   const loadKPIsData = async () => {
     if (!auth.currentUser) {
@@ -987,9 +1005,18 @@ const ProgressPage: React.FC = () => {
       <>
         <HeaderWithHamburger title="Progreso" />
         <div className="progress-layout">
-          <div className="loading-container">
-            <FontAwesomeIcon icon={faSpinner} spin size="3x" />
-            <p>Cargando tus datos de progreso...</p>
+          <div className="loading-container" style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '100%', maxWidth: 400, margin: '0 auto', position: 'relative', height: 60 }}>
+              {/* Mono morado */}
+              <div style={{ position: 'absolute', left: `calc(${progress}% - 32px)`, top: -38, transition: 'left 0.12s linear', zIndex: 2, fontSize: 32 }}>
+                <span role="img" aria-label="mono" style={{ filter: 'hue-rotate(230deg)' }}>🐒</span>
+              </div>
+              {/* Barra de progreso */}
+              <div style={{ width: '100%', height: 18, background: '#ede9fe', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(97,71,255,0.07)' }}>
+                <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', borderRadius: 12, transition: 'width 0.12s linear' }} />
+              </div>
+            </div>
+            <p style={{ marginTop: 2, color: '#6b7280', fontWeight: 500 }}>Cargando tus datos de progreso...</p>
           </div>
         </div>
       </>
