@@ -43,6 +43,9 @@ import './utils/forceUpdateKPIs';
 import './utils/fixStudentProfile';
 // Importar utilidad para debug de materias de estudiante
 import './utils/debugStudentMaterias';
+import './utils/debugExams';
+import './utils/fixStudentSchoolId';
+import './utils/verifyStudentExams';
 import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';

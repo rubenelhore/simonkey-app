@@ -50,6 +50,13 @@
   gap: 1.5rem;
 }
 
+/* Quitar línea divisoria en la sección de exámenes dentro de la página de materia */
+.school-teacher-materia-page .exams-section {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
 .exam-card {
   background: white;
   border: 2px solid #e5e7eb;
@@ -164,44 +171,30 @@
 
 .notebook-card {
   background: white;
-  border: 2px solid;
+  border: none;
   border-radius: 12px;
-  overflow: hidden;
+  padding: 0;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
 
 .notebook-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.notebook-card-header {
-  padding: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
+.notebook-card-content {
+  padding: 16px 20px;
+  background: white;
+  transition: background-color 0.2s;
 }
 
-.notebook-card-header i {
-  font-size: 2.5rem;
-}
-
-.notebook-card-body {
-  padding: 1.5rem;
-}
-
-.notebook-card-body h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
-  color: #1f2937;
-}
-
-.notebook-description {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin: 0 0 1rem 0;
+.notebook-card-content:hover {
+  background: white;
 }
 
 .notebook-info {

@@ -39,6 +39,116 @@
   transform: translateY(-2px);
 }
 
+/* Opciones múltiples */
+.options-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.option-button:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f5f3ff;
+  transform: translateX(4px);
+}
+
+.option-button.selected {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.option-button.correct {
+  background: #10b981 !important;
+  color: white !important;
+  border-color: #10b981 !important;
+  transform: scale(1.02);
+}
+
+.option-button.incorrect {
+  background: #ef4444 !important;
+  color: white !important;
+  border-color: #ef4444 !important;
+  animation: shake 0.3s ease;
+}
+
+.option-button.show-correct {
+  border-color: #10b981 !important;
+  border-width: 3px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.option-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.option-button.selected .option-letter {
+  background: white;
+  color: #667eea;
+}
+
+.option-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+/* Footer del examen */
+.exam-footer .exam-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.exam-footer .progress-text {
+  font-size: 1rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.exam-footer .saving-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #667eea;
+  font-size: 0.875rem;
+}
+
 /* Pantalla de inicio del examen */
 .exam-start-screen {
   display: flex;
@@ -394,6 +504,22 @@
   .finish-button {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
+  }
+  
+  /* Mantener el grid 2x2 en móvil pero con menor gap */
+  .options-container {
+    gap: 0.75rem;
+  }
+  
+  .option-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .option-letter {
+    width: 35px;
+    height: 35px;
+    font-size: 0.875rem;
   }
 }
 

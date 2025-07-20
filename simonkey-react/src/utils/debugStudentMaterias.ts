@@ -1,8 +1,8 @@
 import { auth, db } from '../services/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 export const debugStudentMaterias = async () => {
-  console.log('🔍 === DIAGNÓSTICO DE MATERIAS PARA ESTUDIANTE ===');
+  console.log('🔍 === DIAGNÓSTICO DE MATERIAS Y EXÁMENES PARA ESTUDIANTE ===');
   
   try {
     const user = auth.currentUser;
@@ -28,6 +28,9 @@ export const debugStudentMaterias = async () => {
     console.log('   - School Role:', userData.schoolRole);
     console.log('   - Subject IDs:', userData.subjectIds);
     console.log('   - ID Cuadernos:', userData.idCuadernos);
+    console.log('   - ID Escuela:', userData.idEscuela || userData.schoolData?.idEscuela || 'NO TIENE ESCUELA ASIGNADA ⚠️');
+    console.log('   - ID Institución:', userData.idInstitucion || 'NO TIENE');
+    console.log('   - ID Admin:', userData.idAdmin || 'NO TIENE');
 
     // 2. Verificar si es estudiante escolar
     if (userData.subscription !== 'school' || userData.schoolRole !== 'student') {
@@ -99,6 +102,63 @@ export const debugStudentMaterias = async () => {
       console.log(`   ✅ Puede leer schoolNotebooks (${notebooksSnapshot.size} documentos)`);
     } catch (error) {
       console.log('   ❌ No puede leer schoolNotebooks:', error);
+    }
+
+    // 7. Verificar exámenes para cada materia
+    console.log('\n📝 VERIFICANDO EXÁMENES POR MATERIA:');
+    const studentSchoolId = userData.idEscuela || userData.schoolData?.idEscuela;
+    
+    if (!studentSchoolId) {
+      console.log('❌ No se pueden buscar exámenes: el estudiante no tiene escuela asignada');
+      console.log('💡 Solución: Un administrador debe asignar la escuela al estudiante (campo idEscuela)');
+    } else if (userData.subjectIds && userData.subjectIds.length > 0) {
+      for (const subjectId of userData.subjectIds) {
+        try {
+          // Buscar exámenes para esta materia
+          console.log(`\n🔍 Buscando exámenes para materia ${subjectId}:`);
+          
+          // Primero verificar si la materia existe
+          const subjectDoc = await getDoc(doc(db, 'schoolSubjects', subjectId));
+          if (!subjectDoc.exists()) {
+            console.log(`   ❌ La materia ${subjectId} no existe`);
+            continue;
+          }
+          
+          const subjectData = subjectDoc.data();
+          console.log(`   📚 Materia: ${subjectData.nombre}`);
+          
+          // Buscar exámenes activos
+          const examsQuery = query(
+            collection(db, 'schoolExams'),
+            where('idMateria', '==', subjectId),
+            where('idEscuela', '==', studentSchoolId),
+            where('isActive', '==', true)
+          );
+          
+          console.log(`   🔍 Consultando con filtros:`);
+          console.log(`      - idMateria: ${subjectId}`);
+          console.log(`      - idEscuela: ${studentSchoolId}`);
+          console.log(`      - isActive: true`);
+          
+          const examsSnapshot = await getDocs(examsQuery);
+          console.log(`   📊 Exámenes encontrados: ${examsSnapshot.size}`);
+          
+          if (examsSnapshot.size > 0) {
+            examsSnapshot.docs.forEach(examDoc => {
+              const examData = examDoc.data();
+              console.log(`      ✅ Examen: ${examData.title} (ID: ${examDoc.id})`);
+              console.log(`         - Profesor: ${examData.idProfesor}`);
+              console.log(`         - Creado: ${examData.createdAt?.toDate?.()?.toLocaleString() || 'Sin fecha'}`);
+            });
+          }
+        } catch (error: any) {
+          console.log(`   ❌ Error buscando exámenes para ${subjectId}:`, error.message);
+          if (error.code === 'failed-precondition') {
+            console.log('   🔧 Se requiere crear un índice compuesto en Firestore');
+            console.log('   🔧 Campos: idMateria, idEscuela, isActive, createdAt');
+          }
+        }
+      }
     }
 
     console.log('\n✅ Diagnóstico completado');

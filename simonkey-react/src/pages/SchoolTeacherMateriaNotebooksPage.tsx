@@ -571,17 +571,6 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
       />
       <main className="notebooks-main-no-sidebar">
         <div className="notebooks-list-section-full">
-          <div className="teacher-actions-bar">
-            <button 
-              className="create-exam-button"
-              onClick={() => setIsExamModalOpen(true)}
-              disabled={notebooks.length === 0}
-              title={notebooks.length === 0 ? "Necesitas crear cuadernos primero" : ""}
-            >
-              <i className="fas fa-file-alt"></i>
-              Crear Examen
-            </button>
-          </div>
           <NotebookList 
             notebooks={notebooks.map((notebook) => ({
                 id: notebook.id,
@@ -611,13 +600,17 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
               isSchoolTeacher={true}
               materiaColor={materia?.color}
               onFreezeNotebook={handleFreezeNotebook}
+              showExamButton={true}
+              onCreateExam={() => setIsExamModalOpen(true)}
+              examButtonDisabled={notebooks.length === 0}
+              examButtonTitle={notebooks.length === 0 ? "Necesitas crear cuadernos primero" : ""}
             />
             
             {/* Sección de Exámenes */}
             {exams.length > 0 && (
-              <div className="exams-section" style={{ marginTop: '3rem', padding: '0 1rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem', color: '#1f2937' }}>
-                  <i className="fas fa-file-alt" style={{ marginRight: '0.5rem' }}></i>
+              <div className="exams-section" style={{ marginTop: '4rem', padding: '0 1rem' }}>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }}>
+                  <i className="fas fa-file-alt" style={{ marginRight: '0.5rem', fontSize: '1rem' }}></i>
                   Exámenes Creados
                 </h2>
                 <div style={{ 
@@ -633,11 +626,9 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
                         border: '2px solid #e5e7eb',
                         borderRadius: '12px',
                         padding: '1.5rem',
-                        cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         position: 'relative'
                       }}
-                      onClick={() => navigate(`/exam/${exam.id}/dashboard`)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = materia?.color || '#6147FF';
                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -690,7 +681,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
                           marginTop: '1rem',
                           width: '100%',
                           padding: '0.75rem',
-                          background: materia?.color || '#6147FF',
+                          background: '#4CAF50',
                           color: 'white',
                           border: 'none',
                           borderRadius: '8px',
@@ -700,7 +691,16 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/exam/${exam.id}/dashboard`);
+                          e.preventDefault();
+                          console.log('🚀 Navegando a dashboard del examen:', exam.id);
+                          console.log('📍 Ruta completa:', `/exam/${exam.id}/dashboard`);
+                          console.log('📊 Datos del examen:', exam);
+                          try {
+                            navigate(`/exam/${exam.id}/dashboard`);
+                            console.log('✅ Navigate ejecutado');
+                          } catch (error) {
+                            console.error('❌ Error al navegar:', error);
+                          }
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.opacity = '0.9';

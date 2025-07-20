@@ -42,7 +42,8 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
           '/school/notebooks',
           '/school/notebooks/',
           '/school/student',
-          '/school/students'
+          '/school/students',
+          '/exam'
         ];
         
         // Verificar si la ruta actual es válida para profesores

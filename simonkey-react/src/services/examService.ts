@@ -19,6 +19,28 @@ import { Concept } from '../types/interfaces';
 
 export class ExamService {
   /**
+   * Obtiene todos los conceptos de múltiples cuadernos
+   */
+  static async getAllConceptsFromNotebooks(notebookIds: string[]): Promise<Concept[]> {
+    try {
+      console.log('🔍 [ExamService] Obteniendo conceptos de cuadernos:', notebookIds);
+      
+      const allConcepts: Concept[] = [];
+      
+      for (const notebookId of notebookIds) {
+        const concepts = await UnifiedConceptService.getConcepts(notebookId);
+        console.log(`📗 Conceptos del cuaderno ${notebookId}:`, concepts.length);
+        allConcepts.push(...concepts);
+      }
+      
+      console.log(`📚 Total conceptos obtenidos: ${allConcepts.length}`);
+      return allConcepts;
+    } catch (error) {
+      console.error('❌ Error obteniendo conceptos:', error);
+      return [];
+    }
+  }
+  /**
    * Obtiene todos los exámenes activos para un estudiante
    */
   static async getActiveExamsForStudent(studentId: string, materiaId: string): Promise<SchoolExam[]> {
@@ -28,43 +50,38 @@ export class ExamService {
         materiaId
       });
       
-      // First get the student's school ID
-      const studentDoc = await getDoc(doc(db, 'users', studentId));
-      if (!studentDoc.exists()) {
-        console.error('❌ Estudiante no encontrado');
+      // Get the school ID from the materia instead of the student
+      const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+      if (!materiaDoc.exists()) {
+        console.error('❌ Materia no encontrada');
         return [];
       }
       
-      const studentData = studentDoc.data();
-      const studentSchoolId = studentData.idEscuela || studentData.schoolData?.idEscuela;
+      const materiaData = materiaDoc.data();
+      const schoolId = materiaData.idEscuela;
       
-      console.log('🏫 Escuela del estudiante:', {
-        idEscuela: studentSchoolId,
-        studentData: {
-          hasIdEscuela: !!studentData.idEscuela,
-          hasSchoolData: !!studentData.schoolData
-        }
+      console.log('🏫 Escuela de la materia:', {
+        idEscuela: schoolId,
+        materiaId: materiaId
       });
       
-      if (!studentSchoolId) {
-        console.error('❌ Estudiante sin escuela asignada');
+      if (!schoolId) {
+        console.error('❌ Materia sin escuela asignada');
         return [];
       }
       
-      // Query exams for the student's school and subject
+      // Query exams for the school and subject
       console.log('📋 Consultando exámenes con filtros:', {
         collection: 'schoolExams',
         idMateria: materiaId,
-        idEscuela: studentSchoolId,
+        idEscuela: schoolId,
         isActive: true
       });
       
       const examsQuery = query(
         collection(db, 'schoolExams'),
         where('idMateria', '==', materiaId),
-        where('idEscuela', '==', studentSchoolId),
-        where('isActive', '==', true),
-        orderBy('createdAt', 'desc')
+        where('isActive', '==', true)
       );
       
       const snapshot = await getDocs(examsQuery);
@@ -74,21 +91,32 @@ export class ExamService {
       
       for (const doc of snapshot.docs) {
         const examData = doc.data() as SchoolExam;
-        console.log('📄 Examen encontrado:', {
-          id: doc.id,
-          title: examData.title,
-          isActive: examData.isActive,
-          idMateria: examData.idMateria,
-          idEscuela: examData.idEscuela,
-          idProfesor: examData.idProfesor
-        });
-        exams.push({
-          ...examData,
-          id: doc.id
-        });
+        
+        // Filtrar manualmente por escuela
+        if (examData.idEscuela === schoolId) {
+          console.log('📄 Examen encontrado:', {
+            id: doc.id,
+            title: examData.title,
+            isActive: examData.isActive,
+            idMateria: examData.idMateria,
+            idEscuela: examData.idEscuela,
+            idProfesor: examData.idProfesor
+          });
+          exams.push({
+            ...examData,
+            id: doc.id
+          });
+        }
       }
       
       console.log(`📝 Total exámenes activos para estudiante:`, exams.length);
+      
+      // Ordenar manualmente por fecha de creación (más reciente primero)
+      exams.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
       
       return exams;
     } catch (error: any) {
@@ -257,6 +285,13 @@ export class ExamService {
     timeRemaining: number
   ): Promise<void> {
     try {
+      console.log('🔄 [ExamService] Guardando respuesta:', {
+        attemptId,
+        answer,
+        currentQuestionIndex,
+        timeRemaining
+      });
+      
       const attemptRef = doc(db, 'examAttempts', attemptId);
       const attemptDoc = await getDoc(attemptRef);
       
@@ -267,12 +302,16 @@ export class ExamService {
       const attemptData = attemptDoc.data() as ExamAttempt;
       const updatedAnswers = [...attemptData.answers];
       
+      console.log('📋 Respuestas actuales:', updatedAnswers.length);
+      
       // Actualizar o agregar respuesta
       const existingIndex = updatedAnswers.findIndex(a => a.conceptId === answer.conceptId);
       if (existingIndex >= 0) {
         updatedAnswers[existingIndex] = answer;
+        console.log('✏️ Actualizando respuesta existente en índice:', existingIndex);
       } else {
         updatedAnswers.push(answer);
+        console.log('➕ Agregando nueva respuesta, total ahora:', updatedAnswers.length);
       }
       
       await updateDoc(attemptRef, {
@@ -280,8 +319,10 @@ export class ExamService {
         currentQuestionIndex,
         timeRemaining
       });
+      
+      console.log('✅ [ExamService] Respuesta guardada exitosamente');
     } catch (error) {
-      console.error('Error guardando respuesta:', error);
+      console.error('❌ [ExamService] Error guardando respuesta:', error);
       throw error;
     }
   }
@@ -340,12 +381,18 @@ export class ExamService {
    */
   private static calculateScore(attempt: ExamAttempt): number {
     const correctAnswers = attempt.answers.filter(a => a.isCorrect).length;
-    const timeUsed = attempt.answers.reduce((sum, a) => sum + a.timeSpent, 0);
-    const totalTimeAllowed = attempt.assignedConcepts.length * 60; // Asumiendo 60 segundos por concepto
-    const timeRemaining = Math.max(0, totalTimeAllowed - timeUsed);
+    const timeRemaining = attempt.timeRemaining || 0;
     
-    // Score = tiempo restante × respuestas correctas
-    return Math.round(timeRemaining * correctAnswers);
+    // Score = tiempo restante (segundos) × respuestas correctas
+    const score = timeRemaining * correctAnswers;
+    
+    console.log('📊 Cálculo de puntuación:', {
+      correctAnswers,
+      timeRemaining,
+      score
+    });
+    
+    return score;
   }
 
   /**

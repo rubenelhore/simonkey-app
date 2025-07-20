@@ -123,27 +123,47 @@ const Materias: React.FC = () => {
 
   // Función para cargar exámenes de estudiante
   const loadStudentExams = async () => {
-    if (!user || !isSchoolStudent || !schoolSubjects || schoolSubjects.length === 0) return;
+    if (!user || !isSchoolStudent || !schoolSubjects || schoolSubjects.length === 0 || !userProfile) return;
     
     try {
       const examsData: Record<string, any[]> = {};
       
+      // Obtener el ID de la escuela del estudiante
+      const studentSchoolId = userProfile.idEscuela || userProfile.schoolData?.idEscuela;
+      
+      if (!studentSchoolId) {
+        console.warn('⚠️ Estudiante sin escuela asignada, no se pueden cargar exámenes');
+        return;
+      }
+      
+      console.log('🏫 Cargando exámenes para escuela:', studentSchoolId);
+      
       // Para cada materia, buscar exámenes activos
       for (const subject of schoolSubjects) {
-        const examsQuery = query(
-          collection(db, 'schoolExams'),
-          where('idMateria', '==', subject.id),
-          where('isActive', '==', true)
-        );
-        
-        const examsSnapshot = await getDocs(examsQuery);
-        const materiaExams = examsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        if (materiaExams.length > 0) {
-          examsData[subject.id] = materiaExams;
+        try {
+          // Hacer la consulta más simple para evitar el error de índices
+          const examsQuery = query(
+            collection(db, 'schoolExams'),
+            where('idMateria', '==', subject.id),
+            where('isActive', '==', true)
+          );
+          
+          const examsSnapshot = await getDocs(examsQuery);
+          
+          // Filtrar manualmente por escuela
+          const materiaExams = examsSnapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .filter((exam: any) => exam.idEscuela === studentSchoolId);
+          
+          if (materiaExams.length > 0) {
+            examsData[subject.id] = materiaExams;
+          }
+        } catch (queryError) {
+          console.error(`Error consultando exámenes para materia ${subject.id}:`, queryError);
+          // Continuar con la siguiente materia
         }
       }
       
@@ -187,7 +207,7 @@ const Materias: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user]);
+  }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user, userProfile]);
 
   // Cargar datos del usuario
   useEffect(() => {

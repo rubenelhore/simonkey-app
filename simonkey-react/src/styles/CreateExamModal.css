@@ -81,11 +81,16 @@
   transition: width 0.3s ease;
 }
 
-/* Modal Content */
-.modal-content {
+/* Modal Content - More specific selector to override conflicts */
+.create-exam-modal .modal-content {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
+  max-width: none !important;
+  width: 100% !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .exam-creation-step h3,
@@ -95,6 +100,21 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
+}
+
+/* Full width for exam creation step */
+.exam-creation-step {
+  width: 100%;
+}
+
+/* Full width for notebook selection */
+.notebook-selection {
+  width: 100%;
+}
+
+/* Full width for exam configuration */
+.exam-configuration {
+  width: 100%;
 }
 
 /* Step 1: Basic Info */
@@ -278,6 +298,7 @@
   display: flex;
   justify-content: center;
   margin: 2rem 0;
+  width: 100%;
 }
 
 .preview-card {
@@ -399,7 +420,7 @@
     border-radius: 0;
   }
 
-  .modal-content {
+  .create-exam-modal .modal-content {
     padding: 1.5rem;
   }
 

@@ -5,6 +5,7 @@ import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { db } from '../services/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ExamService } from '../services/examService';
 import '../styles/SchoolSystem.css';
 import '../styles/Notebooks.css';
 
@@ -51,6 +52,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
   const [notebooks, setNotebooks] = useState<SchoolNotebook[]>([]);
   const [materia, setMateria] = useState<SchoolSubject | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
+  const [examAttempts, setExamAttempts] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'notebooks' | 'exams'>('notebooks');
 
@@ -107,21 +109,30 @@ const SchoolStudentMateriaPage: React.FC = () => {
           setNotebooks(notebooksData);
         }
 
-        // Cargar exámenes activos de la materia
-        const examsQuery = query(
-          collection(db, 'schoolExams'),
-          where('idMateria', '==', materiaId),
-          where('isActive', '==', true)
-        );
-        
-        const examsSnapshot = await getDocs(examsQuery);
-        const examsData = examsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Exam));
-        
-        setExams(examsData);
-        console.log('📝 Exámenes disponibles:', examsData.length);
+        // Cargar exámenes activos usando el servicio
+        try {
+          console.log('📝 Cargando exámenes para estudiante...');
+          const activeExams = await ExamService.getActiveExamsForStudent(user.uid, materiaId);
+          setExams(activeExams as any[]);
+          console.log('📝 Exámenes disponibles:', activeExams.length);
+          
+          // Verificar si el estudiante ya ha tomado cada examen
+          const attemptsMap = new Map<string, boolean>();
+          for (const exam of activeExams) {
+            const attemptsQuery = query(
+              collection(db, 'examAttempts'),
+              where('examId', '==', exam.id),
+              where('studentId', '==', user.uid)
+            );
+            const attemptsSnapshot = await getDocs(attemptsQuery);
+            attemptsMap.set(exam.id, !attemptsSnapshot.empty);
+          }
+          setExamAttempts(attemptsMap);
+          console.log('📊 Intentos de examen cargados:', attemptsMap);
+        } catch (error) {
+          console.error('❌ Error cargando exámenes:', error);
+          setExams([]);
+        }
         
       } catch (err) {
         console.error('Error loading materia data:', err);
@@ -131,14 +142,19 @@ const SchoolStudentMateriaPage: React.FC = () => {
     };
     
     loadMateriaData();
-  }, [user, materiaId, isSchoolStudent]);
+  }, [user, materiaId, isSchoolStudent, userProfile]);
 
   const handleNotebookClick = (notebookId: string) => {
-    navigate(`/school-notebook-concepts/${notebookId}`);
+    navigate(`/school/notebooks/${notebookId}`);
   };
 
   const handleExamClick = (examId: string) => {
-    navigate(`/exam/${examId}`);
+    // Verificar si el estudiante ya tomó el examen
+    if (examAttempts.get(examId)) {
+      alert('Ya has completado este examen. Solo se permite un intento por examen.');
+      return;
+    }
+    navigate(`/exam/${examId}`, { state: { materiaId } });
   };
 
   if (loading || authLoading) {
@@ -165,23 +181,12 @@ const SchoolStudentMateriaPage: React.FC = () => {
     <>
       <HeaderWithHamburger
         title={materia.nombre}
-        subtitle="Vista de materia"
+        subtitle={`Cuadernos de ${materia.nombre}`}
+        showBackButton={true}
+        onBackClick={() => navigate('/materias')}
+        themeColor="#FF6B6B"
       />
       <div className="school-teacher-materia-page">
-        <div className="materia-header" style={{ backgroundColor: materia.color }}>
-          <div className="materia-header-content">
-            <button 
-              onClick={() => navigate('/materias')} 
-              className="back-button-white"
-            >
-              <i className="fas fa-arrow-left"></i>
-              Volver
-            </button>
-            <h1>{materia.nombre}</h1>
-            {materia.descripcion && <p>{materia.descripcion}</p>}
-          </div>
-        </div>
-
         {/* Tabs para cuadernos y exámenes */}
         <div className="tabs-container">
           <button
@@ -210,29 +215,38 @@ const SchoolStudentMateriaPage: React.FC = () => {
                     <div 
                       key={notebook.id} 
                       className="notebook-card"
-                      onClick={() => handleNotebookClick(notebook.id)}
-                      style={{ borderColor: notebook.color }}
                     >
-                      <div className="notebook-card-header" style={{ backgroundColor: notebook.color }}>
-                        <i className="fas fa-book"></i>
-                      </div>
-                      <div className="notebook-card-body">
-                        <h3>{notebook.title}</h3>
-                        {notebook.descripcion && (
-                          <p className="notebook-description">{notebook.descripcion}</p>
-                        )}
-                        <div className="notebook-info">
-                          <span className="notebook-concepts">
-                            <i className="fas fa-lightbulb"></i>
-                            {notebook.conceptCount || 0} conceptos
+                      <div 
+                        className="notebook-card-content"
+                        onClick={() => handleNotebookClick(notebook.id)}
+                        style={{ 
+                          '--notebook-color': notebook.color,
+                          cursor: 'pointer'
+                        } as React.CSSProperties}
+                      >
+                        <h3 style={{
+                          display: 'flex',
+                          alignItems: 'baseline',
+                          gap: '0.5rem',
+                          width: '100%'
+                        }}>
+                          <span style={{
+                            flex: '1',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {notebook.title}
                           </span>
-                          {notebook.isFrozen && (
-                            <span className="notebook-frozen">
-                              <i className="fas fa-lock"></i>
-                              Congelado
-                            </span>
-                          )}
-                        </div>
+                          <span style={{ 
+                            color: '#10b981', 
+                            fontSize: '1.1rem', 
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                          }}>
+                            80%
+                          </span>
+                        </h3>
                       </div>
                     </div>
                   ))}
@@ -250,35 +264,47 @@ const SchoolStudentMateriaPage: React.FC = () => {
             <div className="exams-section">
               {exams.length > 0 ? (
                 <div className="exams-grid">
-                  {exams.map(exam => (
-                    <div 
-                      key={exam.id} 
-                      className="exam-card"
-                      onClick={() => handleExamClick(exam.id)}
-                    >
-                      <div className="exam-card-header" style={{ backgroundColor: materia.color }}>
-                        <i className="fas fa-file-alt"></i>
-                      </div>
-                      <div className="exam-card-body">
-                        <h3>{exam.title}</h3>
-                        {exam.description && (
-                          <p className="exam-description">{exam.description}</p>
-                        )}
-                        <div className="exam-info">
-                          <span className="exam-status active">
-                            <i className="fas fa-check-circle"></i>
-                            Disponible
-                          </span>
+                  {exams.map(exam => {
+                    const hasAttempted = examAttempts.get(exam.id) || false;
+                    return (
+                      <div 
+                        key={exam.id} 
+                        className={`exam-card ${hasAttempted ? 'completed' : ''}`}
+                        onClick={() => handleExamClick(exam.id)}
+                        style={{ cursor: hasAttempted ? 'not-allowed' : 'pointer' }}
+                      >
+                        <div className="exam-card-header" style={{ backgroundColor: hasAttempted ? '#9ca3af' : materia.color }}>
+                          <i className="fas fa-file-alt"></i>
+                        </div>
+                        <div className="exam-card-body">
+                          <h3>{exam.title}</h3>
+                          {exam.description && (
+                            <p className="exam-description">{exam.description}</p>
+                          )}
+                          <div className="exam-info">
+                            <span className={`exam-status ${hasAttempted ? 'completed' : 'active'}`}>
+                              <i className={`fas ${hasAttempted ? 'fa-check' : 'fa-check-circle'}`}></i>
+                              {hasAttempted ? 'Completado' : 'Disponible'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="exam-card-footer">
+                          <button 
+                            className="start-exam-button"
+                            disabled={hasAttempted}
+                            style={{
+                              backgroundColor: hasAttempted ? '#9ca3af' : '',
+                              cursor: hasAttempted ? 'not-allowed' : 'pointer',
+                              opacity: hasAttempted ? 0.7 : 1
+                            }}
+                          >
+                            {hasAttempted ? 'No Disponible' : 'Comenzar examen'}
+                            <i className={`fas ${hasAttempted ? 'fa-lock' : 'fa-arrow-right'}`}></i>
+                          </button>
                         </div>
                       </div>
-                      <div className="exam-card-footer">
-                        <button className="start-exam-button">
-                          Comenzar examen
-                          <i className="fas fa-arrow-right"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="empty-state">

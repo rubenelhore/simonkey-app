@@ -24,6 +24,10 @@ const ExamDashboardPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   
+  console.log('🎯 ExamDashboardPage montado');
+  console.log('📋 examId desde params:', examId);
+  console.log('👤 Usuario actual:', auth.currentUser?.uid);
+  
   const [exam, setExam] = useState<SchoolExam | null>(null);
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +38,28 @@ const ExamDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadExamData();
+    
+    // Actualizar automáticamente cada 30 segundos
+    const interval = setInterval(() => {
+      console.log('🔄 Actualizando datos automáticamente...');
+      loadExamData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [examId]);
 
   const loadExamData = async () => {
-    if (!examId || !auth.currentUser) return;
+    console.log('🔄 loadExamData iniciado');
+    console.log('examId:', examId);
+    console.log('auth.currentUser:', auth.currentUser);
+    console.log('🕐 Timestamp:', new Date().toISOString());
     
+    if (!examId || !auth.currentUser) {
+      console.error('❌ Falta examId o usuario no autenticado');
+      return;
+    }
+    
+    setLoading(true);
     try {
       // Cargar datos del examen
       const examDoc = await getDoc(doc(db, 'schoolExams', examId));
@@ -59,21 +80,37 @@ const ExamDashboardPage: React.FC = () => {
       });
       
       // Cargar estudiantes de la materia
+      console.log('📚 Buscando estudiantes de la materia...');
+      console.log('idMateria:', examData.idMateria);
+      
       const studentsSnapshot = await getDocs(
         query(collection(db, 'users'), 
-        where('schoolData.role', '==', 'student'),
-        where('schoolData.idEscuela', '==', examData.idEscuela))
+        where('schoolRole', '==', 'student'),
+        where('subjectIds', 'array-contains', examData.idMateria))
       );
       
+      console.log(`📊 Estudiantes encontrados: ${studentsSnapshot.size}`);
+      
       // Cargar intentos de examen
+      console.log('🔍 Buscando intentos de examen...');
+      console.log('examId:', examId);
+      
       const attemptsSnapshot = await getDocs(
         query(collection(db, 'examAttempts'), 
         where('examId', '==', examId))
       );
       
+      console.log(`📝 Intentos encontrados: ${attemptsSnapshot.size}`);
+      
       const attemptsByStudent = new Map<string, ExamAttempt>();
       attemptsSnapshot.forEach(doc => {
         const attempt = { id: doc.id, ...doc.data() } as ExamAttempt;
+        console.log('📄 Intento:', {
+          id: doc.id,
+          studentId: attempt.studentId,
+          status: attempt.status,
+          score: attempt.score
+        });
         attemptsByStudent.set(attempt.studentId, attempt);
       });
       
@@ -83,6 +120,13 @@ const ExamDashboardPage: React.FC = () => {
       for (const studentDoc of studentsSnapshot.docs) {
         const studentData = studentDoc.data();
         const attempt = attemptsByStudent.get(studentDoc.id) || null;
+        
+        console.log('👤 Procesando estudiante:', {
+          id: studentDoc.id,
+          name: studentData.displayName || studentData.email,
+          hasAttempt: !!attempt,
+          attemptStatus: attempt?.status
+        });
         
         let score = 0;
         let correctAnswers = 0;
@@ -109,9 +153,12 @@ const ExamDashboardPage: React.FC = () => {
         });
       }
       
+      console.log('📊 Resultados finales:', studentResults);
+      console.log(`✅ Total estudiantes procesados: ${studentResults.length}`);
+      
       setResults(studentResults);
     } catch (error) {
-      console.error('Error cargando datos del examen:', error);
+      console.error('❌ Error cargando datos del examen:', error);
       alert('Error al cargar los datos del examen');
     } finally {
       setLoading(false);
@@ -257,7 +304,30 @@ const ExamDashboardPage: React.FC = () => {
         {/* Header con acciones */}
         <div className="dashboard-header">
           <div className="exam-info">
-            <h1>{exam.title}</h1>
+            <h1>
+              {exam.title}
+              <button 
+                className="refresh-button"
+                onClick={() => loadExamData()}
+                title="Actualizar datos"
+                style={{
+                  marginLeft: '1rem',
+                  padding: '0.5rem 1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <i className="fas fa-sync-alt"></i>
+                Actualizar
+              </button>
+            </h1>
             {exam.description && <p className="exam-description">{exam.description}</p>}
             <div className="exam-meta">
               <span className={`exam-status ${exam.isActive ? 'active' : 'inactive'}`}>

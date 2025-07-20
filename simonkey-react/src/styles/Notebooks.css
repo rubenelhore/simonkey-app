@@ -591,14 +591,13 @@ button[type="submit"]:hover {
   flex-direction: column;
   position: relative;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: none;
   min-height: 160px;
 }
 
 .notebook-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
-  border-color: transparent;
 }
 
 .notebook-card-content {
@@ -1928,6 +1927,58 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .notebook-list-header .create-notebook-button i {
+  font-size: 1.1rem;
+}
+
+/* Botón crear examen - igual estilo que crear cuaderno */
+.notebook-list-header .create-exam-button {
+  background: linear-gradient(135deg, rgb(238, 242, 255) 0%, rgb(224, 231, 255) 100%);
+  color: #4F46E5;
+  border: 1.5px solid #e0e7ff;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  margin: 0 !important;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.1);
+}
+
+.notebook-list-header .create-exam-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79,70,229,0.2);
+  filter: none;
+  outline: none !important;
+}
+
+.notebook-list-header .create-exam-button:focus {
+  outline: none !important;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.1);
+}
+
+.notebook-list-header .create-exam-button:active {
+  outline: none !important;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+  transform: translateY(0);
+}
+
+.notebook-list-header .create-exam-button:focus-visible {
+  outline: 2px solid #4F46E5 !important;
+  outline-offset: 2px;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.1);
+}
+
+.notebook-list-header .create-exam-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.notebook-list-header .create-exam-button i {
   font-size: 1.1rem;
 }
 

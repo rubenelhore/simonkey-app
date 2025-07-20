@@ -42,6 +42,14 @@ const Notebooks: React.FC = () => {
   // Debug log para verificar el estado de isSuperAdmin
   console.log('Notebooks - isSuperAdmin:', isSuperAdmin);
 
+  // Redirigir estudiantes escolares a la nueva página si están en una materia
+  useEffect(() => {
+    if (isSchoolStudent && materiaId && !authLoading) {
+      console.log('🔄 Redirigiendo estudiante escolar a la nueva vista de materia');
+      navigate(`/school/student/materia/${materiaId}`, { replace: true });
+    }
+  }, [isSchoolStudent, materiaId, navigate, authLoading]);
+
   // Función temporal para verificar y actualizar usuario como súper admin
   const checkAndUpdateSuperAdmin = async () => {
     const currentUser = auth.currentUser;

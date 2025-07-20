@@ -20,10 +20,63 @@ const ExamPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [examStarted, setExamStarted] = useState(false);
+  const [currentOptions, setCurrentOptions] = useState<string[]>([]);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [allConcepts, setAllConcepts] = useState<any[]>([]);
+  const [showResult, setShowResult] = useState(false);
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const questionStartTime = useRef<number>(Date.now());
   const lastSaveTime = useRef<number>(Date.now());
+
+  // Función para generar opciones múltiples
+  const generateOptions = (correctAnswer: string, allDefinitions: string[]) => {
+    console.log('🎯 Generando opciones para respuesta correcta:', correctAnswer);
+    console.log('📚 Total definiciones disponibles:', allDefinitions.length);
+    
+    // Filtrar definiciones válidas y únicas
+    const validDefinitions = allDefinitions.filter(def => def && def.trim() !== '');
+    const uniqueDefinitions = [...new Set(validDefinitions)];
+    console.log('📋 Definiciones únicas válidas:', uniqueDefinitions.length);
+    
+    const options = [correctAnswer];
+    const otherDefinitions = uniqueDefinitions.filter(def => def !== correctAnswer);
+    console.log('🔀 Otras definiciones disponibles:', otherDefinitions.length);
+    
+    // Si no hay suficientes opciones, generar opciones falsas
+    if (otherDefinitions.length < 3) {
+      console.warn('⚠️ No hay suficientes definiciones para generar 4 opciones');
+      console.warn('📝 Definiciones disponibles:', otherDefinitions);
+      
+      // Usar las que hay disponibles
+      options.push(...otherDefinitions);
+      
+      // Generar opciones falsas más realistas para completar hasta 4
+      const fakeOptions = [
+        "Esta definición corresponde a otro concepto no incluido en este examen",
+        "Definición que no se aplica a este término específico", 
+        "Esta opción no es la definición correcta para el término mostrado"
+      ];
+      
+      const needed = 4 - options.length;
+      options.push(...fakeOptions.slice(0, needed));
+    } else {
+      // Seleccionar 3 opciones incorrectas aleatorias
+      const shuffled = otherDefinitions.sort(() => 0.5 - Math.random());
+      const incorrectOptions = shuffled.slice(0, 3);
+      console.log('❌ Opciones incorrectas seleccionadas:', incorrectOptions.length);
+      
+      options.push(...incorrectOptions);
+    }
+    
+    // Mezclar todas las opciones
+    const finalOptions = options.sort(() => 0.5 - Math.random());
+    console.log('✅ Total opciones generadas:', finalOptions.length);
+    console.log('📝 Opciones:', finalOptions);
+    
+    return finalOptions;
+  };
 
   // Cargar examen e intento
   useEffect(() => {
@@ -51,17 +104,36 @@ const ExamPage: React.FC = () => {
         setAttempt(attemptData);
         setTimeRemaining(attemptData.timeRemaining);
         
+        // Cargar todos los conceptos de los cuadernos del examen
+        console.log('📚 Cargando conceptos de los cuadernos:', examData.notebookIds);
+        const allConceptsData = await ExamService.getAllConceptsFromNotebooks(examData.notebookIds);
+        setAllConcepts(allConceptsData);
+        console.log('📝 Total conceptos cargados:', allConceptsData.length);
+        
         // Si ya estaba en progreso, continuar donde se quedó
         if (attemptData.status === 'in_progress') {
           setExamStarted(true);
         }
         
-        // Cargar respuesta actual si existe
-        if (attemptData.answers.length > 0) {
+        // Generar opciones para la pregunta actual
+        if (attemptData.assignedConcepts.length > 0) {
           const currentConcept = attemptData.assignedConcepts[attemptData.currentQuestionIndex];
-          const existingAnswer = attemptData.answers.find(a => a.conceptId === currentConcept.conceptId);
-          if (existingAnswer) {
-            setCurrentAnswer(existingAnswer.userAnswer);
+          console.log('🎯 Concepto actual:', {
+            término: currentConcept.término,
+            definición: currentConcept.definición,
+            conceptId: currentConcept.conceptId
+          });
+          const allDefinitions = allConceptsData.map(c => c.definición);
+          const options = generateOptions(currentConcept.definición, allDefinitions);
+          setCurrentOptions(options);
+          
+          // Cargar respuesta actual si existe
+          if (attemptData.answers.length > 0) {
+            const existingAnswer = attemptData.answers.find(a => a.conceptId === currentConcept.conceptId);
+            if (existingAnswer) {
+              const selectedIndex = options.findIndex(opt => opt === existingAnswer.userAnswer);
+              setSelectedOption(selectedIndex >= 0 ? selectedIndex : null);
+            }
           }
         }
       } catch (error) {
@@ -154,12 +226,23 @@ const ExamPage: React.FC = () => {
   const saveCurrentAnswer = async (moveToNext: boolean = true) => {
     if (!attempt || !exam) return;
     
+    // Prevenir múltiples guardados simultáneos
+    if (saving) {
+      console.warn('⚠️ Ya se está guardando una respuesta, ignorando...');
+      return;
+    }
+    
     const currentConcept = attempt.assignedConcepts[attempt.currentQuestionIndex];
     const timeSpent = Math.round((Date.now() - questionStartTime.current) / 1000);
     
-    // Evaluar respuesta (comparación simple, se puede mejorar)
-    const isCorrect = currentAnswer.trim().toLowerCase() === 
-                     currentConcept.definición.toLowerCase();
+    // Evaluar respuesta - comparar con la opción seleccionada
+    const isCorrect = currentAnswer.trim() === currentConcept.definición.trim();
+    
+    console.log('📝 Evaluando respuesta:', {
+      userAnswer: currentAnswer.trim(),
+      correctAnswer: currentConcept.definición.trim(),
+      isCorrect: isCorrect
+    });
     
     const answer: ExamAnswer = {
       conceptId: currentConcept.conceptId,
@@ -178,21 +261,45 @@ const ExamPage: React.FC = () => {
         timeRemaining
       );
       
+      console.log('✅ Respuesta guardada exitosamente:', {
+        conceptId: answer.conceptId,
+        userAnswer: answer.userAnswer,
+        isCorrect: answer.isCorrect,
+        attemptId: attempt.id
+      });
+      
       lastSaveTime.current = Date.now();
       
       if (moveToNext) {
         if (attempt.currentQuestionIndex < attempt.assignedConcepts.length - 1) {
           // Siguiente pregunta
-          setAttempt(prev => prev ? {
-            ...prev,
-            currentQuestionIndex: prev.currentQuestionIndex + 1,
-            answers: [...prev.answers.filter(a => a.conceptId !== answer.conceptId), answer]
-          } : null);
+          setAttempt(prev => {
+            if (!prev) return null;
+            const newAttempt = {
+              ...prev,
+              currentQuestionIndex: prev.currentQuestionIndex + 1,
+              answers: [...prev.answers.filter(a => a.conceptId !== answer.conceptId), answer]
+            };
+            
+            // Generar nuevas opciones para la siguiente pregunta
+            const nextConcept = newAttempt.assignedConcepts[newAttempt.currentQuestionIndex];
+            const allDefinitions = allConcepts.map(c => c.definición);
+            const options = generateOptions(nextConcept.definición, allDefinitions);
+            setCurrentOptions(options);
+            setSelectedOption(null);
+            
+            return newAttempt;
+          });
           setCurrentAnswer('');
           questionStartTime.current = Date.now();
         } else {
-          // Última pregunta
-          handleCompleteExam();
+          // Última pregunta - no limpiar currentAnswer antes de completar
+          // handleCompleteExam se llamará después de guardar
+          await ExamService.completeExamAttempt(attempt.id).then(score => {
+            navigate(`/exam/${examId}/results`, { 
+              state: { score, attemptId: attempt.id, materiaId } 
+            });
+          });
         }
       }
     } catch (error) {
@@ -207,10 +314,7 @@ const ExamPage: React.FC = () => {
     if (!attempt) return;
     
     try {
-      // Guardar respuesta actual si existe
-      if (currentAnswer.trim()) {
-        await saveCurrentAnswer(false);
-      }
+      console.log('🏁 Completando examen...');
       
       const score = await ExamService.completeExamAttempt(attempt.id);
       
@@ -302,48 +406,123 @@ const ExamPage: React.FC = () => {
           <h2 className="question-term">{currentConcept.término}</h2>
           
           <div className="answer-section">
-            <label>Escribe la definición:</label>
-            <textarea
-              value={currentAnswer}
-              onChange={(e) => setCurrentAnswer(e.target.value)}
-              placeholder="Escribe aquí tu respuesta..."
-              className="answer-textarea"
-              disabled={saving}
-              autoFocus
-            />
+            <label>Selecciona la definición correcta:</label>
+            <div className="options-container">
+              {currentOptions.map((option, index) => (
+                <button
+                  key={index}
+                  className={`option-button ${
+                    selectedOption === index ? 'selected' : ''
+                  } ${
+                    showResult && index === selectedOption
+                      ? option === currentConcept.definición ? 'correct' : 'incorrect'
+                      : ''
+                  } ${
+                    showResult && option === currentConcept.definición ? 'show-correct' : ''
+                  }`}
+                  onClick={async () => {
+                    if (saving || showResult) return;
+                    
+                    setSelectedOption(index);
+                    setShowResult(true);
+                    setLastAnswerCorrect(option.trim() === currentConcept.definición.trim());
+                    
+                    // Guardar la respuesta directamente sin depender del estado
+                    const timeSpent = Math.round((Date.now() - questionStartTime.current) / 1000);
+                    const isCorrect = option.trim() === currentConcept.definición.trim();
+                    
+                    const answer: ExamAnswer = {
+                      conceptId: currentConcept.conceptId,
+                      userAnswer: option.trim(),
+                      isCorrect,
+                      timeSpent,
+                      answeredAt: Timestamp.now()
+                    };
+                    
+                    setSaving(true);
+                    
+                    try {
+                      await ExamService.saveAnswer(
+                        attempt.id, 
+                        answer, 
+                        attempt.currentQuestionIndex < attempt.assignedConcepts.length - 1 
+                          ? attempt.currentQuestionIndex + 1 
+                          : attempt.currentQuestionIndex,
+                        timeRemaining
+                      );
+                      
+                      console.log('✅ Respuesta guardada desde onClick:', {
+                        conceptId: answer.conceptId,
+                        userAnswer: answer.userAnswer,
+                        isCorrect: answer.isCorrect
+                      });
+                      
+                      // Esperar 1 segundo para mostrar feedback
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                      
+                      setShowResult(false);
+                      setSaving(false);
+                      
+                      // Mover a la siguiente pregunta
+                      if (attempt.currentQuestionIndex < attempt.assignedConcepts.length - 1) {
+                        setAttempt(prev => {
+                          if (!prev) return null;
+                          return {
+                            ...prev,
+                            currentQuestionIndex: prev.currentQuestionIndex + 1,
+                            answers: [...prev.answers.filter(a => a.conceptId !== answer.conceptId), answer]
+                          };
+                        });
+                        
+                        // Generar nuevas opciones para la siguiente pregunta
+                        const nextIndex = attempt.currentQuestionIndex + 1;
+                        const nextConcept = attempt.assignedConcepts[nextIndex];
+                        const allDefinitions = allConcepts.map(c => c.definición);
+                        const options = generateOptions(nextConcept.definición, allDefinitions);
+                        setCurrentOptions(options);
+                        setSelectedOption(null);
+                        questionStartTime.current = Date.now();
+                      } else {
+                        // Última pregunta - completar examen
+                        await ExamService.completeExamAttempt(attempt.id).then(score => {
+                          navigate(`/exam/${examId}/results`, { 
+                            state: { score, attemptId: attempt.id, materiaId } 
+                          });
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error guardando respuesta:', error);
+                      alert('Error al guardar la respuesta');
+                      setSaving(false);
+                      setShowResult(false);
+                    }
+                  }}
+                  disabled={saving || showResult}
+                >
+                  <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                  <span className="option-text">{option}</span>
+                  {showResult && option === currentConcept.definición && (
+                    <i className="fas fa-check-circle" style={{ marginLeft: 'auto', color: '#10b981' }}></i>
+                  )}
+                  {showResult && index === selectedOption && option !== currentConcept.definición && (
+                    <i className="fas fa-times-circle" style={{ marginLeft: 'auto', color: '#ef4444' }}></i>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
       
       <div className="exam-footer">
-        <div className="exam-controls">
-          {attempt.currentQuestionIndex < attempt.assignedConcepts.length - 1 ? (
-            <button 
-              className="next-button"
-              onClick={() => saveCurrentAnswer(true)}
-              disabled={!currentAnswer.trim() || saving}
-            >
-              {saving ? 'Guardando...' : 'Siguiente'}
-              <i className="fas fa-arrow-right"></i>
-            </button>
-          ) : (
-            <button 
-              className="finish-button"
-              onClick={handleCompleteExam}
-              disabled={saving}
-            >
-              {saving ? 'Guardando...' : 'Finalizar Examen'}
-              <i className="fas fa-check"></i>
-            </button>
+        <div className="exam-progress-info">
+          {saving && (
+            <div className="saving-indicator">
+              <i className="fas fa-spinner fa-spin"></i>
+              Guardando...
+            </div>
           )}
         </div>
-        
-        {saving && (
-          <div className="saving-indicator">
-            <i className="fas fa-spinner fa-spin"></i>
-            Guardando respuesta...
-          </div>
-        )}
       </div>
     </div>
   );

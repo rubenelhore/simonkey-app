@@ -1878,8 +1878,8 @@ const StudyModePage = () => {
                             </div>
                           </div>
                           
-                          {/* Sección de Exámenes Activos - Solo para estudiantes escolares */}
-                          {isSchoolStudent && activeExams.length > 0 && (
+                          {/* Sección de Exámenes Activos - Comentada por solicitud del usuario */}
+                          {/* {isSchoolStudent && activeExams.length > 0 && (
                             <div className="exams-section">
                               <h3 className="exams-section-title">
                                 <i className="fas fa-file-alt"></i>
@@ -1895,7 +1895,7 @@ const StudyModePage = () => {
                                 ))}
                               </div>
                             </div>
-                          )}
+                          )} */}
                           
                           {/* Mensaje de cuaderno congelado */}
                           {showFrozenMessage && (

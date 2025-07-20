@@ -51,6 +51,10 @@ interface NotebookListProps {
   onRefreshCategories?: () => void;
   materiaColor?: string;
   onFreezeNotebook?: (id: string, type: 'now' | 'scheduled', scheduledDate?: Date) => void;
+  showExamButton?: boolean;
+  onCreateExam?: () => void;
+  examButtonDisabled?: boolean;
+  examButtonTitle?: string;
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -68,7 +72,11 @@ const NotebookList: React.FC<NotebookListProps> = ({
   onClearSelectedCategory,
   onRefreshCategories,
   materiaColor,
-  onFreezeNotebook
+  onFreezeNotebook,
+  showExamButton = false,
+  onCreateExam,
+  examButtonDisabled = false,
+  examButtonTitle = ""
 }) => {
   console.log('🔍 DEBUG - NotebookList renderizando con:', {
     notebooksCount: notebooks?.length || 0,
@@ -674,6 +682,17 @@ const NotebookList: React.FC<NotebookListProps> = ({
             >
               <i className="fas fa-plus"></i>
               <span>Crear nuevo cuaderno</span>
+            </button>
+          )}
+          {showExamButton && onCreateExam && (
+            <button 
+              className="create-exam-button"
+              onClick={onCreateExam}
+              disabled={examButtonDisabled}
+              title={examButtonTitle}
+            >
+              <i className="fas fa-file-alt"></i>
+              <span>Crear Examen</span>
             </button>
           )}
           <div className="search-container">
