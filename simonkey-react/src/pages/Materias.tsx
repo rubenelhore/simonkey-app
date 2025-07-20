@@ -69,7 +69,11 @@ const Materias: React.FC = () => {
   useEffect(() => {
     const loadMateriasYStreak = async () => {
       if (!user) return;
-      if (isSchoolStudent) return;
+      if (isSchoolStudent) {
+        // Para estudiantes escolares, solo establecer loadingStreak a false
+        setLoadingStreak(false);
+        return;
+      }
       setLoading(true);
       setLoadingStreak(true);
       try {
@@ -118,26 +122,34 @@ const Materias: React.FC = () => {
 
   // Efecto específico para estudiantes escolares
   useEffect(() => {
-    if (isSchoolStudent && !schoolLoading && schoolSubjects) {
-      const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
-        const notebookCount = schoolNotebooks 
-          ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
-          : 0;
-        
-        return {
-          id: subject.id,
-          title: subject.nombre,
-          color: subject.color || '#6147FF',
-          category: '',
-          userId: user?.uid || '',
-          createdAt: subject.createdAt?.toDate() || new Date(),
-          updatedAt: subject.createdAt?.toDate() || new Date(),
-          notebookCount: notebookCount
-        };
-      });
-      
-      setMaterias(schoolMateriasData);
-      setLoading(false);
+    if (isSchoolStudent) {
+      if (!schoolLoading) {
+        if (schoolSubjects && schoolSubjects.length > 0) {
+          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
+            const notebookCount = schoolNotebooks 
+              ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
+              : 0;
+            
+            return {
+              id: subject.id,
+              title: subject.nombre,
+              color: subject.color || '#6147FF',
+              category: '',
+              userId: user?.uid || '',
+              createdAt: subject.createdAt?.toDate() || new Date(),
+              updatedAt: subject.createdAt?.toDate() || new Date(),
+              notebookCount: notebookCount
+            };
+          });
+          
+          setMaterias(schoolMateriasData);
+        } else {
+          // Si no hay materias, establecer un array vacío
+          setMaterias([]);
+        }
+        // Siempre establecer loading a false cuando schoolLoading es false
+        setLoading(false);
+      }
     }
   }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user]);
 
