@@ -1,5 +1,230 @@
 /* Estilos para el sistema escolar de Simonkey */
 
+/* Tabs Container */
+.tabs-container {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  border-color: #6147FF;
+  color: #6147FF;
+}
+
+.tab-button.active {
+  background: #6147FF;
+  border-color: #6147FF;
+  color: white;
+}
+
+.tab-button i {
+  font-size: 1.1rem;
+}
+
+.tab-content {
+  padding: 1.5rem;
+}
+
+/* Exam Cards Grid */
+.exams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.exam-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exam-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.exam-card-header {
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.exam-card-header i {
+  font-size: 3rem;
+}
+
+.exam-card-body {
+  padding: 1.5rem;
+}
+
+.exam-card-body h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #1f2937;
+}
+
+.exam-description {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.exam-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.exam-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.exam-status.active {
+  color: #10b981;
+}
+
+.exam-status i {
+  font-size: 1rem;
+}
+
+.exam-card-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.start-exam-button {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: #6147FF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.2s ease;
+}
+
+.start-exam-button:hover {
+  background: #4d35e0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.empty-state p {
+  margin-top: 1rem;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+/* Notebooks Grid */
+.notebooks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.notebook-card {
+  background: white;
+  border: 2px solid;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notebook-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.notebook-card-header {
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.notebook-card-header i {
+  font-size: 2.5rem;
+}
+
+.notebook-card-body {
+  padding: 1.5rem;
+}
+
+.notebook-card-body h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #1f2937;
+}
+
+.notebook-description {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.notebook-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.notebook-concepts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notebook-frozen {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ef4444;
+}
+
 /* Ajustar padding cuando hay mobile navigation */
 .progress-layout.with-mobile-nav {
   padding-bottom: 80px;

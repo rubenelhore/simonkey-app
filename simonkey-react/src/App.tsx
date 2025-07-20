@@ -55,6 +55,7 @@ import SchoolTeacherMateriasPage from './pages/SchoolTeacherMateriasPage';
 import SchoolTeacherMateriaNotebooksPage from './pages/SchoolTeacherMateriaNotebooksPage';
 import SchoolTeacherAnalyticsPage from './pages/SchoolTeacherAnalyticsPage';
 import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
+import SchoolStudentMateriaPage from './pages/SchoolStudentMateriaPage';
 import SchoolAdminPage from './pages/SchoolAdminPage';
 import SchoolTutorPage from './pages/SchoolTutorPage';
 // Importaciones del sistema de cookies y privacidad
@@ -689,6 +690,20 @@ const AppContent: React.FC = () => {
                   <PasswordChangeGuard>
                     <SchoolUserGuard>
                       <SchoolTeacherMateriaNotebooksPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/school/student/materia/:materiaId"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolStudentMateriaPage />
                     </SchoolUserGuard>
                   </PasswordChangeGuard>
                 </EmailVerificationGuard>

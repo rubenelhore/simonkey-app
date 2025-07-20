@@ -197,6 +197,14 @@
   font-weight: 500;
 }
 
+/* Contenedor de información de materia */
+.materia-info-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Acciones de la tarjeta */
 .materia-card-actions {
   background: var(--materia-color, #6147FF);

@@ -64,6 +64,7 @@ const Materias: React.FC = () => {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [adminMaterias, setAdminMaterias] = useState<any[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [examsByMateria, setExamsByMateria] = useState<Record<string, any[]>>({});
 
   // Cargar materias del usuario
   useEffect(() => {
@@ -120,6 +121,39 @@ const Materias: React.FC = () => {
     loadMateriasYStreak();
   }, [user, refreshTrigger, isSchoolStudent]);
 
+  // Función para cargar exámenes de estudiante
+  const loadStudentExams = async () => {
+    if (!user || !isSchoolStudent || !schoolSubjects || schoolSubjects.length === 0) return;
+    
+    try {
+      const examsData: Record<string, any[]> = {};
+      
+      // Para cada materia, buscar exámenes activos
+      for (const subject of schoolSubjects) {
+        const examsQuery = query(
+          collection(db, 'schoolExams'),
+          where('idMateria', '==', subject.id),
+          where('isActive', '==', true)
+        );
+        
+        const examsSnapshot = await getDocs(examsQuery);
+        const materiaExams = examsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        if (materiaExams.length > 0) {
+          examsData[subject.id] = materiaExams;
+        }
+      }
+      
+      setExamsByMateria(examsData);
+      console.log('📝 Exámenes cargados para estudiante:', examsData);
+    } catch (error) {
+      console.error('Error cargando exámenes del estudiante:', error);
+    }
+  };
+
   // Efecto específico para estudiantes escolares
   useEffect(() => {
     if (isSchoolStudent) {
@@ -143,6 +177,8 @@ const Materias: React.FC = () => {
           });
           
           setMaterias(schoolMateriasData);
+          // Cargar exámenes después de establecer las materias
+          loadStudentExams();
         } else {
           // Si no hay materias, establecer un array vacío
           setMaterias([]);
@@ -474,8 +510,13 @@ const Materias: React.FC = () => {
   };
 
   const handleView = (materiaId: string) => {
-    // Todos los usuarios navegan a la misma ruta para ver notebooks de una materia
-    navigate(`/materias/${materiaId}/notebooks`);
+    // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
+    if (isSchoolStudent) {
+      navigate(`/school/student/materia/${materiaId}`);
+    } else {
+      // Los demás usuarios navegan a la ruta normal
+      navigate(`/materias/${materiaId}/notebooks`);
+    }
   };
 
   const handleCategorySelect = (category: string | null) => {
@@ -781,6 +822,8 @@ const Materias: React.FC = () => {
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
+              examsByMateria={examsByMateria}
+              isSchoolStudent={isSchoolStudent}
               showCategoryModal={showCategoryModal}
               onCloseCategoryModal={() => setShowCategoryModal(false)}
               onClearSelectedCategory={handleClearSelectedCategory}

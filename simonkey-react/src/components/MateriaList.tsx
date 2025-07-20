@@ -34,6 +34,8 @@ interface MateriaListProps {
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
   isAdminView?: boolean;
+  examsByMateria?: Record<string, any[]>;
+  isSchoolStudent?: boolean;
 }
 
 const MateriaList: React.FC<MateriaListProps> = ({ 
@@ -51,7 +53,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
   onCloseCategoryModal,
   onClearSelectedCategory,
   onRefreshCategories,
-  isAdminView = false
+  isAdminView = false,
+  examsByMateria = {},
+  isSchoolStudent = false
 }) => {
   const { user } = useAuth();
   const [newMateriaTitle, setNewMateriaTitle] = useState('');
@@ -399,6 +403,8 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 teacherName={materia.teacherName}
                 studentCount={materia.studentCount}
                 isAdminView={isAdminView}
+                exams={examsByMateria[materia.id] || []}
+                isSchoolStudent={isSchoolStudent}
               />
             ))}
           </div>

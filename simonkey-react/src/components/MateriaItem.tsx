@@ -16,6 +16,8 @@ interface MateriaItemProps {
   teacherName?: string;
   studentCount?: number;
   isAdminView?: boolean;
+  exams?: any[];
+  isSchoolStudent?: boolean;
 }
 
 const MateriaItem: React.FC<MateriaItemProps> = ({ 
@@ -32,7 +34,9 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   onToggleActions,
   teacherName,
   studentCount,
-  isAdminView = false
+  isAdminView = false,
+  exams = [],
+  isSchoolStudent = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -224,9 +228,25 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                 </span>
               </div>
             ) : (
-              <span className="materia-info">
-                {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
-              </span>
+              <div className="materia-info-container">
+                <span className="materia-info">
+                  {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
+                </span>
+                {isSchoolStudent && exams.length > 0 && (
+                  <span className="materia-exams-badge" style={{ 
+                    backgroundColor: materiaColor,
+                    color: 'white',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    marginLeft: '8px'
+                  }}>
+                    <i className="fas fa-file-alt" style={{ marginRight: '4px' }}></i>
+                    {exams.length} examen{exams.length !== 1 ? 'es' : ''}
+                  </span>
+                )}
+              </div>
             )}
           </>
         )}
