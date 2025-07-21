@@ -853,8 +853,8 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         
         // Convertir ResponseQuality a calidad SM-3 (0-5)
         // REVIEW_LATER = 2 (respuesta incorrecta, repaso al día siguiente)
-        // MASTERED = 4 (respuesta correcta, intervalos progresivos: 1, 6, x*EF días)
-        const sm3Quality = quality === ResponseQuality.MASTERED ? 4 : 2;
+        // MASTERED = 5 (respuesta perfecta, intervalos progresivos: 1, 6, x*EF días)
+        const sm3Quality = quality === ResponseQuality.MASTERED ? 5 : 2;
         
         console.log('🎯🎯🎯 CALIDAD DE RESPUESTA 🎯🎯🎯');
         console.log('Concepto ID:', conceptId);
@@ -865,7 +865,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         console.log('ResponseQuality.REVIEW_LATER =', ResponseQuality.REVIEW_LATER);
         console.log('SM3 Quality asignado:', sm3Quality);
         console.log('Razón:', quality === ResponseQuality.MASTERED ? 
-          'MASTERED: Usando calidad 4 para intervalos progresivos' : 
+          'MASTERED: Usando calidad 5 para intervalos progresivos' : 
           'REVIEW_LATER: Usando calidad 2 para repaso al día siguiente');
         console.log('🎯🎯🎯 FIN CALIDAD DE RESPUESTA 🎯🎯🎯');
         
@@ -882,9 +882,23 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
             nextReviewDate: data.nextReviewDate?.toDate() || new Date(),
             lastReviewDate: data.lastReviewDate?.toDate() || new Date()
           } as LearningData;
+          console.log('📚 DATOS DE APRENDIZAJE EXISTENTES:', {
+            conceptId,
+            repetitionsActuales: currentData.repetitions,
+            intervalActual: currentData.interval,
+            easeFactorActual: currentData.easeFactor,
+            ultimaRevision: currentData.lastReviewDate,
+            proximaRevision: currentData.nextReviewDate
+          });
         } else {
           // Crear datos iniciales si no existen
           currentData = createInitialLearningData(conceptId);
+          console.log('🆕 CREANDO DATOS DE APRENDIZAJE NUEVOS:', {
+            conceptId,
+            repetitionsIniciales: currentData.repetitions,
+            intervalInicial: currentData.interval,
+            easeFactorInicial: currentData.easeFactor
+          });
         }
         
         // Actualizar usando SM-3

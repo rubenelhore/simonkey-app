@@ -204,8 +204,8 @@ const StreakTracker: React.FC<StreakTrackerProps> = ({ streakData: streakDataPro
       {(streakData.consecutiveDays === 0 || !streakData.hasStudiedToday) && (
         <div className="streak-motivation">
           <p className="motivation-text">
-            {streakData.consecutiveDays === 0 
-              ? "Estudia al menos 1 minuto para comenzar tu racha"
+            {(!streakData.hasStudiedToday || streakData.consecutiveDays === 0)
+              ? "¡Venga! Estudia al menos 1 minuto para iniciar tu racha"
               : "¡Sigue así! Estudia al menos 1 minuto para mantener tu racha"}
           </p>
         </div>

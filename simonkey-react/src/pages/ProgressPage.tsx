@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -15,7 +15,6 @@ import {
   faArrowDown,
   faSpinner
 } from '@fortawesome/free-solid-svg-icons';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
 import '../scripts/fixUserNotebooks';
@@ -25,7 +24,12 @@ import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { getPositionHistory } from '../utils/createPositionHistory';
+import ChartLoadingPlaceholder from '../components/Charts/ChartLoadingPlaceholder';
 import '../styles/ProgressPage.css';
+
+// Lazy load de los componentes de gráficos
+const PositionHistoryChart = lazy(() => import('../components/Charts/PositionHistoryChart'));
+const WeeklyStudyChart = lazy(() => import('../components/Charts/WeeklyStudyChart'));
 
 interface Materia {
   id: string;
@@ -65,18 +69,12 @@ const ProgressPage: React.FC = () => {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [cuadernosReales, setCuadernosReales] = useState<CuadernoData[]>([]);
   const [progress, setProgress] = useState(0);
+  const [effectiveUserId, setEffectiveUserId] = useState<string>('');
 
-  // Cargar datos reales de KPIs al montar el componente
+  // Cargar todo al montar el componente
   useEffect(() => {
-    loadKPIsData();
+    loadAllData();
   }, []);
-
-  // Cargar materias cuando los KPIs estén disponibles
-  useEffect(() => {
-    if (kpisData) {
-      loadMaterias();
-    }
-  }, [kpisData]);
 
   // Actualizar cuadernos cuando cambie la materia seleccionada
   useEffect(() => {
@@ -88,15 +86,12 @@ const ProgressPage: React.FC = () => {
   // Calcular ranking cuando cambien los cuadernos o la materia
   useEffect(() => {
     // Solo calcular si hay datos de KPIs
-    if (kpisData) {
+    if (kpisData && cuadernosReales.length > 0) {
       calculateRanking();
       calculatePositionHistory();
-      // Add a small delay to ensure KPIs are fully loaded
-      setTimeout(() => {
-        calculateWeeklyStudyTime();
-      }, 100);
+      calculateWeeklyStudyTime();
     }
-  }, [cuadernosReales, selectedMateria, kpisData]);
+  }, [cuadernosReales, selectedMateria]);
 
   /** Reemplaza el useEffect de la barra de progreso por uno más fluido **/
   useEffect(() => {
@@ -115,7 +110,7 @@ const ProgressPage: React.FC = () => {
     }
   }, [loading, kpisData]);
 
-  const loadKPIsData = async () => {
+  const loadAllData = async () => {
     if (!auth.currentUser) {
       setLoading(false);
       return;
@@ -124,86 +119,96 @@ const ProgressPage: React.FC = () => {
     try {
       setLoading(true);
       
-      // Obtener el ID efectivo del usuario (para usuarios escolares)
+      // Obtener el ID efectivo del usuario solo una vez
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      setEffectiveUserId(userId);
       
-      console.log('[ProgressPage] Cargando KPIs para usuario:', userId);
-      console.log('[ProgressPage] Es usuario escolar:', effectiveUserData?.isSchoolUser);
+      console.log('[ProgressPage] Cargando datos para usuario:', userId);
       
-      // Siempre actualizar KPIs primero para obtener datos frescos
-      console.log('[ProgressPage] Actualizando KPIs...');
-      await kpiService.updateUserKPIs(userId);
+      // Cargar KPIs en paralelo con verificación de última actualización
+      const kpisPromise = loadKPIsData(userId);
       
-      // Pequeña pausa para asegurar que Firestore propagó los cambios
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Obtener KPIs actualizados del usuario
-      const kpis = await kpiService.getUserKPIs(userId);
-      console.log('[ProgressPage] KPIs obtenidos:', kpis);
-      console.log('[ProgressPage] Tiempo estudio semanal en KPIs:', kpis?.tiempoEstudioSemanal);
-      
-      if (!kpis) {
-        console.log('[ProgressPage] Error: No se pudieron obtener KPIs');
-        setKpisData(null);
-      } else {
+      // Esperar KPIs primero ya que son necesarios para las materias
+      const kpis = await kpisPromise;
+      if (kpis) {
         setKpisData(kpis);
+        // Cargar materias inmediatamente después de KPIs
+        await loadMaterias(userId, effectiveUserData?.isSchoolUser || false, kpis);
       }
       
     } catch (error) {
-      console.error('[ProgressPage] Error cargando KPIs:', error);
+      console.error('[ProgressPage] Error cargando datos:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadMaterias = async () => {
-    if (!auth.currentUser) return;
-    
+  const loadKPIsData = async (userId: string) => {
     try {
-      // Obtener el ID efectivo del usuario
-      const effectiveUserData = await getEffectiveUserId();
-      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      const isSchoolUser = effectiveUserData?.isSchoolUser || false;
+      console.log('[ProgressPage] Cargando KPIs para usuario:', userId);
       
+      // Primero intentar obtener KPIs existentes
+      let kpis = await kpiService.getUserKPIs(userId);
+      
+      // Solo actualizar si no hay KPIs o si son muy antiguos (más de 1 hora)
+      const shouldUpdate = !kpis || !kpis.ultimaActualizacion || 
+        (Date.now() - (kpis.ultimaActualizacion?.toDate?.()?.getTime() || 0)) > 3600000;
+      
+      if (shouldUpdate) {
+        console.log('[ProgressPage] Actualizando KPIs...');
+        await kpiService.updateUserKPIs(userId);
+        // Obtener KPIs actualizados
+        kpis = await kpiService.getUserKPIs(userId);
+      } else {
+        console.log('[ProgressPage] Usando KPIs existentes (actualizados hace menos de 1 hora)');
+      }
+      
+      console.log('[ProgressPage] KPIs obtenidos:', kpis);
+      
+      return kpis;
+      
+    } catch (error) {
+      console.error('[ProgressPage] Error cargando KPIs:', error);
+      return null;
+    }
+  };
+
+  const loadMaterias = async (userId: string, isSchoolUser: boolean, kpis: any) => {
+    try {
       console.log('[ProgressPage] Cargando materias, usuario escolar:', isSchoolUser);
       
       const materiasArray: Materia[] = [];
       
-      if (isSchoolUser && kpisData?.materias) {
+      if (isSchoolUser && kpis?.materias) {
         // Para usuarios escolares, usar las materias de los KPIs
         console.log('[ProgressPage] Usuario escolar detectado, extrayendo materias de KPIs');
-        console.log('[ProgressPage] KPIs materias:', kpisData.materias);
         
-        // Obtener los nombres reales de las materias desde schoolSubjects
-        for (const [materiaId, materiaData] of Object.entries(kpisData.materias)) {
-          console.log('[ProgressPage] Procesando materia:', materiaId, materiaData);
+        // Obtener todas las IDs de materias
+        const materiaIds = Object.keys(kpis.materias);
+        
+        // Cargar todos los documentos de materias en paralelo
+        const materiaPromises = materiaIds.map(materiaId => 
+          getDoc(doc(db, 'schoolSubjects', materiaId))
+        );
+        
+        const materiaDocs = await Promise.all(materiaPromises);
+        
+        // Procesar los resultados
+        materiaDocs.forEach((subjectDoc, index) => {
+          const materiaId = materiaIds[index];
+          let nombreMateria = 'Sin nombre';
           
-          try {
-            // Buscar el nombre real de la materia en schoolSubjects
-            const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
-            let nombreMateria = 'Sin nombre';
-            
-            if (subjectDoc.exists()) {
-              const subjectData = subjectDoc.data();
-              nombreMateria = subjectData.nombre || subjectData.name || 'Sin nombre';
-              console.log('[ProgressPage] Nombre de materia encontrado:', nombreMateria);
-            } else {
-              console.log('[ProgressPage] No se encontró el documento de la materia:', materiaId);
-            }
-            
-            materiasArray.push({
-              id: materiaId,
-              nombre: nombreMateria
-            });
-          } catch (error) {
-            console.error('[ProgressPage] Error obteniendo nombre de materia:', error);
-            materiasArray.push({
-              id: materiaId,
-              nombre: (materiaData as any).nombreMateria || 'Sin nombre'
-            });
+          if (subjectDoc.exists()) {
+            const subjectData = subjectDoc.data();
+            nombreMateria = subjectData.nombre || subjectData.name || 'Sin nombre';
           }
-        }
+          
+          materiasArray.push({
+            id: materiaId,
+            nombre: nombreMateria
+          });
+        });
         console.log('[ProgressPage] Materias extraídas de KPIs:', materiasArray);
       } else {
         // Para usuarios regulares, buscar en la colección materias
@@ -1162,67 +1167,16 @@ const ProgressPage: React.FC = () => {
               <div className="charts-container">
                 <div className="chart-section">
                   <h3><FontAwesomeIcon icon={faChartLine} className="chart-icon" /> Posicionamiento Histórico</h3>
-                  {positionHistoryData.length > 0 && positionHistoryData.every(d => d.posicion === positionHistoryData[0].posicion) && (
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem', textAlign: 'center' }}>
-                      El historial de posiciones se irá construyendo con el tiempo
-                    </div>
-                  )}
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={positionHistoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="semana" 
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                      />
-                      <YAxis 
-                        reversed 
-                        domain={[1, Math.max(5, Math.max(...positionHistoryData.map(d => d.posicion)) + 1)]} 
-                        ticks={Array.from({length: Math.min(10, Math.max(5, Math.max(...positionHistoryData.map(d => d.posicion)) + 1))}, (_, i) => i + 1)}
-                        label={{ value: 'Posición', angle: -90, position: 'insideLeft' }}
-                      />
-                      <Tooltip 
-                        formatter={(value: any) => [`Posición #${value}`, 'Ranking']}
-                        labelFormatter={(label) => `Semana del ${label}`}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="posicion" 
-                        stroke="#8B5CF6" 
-                        strokeWidth={3}
-                        dot={{ fill: '#8B5CF6', r: 6 }}
-                        activeDot={{ r: 8 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <Suspense fallback={<ChartLoadingPlaceholder height={250} />}>
+                    <PositionHistoryChart data={positionHistoryData} />
+                  </Suspense>
                 </div>
 
                 <div className="chart-section">
                   <h3><FontAwesomeIcon icon={faCalendarAlt} className="chart-icon" /> Tiempo de Estudio Semanal</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={studyTimeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="dia" />
-                      <YAxis 
-                        label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
-                        tickFormatter={(value) => `${value}m`}
-                      />
-                      <Tooltip 
-                        formatter={(value: any) => [`${value} minutos`, 'Tiempo de estudio']}
-                        labelFormatter={(label) => `${label}`}
-                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb' }}
-                      />
-                      <Bar 
-                        dataKey="tiempo" 
-                        fill="#10B981" 
-                        radius={[8, 8, 0, 0]}
-                        animationDuration={800}
-                      >
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <Suspense fallback={<ChartLoadingPlaceholder height={250} />}>
+                    <WeeklyStudyChart data={studyTimeData} />
+                  </Suspense>
                 </div>
               </div>
 

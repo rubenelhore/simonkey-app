@@ -1170,19 +1170,8 @@ const StudyModePage = () => {
         // Mensaje eliminado por solicitud del usuario
       }
       
-      // IMPORTANTE: Actualizar SM-3 con los resultados finales después del Mini Quiz
-      console.log('🎯 Actualizando SM-3 después del Mini Quiz...');
-      console.log(`📊 Total de conceptos con resultados finales: ${conceptFinalResults.size}`);
-      
-      // Actualizar cada concepto con su resultado de primera pasada
-      for (const [conceptId, quality] of conceptFinalResults) {
-        try {
-          await studyService.updateConceptResponse(userKey, conceptId, quality);
-          console.log(`✅ SM-3 actualizado para concepto ${conceptId} con calidad ${quality}`);
-        } catch (error) {
-          console.error(`Error actualizando SM-3 para concepto ${conceptId}:`, error);
-        }
-      }
+      // NOTA: NO actualizamos SM-3 aquí porque ya se actualizó en completeStudySession
+      console.log('ℹ️ SM-3 ya fue actualizado en completeStudySession, no se actualiza de nuevo después del Mini Quiz');
       
       // Actualizar KPIs del usuario después del Mini Quiz
       try {

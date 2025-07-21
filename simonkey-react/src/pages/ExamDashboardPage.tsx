@@ -103,6 +103,8 @@ const ExamDashboardPage: React.FC = () => {
       console.log(`📝 Intentos encontrados: ${attemptsSnapshot.size}`);
       
       const attemptsByStudent = new Map<string, ExamAttempt>();
+      const allAttempts: ExamAttempt[] = [];
+      
       attemptsSnapshot.forEach(doc => {
         const attempt = { id: doc.id, ...doc.data() } as ExamAttempt;
         console.log('📄 Intento:', {
@@ -111,7 +113,31 @@ const ExamDashboardPage: React.FC = () => {
           status: attempt.status,
           score: attempt.score
         });
-        attemptsByStudent.set(attempt.studentId, attempt);
+        allAttempts.push(attempt);
+      });
+      
+      // Agrupar intentos por estudiante y seleccionar el más relevante
+      allAttempts.forEach(attempt => {
+        const existingAttempt = attemptsByStudent.get(attempt.studentId);
+        
+        if (!existingAttempt) {
+          attemptsByStudent.set(attempt.studentId, attempt);
+        } else {
+          // Priorizar intentos completados sobre otros estados
+          if (attempt.status === 'completed' && existingAttempt.status !== 'completed') {
+            attemptsByStudent.set(attempt.studentId, attempt);
+          } else if (attempt.status === 'completed' && existingAttempt.status === 'completed') {
+            // Si ambos están completados, usar el más reciente
+            const attemptDate = attempt.completedAt?.toDate() || new Date(0);
+            const existingDate = existingAttempt.completedAt?.toDate() || new Date(0);
+            if (attemptDate > existingDate) {
+              attemptsByStudent.set(attempt.studentId, attempt);
+            }
+          } else if (existingAttempt.status !== 'completed' && attempt.status === 'in_progress') {
+            // Priorizar in_progress sobre not_started
+            attemptsByStudent.set(attempt.studentId, attempt);
+          }
+        }
       });
       
       // Construir resultados

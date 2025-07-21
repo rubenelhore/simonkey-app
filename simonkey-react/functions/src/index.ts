@@ -117,6 +117,79 @@ const getSubscriptionLimits = (subscriptionType: string) => {
 };
 
 /**
+ * Función helper para reintentar llamadas a Gemini con backoff exponencial y fallback de modelo
+ */
+async function retryWithModelFallback<T>(
+  primaryFn: () => Promise<T>,
+  fallbackFn: () => Promise<T>,
+  maxRetries: number = 2,
+  initialDelay: number = 1000
+): Promise<T> {
+  let lastError: any;
+  let currentModel = "gemini-1.5-flash";
+  
+  // Primero intentar con el modelo principal (gemini-1.5-flash)
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      logger.info(`🤖 Intentando con modelo ${currentModel} (intento ${i + 1}/${maxRetries})`);
+      return await primaryFn();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Solo reintentar si es un error 503 (servicio sobrecargado)
+      if (error.message?.includes('503') || error.message?.includes('overloaded')) {
+        if (i < maxRetries - 1) {
+          const delay = initialDelay * Math.pow(2, i); // Backoff exponencial
+          logger.warn(`⏳ Modelo ${currentModel} sobrecargado. Reintentando en ${delay}ms`, {
+            error: error.message,
+            attempt: i + 1,
+            delay
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } else {
+        // Si no es un error 503, lanzar inmediatamente
+        throw error;
+      }
+    }
+  }
+  
+  // Si el modelo principal falló, intentar con el modelo de fallback (gemini-2.0-flash)
+  currentModel = "gemini-2.0-flash";
+  logger.info(`🔄 Cambiando a modelo de respaldo: ${currentModel}`);
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      logger.info(`🤖 Intentando con modelo ${currentModel} (intento ${i + 1}/${maxRetries})`);
+      return await fallbackFn();
+    } catch (error: any) {
+      lastError = error;
+      
+      if (error.message?.includes('503') || error.message?.includes('overloaded')) {
+        if (i < maxRetries - 1) {
+          const delay = initialDelay * Math.pow(2, i);
+          logger.warn(`⏳ Modelo ${currentModel} también sobrecargado. Reintentando en ${delay}ms`, {
+            error: error.message,
+            attempt: i + 1,
+            delay
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+  
+  // Si llegamos aquí, ambos modelos fallaron
+  throw new HttpsError(
+    "unavailable",
+    `Los servicios de IA están temporalmente sobrecargados. Por favor, intenta nuevamente en unos minutos.`,
+    lastError
+  );
+}
+
+/**
  * Función para eliminar completamente todos los datos de un usuario
  * Esta función reemplaza la compleja lógica del cliente con operaciones optimizadas del servidor
  */
@@ -2392,9 +2465,10 @@ export const generateConceptsFromFile = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini
+      // Inicializar Gemini con ambos modelos
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       // Determinar el tipo MIME basado en el nombre del archivo
       const getMimeType = (filename: string): string => {
@@ -2496,11 +2570,10 @@ Responde ÚNICAMENTE con este JSON válido:
           });
           
           // Para archivos grandes, usar configuración más conservadora
-          if (fileSizeMB > 10) {
-            result = await model.generateContent([prompt, fileData]);
-          } else {
-            result = await model.generateContent([prompt, fileData]);
-          }
+          result = await retryWithModelFallback(
+            async () => await primaryModel.generateContent([prompt, fileData]),
+            async () => await fallbackModel.generateContent([prompt, fileData])
+          );
           
           logger.info("✅ Archivo procesado exitosamente", { 
             fileName,
@@ -2528,7 +2601,10 @@ Responde ÚNICAMENTE con este JSON válido:
       } else {
         // Procesar como texto plano (fallback)
         logger.info("📝 Procesando como texto plano", { contentLength: fileContent?.length });
-        result = await model.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`);
+        result = await retryWithModelFallback(
+          async () => await primaryModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`),
+          async () => await fallbackModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`)
+        );
       }
 
       const response = await result.response;
@@ -2758,9 +2834,10 @@ export const explainConcept = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini
+      // Inicializar Gemini con ambos modelos
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       // Prompt adaptado a la dificultad
       const difficultyPrompts = {
@@ -2786,7 +2863,10 @@ Proporciona una explicación de máximo ${limits.maxExplanationLength} caractere
 Responde de manera directa y útil para el estudio.
 `;
 
-      const result = await model.generateContent(prompt);
+      const result = await retryWithModelFallback(
+        async () => await primaryModel.generateContent(prompt),
+        async () => await fallbackModel.generateContent(prompt)
+      );
       const response = await result.response;
       const explanation = response.text().trim();
 
@@ -2905,9 +2985,10 @@ export const generateContent = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini
+      // Inicializar Gemini con ambos modelos
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       // Construir prompt según el tipo de contenido
       let enhancedPrompt = prompt;
@@ -2957,7 +3038,10 @@ export const generateContent = onCall(
           enhancedPrompt = prompt;
       }
 
-      const result = await model.generateContent(enhancedPrompt);
+      const result = await retryWithModelFallback(
+        async () => await primaryModel.generateContent(enhancedPrompt),
+        async () => await fallbackModel.generateContent(enhancedPrompt)
+      );
       const response = await result.response;
       const content = response.text().trim();
 

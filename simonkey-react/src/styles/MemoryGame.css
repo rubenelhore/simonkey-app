@@ -158,8 +158,8 @@
   perspective: 1000px;
   cursor: pointer;
   position: relative;
-  width: 160px !important;
-  height: 160px !important;
+  width: 200px !important;
+  height: 200px !important;
   margin: 0 auto;
   display: block !important;
   box-sizing: border-box !important;
@@ -236,25 +236,26 @@
   padding: 0 !important;
   display: block !important;
   flex: none !important;
-  width: 160px !important;
-  height: 160px !important;
+  width: 200px !important;
+  height: 200px !important;
   line-height: normal !important;
 }
 
 .card-back p {
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 1rem;
+  line-height: 1.5;
   color: #1f2937;
   margin: 0;
   word-wrap: break-word;
   font-weight: 500;
-  max-height: 100px;
-  overflow-y: auto;
+  max-height: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  padding: 12px;
 }
 
 .card-type-label {
@@ -526,19 +527,21 @@
   }
 
   .memory-card {
-    width: 120px !important;
-    height: 120px !important;
+    width: 150px !important;
+    height: 150px !important;
   }
   
   @media (max-width: 480px) {
     .memory-card {
-      width: 100px !important;
-      height: 100px !important;
+      width: 130px !important;
+      height: 130px !important;
     }
   }
 
   .card-back p {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    -webkit-line-clamp: 5;
+    max-height: 110px;
   }
 
   .game-stats {

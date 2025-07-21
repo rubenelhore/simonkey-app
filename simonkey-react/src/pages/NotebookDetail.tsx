@@ -600,9 +600,23 @@ const NotebookDetail = () => {
       } else {
         alert("No se pudieron generar conceptos. Por favor, intenta de nuevo.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating concepts:", error);
-      alert("Error al generar conceptos. Por favor, intenta de nuevo.");
+      
+      // Manejo específico de errores
+      let errorMessage = "Error al generar conceptos. Por favor, intenta de nuevo.";
+      
+      if (error.message?.includes('overloaded') || error.message?.includes('503')) {
+        errorMessage = "El servicio de IA está temporalmente sobrecargado. Por favor, espera unos minutos e intenta nuevamente.";
+      } else if (error.message?.includes('quota exceeded')) {
+        errorMessage = "Has alcanzado el límite diario de generación de conceptos. Intenta nuevamente mañana.";
+      } else if (error.message?.includes('file too large')) {
+        errorMessage = "El archivo es demasiado grande. Por favor, intenta con un archivo más pequeño.";
+      } else if (error.message?.includes('unsupported file type')) {
+        errorMessage = "Tipo de archivo no soportado. Por favor, usa archivos PDF, TXT, DOC o DOCX.";
+      }
+      
+      alert(errorMessage);
     } finally {
       console.log('🏁 Finally block: desactivando cargando');
       setCargando(false);
