@@ -44,14 +44,18 @@
   width: 100%;
   max-width: 700px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
   padding: 0 20px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .header-text {
   white-space: nowrap;
   color: #111827;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-arrow {
@@ -62,10 +66,18 @@
   margin: 0 8px;
 }
 
+.header-separator {
+  margin: 0 8px;
+  color: #b4b4b4;
+  font-weight: 400;
+  font-size: 1.1em;
+}
+
 .header-highlight {
   white-space: nowrap;
   color: #4f46e5;
   font-weight: 800;
+  margin-left: 8px;
 }
 
 /* Sección de características */
@@ -153,8 +165,8 @@
   }
 
   .join-simonkey-header {
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    gap: 4px;
   }
 
   .header-text,
@@ -163,8 +175,12 @@
   }
 
   .header-arrow {
-    transform: rotate(90deg);
-    margin: 4px 0;
+    transform: none;
+    margin: 0 6px;
+  }
+
+  .header-highlight {
+    margin-left: 6px;
   }
 
   .join-simonkey-features {
