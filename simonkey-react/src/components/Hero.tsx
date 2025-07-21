@@ -27,7 +27,7 @@ const Hero: React.FC = () => {
             <div className="hero-image">
             <img
               src="/img/imagen.jpg"
-              alt="Mascota Simio Simón estudiando"
+              alt="Simio Simón estudiando"
               className="hero-img"
               style={{ width: '70%', height: 'auto' }}
             />

@@ -16,7 +16,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "@google-cloud/error-reporting": "^3.0.5",
-    "@google-cloud/monitoring": "^5.2.0",
+    "@google-cloud/monitoring": "^5.3.0",
     "@google-cloud/storage": "^7.0.0",
     "@google-cloud/tasks": "^5.0.0",
     "@google/generative-ai": "^0.21.0",
