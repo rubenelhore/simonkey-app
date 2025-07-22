@@ -97,8 +97,25 @@ const Materias: React.FC = () => {
           userId: docSnap.data().userId,
           createdAt: docSnap.data().createdAt?.toDate() || new Date(),
           updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-          notebookCount: docSnap.data().notebookCount || 0
+          notebookCount: 0 // Will be calculated below
         }));
+
+        // Calculate notebook count for each materia
+        for (const materia of materiasData) {
+          try {
+            const notebooksQuery = query(
+              collection(db, 'notebooks'),
+              where('userId', '==', user.uid),
+              where('materiaId', '==', materia.id)
+            );
+            const notebooksSnap = await getDocs(notebooksQuery);
+            materia.notebookCount = notebooksSnap.size;
+          } catch (error) {
+            console.error(`Error counting notebooks for materia ${materia.id}:`, error);
+            materia.notebookCount = 0;
+          }
+        }
+
         setMaterias(materiasData);
         setError(null);
         // Racha optimizada
