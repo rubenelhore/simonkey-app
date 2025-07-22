@@ -1639,6 +1639,9 @@
   align-items: center;
   cursor: pointer;
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .material-card:hover {
@@ -1657,6 +1660,8 @@
   align-items: center;
   gap: 0.75rem;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .material-info i {
@@ -1671,6 +1676,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .material-size {

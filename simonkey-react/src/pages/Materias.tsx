@@ -530,12 +530,17 @@ const Materias: React.FC = () => {
   };
 
   const handleView = (materiaId: string) => {
+    // Find the materia to get its name
+    const materia = materias.find(m => m.id === materiaId);
+    if (!materia) return;
+    
     // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
     if (isSchoolStudent) {
       navigate(`/school/student/materia/${materiaId}`);
     } else {
-      // Los demás usuarios navegan a la ruta normal
-      navigate(`/materias/${materiaId}/notebooks`);
+      // Los demás usuarios navegan a la ruta normal usando el nombre de la materia
+      const encodedName = encodeURIComponent(materia.title);
+      navigate(`/materias/${encodedName}/notebooks`);
     }
   };
 
