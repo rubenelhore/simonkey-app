@@ -945,6 +945,7 @@ const Materias: React.FC = () => {
           )}
         </div>
       </main>
+<<<<<<< HEAD
       
       {/* Modal para crear nueva materia */}
       {showCreateModal && (

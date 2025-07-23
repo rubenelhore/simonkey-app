@@ -14,7 +14,15 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:simonkey.ai)",
+      "Bash(firebase hosting:channel:*)",
+      "Bash(git stash:*)",
+      "Bash(mv:*)",
+      "Bash(tail:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }
