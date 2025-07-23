@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../services/firebase';
 import { doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, collection, where, getDocs } from 'firebase/firestore';
@@ -18,6 +18,15 @@ const ConceptDetail: React.FC = () => {
     index: string 
   }>();
   const navigate = useNavigate();
+  
+  // Debug: Ver parámetros de URL (comentado para producción)
+  // console.log('🌐 Parámetros de URL recibidos:', {
+  //   notebookName,
+  //   conceptoId,
+  //   index,
+  //   fullURL: window.location.href,
+  //   pathname: window.location.pathname
+  // });
   const [notebookId, setNotebookId] = useState<string | null>(null);
   const [concepto, setConcepto] = useState<Concept | null>(null);
   const [cuaderno, setCuaderno] = useState<any>(null);
@@ -54,8 +63,8 @@ const ConceptDetail: React.FC = () => {
   // Usar el hook para detectar el tipo de usuario (MUST be before any useEffect that uses it)
   const { isSchoolUser } = useUserType();
   
-  // Log para debug
-  console.log('🎓 ConceptDetail - isSchoolUser:', isSchoolUser);
+  // Ref para evitar re-fetches innecesarios
+  const lastFetchParamsRef = useRef<string>('');
 
   // Effect to find notebookId by notebookName
   useEffect(() => {
@@ -79,10 +88,14 @@ const ConceptDetail: React.FC = () => {
         
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
+          console.log('📖 Estableciendo notebookId:', doc.id);
           setNotebookId(doc.id);
+          setError(null); // Limpiar error previo
           console.log('Cuaderno encontrado:', doc.id);
         } else {
-          console.error('No se encontró el cuaderno:', decodedName);
+          console.error('❌ No se encontró el cuaderno:', decodedName);
+          setNotebookId(null);
+          setError('Cuaderno no encontrado');
         }
       } catch (error) {
         console.error('Error finding notebook by name:', error);
@@ -114,10 +127,52 @@ const ConceptDetail: React.FC = () => {
   };
 
   useEffect(() => {
+    // console.log('🔄 useEffect fetchData ejecutándose con:', {
+    //   notebookId,
+    //   conceptoId, 
+    //   index,
+    //   isSchoolUser,
+    //   loading
+    // });
+    
     const fetchData = async () => {
+      // Crear un hash de los parámetros para evitar fetches duplicados
+      const currentParams = `${notebookId}-${conceptoId}-${index}-${isSchoolUser}`;
+      if (lastFetchParamsRef.current === currentParams) {
+        // console.log('⏸️ Evitando fetch duplicado con los mismos parámetros');
+        return;
+      }
+      lastFetchParamsRef.current = currentParams;
+      
+      // console.log('🔍 Verificando parámetros:', {
+      //   notebookId,
+      //   conceptoId,
+      //   index,
+      //   notebookIdType: typeof notebookId,
+      //   conceptoIdType: typeof conceptoId,
+      //   indexType: typeof index,
+      //   notebookIdTruthy: !!notebookId,
+      //   conceptoIdTruthy: !!conceptoId,
+      //   indexUndefined: index === undefined
+      // });
+      
       if (!notebookId || !conceptoId || index === undefined) {
-        setError("Información insuficiente para cargar el concepto");
-        setLoading(false);
+        console.error('❌ Información insuficiente - detalles:', { 
+          notebookId, 
+          conceptoId, 
+          index,
+          failedCondition: {
+            noNotebookId: !notebookId,
+            noConceptoId: !conceptoId, 
+            indexUndefined: index === undefined
+          }
+        });
+        
+        // Solo establecer error si no estamos esperando que se resuelva notebookId
+        if (!notebookName || conceptoId === undefined || index === undefined) {
+          setError("Información insuficiente para cargar el concepto");
+          setLoading(false);
+        }
         return;
       }
   
@@ -129,28 +184,43 @@ const ConceptDetail: React.FC = () => {
         const cuadernoRef = doc(db, notebooksCollection, notebookId);
         const conceptoRef = doc(db, conceptsCollection, conceptoId);
         
+        console.log('🔍 Buscando concepto en colección:', conceptsCollection);
+        console.log('🔍 ConceptoId:', conceptoId);
+        console.log('🔍 NotebookId:', notebookId);
+        
         // Obtener los datos en paralelo
         const [cuadernoSnap, conceptoSnap] = await Promise.all([
           getDoc(cuadernoRef),
           getDoc(conceptoRef),
         ]);
         
+        console.log('📚 Cuaderno existe:', cuadernoSnap.exists());
+        console.log('💡 Concepto existe:', conceptoSnap.exists());
+        
         if (!cuadernoSnap.exists()) {
+          console.error('❌ El cuaderno no existe:', notebookId);
           setError("El cuaderno no existe");
           setLoading(false);
           return;
         }
         
         if (!conceptoSnap.exists()) {
+          console.error('❌ El concepto no existe:', conceptoId);
           setError("El concepto no existe");
           setLoading(false);
           return;
         }
         
+        console.log('✅ Datos encontrados, procesando...');
+        
         setCuaderno({ id: cuadernoSnap.id, ...cuadernoSnap.data() });
         
         const conceptos = conceptoSnap.data().conceptos;
         const idx = parseInt(index);
+        
+        console.log('📋 Total conceptos en documento:', conceptos?.length || 0);
+        console.log('📍 Índice solicitado:', idx);
+        console.log('📄 Datos del documento concepto:', conceptoSnap.data());
         
         // IMPORTANTE: NO actualizar el total aquí para school students
         // El listener se encargará de contar TODOS los conceptos de TODOS los documentos
@@ -158,13 +228,16 @@ const ConceptDetail: React.FC = () => {
           setTotalConcepts(conceptos.length);
         }
         
-        if (idx < 0 || idx >= conceptos.length) {
+        if (!conceptos || idx < 0 || idx >= conceptos.length) {
+          console.error('❌ Índice fuera de rango:', { idx, totalConceptos: conceptos?.length || 0 });
           setError("Índice de concepto fuera de rango");
           setLoading(false);
           return;
         }
         
         const conceptoData = conceptos[idx];
+        console.log('🎯 Concepto seleccionado:', conceptoData);
+        
         setConcepto(conceptoData);
         setCurrentIndex(idx);
         
@@ -186,6 +259,7 @@ const ConceptDetail: React.FC = () => {
           setConceptProgress(progress);
         }
 
+        console.log('🎉 Concepto cargado exitosamente:', conceptoData.término || conceptoData.titulo);
         setLoading(false);
         setIsNavigating(false); // Reset navigation state after loading
 
@@ -765,6 +839,7 @@ const ConceptDetail: React.FC = () => {
   };
 
   if (loading) {
+    console.log('⏳ Mostrando loading state');
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -773,7 +848,23 @@ const ConceptDetail: React.FC = () => {
     );
   }
 
+  // Debug: Verificar estado antes del render (comentado para producción)
+  // console.log('🎨 Estado antes del render:', {
+  //   loading,
+  //   error,
+  //   concepto: !!concepto,
+  //   cuaderno: !!cuaderno,
+  //   conceptoTerm: concepto?.término,
+  //   conceptoDefinition: concepto?.definición
+  // });
+
   if (error || !concepto || !cuaderno) {
+    console.log('❌ No se puede renderizar:', {
+      error,
+      hasConcepto: !!concepto,
+      hasCuaderno: !!cuaderno
+    });
+    
     return (
       <div className="error-container">
         <h2>Error</h2>
@@ -787,6 +878,8 @@ const ConceptDetail: React.FC = () => {
       </div>
     );
   }
+
+  // console.log('✅ Renderizando concepto:', concepto?.término);
 
   return (
     <div className="concept-detail-container">

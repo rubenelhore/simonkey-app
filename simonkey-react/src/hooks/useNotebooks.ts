@@ -12,15 +12,15 @@ export const useNotebooks = () => {
 
   useEffect(() => {
     if (!user || !effectiveUserId) {
-      console.log('👤 No hay usuario autenticado, limpiando cuadernos');
+      // console.log('👤 No hay usuario autenticado, limpiando cuadernos');
       setNotebooks([]);
       setLoading(false);
       return;
     }
 
-    console.log('🔄 Cargando cuadernos para usuario:', effectiveUserId);
-    console.log('🔍 UID de Firebase:', user.uid);
-    console.log('🔍 ID efectivo:', effectiveUserId);
+    // console.log('🔄 Cargando cuadernos para usuario:', effectiveUserId);
+    // console.log('🔍 UID de Firebase:', user.uid);
+    // console.log('🔍 ID efectivo:', effectiveUserId);
     setLoading(true);
     
     const notebooksQuery = query(
@@ -38,13 +38,13 @@ export const useNotebooks = () => {
           color: doc.data().color || '#6147FF' // Valor por defecto si no existe color
         })) as Notebook[];
         
-        console.log('📚 Cuadernos cargados:', notebooksList.length, 'cuadernos');
-        console.log('🔍 DEBUG - Datos completos de cuadernos:', notebooksList);
+        // console.log('📚 Cuadernos cargados:', notebooksList.length, 'cuadernos');
+        // console.log('🔍 DEBUG - Datos completos de cuadernos:', notebooksList);
         
         // Calcular conceptCount para cada notebook
         for (const notebook of notebooksList) {
           try {
-            console.log(`🔢 Calculando conceptos para cuaderno: ${notebook.title} (${notebook.id})`);
+            // console.log(`🔢 Calculando conceptos para cuaderno: ${notebook.title} (${notebook.id})`);
             
             // Buscar conceptos en la colección 'conceptos' filtrando por cuadernoId
             const conceptsQuery = query(
@@ -58,11 +58,11 @@ export const useNotebooks = () => {
             notebook.conceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
               const data = doc.data();
               const conceptosArray = data.conceptos || [];
-              console.log(`📝 Documento ${doc.id}: ${conceptosArray.length} conceptos`);
+              // console.log(`📝 Documento ${doc.id}: ${conceptosArray.length} conceptos`);
               return total + conceptosArray.length;
             }, 0);
             
-            console.log(`✅ Cuaderno "${notebook.title}": ${notebook.conceptCount} conceptos totales`);
+            // console.log(`✅ Cuaderno "${notebook.title}": ${notebook.conceptCount} conceptos totales`);
             
           } catch (error) {
             console.error(`❌ Error counting concepts for notebook ${notebook.id}:`, error);
@@ -70,17 +70,17 @@ export const useNotebooks = () => {
           }
         }
         
-        console.log('🔍 DEBUG - Cuadernos con categoría:', notebooksList.filter(n => n.category && n.category.trim() !== ''));
-        console.log('🔍 DEBUG - Cuadernos sin categoría:', notebooksList.filter(n => !n.category || n.category.trim() === ''));
+        // console.log('🔍 DEBUG - Cuadernos con categoría:', notebooksList.filter(n => n.category && n.category.trim() !== ''));
+        // console.log('🔍 DEBUG - Cuadernos sin categoría:', notebooksList.filter(n => !n.category || n.category.trim() === ''));
         
-        // Log detallado de cada cuaderno con categoría
-        notebooksList.forEach((notebook, index) => {
-          if (notebook.category && notebook.category.trim() !== '') {
-            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): categoría = "${notebook.category}", conceptos = ${notebook.conceptCount}`);
-          } else {
-            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): sin categoría, conceptos = ${notebook.conceptCount}`);
-          }
-        });
+        // Log detallado de cada cuaderno con categoría (comentado para producción)
+        // notebooksList.forEach((notebook, index) => {
+        //   if (notebook.category && notebook.category.trim() !== '') {
+        //     console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): categoría = "${notebook.category}", conceptos = ${notebook.conceptCount}`);
+        //   } else {
+        //     console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): sin categoría, conceptos = ${notebook.conceptCount}`);
+        //   }
+        // });
         
         setNotebooks(notebooksList);
         setLoading(false);
@@ -92,7 +92,14 @@ export const useNotebooks = () => {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        // Silenciar errores durante cleanup (esperado durante logout)
+        console.warn('⚠️ Error durante unsubscribe de notebooks (esperado durante logout):', error);
+      }
+    };
   }, [user, effectiveUserId]);
 
   return { notebooks, loading, error };

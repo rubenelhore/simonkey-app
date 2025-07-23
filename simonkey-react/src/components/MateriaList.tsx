@@ -124,6 +124,20 @@ const MateriaList: React.FC<MateriaListProps> = ({
     };
   }, [openActionsId]);
 
+  // Efecto para bloquear el body cuando el modal está abierto
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup al desmontar el componente
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showCreateModal]);
+
   const handleCreateMateria = async (e: React.FormEvent) => {
     e.preventDefault();
     

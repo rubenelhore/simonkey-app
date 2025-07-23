@@ -174,23 +174,39 @@ export const updateVerificationStats = async (userId: string): Promise<void> => 
 /**
  * Verifica el estado de verificación de email del usuario
  */
+// Cache para evitar múltiples llamadas al mismo usuario
+const verificationCache = new Map<string, { isVerified: boolean; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 segundos
+
 export const checkEmailVerificationStatus = async (user: User): Promise<boolean> => {
   try {
-    console.log('🔍 Verificando estado de email para:', user.email);
-    console.log('🔍 user.emailVerified (antes de reload):', user.emailVerified);
-    console.log('🔍 user.providerData:', user.providerData);
+    // Verificar cache primero
+    const cached = verificationCache.get(user.uid);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      return cached.isVerified;
+    }
     
-    // Recargar información del usuario
+    // Si ya está verificado localmente, no recargar
+    if (user.emailVerified) {
+      const result = { isVerified: true, timestamp: Date.now() };
+      verificationCache.set(user.uid, result);
+      
+      // Actualizar estado en Firestore silenciosamente
+      updateUserVerificationStatus(user.uid, true).catch(() => {});
+      
+      return true;
+    }
+    
+    // Solo recargar si no está verificado
     await reload(user);
     
     const isVerified = user.emailVerified;
-    console.log('🔍 user.emailVerified (después de reload):', isVerified);
-    console.log('📧 Estado de verificación:', isVerified ? 'Verificado' : 'No verificado');
+    const result = { isVerified, timestamp: Date.now() };
+    verificationCache.set(user.uid, result);
     
     // Actualizar estado en Firestore si está verificado
     if (isVerified) {
-      console.log('🔍 Actualizando estado en Firestore como verificado');
-      await updateUserVerificationStatus(user.uid, true);
+      updateUserVerificationStatus(user.uid, true).catch(() => {});
     }
     
     return isVerified;
@@ -204,8 +220,21 @@ export const checkEmailVerificationStatus = async (user: User): Promise<boolean>
 /**
  * Actualiza el estado de verificación de email en Firestore
  */
+// Cache para evitar múltiples actualizaciones del mismo estado
+const updateCache = new Map<string, boolean>();
+
 export const updateUserVerificationStatus = async (userId: string, isVerified: boolean): Promise<void> => {
   try {
+    // Evitar actualizaciones duplicadas
+    const cacheKey = `${userId}-${isVerified}`;
+    if (updateCache.has(cacheKey)) {
+      return;
+    }
+    updateCache.set(cacheKey, true);
+    
+    // Limpiar cache después de 1 minuto
+    setTimeout(() => updateCache.delete(cacheKey), 60000);
+    
     const updateData = {
       emailVerified: isVerified,
       emailVerificationStatus: {
@@ -216,12 +245,14 @@ export const updateUserVerificationStatus = async (userId: string, isVerified: b
     };
     
     await updateDoc(doc(db, 'users', userId), updateData);
-    console.log(`✅ Estado de verificación actualizado: ${isVerified ? 'verificado' : 'no verificado'}`);
     
   } catch (error: any) {
+    // Remover del cache si falló
+    updateCache.delete(`${userId}-${isVerified}`);
+    
     // Si es un error de permisos, solo logearlo pero no fallar
     if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
-      console.warn('⚠️ Error de permisos al actualizar estado de verificación (continuando):', error.message);
+      console.warn('⚠️ Error de permisos al actualizar estado de verificación');
     } else {
       console.error('Error actualizando estado de verificación:', error);
     }

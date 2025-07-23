@@ -97,7 +97,7 @@ const NotebookDetail = () => {
 
       try {
         const decodedName = decodeNotebookName(notebookName);
-        console.log('Buscando cuaderno con nombre:', decodedName);
+        // console.log('Buscando cuaderno con nombre:', decodedName);
 
         // Use the correct collection for school users
         const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isSchoolTeacher) ? 'schoolNotebooks' : 'notebooks';
@@ -110,7 +110,7 @@ const NotebookDetail = () => {
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
           setNotebookId(doc.id);
-          console.log('Cuaderno encontrado:', doc.id);
+          // console.log('Cuaderno encontrado:', doc.id);
         } else {
           console.error('No se encontró el cuaderno:', decodedName);
         }
@@ -178,7 +178,7 @@ const NotebookDetail = () => {
           })) as ConceptDoc[];
           
           setConceptosDocs(conceptosData);
-          console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
+          // console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
           
           // Cargar datos de aprendizaje para el semáforo
           if (auth.currentUser && conceptosData.length > 0) {
@@ -206,7 +206,7 @@ const NotebookDetail = () => {
               }
               
               setLearningDataMap(learningMap);
-              console.log('🚦 Datos de aprendizaje cargados para semáforo');
+              // console.log('🚦 Datos de aprendizaje cargados para semáforo');
             } catch (error) {
               console.warn('⚠️ Error cargando datos de aprendizaje:', error);
             }
@@ -222,7 +222,7 @@ const NotebookDetail = () => {
           setLoadingMaterials(true);
           const notebookMaterials = await MaterialService.getNotebookMaterials(notebookId);
           setMaterials(notebookMaterials);
-          console.log('📚 Materiales cargados:', notebookMaterials.length);
+          // console.log('📚 Materiales cargados:', notebookMaterials.length);
         } catch (materialsError) {
           console.warn('⚠️ Error cargando materiales:', materialsError);
           setMaterials([]);
@@ -291,6 +291,20 @@ const NotebookDetail = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isModalOpen, isPreviewOpen]);
+
+  // Efecto para bloquear el body cuando el modal está abierto
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup al desmontar el componente
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isModalOpen]);
 
   const SUPPORTED_EXTENSIONS = ['txt', 'csv', 'jpg', 'jpeg', 'pdf'];
   const SUPPORTED_MIME_TYPES = [
@@ -425,19 +439,19 @@ const NotebookDetail = () => {
   // Función para crear datos de aprendizaje iniciales para nuevos conceptos
   const createInitialLearningDataForConcepts = async (conceptIds: string[], userId: string, notebookId: string) => {
     try {
-      console.log('🚀 Creando datos de aprendizaje para conceptos:', conceptIds);
+      // console.log('🚀 Creando datos de aprendizaje para conceptos:', conceptIds);
       
       const { createInitialLearningData } = await import('../utils/sm3Algorithm');
       
       for (const conceptId of conceptIds) {
         const initialData = createInitialLearningData(conceptId);
         
-        console.log('📊 Datos iniciales para concepto', conceptId, ':', {
-          nextReviewDate: initialData.nextReviewDate.toISOString(),
-          easeFactor: initialData.easeFactor,
-          interval: initialData.interval,
-          repetitions: initialData.repetitions
-        });
+        // console.log('📊 Datos iniciales para concepto', conceptId, ':', {
+        //   nextReviewDate: initialData.nextReviewDate.toISOString(),
+        //   easeFactor: initialData.easeFactor,
+        //   interval: initialData.interval,
+        //   repetitions: initialData.repetitions
+        // });
         
         // Guardar en la colección de datos de aprendizaje
         const learningDataRef = doc(db, 'users', userId, 'learningData', conceptId);
@@ -448,10 +462,10 @@ const NotebookDetail = () => {
           createdAt: serverTimestamp()
         });
         
-        console.log('✅ Datos guardados para concepto:', conceptId);
+        // console.log('✅ Datos guardados para concepto:', conceptId);
       }
       
-      console.log(`✅ Datos de aprendizaje creados para ${conceptIds.length} conceptos`);
+      // console.log(`✅ Datos de aprendizaje creados para ${conceptIds.length} conceptos`);
     } catch (error) {
       console.error('❌ Error creando datos de aprendizaje:', error);
       // No lanzar error para no interrumpir el flujo principal
@@ -472,11 +486,11 @@ const NotebookDetail = () => {
     }
 
     // Debug logging
-    console.log('🔍 Debug generarConceptos:');
-    console.log('- User ID:', auth.currentUser.uid);
-    console.log('- Notebook ID:', notebookId);
-    console.log('- Files count:', archivos.length);
-    console.log('- Is school student:', isSchoolStudent);
+    // console.log('🔍 Debug generarConceptos:');
+    // console.log('- User ID:', auth.currentUser.uid);
+    // console.log('- Notebook ID:', notebookId);
+    // console.log('- Files count:', archivos.length);
+    // console.log('- Is school student:', isSchoolStudent);
 
     setCargando(true);
     setLoadingText("Procesando archivos...");
@@ -489,9 +503,9 @@ const NotebookDetail = () => {
         throw new Error('El cuaderno no existe');
       }
       
-      console.log('- Notebook data:', notebook);
-      console.log('- Notebook type:', notebook.type);
-      console.log('- Current user:', auth.currentUser.uid);
+      // console.log('- Notebook data:', notebook);
+      // console.log('- Notebook type:', notebook.type);
+      // console.log('- Current user:', auth.currentUser.uid);
       
       // Verificar permisos según el tipo de notebook
       if (notebook.type === 'personal' && notebook.userId !== auth.currentUser.uid) {
@@ -508,7 +522,7 @@ const NotebookDetail = () => {
       let uploadedMaterials: Material[] = [];
       try {
         uploadedMaterials = await MaterialService.uploadMultipleMaterials(archivos, notebookId);
-        console.log('📤 Materiales guardados:', uploadedMaterials.length);
+        // console.log('📤 Materiales guardados:', uploadedMaterials.length);
         
         // Actualizar la lista de materiales en el UI
         setMaterials([...materials, ...uploadedMaterials]);
@@ -524,22 +538,22 @@ const NotebookDetail = () => {
         notebook.type === 'school',
         uploadedMaterials.map(m => ({ id: m.id, name: m.name }))
       );
-      console.log('📁 Archivos procesados:', processedFiles.length);
+      // console.log('📁 Archivos procesados:', processedFiles.length);
       setLoadingText("Generando conceptos con IA...");
 
       // Generar conceptos usando Cloud Functions
-      console.log('🚀 Llamando a generateConcepts con:', {
-        filesCount: processedFiles.length,
-        notebookId: notebookId,
-        userId: auth.currentUser.uid
-      });
+      // console.log('🚀 Llamando a generateConcepts con:', {
+      //   filesCount: processedFiles.length,
+      //   notebookId: notebookId,
+      //   userId: auth.currentUser.uid
+      // });
       
       let results;
       try {
         results = await generateConcepts(processedFiles, notebookId);
-        console.log('✅ generateConcepts completado, resultados:', results);
-        console.log('📊 Tipo de resultados:', typeof results);
-        console.log('📊 Longitud de resultados:', Array.isArray(results) ? results.length : 'No es array');
+        // console.log('✅ generateConcepts completado, resultados:', results);
+        // console.log('📊 Tipo de resultados:', typeof results);
+        // console.log('📊 Longitud de resultados:', Array.isArray(results) ? results.length : 'No es array');
       } catch (cloudFunctionError: any) {
         console.error('❌ Error en Cloud Function:', cloudFunctionError);
         
@@ -567,28 +581,28 @@ const NotebookDetail = () => {
       }
 
       // Procesar resultados
-      console.log('🔄 Procesando resultados...');
+      // console.log('🔄 Procesando resultados...');
       let totalConcepts = 0;
       let conceptIds: string[] = [];
       
       for (const result of results) {
-        console.log('📋 Procesando resultado:', result);
+        // console.log('📋 Procesando resultado:', result);
         const data = result.data as any;
-        console.log('📋 Datos del resultado:', data);
+        // console.log('📋 Datos del resultado:', data);
         
         if (data?.success) {
           totalConcepts += data.conceptCount || 0;
           if (data.conceptIds) {
             conceptIds.push(...data.conceptIds);
           }
-          console.log('✅ Resultado procesado exitosamente');
+          // console.log('✅ Resultado procesado exitosamente');
         } else {
-          console.log('❌ Resultado no exitoso:', data);
+          // console.log('❌ Resultado no exitoso:', data);
         }
       }
       
-      console.log('📊 Total de conceptos:', totalConcepts);
-      console.log('📊 IDs de conceptos:', conceptIds);
+      // console.log('📊 Total de conceptos:', totalConcepts);
+      // console.log('📊 IDs de conceptos:', conceptIds);
 
       if (totalConcepts > 0) {
         setLoadingText("Creando datos de aprendizaje...");
@@ -600,10 +614,10 @@ const NotebookDetail = () => {
 
         // Intentar recargar los conceptos, pero no fallar si hay error de permisos
         try {
-          console.log('🔄 Recargando conceptos...');
+          // console.log('🔄 Recargando conceptos...');
           // Usar la colección correcta según el tipo de notebook
           const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
-          console.log('📚 Usando colección:', conceptsCollection);
+          // console.log('📚 Usando colección:', conceptsCollection);
           
           const q = query(
             collection(db, conceptsCollection),
@@ -615,7 +629,7 @@ const NotebookDetail = () => {
             ...doc.data()
           })) as ConceptDoc[];
           setConceptosDocs(conceptosData);
-          console.log('✅ Conceptos recargados exitosamente desde', conceptsCollection);
+          // console.log('✅ Conceptos recargados exitosamente desde', conceptsCollection);
         } catch (reloadError: any) {
           console.warn('⚠️ No se pudieron recargar los conceptos, pero se generaron correctamente:', reloadError.message);
           // No fallar aquí, los conceptos ya se generaron en la Cloud Function
@@ -624,16 +638,16 @@ const NotebookDetail = () => {
         // Los materiales ya fueron subidos al principio, no necesitamos hacerlo de nuevo
         setLoadingText("Finalizando...");
         
-        console.log('🎯 Punto de control: antes del alert de éxito');
+        // console.log('🎯 Punto de control: antes del alert de éxito');
         
         // Siempre mostrar éxito porque los conceptos se generaron
         alert(`¡Éxito! Se generaron ${totalConcepts} conceptos.`);
         
-        console.log('🎯 Punto de control: después del alert, cerrando modal');
+        // console.log('🎯 Punto de control: después del alert, cerrando modal');
         setIsModalOpen(false);
         setArchivos([]);
         
-        console.log('🎯 Punto de control: todo completado exitosamente');
+        // console.log('🎯 Punto de control: todo completado exitosamente');
       } else {
         alert("No se pudieron generar conceptos. Por favor, intenta de nuevo.");
       }
@@ -655,10 +669,10 @@ const NotebookDetail = () => {
       
       alert(errorMessage);
     } finally {
-      console.log('🏁 Finally block: desactivando cargando');
+      // console.log('🏁 Finally block: desactivando cargando');
       setCargando(false);
       setLoadingText("Cargando...");
-      console.log('🏁 Finally block: completado');
+      // console.log('🏁 Finally block: completado');
     }
   };
 
@@ -809,7 +823,7 @@ const NotebookDetail = () => {
     }
 
     try {
-      console.log('🗑️ Eliminando material y conceptos relacionados:', materialId);
+      // console.log('🗑️ Eliminando material y conceptos relacionados:', materialId);
       
       // 1. Eliminar conceptos relacionados con este material
       let deletedConceptsCount = 0;
@@ -818,7 +832,7 @@ const NotebookDetail = () => {
         const relatedConcepts = conceptDoc.conceptos.filter(concepto => concepto.materialId === materialId);
         
         if (relatedConcepts.length > 0) {
-          console.log(`📝 Eliminando ${relatedConcepts.length} conceptos del documento ${conceptDoc.id}`);
+          // console.log(`📝 Eliminando ${relatedConcepts.length} conceptos del documento ${conceptDoc.id}`);
           
           // Filtrar conceptos para mantener solo los que NO están relacionados con este material
           const remainingConcepts = conceptDoc.conceptos.filter(concepto => concepto.materialId !== materialId);
@@ -843,7 +857,7 @@ const NotebookDetail = () => {
             for (const concept of relatedConcepts) {
               try {
                 await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'learningData', concept.id));
-                console.log(`🗑️ Datos de aprendizaje eliminados para concepto: ${concept.id}`);
+                // console.log(`🗑️ Datos de aprendizaje eliminados para concepto: ${concept.id}`);
               } catch (learningError) {
                 console.warn(`⚠️ Error eliminando datos de aprendizaje para concepto ${concept.id}:`, learningError);
               }
@@ -872,7 +886,7 @@ const NotebookDetail = () => {
         })) as ConceptDoc[];
         
         setConceptosDocs(conceptosData);
-        console.log('✅ Conceptos recargados después de eliminación');
+        // console.log('✅ Conceptos recargados después de eliminación');
       } catch (reloadError) {
         console.warn('⚠️ Error recargando conceptos:', reloadError);
       }
@@ -902,115 +916,115 @@ const NotebookDetail = () => {
     setIsModalOpen(true);
   };
 
-  // Exponer funciones de diagnóstico en window para debugging
-  useEffect(() => {
-    (window as any).diagnosticarConceptos = async () => {
-      console.log('🔍 DIAGNÓSTICO DE CONCEPTOS');
-      console.log('========================');
-      
-      // 1. Verificar estado del componente
-      console.log('1. Estado del componente:');
-      console.log('- conceptosDocs:', conceptosDocs);
-      console.log('- cuaderno:', cuaderno);
-      console.log('- isSchoolStudent:', isSchoolStudent);
-      console.log('- notebookId:', notebookId);
-      
-      // 2. Verificar conceptos en Firestore
-      console.log('\n2. Verificando conceptos en Firestore...');
-      try {
-        // Verificar en la colección normal
-        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
-        const q = query(
-          collection(db, conceptsCollection),
-          where('cuadernoId', '==', notebookId)
-        );
-        const querySnapshot = await getDocs(q);
-        const conceptos = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ConceptDoc[];
-        
-        console.log('Conceptos encontrados en colección "conceptos":', conceptos.length);
-        conceptos.forEach((doc, index) => {
-          console.log(`Documento ${index + 1}:`, {
-            id: doc.id,
-            cuadernoId: doc.cuadernoId,
-            usuarioId: doc.usuarioId,
-            conceptosCount: doc.conceptos?.length || 0,
-            conceptos: doc.conceptos?.slice(0, 3) // Mostrar solo los primeros 3 conceptos
-          });
-        });
-        
-        // Verificar en la colección escolar también
-        const qSchool = query(
-          collection(db, 'schoolConcepts'),
-          where('cuadernoId', '==', notebookId)
-        );
-        const querySnapshotSchool = await getDocs(qSchool);
-        const conceptosSchool = querySnapshotSchool.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ConceptDoc[];
-        
-        console.log('Conceptos encontrados en colección "schoolConcepts":', conceptosSchool.length);
-        
-        // 3. Verificar documento específico mencionado en logs
-        console.log('\n3. Verificando documento específico...');
-        try {
-          // Verificar el documento más reciente de los logs
-          const docRef = doc(db, 'conceptos', 'C3Yw2kQVEDSVS3KuDwsv');
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            console.log('✅ Documento C3Yw2kQVEDSVS3KuDwsv existe:', docSnap.data());
-          } else {
-            console.log('❌ Documento C3Yw2kQVEDSVS3KuDwsv no existe');
-          }
-          
-          // Verificar también el documento anterior
-          const docRef2 = doc(db, 'conceptos', '5eXXjwmiHKYaocMPpfBL');
-          const docSnap2 = await getDoc(docRef2);
-          if (docSnap2.exists()) {
-            console.log('✅ Documento 5eXXjwmiHKYaocMPpfBL existe:', docSnap2.data());
-          } else {
-            console.log('❌ Documento 5eXXjwmiHKYaocMPpfBL no existe');
-          }
-        } catch (error) {
-          console.log('❌ Error verificando documento específico:', error);
-        }
-        
-        // 4. Forzar recarga
-        console.log('\n4. Forzando recarga de conceptos...');
-        const allConceptos = [...conceptos, ...conceptosSchool];
-        setConceptosDocs(allConceptos);
-        console.log('✅ Estado actualizado con', allConceptos.length, 'documentos');
-        
-        // 5. Verificar permisos
-        console.log('\n5. Verificando permisos...');
-        try {
-          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
-          const testQuery = query(collection(db, conceptsCollection), where('cuadernoId', '==', notebookId));
-          await getDocs(testQuery);
-          console.log('✅ Permisos de lectura OK en colección:', conceptsCollection);
-        } catch (error) {
-          console.log('❌ Error de permisos:', error);
-        }
-        
-      } catch (error) {
-        console.log('❌ Error general:', error);
-      }
-    };
-    
-    (window as any).setConceptosDocs = setConceptosDocs;
-    (window as any).conceptosDocs = conceptosDocs;
-    (window as any).cuaderno = cuaderno;
-    
-    return () => {
-      delete (window as any).diagnosticarConceptos;
-      delete (window as any).setConceptosDocs;
-      delete (window as any).conceptosDocs;
-      delete (window as any).cuaderno;
-    };
-  }, [conceptosDocs, cuaderno, notebookId, isSchoolStudent]);
+  // Exponer funciones de diagnóstico en window para debugging (comentado para reducir logs)
+  // useEffect(() => {
+  //   (window as any).diagnosticarConceptos = async () => {
+  //     console.log('🔍 DIAGNÓSTICO DE CONCEPTOS');
+  //     console.log('========================');
+  //     
+  //     // 1. Verificar estado del componente
+  //     console.log('1. Estado del componente:');
+  //     console.log('- conceptosDocs:', conceptosDocs);
+  //     console.log('- cuaderno:', cuaderno);
+  //     console.log('- isSchoolStudent:', isSchoolStudent);
+  //     console.log('- notebookId:', notebookId);
+  //     
+  //     // 2. Verificar conceptos en Firestore
+  //     console.log('\n2. Verificando conceptos en Firestore...');
+  //     try {
+  //       // Verificar en la colección normal
+  //       const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+  //       const q = query(
+  //         collection(db, conceptsCollection),
+  //         where('cuadernoId', '==', notebookId)
+  //       );
+  //       const querySnapshot = await getDocs(q);
+  //       const conceptos = querySnapshot.docs.map(doc => ({
+  //         id: doc.id,
+  //         ...doc.data()
+  //       })) as ConceptDoc[];
+  //       
+  //       console.log('Conceptos encontrados en colección "conceptos":', conceptos.length);
+  //       conceptos.forEach((doc, index) => {
+  //         console.log(`Documento ${index + 1}:`, {
+  //           id: doc.id,
+  //           cuadernoId: doc.cuadernoId,
+  //           usuarioId: doc.usuarioId,
+  //           conceptosCount: doc.conceptos?.length || 0,
+  //           conceptos: doc.conceptos?.slice(0, 3) // Mostrar solo los primeros 3 conceptos
+  //         });
+  //       });
+  //       
+  //       // Verificar en la colección escolar también
+  //       const qSchool = query(
+  //         collection(db, 'schoolConcepts'),
+  //         where('cuadernoId', '==', notebookId)
+  //       );
+  //       const querySnapshotSchool = await getDocs(qSchool);
+  //       const conceptosSchool = querySnapshotSchool.docs.map(doc => ({
+  //         id: doc.id,
+  //         ...doc.data()
+  //       })) as ConceptDoc[];
+  //       
+  //       console.log('Conceptos encontrados en colección "schoolConcepts":', conceptosSchool.length);
+  //       
+  //       // 3. Verificar documento específico mencionado en logs
+  //       console.log('\n3. Verificando documento específico...');
+  //       try {
+  //         // Verificar el documento más reciente de los logs
+  //         const docRef = doc(db, 'conceptos', 'C3Yw2kQVEDSVS3KuDwsv');
+  //         const docSnap = await getDoc(docRef);
+  //         if (docSnap.exists()) {
+  //           console.log('✅ Documento C3Yw2kQVEDSVS3KuDwsv existe:', docSnap.data());
+  //         } else {
+  //           console.log('❌ Documento C3Yw2kQVEDSVS3KuDwsv no existe');
+  //         }
+  //         
+  //         // Verificar también el documento anterior
+  //         const docRef2 = doc(db, 'conceptos', '5eXXjwmiHKYaocMPpfBL');
+  //         const docSnap2 = await getDoc(docRef2);
+  //         if (docSnap2.exists()) {
+  //           console.log('✅ Documento 5eXXjwmiHKYaocMPpfBL existe:', docSnap2.data());
+  //         } else {
+  //           console.log('❌ Documento 5eXXjwmiHKYaocMPpfBL no existe');
+  //         }
+  //       } catch (error) {
+  //         console.log('❌ Error verificando documento específico:', error);
+  //       }
+  //       
+  //       // 4. Forzar recarga
+  //       console.log('\n4. Forzando recarga de conceptos...');
+  //       const allConceptos = [...conceptos, ...conceptosSchool];
+  //       setConceptosDocs(allConceptos);
+  //       console.log('✅ Estado actualizado con', allConceptos.length, 'documentos');
+  //       
+  //       // 5. Verificar permisos
+  //       console.log('\n5. Verificando permisos...');
+  //       try {
+  //         const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+  //         const testQuery = query(collection(db, conceptsCollection), where('cuadernoId', '==', notebookId));
+  //         await getDocs(testQuery);
+  //         console.log('✅ Permisos de lectura OK en colección:', conceptsCollection);
+  //       } catch (error) {
+  //         console.log('❌ Error de permisos:', error);
+  //       }
+  //       
+  //     } catch (error) {
+  //       console.log('❌ Error general:', error);
+  //     }
+  //   };
+  //   
+  //   (window as any).setConceptosDocs = setConceptosDocs;
+  //   (window as any).conceptosDocs = conceptosDocs;
+  //   (window as any).cuaderno = cuaderno;
+  //   
+  //   return () => {
+  //     delete (window as any).diagnosticarConceptos;
+  //     delete (window as any).setConceptosDocs;
+  //     delete (window as any).conceptosDocs;
+  //     delete (window as any).cuaderno;
+  //   };
+  // }, [conceptosDocs, cuaderno, notebookId, isSchoolStudent]);
 
   // Muestra spinner de carga mientras se obtienen los datos
   if (!cuaderno) {
@@ -1275,16 +1289,19 @@ const NotebookDetail = () => {
                 )}
               </div>
             ) : conceptosDocs.length === 0 ? (
-              <div className="empty-state enhanced-empty-concepts">
-                <i className="fas fa-lightbulb" style={{ fontSize: '3.5rem', color: '#a78bfa', marginBottom: 16 }}></i>
-                <h3 style={{ color: '#6147FF', marginBottom: 12 }}>¡Aún no hay conceptos en este cuaderno!</h3>
+              <div className="empty-state-concepts-new">
+                <div className="empty-concepts-icon">
+                  <i className="fas fa-file-alt" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+                </div>
+                <h3 className="empty-concepts-title">Cuaderno vacío</h3>
+                <p className="empty-concepts-subtitle">Añade tu primer documento para comenzar a estudiar</p>
                 {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
                   <button
-                    className="add-first-concept-button"
+                    className="btn-add-first-concept"
                     onClick={() => openModalWithTab("upload")}
-                    style={{ color: '#4F46E5' }}
                   >
-                    Sube tu primer documento
+                    <i className="fas fa-upload"></i>
+                    Subir documento
                   </button>
                 ) : isSchoolAdmin ? (
                   <p className="school-admin-info" style={{ 
@@ -1372,30 +1389,41 @@ const NotebookDetail = () => {
             setIsModalOpen(false);
           }
         }}>
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>Añadir nuevos conceptos</h2>
-              <button className="close-modal-button" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content add-concepts-modal-new">
+            {/* Header simplificado */}
+            <div className="modal-header-simple">
+              <button className="close-button-simple" onClick={() => setIsModalOpen(false)}>
                 <i className="fas fa-times"></i>
               </button>
             </div>
             
-            <div className="modal-tabs">
+            {/* Contenido principal */}
+            <div className="modal-main-content">
+              <div className="modal-icon">
+                <i className="fas fa-plus-circle" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+              </div>
+              <h2 className="modal-title">Añadir Conceptos</h2>
+              <p className="modal-subtitle">Sube documentos o añade conceptos manualmente</p>
+            </div>
+            
+            <div className="modal-tabs-new">
               <button 
-                className={`tab-button ${activeTab === 'upload' ? 'active' : ''}`}
+                className={`tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
                 onClick={() => setActiveTab('upload')}
               >
-                <i className="fas fa-file-upload"></i> Subir materiales
+                <i className="fas fa-upload"></i>
+                Subir archivos
               </button>
               <button 
-                className={`tab-button ${activeTab === 'manual' ? 'active' : ''}`}
+                className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
                 onClick={() => setActiveTab('manual')}
               >
-                <i className="fas fa-pencil-alt"></i> Añadir manualmente
+                <i className="fas fa-edit"></i>
+                Añadir manual
               </button>
             </div>
             
-            <div className="modal-body">
+            <div className="modal-content-body">
               {activeTab === 'upload' ? (
                 <div className="upload-container">
                   <input

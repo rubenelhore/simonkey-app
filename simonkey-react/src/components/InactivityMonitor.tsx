@@ -5,7 +5,7 @@ import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import './InactivityWarning.css';
 
-const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutos en milisegundos
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutos en milisegundos
 const WARNING_TIME = 60 * 1000; // 1 minuto de advertencia
 
 const InactivityMonitor: React.FC = () => {
@@ -17,6 +17,7 @@ const InactivityMonitor: React.FC = () => {
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const eventListenersActiveRef = useRef(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -32,16 +33,23 @@ const InactivityMonitor: React.FC = () => {
       localStorage.removeItem('lastActivity');
       localStorage.removeItem('hasCompletedOnboarding');
       
-      // Cerrar sesión
-      await signOut(auth);
-      
-      // Navegar al login
+      // Navegar primero al login para evitar errores de Firestore listeners
       navigate('/login', { replace: true });
       
-      // Mostrar alerta
+      // Dar tiempo para que se limpien los listeners antes de cerrar sesión
+      setTimeout(async () => {
+        try {
+          await signOut(auth);
+        } catch (signOutError) {
+          // Silenciar errores de signOut durante el logout automático
+          console.warn('⚠️ Error durante signOut automático (esperado):', signOutError);
+        }
+      }, 100);
+      
+      // Mostrar alerta después de navegar
       setTimeout(() => {
         alert('Sesión cerrada por inactividad. Por favor, inicia sesión nuevamente.');
-      }, 100);
+      }, 200);
       
     } catch (error) {
       console.error('❌ Error al cerrar sesión:', error);
@@ -50,77 +58,93 @@ const InactivityMonitor: React.FC = () => {
   };
 
   // Referencia para las funciones de event listener
-  const handleActivityRef = useRef<(() => void) | null>(null);
+  const handleActivityRef = useRef<((event: Event) => void) | null>(null);
 
   const removeEventListeners = () => {
     if (!eventListenersActiveRef.current || !handleActivityRef.current) return;
     
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
     
     events.forEach(event => {
       document.removeEventListener(event, handleActivityRef.current!, true);
     });
     
     eventListenersActiveRef.current = false;
-    console.log('🔇 Event listeners desactivados');
   };
 
   const addEventListeners = () => {
     if (eventListenersActiveRef.current) return;
     
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    // Solo eventos que indican interacción activa dentro de la plataforma
+    const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
     
-    // Crear la función una sola vez
-    handleActivityRef.current = () => resetTimer();
+    // Crear la función que valida si debe resetear el timer (más simple y eficiente)
+    handleActivityRef.current = (event: Event) => {
+      // Validación básica: solo si la página está visible
+      if (document.hidden) {
+        return;
+      }
+      
+      // Resetear el timer sin logs excesivos
+      resetTimer();
+    };
     
     events.forEach(event => {
       document.addEventListener(event, handleActivityRef.current!, true);
     });
     
     eventListenersActiveRef.current = true;
-    console.log('🔊 Event listeners activados');
   };
 
+  const resetTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const resetTimer = () => {
-    // Limpiar timers existentes
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    // Evitar múltiples llamadas en rápida sucesión
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     
-    // Ocultar advertencia si está visible
-    setShowWarning(false);
-    setCountdown(60);
-    
-    if (!isAuthenticated) return;
-    
-    // Reactivar event listeners si no están activos
-    addEventListeners();
-    
-    // Configurar timer de advertencia (2 minutos)
-    warningTimeoutRef.current = setTimeout(() => {
-      console.log('⚠️ Mostrando advertencia de inactividad - DESACTIVANDO event listeners');
-      setShowWarning(true);
+    resetTimerRef.current = setTimeout(() => {
+      // Limpiar timers existentes
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       
-      // DESACTIVAR event listeners cuando aparece la advertencia
-      removeEventListeners();
+      // Ocultar advertencia si está visible
+      setShowWarning(false);
+      setCountdown(60);
       
-      // Iniciar countdown
-      let seconds = 60;
-      countdownIntervalRef.current = setInterval(() => {
-        seconds--;
-        setCountdown(seconds);
+      if (!isAuthenticated) return;
+      
+      // Reactivar event listeners si no están activos
+      addEventListeners();
+      
+      // Configurar timer de advertencia (2 minutos) - solo log cuando aparece la advertencia
+      warningTimeoutRef.current = setTimeout(() => {
+        console.log('⚠️ Sesión por expirar - mostrando advertencia');
+        setShowWarning(true);
         
-        if (seconds <= 0) {
-          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-          handleLogout();
-        }
-      }, 1000);
-    }, INACTIVITY_TIMEOUT - WARNING_TIME);
-    
-    // Configurar timer de logout (3 minutos)
-    timeoutRef.current = setTimeout(() => {
-      handleLogout();
-    }, INACTIVITY_TIMEOUT);
+        // DESACTIVAR event listeners cuando aparece la advertencia
+        removeEventListeners();
+        
+        // Iniciar countdown
+        let seconds = 60;
+        countdownIntervalRef.current = setInterval(() => {
+          seconds--;
+          setCountdown(seconds);
+          
+          if (seconds <= 0) {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            handleLogout();
+          }
+        }, 1000);
+      }, INACTIVITY_TIMEOUT - WARNING_TIME);
+      
+      // Configurar timer de logout (3 minutos)
+      timeoutRef.current = setTimeout(() => {
+        handleLogout();
+      }, INACTIVITY_TIMEOUT);
+      
+      resetTimerRef.current = null;
+    }, 100); // Debounce de 100ms
   };
 
   const extendSession = () => {
@@ -142,8 +166,6 @@ const InactivityMonitor: React.FC = () => {
 
     // Iniciar timer y event listeners
     resetTimer();
-    
-    console.log('✅ Monitor de inactividad iniciado');
 
     // Cleanup
     return () => {
@@ -167,14 +189,10 @@ const InactivityMonitor: React.FC = () => {
       if (modalElement) {
         (modalElement as HTMLElement).style.pointerEvents = 'all';
       }
-      
-      console.log('🚫 Interacciones de fondo bloqueadas');
     } else {
       // Restaurar scroll y eventos
       document.body.style.overflow = '';
       document.body.style.pointerEvents = '';
-      
-      console.log('✅ Interacciones de fondo restauradas');
     }
 
     return () => {
@@ -183,6 +201,53 @@ const InactivityMonitor: React.FC = () => {
       document.body.style.pointerEvents = '';
     };
   }, [showWarning]);
+
+  // Monitorear visibilidad de la página (sin logs excesivos)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden;
+      setIsPageVisible(isVisible);
+      
+      if (isVisible) {
+        // Cuando la página vuelve a ser visible, resetear el timer silenciosamente
+        if (isAuthenticated && !showWarning) {
+          resetTimer();
+        }
+      } else {
+        // Cuando la página se oculta, pausar el timer silenciosamente
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, showWarning]);
+
+  // Monitorear foco de la ventana (sin logs excesivos)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isAuthenticated && !showWarning && isPageVisible) {
+        resetTimer();
+      }
+    };
+
+    const handleBlur = () => {
+      // Simplemente no hacer nada cuando pierde el foco
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isAuthenticated, showWarning, isPageVisible]);
 
   // No mostrar nada si no hay advertencia
   if (!showWarning || !isAuthenticated) return null;

@@ -128,7 +128,19 @@ export const useSchoolNotebooks = () => {
     const unsubscribe = loadSchoolNotebooks();
     return () => {
       if (unsubscribe) {
-        unsubscribe.then(unsub => unsub && unsub());
+        unsubscribe.then(unsub => {
+          if (unsub) {
+            try {
+              unsub();
+            } catch (error) {
+              // Silenciar errores durante cleanup (esperado durante logout)
+              console.warn('⚠️ Error durante unsubscribe de school notebooks (esperado durante logout):', error);
+            }
+          }
+        }).catch(error => {
+          // Silenciar errores de promise durante cleanup
+          console.warn('⚠️ Error en promise unsubscribe (esperado durante logout):', error);
+        });
       }
     };
   }, [user, userProfile]);

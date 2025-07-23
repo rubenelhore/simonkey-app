@@ -21,12 +21,17 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
+  const { handleGoogleAuth, handleRedirectResult, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const { isAuthenticated, isEmailVerified, loading: authLoading, userProfile } = useAuth();
   
   // No redirigir automáticamente si el usuario ya está autenticado
   // Esto permite que usuarios logueados puedan ver la página de login
   // para cerrar sesión o cambiar de cuenta
+
+  // Manejar resultado de redirect al cargar la página
+  useEffect(() => {
+    handleRedirectResult();
+  }, [handleRedirectResult]);
 
   // Mostrar error de Google Auth si existe
   useEffect(() => {

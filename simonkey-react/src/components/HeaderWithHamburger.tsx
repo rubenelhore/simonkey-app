@@ -193,14 +193,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     }
   }, [user]);
 
-  // Logs de depuración
-  useEffect(() => {
-    console.log('🔍 HeaderWithHamburger - Estado actual:');
-    console.log('  - user:', user);
-    console.log('  - userProfile:', userProfile);
-    console.log('  - isSuperAdmin:', isSuperAdmin);
-    console.log('  - subscription:', subscription);
-  }, [user, userProfile, isSuperAdmin, subscription]);
+  // Logs de depuración (comentados para reducir spam en consola)
+  // useEffect(() => {
+  //   console.log('🔍 HeaderWithHamburger - Estado actual:');
+  //   console.log('  - user:', user);
+  //   console.log('  - userProfile:', userProfile);
+  //   console.log('  - isSuperAdmin:', isSuperAdmin);
+  //   console.log('  - subscription:', subscription);
+  // }, [user, userProfile, isSuperAdmin, subscription]);
 
   const toggleMenu = () => {
     setMobileMenuOpen(!isMobileMenuOpen);
