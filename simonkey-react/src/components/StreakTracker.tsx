@@ -199,17 +199,6 @@ const StreakTracker: React.FC<StreakTrackerProps> = ({ streakData: streakDataPro
           </div>
         ))}
       </div>
-      
-      {/* Mensaje motivacional */}
-      {(streakData.consecutiveDays === 0 || !streakData.hasStudiedToday) && (
-        <div className="streak-motivation">
-          <p className="motivation-text">
-            {(!streakData.hasStudiedToday || streakData.consecutiveDays === 0)
-              ? "¡Venga! Estudia al menos 1 minuto para iniciar tu racha"
-              : "¡Sigue así! Estudia al menos 1 minuto para mantener tu racha"}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

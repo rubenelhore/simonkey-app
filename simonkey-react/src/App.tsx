@@ -114,6 +114,7 @@ import HelpWhatsAppButton from './components/HelpWhatsAppButton';
 import ExamPage from './pages/ExamPage';
 import ExamResultsPage from './pages/ExamResultsPage';
 import ExamDashboardPage from './pages/ExamDashboardPage';
+import StudySessionPage from './pages/StudySessionPage';
 
 // Definir el tipo para el usuario
 interface User {
@@ -505,7 +506,7 @@ const AppContent: React.FC = () => {
           />
           {/* Notebooks dentro de una materia */}
           <Route
-            path="/materias/:materiaId/notebooks"
+            path="/materias/:materiaName/notebooks"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -515,7 +516,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/materias/:materiaId/notebooks/:id"
+            path="/materias/:materiaName/notebooks/:notebookName"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -525,7 +526,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/materias/:materiaId/notebooks/:notebookId/concepto/:conceptoId/:index"
+            path="/materias/:materiaName/notebooks/:notebookName/concepto/:conceptoId/:index"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -553,7 +554,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/notebooks/:id"
+            path="/notebooks/:notebookName"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -563,7 +564,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/notebooks/:notebookId/concepto/:conceptoId/:index"
+            path="/notebooks/:notebookName/concepto/:conceptoId/:index"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -573,7 +574,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/tools/explain/:type/:notebookId"
+            path="/tools/explain/:type/:notebookName"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -603,6 +604,18 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <StudyModePage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para sesión de estudio */}
+          <Route
+            path="/study-session"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <StudySessionPage />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }
@@ -757,7 +770,7 @@ const AppContent: React.FC = () => {
             element={<SuperAdminRoute />}
           />
           <Route
-            path="/school/notebooks/:id"
+            path="/school/notebooks/:notebookName"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -769,7 +782,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/school/notebooks/:notebookId/concepto/:conceptoId/:index"
+            path="/school/notebooks/:notebookName/concepto/:conceptoId/:index"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>

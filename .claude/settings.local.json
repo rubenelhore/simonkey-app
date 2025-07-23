@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(git pull:*)",
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "Bash(npm start)",
+      "Bash(npm run:*)",
+      "Bash(timeout 15 npm run dev)",
+      "Bash(rg:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(firebase deploy:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cp:*)"
+    ],
+    "deny": []
+  }
+}

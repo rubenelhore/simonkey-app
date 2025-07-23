@@ -5,6 +5,7 @@ import { Concept, Notebook, Material } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
+import { decodeNotebookName } from '../utils/urlUtils';
 
 import { 
   doc, 
@@ -37,7 +38,8 @@ interface ConceptDoc {
 // arrayBufferToBase64 function no longer needed with Cloud Functions
 
 const NotebookDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { notebookName } = useParams<{ notebookName: string }>();
+  const [notebookId, setNotebookId] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [cuaderno, setCuaderno] = useState<Notebook | null>(null);
@@ -85,6 +87,41 @@ const NotebookDetail = () => {
   // Log para debug - comentado para evitar spam en consola
   // console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
   
+  // Effect to find notebookId by notebookName
+  useEffect(() => {
+    const findNotebookByName = async () => {
+      if (!notebookName) {
+        setNotebookId(null);
+        return;
+      }
+
+      try {
+        const decodedName = decodeNotebookName(notebookName);
+        console.log('Buscando cuaderno con nombre:', decodedName);
+
+        // Use the correct collection for school users
+        const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isSchoolTeacher) ? 'schoolNotebooks' : 'notebooks';
+        const notebooksQuery = query(
+          collection(db, notebooksCollection),
+          where('title', '==', decodedName)
+        );
+        const querySnapshot = await getDocs(notebooksQuery);
+        
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          setNotebookId(doc.id);
+          console.log('Cuaderno encontrado:', doc.id);
+        } else {
+          console.error('No se encontró el cuaderno:', decodedName);
+        }
+      } catch (error) {
+        console.error('Error finding notebook by name:', error);
+      }
+    };
+
+    findNotebookByName();
+  }, [notebookName, isSchoolStudent, isSchoolAdmin, isSchoolTeacher]);
+
   // Función para obtener el color del semáforo según las repeticiones
   const getTrafficLightColor = (conceptId: string): string => {
     const repetitions = learningDataMap.get(conceptId) || 0;
@@ -100,7 +137,7 @@ const NotebookDetail = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!id) return;
+      if (!notebookId) return;
       
       // Check authentication
       if (!auth.currentUser) {
@@ -111,7 +148,7 @@ const NotebookDetail = () => {
       
       try {
         // Fetch notebook using unified service
-        const notebook = await UnifiedNotebookService.getNotebook(id);
+        const notebook = await UnifiedNotebookService.getNotebook(notebookId);
         
         if (notebook) {
           setCuaderno(notebook);
@@ -127,10 +164,10 @@ const NotebookDetail = () => {
         
         // Fetch concept documents for this notebook
         // Determine concepts collection based on notebook type
-        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
         const q = query(
           collection(db, conceptsCollection),
-          where('cuadernoId', '==', id)
+          where('cuadernoId', '==', notebookId)
         );
         
         try {
@@ -183,7 +220,7 @@ const NotebookDetail = () => {
         // Cargar materiales del notebook
         try {
           setLoadingMaterials(true);
-          const notebookMaterials = await MaterialService.getNotebookMaterials(id);
+          const notebookMaterials = await MaterialService.getNotebookMaterials(notebookId);
           setMaterials(notebookMaterials);
           console.log('📚 Materiales cargados:', notebookMaterials.length);
         } catch (materialsError) {
@@ -198,16 +235,16 @@ const NotebookDetail = () => {
     };
     
     fetchData();
-  }, [id, navigate, isSchoolStudent, isSchoolAdmin]);
+  }, [notebookId, navigate, isSchoolStudent, isSchoolAdmin]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('openModal') === 'true') {
       openModalWithTab('upload');
       // Limpiar el parámetro de la URL para evitar que se vuelva a abrir si el usuario navega
-      navigate(`/notebooks/${id}`, { replace: true });
+      navigate(`/notebooks/${notebookName}`, { replace: true });
     }
-  }, [location.search, id]);
+  }, [location.search, notebookName]);
 
   // Añadir al inicio del componente, después de cargar los datos del cuaderno
   useEffect(() => {
@@ -423,7 +460,7 @@ const NotebookDetail = () => {
 
   // Función para generar conceptos desde archivos usando Cloud Functions (seguro)
   const generarConceptos = async () => {
-    if (!id || !auth.currentUser || archivos.length === 0) {
+    if (!notebookId || !auth.currentUser || archivos.length === 0) {
       alert("Por favor selecciona al menos un archivo");
       return;
     }
@@ -437,7 +474,7 @@ const NotebookDetail = () => {
     // Debug logging
     console.log('🔍 Debug generarConceptos:');
     console.log('- User ID:', auth.currentUser.uid);
-    console.log('- Notebook ID:', id);
+    console.log('- Notebook ID:', notebookId);
     console.log('- Files count:', archivos.length);
     console.log('- Is school student:', isSchoolStudent);
 
@@ -446,7 +483,7 @@ const NotebookDetail = () => {
 
     try {
       // Verificar que el cuaderno existe
-      const notebook = await UnifiedNotebookService.getNotebook(id);
+      const notebook = await UnifiedNotebookService.getNotebook(notebookId);
       
       if (!notebook) {
         throw new Error('El cuaderno no existe');
@@ -470,7 +507,7 @@ const NotebookDetail = () => {
       setLoadingText("Guardando materiales...");
       let uploadedMaterials: Material[] = [];
       try {
-        uploadedMaterials = await MaterialService.uploadMultipleMaterials(archivos, id);
+        uploadedMaterials = await MaterialService.uploadMultipleMaterials(archivos, notebookId);
         console.log('📤 Materiales guardados:', uploadedMaterials.length);
         
         // Actualizar la lista de materiales en el UI
@@ -493,13 +530,13 @@ const NotebookDetail = () => {
       // Generar conceptos usando Cloud Functions
       console.log('🚀 Llamando a generateConcepts con:', {
         filesCount: processedFiles.length,
-        notebookId: id,
+        notebookId: notebookId,
         userId: auth.currentUser.uid
       });
       
       let results;
       try {
-        results = await generateConcepts(processedFiles, id);
+        results = await generateConcepts(processedFiles, notebookId);
         console.log('✅ generateConcepts completado, resultados:', results);
         console.log('📊 Tipo de resultados:', typeof results);
         console.log('📊 Longitud de resultados:', Array.isArray(results) ? results.length : 'No es array');
@@ -558,19 +595,19 @@ const NotebookDetail = () => {
         
         // Crear datos de aprendizaje para los nuevos conceptos
         if (conceptIds.length > 0) {
-          await createInitialLearningDataForConcepts(conceptIds, auth.currentUser.uid, id);
+          await createInitialLearningDataForConcepts(conceptIds, auth.currentUser.uid, notebookId);
         }
 
         // Intentar recargar los conceptos, pero no fallar si hay error de permisos
         try {
           console.log('🔄 Recargando conceptos...');
           // Usar la colección correcta según el tipo de notebook
-          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
           console.log('📚 Usando colección:', conceptsCollection);
           
           const q = query(
             collection(db, conceptsCollection),
-            where('cuadernoId', '==', id)
+            where('cuadernoId', '==', notebookId)
           );
           const querySnapshot = await getDocs(q);
           const conceptosData = querySnapshot.docs.map(doc => ({
@@ -627,17 +664,17 @@ const NotebookDetail = () => {
 
   // Función para eliminar el cuaderno y todos sus conceptos relacionados
   const handleDeleteNotebook = async () => {
-    if (!id || !auth.currentUser) {
+    if (!notebookId || !auth.currentUser) {
       console.error("No se pudo verificar la sesión de usuario o el ID del cuaderno");
       return;
     }
 
     try {
       // Eliminar conceptos del cuaderno
-      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
       const q = query(
         collection(db, conceptsCollection),
-        where('cuadernoId', '==', id)
+        where('cuadernoId', '==', notebookId)
       );
       const querySnapshot = await getDocs(q);
       const conceptosToDelete = querySnapshot.docs.map(doc => doc.id);
@@ -648,7 +685,7 @@ const NotebookDetail = () => {
       }
 
       // Eliminar el cuaderno
-      await deleteDoc(doc(db, 'notebooks', id));
+      await deleteDoc(doc(db, 'notebooks', notebookId));
 
       // Redirigir al usuario a la lista de cuadernos
       navigate('/notebooks');
@@ -660,7 +697,7 @@ const NotebookDetail = () => {
 
   // Función para añadir concepto manualmente
   const agregarConceptoManual = async () => {
-    if (!id || !auth.currentUser) {
+    if (!notebookId || !auth.currentUser) {
       alert("No se pudo verificar la sesión de usuario");
       return;
     }
@@ -687,7 +724,7 @@ const NotebookDetail = () => {
 
     try {
       // Obtener la colección correcta
-      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+      const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
       const conceptoManual: Concept = {
         término: nuevoConcepto.término,
         definición: nuevoConcepto.definición,
@@ -697,7 +734,7 @@ const NotebookDetail = () => {
 
       let updatedConceptosDoc: ConceptDoc | null = null;
       if (conceptosDocs.length > 0) {
-        const existingDoc = conceptosDocs.find(doc => doc.cuadernoId === id);
+        const existingDoc = conceptosDocs.find(doc => doc.cuadernoId === notebookId);
         if (existingDoc) {
           const conceptosRef = doc(db, conceptsCollection, existingDoc.id);
           await updateDoc(conceptosRef, {
@@ -720,7 +757,7 @@ const NotebookDetail = () => {
         
         await setDoc(newDocRef, {
           id: newDocId,
-          cuadernoId: id,
+          cuadernoId: notebookId,
           usuarioId: auth.currentUser.uid,
           conceptos: [conceptoManual],
           creadoEn: serverTimestamp()
@@ -730,7 +767,7 @@ const NotebookDetail = () => {
           ...prev,
           {
             id: newDocId,  // Usa el nuevo ID generado
-            cuadernoId: id,
+            cuadernoId: notebookId,
             usuarioId: auth.currentUser?.uid || '',
             conceptos: [conceptoManual],
             creadoEn: new Date()
@@ -742,7 +779,7 @@ const NotebookDetail = () => {
       await createInitialLearningDataForConcepts(
         [conceptoManual.id], 
         auth.currentUser?.uid || '', 
-        id
+        notebookId
       );
 
       // Limpiar el formulario
@@ -762,6 +799,94 @@ const NotebookDetail = () => {
       alert('Error al guardar el concepto. Por favor intente nuevamente.');
     } finally {
       setCargando(false);
+    }
+  };
+
+  // Función para eliminar material y sus conceptos relacionados
+  const handleDeleteMaterial = async (materialId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este material? También se eliminarán todos los conceptos relacionados con este material.')) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Eliminando material y conceptos relacionados:', materialId);
+      
+      // 1. Eliminar conceptos relacionados con este material
+      let deletedConceptsCount = 0;
+      
+      for (const conceptDoc of conceptosDocs) {
+        const relatedConcepts = conceptDoc.conceptos.filter(concepto => concepto.materialId === materialId);
+        
+        if (relatedConcepts.length > 0) {
+          console.log(`📝 Eliminando ${relatedConcepts.length} conceptos del documento ${conceptDoc.id}`);
+          
+          // Filtrar conceptos para mantener solo los que NO están relacionados con este material
+          const remainingConcepts = conceptDoc.conceptos.filter(concepto => concepto.materialId !== materialId);
+          
+          // Obtener la colección correcta
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+          
+          if (remainingConcepts.length > 0) {
+            // Si quedan conceptos, actualizar el documento
+            await updateDoc(doc(db, conceptsCollection, conceptDoc.id), {
+              conceptos: remainingConcepts
+            });
+          } else {
+            // Si no quedan conceptos, eliminar todo el documento
+            await deleteDoc(doc(db, conceptsCollection, conceptDoc.id));
+          }
+          
+          deletedConceptsCount += relatedConcepts.length;
+          
+          // Eliminar datos de aprendizaje para los conceptos eliminados
+          if (auth.currentUser) {
+            for (const concept of relatedConcepts) {
+              try {
+                await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'learningData', concept.id));
+                console.log(`🗑️ Datos de aprendizaje eliminados para concepto: ${concept.id}`);
+              } catch (learningError) {
+                console.warn(`⚠️ Error eliminando datos de aprendizaje para concepto ${concept.id}:`, learningError);
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Eliminar el material
+      await MaterialService.deleteMaterial(materialId);
+      
+      // 3. Actualizar el estado local
+      setMaterials(materials.filter(m => m.id !== materialId));
+      
+      // 4. Recargar conceptos para reflejar los cambios
+      try {
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+        const q = query(
+          collection(db, conceptsCollection),
+          where('cuadernoId', '==', notebookId)
+        );
+        const querySnapshot = await getDocs(q);
+        const conceptosData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as ConceptDoc[];
+        
+        setConceptosDocs(conceptosData);
+        console.log('✅ Conceptos recargados después de eliminación');
+      } catch (reloadError) {
+        console.warn('⚠️ Error recargando conceptos:', reloadError);
+      }
+
+      // 5. Limpiar selección si era el material seleccionado
+      if (selectedMaterialId === materialId) {
+        setSelectedMaterialId(null);
+      }
+
+      alert(`Material eliminado exitosamente junto con ${deletedConceptsCount} conceptos relacionados.`);
+      
+    } catch (error) {
+      console.error('Error eliminando material:', error);
+      alert('Error al eliminar el material. Por favor, intenta de nuevo.');
     }
   };
 
@@ -788,16 +913,16 @@ const NotebookDetail = () => {
       console.log('- conceptosDocs:', conceptosDocs);
       console.log('- cuaderno:', cuaderno);
       console.log('- isSchoolStudent:', isSchoolStudent);
-      console.log('- notebookId:', id);
+      console.log('- notebookId:', notebookId);
       
       // 2. Verificar conceptos en Firestore
       console.log('\n2. Verificando conceptos en Firestore...');
       try {
         // Verificar en la colección normal
-        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
+        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
         const q = query(
           collection(db, conceptsCollection),
-          where('cuadernoId', '==', id)
+          where('cuadernoId', '==', notebookId)
         );
         const querySnapshot = await getDocs(q);
         const conceptos = querySnapshot.docs.map(doc => ({
@@ -819,7 +944,7 @@ const NotebookDetail = () => {
         // Verificar en la colección escolar también
         const qSchool = query(
           collection(db, 'schoolConcepts'),
-          where('cuadernoId', '==', id)
+          where('cuadernoId', '==', notebookId)
         );
         const querySnapshotSchool = await getDocs(qSchool);
         const conceptosSchool = querySnapshotSchool.docs.map(doc => ({
@@ -862,8 +987,8 @@ const NotebookDetail = () => {
         // 5. Verificar permisos
         console.log('\n5. Verificando permisos...');
         try {
-          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(id!);
-          const testQuery = query(collection(db, conceptsCollection), where('cuadernoId', '==', id));
+          const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+          const testQuery = query(collection(db, conceptsCollection), where('cuadernoId', '==', notebookId));
           await getDocs(testQuery);
           console.log('✅ Permisos de lectura OK en colección:', conceptsCollection);
         } catch (error) {
@@ -885,7 +1010,7 @@ const NotebookDetail = () => {
       delete (window as any).conceptosDocs;
       delete (window as any).cuaderno;
     };
-  }, [conceptosDocs, cuaderno, id, isSchoolStudent]);
+  }, [conceptosDocs, cuaderno, notebookId, isSchoolStudent]);
 
   // Muestra spinner de carga mientras se obtienen los datos
   if (!cuaderno) {
@@ -988,6 +1113,26 @@ const NotebookDetail = () => {
                     >
                       <i className="fas fa-download"></i>
                     </a>
+                  )}
+                  {/* Delete button - only show for users with permission */}
+                  {(!isSchoolStudent && !isSchoolAdmin) && (
+                    <button
+                      className="delete-material-btn"
+                      onClick={() => handleDeleteMaterial(selectedMaterialId)}
+                      title="Eliminar material y conceptos relacionados"
+                      style={{
+                        backgroundColor: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        marginLeft: '8px'
+                      }}
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
                   )}
                 </div>
               )}
@@ -1186,11 +1331,11 @@ const NotebookDetail = () => {
                             const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
                             if (materiaMatch) {
                               const urlMateriaId = materiaMatch[1];
-                              navigate(`/materias/${urlMateriaId}/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/materias/${urlMateriaId}/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
                             } else if (materiaId) {
-                              navigate(`/materias/${materiaId}/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/materias/${materiaId}/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
                             } else {
-                              navigate(`/notebooks/${id}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
                             }
                           }}
                         >

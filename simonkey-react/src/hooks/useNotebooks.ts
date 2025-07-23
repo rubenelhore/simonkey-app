@@ -31,7 +31,7 @@ export const useNotebooks = () => {
 
     const unsubscribe = onSnapshot(
       notebooksQuery,
-      (snapshot) => {
+      async (snapshot) => {
         const notebooksList = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -40,15 +40,45 @@ export const useNotebooks = () => {
         
         console.log('📚 Cuadernos cargados:', notebooksList.length, 'cuadernos');
         console.log('🔍 DEBUG - Datos completos de cuadernos:', notebooksList);
+        
+        // Calcular conceptCount para cada notebook
+        for (const notebook of notebooksList) {
+          try {
+            console.log(`🔢 Calculando conceptos para cuaderno: ${notebook.title} (${notebook.id})`);
+            
+            // Buscar conceptos en la colección 'conceptos' filtrando por cuadernoId
+            const conceptsQuery = query(
+              collection(db, 'conceptos'),
+              where('cuadernoId', '==', notebook.id)
+            );
+            
+            const conceptsSnapshot = await getDocs(conceptsQuery);
+            
+            // Contar conceptos de todos los documentos
+            notebook.conceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+              const data = doc.data();
+              const conceptosArray = data.conceptos || [];
+              console.log(`📝 Documento ${doc.id}: ${conceptosArray.length} conceptos`);
+              return total + conceptosArray.length;
+            }, 0);
+            
+            console.log(`✅ Cuaderno "${notebook.title}": ${notebook.conceptCount} conceptos totales`);
+            
+          } catch (error) {
+            console.error(`❌ Error counting concepts for notebook ${notebook.id}:`, error);
+            notebook.conceptCount = 0;
+          }
+        }
+        
         console.log('🔍 DEBUG - Cuadernos con categoría:', notebooksList.filter(n => n.category && n.category.trim() !== ''));
         console.log('🔍 DEBUG - Cuadernos sin categoría:', notebooksList.filter(n => !n.category || n.category.trim() === ''));
         
         // Log detallado de cada cuaderno con categoría
         notebooksList.forEach((notebook, index) => {
           if (notebook.category && notebook.category.trim() !== '') {
-            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): categoría = "${notebook.category}"`);
+            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): categoría = "${notebook.category}", conceptos = ${notebook.conceptCount}`);
           } else {
-            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): sin categoría`);
+            console.log(`🔍 DEBUG - Cuaderno ${index} (${notebook.id}): sin categoría, conceptos = ${notebook.conceptCount}`);
           }
         });
         

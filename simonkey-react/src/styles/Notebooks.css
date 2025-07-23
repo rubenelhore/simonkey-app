@@ -647,6 +647,20 @@ button[type="submit"]:hover {
   opacity: 0.8;
 }
 
+/* Información de conceptos en notebook cards */
+.notebook-info-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.notebook-info {
+  font-size: 0.813rem;
+  color: var(--light-text);
+  font-weight: 500;
+}
+
 .notebook-card-actions {
   display: flex;
   justify-content: space-around;

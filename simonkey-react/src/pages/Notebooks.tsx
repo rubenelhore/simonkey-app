@@ -8,6 +8,7 @@ import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/Notebooks.css';
+import { decodeMateriaName } from '../utils/urlUtils';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
@@ -21,7 +22,8 @@ import { getDomainProgressForNotebook } from '../utils/domainProgress';
 import { debugCompareDomainProgress } from '../utils/debugDomainProgress';
 
 const Notebooks: React.FC = () => {
-  const { materiaId } = useParams<{ materiaId: string }>();
+  const { materiaName } = useParams<{ materiaName: string }>();
+  const [materiaId, setMateriaId] = useState<string | null>(null);
   const { user, userProfile, loading: authLoading } = useAuth();
   const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
   const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData();
@@ -98,6 +100,70 @@ const Notebooks: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
+
+  // Effect to find materiaId by materiaName
+  useEffect(() => {
+    const findMateriaByName = async () => {
+      if (!materiaName) {
+        setMateriaId(null);
+        return;
+      }
+
+      try {
+        const decodedName = decodeMateriaName(materiaName);
+        console.log('Buscando materia con nombre:', decodedName);
+
+        if (isSchoolAdmin) {
+          // For school admins, search in schoolSubjects
+          const schoolSubjectsQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('nombre', '==', decodedName)
+          );
+          const querySnapshot = await getDocs(schoolSubjectsQuery);
+          
+          if (!querySnapshot.empty) {
+            const doc = querySnapshot.docs[0];
+            setMateriaId(doc.id);
+            console.log('Materia escolar encontrada:', doc.id);
+          } else {
+            console.error('No se encontró la materia escolar:', decodedName);
+          }
+        } else {
+          // For regular users, search in materias collection
+          const materiasQuery = query(
+            collection(db, 'materias'),
+            where('title', '==', decodedName)
+          );
+          const querySnapshot = await getDocs(materiasQuery);
+          
+          if (!querySnapshot.empty) {
+            const doc = querySnapshot.docs[0];
+            setMateriaId(doc.id);
+            console.log('Materia encontrada:', doc.id);
+          } else {
+            // Try searching by 'nombre' field as fallback
+            const nombreQuery = query(
+              collection(db, 'materias'),
+              where('nombre', '==', decodedName)
+            );
+            const nombreSnapshot = await getDocs(nombreQuery);
+            
+            if (!nombreSnapshot.empty) {
+              const doc = nombreSnapshot.docs[0];
+              setMateriaId(doc.id);
+              console.log('Materia encontrada por nombre:', doc.id);
+            } else {
+              console.error('No se encontró la materia:', decodedName);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error finding materia by name:', error);
+      }
+    };
+
+    findMateriaByName();
+  }, [materiaName, isSchoolAdmin]);
 
   // Cargar datos de la materia
   useEffect(() => {
@@ -332,9 +398,15 @@ const Notebooks: React.FC = () => {
 
   const handleAddConcept = (notebookId: string) => {
     // Navegar a la página de detalles del cuaderno con parámetro para abrir modal automáticamente
-    if (materiaId) {
-      navigate(`/materias/${materiaId}/notebooks/${notebookId}?openModal=true`);
+    if (materiaName) {
+      // Find the notebook to get its name for URL navigation
+      const notebook = effectiveNotebooks.find(nb => nb.id === notebookId);
+      if (notebook) {
+        const encodedNotebookName = encodeURIComponent(notebook.title);
+        navigate(`/materias/${materiaName}/notebooks/${encodedNotebookName}?openModal=true`);
+      }
     } else {
+      // For notebooks outside of materias, still use ID-based navigation
       navigate(`/notebooks/${notebookId}?openModal=true`);
     }
   };
@@ -586,6 +658,7 @@ const Notebooks: React.FC = () => {
             onClearSelectedCategory={handleClearSelectedCategory}
             onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
             materiaColor={materiaData?.color}
+            materiaId={materiaId || undefined}
           />
         </div>
       </main>

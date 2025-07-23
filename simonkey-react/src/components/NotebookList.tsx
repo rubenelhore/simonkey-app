@@ -50,6 +50,7 @@ interface NotebookListProps {
   onClearSelectedCategory?: () => void;
   onRefreshCategories?: () => void;
   materiaColor?: string;
+  materiaId?: string;  // Add materiaId prop
   onFreezeNotebook?: (id: string, type: 'now' | 'scheduled', scheduledDate?: Date) => void;
   showExamButton?: boolean;
   onCreateExam?: () => void;
@@ -72,6 +73,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   onClearSelectedCategory,
   onRefreshCategories,
   materiaColor,
+  materiaId,
   onFreezeNotebook,
   showExamButton = false,
   onCreateExam,
@@ -234,19 +236,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
       if (isSchoolTeacher && onCreateNotebook) {
         await onCreateNotebook(newNotebookTitle.trim(), newNotebookColor);
       } else {
-        // Si tenemos materiaId en las props o en la URL, pasarlo a createNotebook
-        let materiaId: string | undefined = (window.location.pathname.match(/\/materias\/([^/]+)/) || [])[1];
-        if (!materiaId && typeof window !== 'undefined') {
-          const urlParams = new URLSearchParams(window.location.search);
-          const param = urlParams.get('materiaId');
-          materiaId = param ? param : undefined;
-        }
+        // Usar el materiaId de las props si está disponible
         const notebook = await createNotebook(
           user.uid, 
           newNotebookTitle.trim(),
           newNotebookColor, // usar el color seleccionado
           undefined, // categoría
-          materiaId // string | undefined
+          materiaId // usar el materiaId de las props
         );
         console.log('✅ Notebook created:', notebook);
         
@@ -741,6 +737,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 title={notebook.title}
                 color={notebook.color}
                 category={notebook.category}
+                conceptCount={notebook.conceptCount}
                 onDelete={onDeleteNotebook}
                 onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
                 onColorChange={onColorChange}

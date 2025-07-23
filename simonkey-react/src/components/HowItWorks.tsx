@@ -31,7 +31,7 @@ const funcionalidades = [
 const imagenes = [
   '/img/image1.png',
   '/img/image2.png',
-  '/img/image3.png',
+  '/img/image3.jpg',
   '/img/image4.png',
   '/img/image5.png',
   '/img/image6.png',
@@ -47,16 +47,16 @@ const BulletModule = ({ title, description, active, onClick }: { title: string, 
         alignItems: 'flex-start',
         background: '#fff',
         color: '#111',
-        borderRadius: 10,
+        borderRadius: 8,
         border: 'none',
-        boxShadow: isActive ? '0 4px 16px rgba(79,70,229,0.07)' : '0 2px 8px rgba(0,0,0,0.03)',
-        padding: '16px 24px',
+        boxShadow: isActive ? '0 3px 12px rgba(79,70,229,0.06)' : '0 1px 6px rgba(0,0,0,0.02)',
+        padding: '12px 18px',
         fontWeight: 500,
-        fontSize: '1.1rem',
+        fontSize: '0.95rem',
         cursor: 'pointer',
         transition: 'all 0.22s cubic-bezier(.4,0,.2,1)',
         marginLeft: 0,
-        marginBottom: 16,
+        marginBottom: 10,
         listStyle: 'none',
         width: '100%',
         boxSizing: 'border-box',
@@ -78,21 +78,21 @@ const BulletModule = ({ title, description, active, onClick }: { title: string, 
           boxShadow: '0 2px 8px rgba(79,70,229,0.10)'
         }} />
       )}
-      <div style={{ flex: 1, paddingLeft: 18 }}>
+      <div style={{ flex: 1, paddingLeft: 14 }}>
         <div style={{
           fontWeight: 700,
-          fontSize: active ? '1.05rem' : '1.05rem',
-          marginBottom: 2,
+          fontSize: active ? '0.95rem' : '0.95rem',
+          marginBottom: 1,
           letterSpacing: 0.1,
           color: active ? '#4F46E5' : '#111',
           transition: 'all 0.22s cubic-bezier(.4,0,.2,1)'
         }}>{title}</div>
         <div style={{
           fontWeight: 400,
-          fontSize: '0.93rem',
+          fontSize: '0.8rem',
           color: active ? '#444' : '#b4b4b4',
-          lineHeight: 1.5,
-          marginTop: 2,
+          lineHeight: 1.4,
+          marginTop: 1,
           transition: 'all 0.22s cubic-bezier(.4,0,.2,1)'
         }}>{description}</div>
       </div>
@@ -107,26 +107,26 @@ const HowItWorks: React.FC = () => {
   return (
     <>
       {/* Sección Funcionalidades de Simonkey */}
-      <section id="funcionalidades-de-simonkey" style={{ width: '100%', backgroundColor: 'rgb(249, 250, 251)', minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 40, marginBottom: 60 }}>
-        <h2 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#111', margin: '0 0 10px', textAlign: 'center', letterSpacing: 0.1, fontFamily: '"Segoe UI", "Arial", sans-serif' }}>
+      <section id="funcionalidades-de-simonkey" style={{ width: '100%', backgroundColor: 'rgb(249, 250, 251)', minHeight: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 20, paddingBottom: 20, marginBottom: 40 }}>
+        <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#111', margin: '0 0 8px', textAlign: 'center', letterSpacing: 0.1, fontFamily: '"Segoe UI", "Arial", sans-serif' }}>
           Descubre nuestras <span style={{ color: '#4F46E5', fontWeight: 700 }}>Funcionalidades</span>
         </h2>
-        <div style={{ fontFamily: '"Segoe UI", "Arial", sans-serif', fontSize: '1rem', color: '#6366F1', marginBottom: 18, textAlign: 'center', fontStyle: 'italic', fontWeight: 400, letterSpacing: 0.05 }}>
+        <div style={{ fontFamily: '"Segoe UI", "Arial", sans-serif', fontSize: '0.9rem', color: '#6366F1', marginBottom: 12, textAlign: 'center', fontStyle: 'italic', fontWeight: 400, letterSpacing: 0.05 }}>
           Descubre todo lo que puedes hacer con Simonkey.
         </div>
-        <div style={{ width: '100%', maxWidth: 1200, display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'stretch', gap: 48 }}>
-          <div style={{ flex: '0 0 50%', maxWidth: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24, alignItems: 'flex-start', paddingLeft: 0 }}>
-            <ul style={{ fontSize: '1.25rem', color: 'rgb(34, 34, 34)', listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
+        <div style={{ width: '100%', maxWidth: 1100, display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'stretch', gap: 32 }}>
+          <div style={{ flex: '0 0 50%', maxWidth: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, alignItems: 'flex-start', paddingLeft: 0 }}>
+            <ul style={{ fontSize: '1rem', color: 'rgb(34, 34, 34)', listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
               {funcionalidades.map((f, i) => (
                 <BulletModule key={i} title={f.title} description={f.description} active={selected === i} onClick={() => setSelected(i)} />
               ))}
             </ul>
           </div>
-          <div style={{ flex: '0 0 50%', maxWidth: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+          <div style={{ flex: '0 0 50%', maxWidth: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280 }}>
             <img
               src={imagenes[selected]}
               alt={funcionalidades[selected].title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16, boxShadow: '0 4px 32px rgba(0,0,0,0.10)' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12, boxShadow: '0 3px 24px rgba(0,0,0,0.08)' }}
             />
           </div>
         </div>

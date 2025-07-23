@@ -9,14 +9,16 @@ import '../styles/TextToSpeech.css';
 import { loadVoiceSettings } from '../hooks/voiceService';
 import { Concept } from '../types/interfaces';
 import { useUserType } from '../hooks/useUserType';
+import { decodeNotebookName, encodeNotebookName } from '../utils/urlUtils';
 
 const ConceptDetail: React.FC = () => {
-  const { notebookId, conceptoId, index } = useParams<{ 
-    notebookId: string, 
+  const { notebookName, conceptoId, index } = useParams<{ 
+    notebookName: string, 
     conceptoId: string, 
     index: string 
   }>();
   const navigate = useNavigate();
+  const [notebookId, setNotebookId] = useState<string | null>(null);
   const [concepto, setConcepto] = useState<Concept | null>(null);
   const [cuaderno, setCuaderno] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -49,32 +51,67 @@ const ConceptDetail: React.FC = () => {
     return savedPreference ? JSON.parse(savedPreference) : true;
   });
 
-  // Helper function para navegar correctamente según el contexto
-  const navigateToNotebook = (notebookId: string) => {
-    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-    if (materiaMatch) {
-      const materiaId = materiaMatch[1];
-      navigate(`/materias/${materiaId}/notebooks/${notebookId}`);
-    } else {
-      navigate(`/notebooks/${notebookId}`);
-    }
-  };
-
-  const navigateToConcept = (notebookId: string, conceptoId: string, index: string) => {
-    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-    if (materiaMatch) {
-      const materiaId = materiaMatch[1];
-      navigate(`/materias/${materiaId}/notebooks/${notebookId}/concepto/${conceptoId}/${index}`);
-    } else {
-      navigate(`/notebooks/${notebookId}/concepto/${conceptoId}/${index}`);
-    }
-  };
-  
-  // Usar el hook para detectar el tipo de usuario
+  // Usar el hook para detectar el tipo de usuario (MUST be before any useEffect that uses it)
   const { isSchoolUser } = useUserType();
   
   // Log para debug
   console.log('🎓 ConceptDetail - isSchoolUser:', isSchoolUser);
+
+  // Effect to find notebookId by notebookName
+  useEffect(() => {
+    const findNotebookByName = async () => {
+      if (!notebookName) {
+        setNotebookId(null);
+        return;
+      }
+
+      try {
+        const decodedName = decodeNotebookName(notebookName);
+        console.log('Buscando cuaderno con nombre:', decodedName);
+
+        // Use the correct collection for school users
+        const notebooksCollection = isSchoolUser ? 'schoolNotebooks' : 'notebooks';
+        const notebooksQuery = query(
+          collection(db, notebooksCollection),
+          where('title', '==', decodedName)
+        );
+        const querySnapshot = await getDocs(notebooksQuery);
+        
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          setNotebookId(doc.id);
+          console.log('Cuaderno encontrado:', doc.id);
+        } else {
+          console.error('No se encontró el cuaderno:', decodedName);
+        }
+      } catch (error) {
+        console.error('Error finding notebook by name:', error);
+      }
+    };
+
+    findNotebookByName();
+  }, [notebookName, isSchoolUser]);
+
+  // Helper function para navegar correctamente según el contexto
+  const navigateToNotebook = (notebookIdParam: string) => {
+    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+    if (materiaMatch) {
+      const materiaName = materiaMatch[1];
+      navigate(`/materias/${materiaName}/notebooks/${notebookName}`);
+    } else {
+      navigate(`/notebooks/${notebookName}`);
+    }
+  };
+
+  const navigateToConcept = (notebookIdParam: string, conceptoId: string, index: string) => {
+    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+    if (materiaMatch) {
+      const materiaName = materiaMatch[1];
+      navigate(`/materias/${materiaName}/notebooks/${notebookName}/concepto/${conceptoId}/${index}`);
+    } else {
+      navigate(`/notebooks/${notebookName}/concepto/${conceptoId}/${index}`);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {

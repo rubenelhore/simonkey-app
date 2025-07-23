@@ -2,12 +2,14 @@
 import { useNavigate } from 'react-router-dom';
 import { deleteNotebook } from '../services/notebookService';
 import { useState, useEffect } from 'react';
+import { decodeMateriaName, encodeNotebookName } from '../utils/urlUtils';
 
 interface NotebookItemProps {
   id: string;
   title: string;
   color?: string; // Nuevo prop para el color
   category?: string; // Nuevo prop para la categoría
+  conceptCount?: number; // Nuevo prop para el conteo de conceptos
   onDelete?: (id: string) => void; // Made optional for school students
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void; // Nueva función para actualizar el color
@@ -27,7 +29,7 @@ interface NotebookItemProps {
   isStudent?: boolean; // Para mostrar el progreso solo a estudiantes
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -70,14 +72,18 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     
     // Detectar si estamos dentro de una materia
     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-    const materiaId = materiaMatch ? materiaMatch[1] : null;
+    const materiaName = materiaMatch ? materiaMatch[1] : null;
+    
+    // Encode notebook name for URL
+    const encodedNotebookName = encodeNotebookName(title);
     
     if (isSchoolNotebook) {
-      navigate(`/school/notebooks/${id}`);
-    } else if (materiaId) {
-      navigate(`/materias/${materiaId}/notebooks/${id}`);
+      navigate(`/school/notebooks/${encodedNotebookName}`);
+    } else if (materiaName) {
+      // Keep the encoded materia name as it appears in the URL
+      navigate(`/materias/${materiaName}/notebooks/${encodedNotebookName}`);
     } else {
-      navigate(`/notebooks/${id}`);
+      navigate(`/notebooks/${encodedNotebookName}`);
     }
   };
 
@@ -313,16 +319,24 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
                 {editableTitle}
               </span>
               {domainProgress && domainProgress.total > 0 && (
-                <span style={{ 
-                  color: '#10b981', 
-                  fontSize: '1.1rem', 
-                  fontWeight: 'bold',
-                  flexShrink: 0
-                }}>
+                <span 
+                  style={{ 
+                    color: '#10b981', 
+                    fontSize: '1.1rem', 
+                    fontWeight: 'bold',
+                    flexShrink: 0
+                  }}
+                  title="% de Dominio"
+                >
                   {Math.round((domainProgress.dominated / domainProgress.total) * 100)}%
                 </span>
               )}
             </h3>
+            <div className="notebook-info-container">
+              <span className="notebook-info">
+                {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}
+              </span>
+            </div>
             {isFrozen && (
               <div className="frozen-indicator-subtle">
                 <i className="fas fa-snowflake"></i>
