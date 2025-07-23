@@ -1,0 +1,245 @@
+.study-section {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(80, 70, 200, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.motivation-header {
+  text-align: center;
+}
+.motivational-phrase {
+  color: #4F46E5;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.streak-achievements {
+  display: flex;
+  justify-content: space-around;
+  background: #f5f3ff;
+  border-radius: 10px;
+  padding: 1rem 0;
+  font-size: 1.1rem;
+  gap: 1rem;
+}
+.streak, .achievement {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+}
+.action-btn {
+  background: #ede9fe;
+  color: #4F46E5;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.action-btn.primary {
+  background: #4F46E5;
+  color: #fff;
+}
+.action-btn:hover, .go-btn:hover, .see-ranking-btn:hover, .challenge-btn:hover {
+  background: #a78bfa;
+  color: #fff;
+}
+.ai-suggestion {
+  margin-top: 0.5rem;
+  font-size: 0.98rem;
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.go-btn {
+  background: #fff;
+  color: #4F46E5;
+  border: 1px solid #4F46E5;
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.progress-ranking {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.weekly-progress {
+  flex: 1;
+}
+.progress-bar {
+  display: inline-block;
+  width: 90px;
+  height: 10px;
+  background: #ede9fe;
+  border-radius: 6px;
+  margin: 0 0.5rem;
+  vertical-align: middle;
+}
+.progress-fill {
+  display: block;
+  height: 100%;
+  background: #4F46E5;
+  border-radius: 6px;
+  transition: width 0.4s;
+}
+.quick-ranking {
+  flex: 1;
+  text-align: right;
+}
+.see-ranking-btn {
+  background: #fff;
+  color: #4F46E5;
+  border: 1px solid #4F46E5;
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.today-tasks {
+  background: #f5f3ff;
+  border-radius: 10px;
+  padding: 1rem;
+}
+.today-tasks ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+}
+.today-tasks li {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.daily-challenge {
+  background: #fef9c3;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+  justify-content: space-between;
+}
+.challenge-btn {
+  background: #facc15;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+.challenge-btn:hover {
+  background: #eab308;
+}
+
+.simple-cuaderno-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: #f5f3ff;
+  border-radius: 10px;
+  padding: 1.2rem 1rem 1.5rem 1rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-start;
+}
+.simple-cuaderno-selector label {
+  font-weight: 600;
+  color: #4F46E5;
+}
+.simple-cuaderno-selector select {
+  padding: 0.5rem 1rem;
+  border-radius: 7px;
+  border: 1.5px solid #a78bfa;
+  font-size: 1rem;
+  background: #fff;
+  color: #4F46E5;
+  font-weight: 500;
+  outline: none;
+  transition: border 0.2s;
+}
+.simple-cuaderno-selector select:focus {
+  border: 1.5px solid #4F46E5;
+}
+.simple-cuaderno-selector .study-now-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  font-size: 1.08rem;
+  padding: 0.7rem 0;
+} 
+
+.cuadernos-cards-panel {
+  margin-bottom: 2rem;
+}
+.cuadernos-cards-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #4F46E5;
+  margin-bottom: 0.7rem;
+}
+.cuadernos-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.cuaderno-card {
+  background: #ede9fe;
+  border: 2px solid #a78bfa;
+  border-radius: 12px;
+  padding: 1.1rem 0.7rem 1.1rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: box-shadow 0.18s, border 0.18s, background 0.18s;
+  font-size: 1.08rem;
+  font-weight: 500;
+  color: #4F46E5;
+  box-shadow: 0 2px 8px rgba(80, 70, 200, 0.06);
+  outline: none;
+}
+.cuaderno-card:hover, .cuaderno-card:focus {
+  background: #4F46E5;
+  color: #fff;
+  border: 2px solid #4F46E5;
+  box-shadow: 0 4px 16px rgba(80, 70, 200, 0.13);
+}
+.cuaderno-materia {
+  font-size: 0.98rem;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-bottom: 0.2rem;
+}
+.cuaderno-nombre {
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+} 

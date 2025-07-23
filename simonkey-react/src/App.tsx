@@ -91,6 +91,8 @@ import AuthUnlocker from './components/AuthUnlocker';
 // SchoolNotebookDetail ya no es necesario, se usa NotebookDetail para todo
 import SchoolNotebookConcepts from './pages/SchoolNotebookConcepts';
 import SuperAdminRoute from './pages/SuperAdminRoute';
+// Importar monitor de inactividad
+import InactivityMonitor from './components/InactivityMonitor';
 // Importar utilidad para arreglar perfil de usuario (solo en desarrollo)
 if (process.env.NODE_ENV === 'development') {
   import('./utils/fixUserProfile');
@@ -341,6 +343,7 @@ const AppContent: React.FC = () => {
     }
   }, [userProfile, hasCompletedOnboarding]);
 
+
   // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
   const MAINTENANCE_MODE = false;
   
@@ -430,6 +433,9 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      {/* Monitor de inactividad - solo para usuarios autenticados */}
+      <InactivityMonitor />
+      
       <UserContext.Provider value={{ user: user ? {
         id: user.uid,
         email: user.email || undefined,
