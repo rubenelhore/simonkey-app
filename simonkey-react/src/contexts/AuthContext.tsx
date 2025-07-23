@@ -495,7 +495,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Cleanup function
     return () => {
       // console.log('🔐 Limpiando listener de autenticación');
-      unsubscribe();
+      try {
+        unsubscribe();
+      } catch (error) {
+        // Silenciar errores durante cleanup (esperado durante logout)
+        console.warn('⚠️ Error durante unsubscribe de auth (esperado durante logout):', error);
+      }
     };
   }, []); // Sin dependencias para que solo se ejecute una vez
 

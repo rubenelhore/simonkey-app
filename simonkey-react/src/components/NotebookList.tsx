@@ -80,21 +80,21 @@ const NotebookList: React.FC<NotebookListProps> = ({
   examButtonDisabled = false,
   examButtonTitle = ""
 }) => {
-  console.log('🔍 DEBUG - NotebookList renderizando con:', {
-    notebooksCount: notebooks?.length || 0,
-    notebooks: notebooks,
-    showCreateButton,
-    isSchoolTeacher,
-    onCreateNotebook: !!onCreateNotebook
-  });
+  // console.log('🔍 DEBUG - NotebookList renderizando con:', {
+  //   notebooksCount: notebooks?.length || 0,
+  //   notebooks: notebooks,
+  //   showCreateButton,
+  //   isSchoolTeacher,
+  //   onCreateNotebook: !!onCreateNotebook
+  // });
 
   // Verificar si notebooks es null o undefined
   if (!notebooks) {
-    console.log('🔍 DEBUG - Notebooks es null/undefined');
+    // console.log('🔍 DEBUG - Notebooks es null/undefined');
     return <div>Cargando cuadernos...</div>;
   }
 
-  console.log('🔍 DEBUG - Notebooks no es null, continuando...');
+  // console.log('🔍 DEBUG - Notebooks no es null, continuando...');
 
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -125,7 +125,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   } | null>(null);
   
 
-  console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
+  // console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
 
   // Colores predefinidos para los cuadernos
   const colorPresets = [
@@ -165,14 +165,14 @@ const NotebookList: React.FC<NotebookListProps> = ({
   const categorizedNotebooks = notebooks.filter(notebook => notebook.category && notebook.category !== '');
 
   // Debug: verificar que los cuadernos tengan categorías
-  useEffect(() => {
-    console.log('🔍 DEBUG - All notebooks:', notebooks);
-    console.log('🔍 DEBUG - Filtered notebooks:', filteredNotebooks);
-    console.log('🔍 DEBUG - Grouped by category:', groupedByCategory);
-    console.log('🔍 DEBUG - Uncategorized notebooks:', uncategorizedNotebooks);
-    console.log('🔍 DEBUG - Selected category:', selectedCategory);
-    console.log('🔍 DEBUG - Notebooks by selected category:', notebooksBySelectedCategory);
-  }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, selectedCategory, notebooksBySelectedCategory]);
+  // useEffect(() => {
+  //   console.log('🔍 DEBUG - All notebooks:', notebooks);
+  //   console.log('🔍 DEBUG - Filtered notebooks:', filteredNotebooks);
+  //   console.log('🔍 DEBUG - Grouped by category:', groupedByCategory);
+  //   console.log('🔍 DEBUG - Uncategorized notebooks:', uncategorizedNotebooks);
+  //   console.log('🔍 DEBUG - Selected category:', selectedCategory);
+  //   console.log('🔍 DEBUG - Notebooks by selected category:', notebooksBySelectedCategory);
+  // }, [notebooks, filteredNotebooks, groupedByCategory, uncategorizedNotebooks, selectedCategory, notebooksBySelectedCategory]);
   
   // Por ahora, no cargar los datos de aprendizaje aquí para evitar el loop infinito
   // Los notebooks ya vienen con domainProgress calculado desde el componente padre
@@ -189,7 +189,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
       }
       
       // Si el clic fue fuera, cerrar las acciones
-      console.log('Clic fuera de cuadernos detectado, cerrando acciones');
+      // console.log('Clic fuera de cuadernos detectado, cerrando acciones');
       setOpenActionsId(null);
     };
 
@@ -244,7 +244,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
           undefined, // categoría
           materiaId // usar el materiaId de las props
         );
-        console.log('✅ Notebook created:', notebook);
+        // console.log('✅ Notebook created:', notebook);
         
         if (onCreateNotebook) {
           onCreateNotebook();
@@ -274,14 +274,14 @@ const NotebookList: React.FC<NotebookListProps> = ({
     try {
       if (!user) return false;
       
-      console.log('🔍 DEBUG - Verificando si existe categoría:', categoryName);
+      // console.log('🔍 DEBUG - Verificando si existe categoría:', categoryName);
       
       // Verificar en la colección de categorías
       const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
       const categoryDoc = await getDoc(categoryRef);
       
       if (categoryDoc.exists()) {
-        console.log('✅ DEBUG - Categoría encontrada en colección de categorías');
+        // console.log('✅ DEBUG - Categoría encontrada en colección de categorías');
         return true;
       }
       
@@ -291,11 +291,11 @@ const NotebookList: React.FC<NotebookListProps> = ({
       );
       
       if (notebooksWithCategory.length > 0) {
-        console.log('✅ DEBUG - Categoría encontrada en cuadernos existentes');
+        // console.log('✅ DEBUG - Categoría encontrada en cuadernos existentes');
         return true;
       }
       
-      console.log('❌ DEBUG - Categoría no encontrada, se puede crear');
+      // console.log('❌ DEBUG - Categoría no encontrada, se puede crear');
       return false;
       
     } catch (error) {
@@ -317,7 +317,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     setErrorMessage('');
 
     try {
-      console.log('🚀 DEBUG - Iniciando creación de categoría:', newCategoryName);
+      // console.log('🚀 DEBUG - Iniciando creación de categoría:', newCategoryName);
       
       // Verificar si la categoría ya existe
       const categoryExists = await checkCategoryExists(newCategoryName.trim());
@@ -327,25 +327,25 @@ const NotebookList: React.FC<NotebookListProps> = ({
         return;
       }
       
-      console.log('🚀 DEBUG - Cuadernos seleccionados:', selectedNotebooks);
-      console.log('🚀 DEBUG - Total de cuadernos disponibles:', uncategorizedNotebooks.length);
+      // console.log('🚀 DEBUG - Cuadernos seleccionados:', selectedNotebooks);
+      // console.log('🚀 DEBUG - Total de cuadernos disponibles:', uncategorizedNotebooks.length);
 
       // Asignar cuadernos seleccionados a la nueva categoría
       if (selectedNotebooks.length > 0) {
-        console.log('📝 DEBUG - Asignando', selectedNotebooks.length, 'cuadernos a la categoría');
+        // console.log('📝 DEBUG - Asignando', selectedNotebooks.length, 'cuadernos a la categoría');
         
         for (const notebookId of selectedNotebooks) {
           try {
-            console.log('📝 DEBUG - Procesando cuaderno:', notebookId);
+            // console.log('📝 DEBUG - Procesando cuaderno:', notebookId);
             await updateNotebookCategory(notebookId, newCategoryName.trim());
           } catch (error) {
             console.error(`❌ Error asignando categoría al cuaderno ${notebookId}:`, error);
           }
         }
         
-        console.log('✅ DEBUG - Todos los cuadernos procesados');
+        // console.log('✅ DEBUG - Todos los cuadernos procesados');
       } else {
-        console.log('ℹ️ DEBUG - No hay cuadernos seleccionados para asignar');
+        // console.log('ℹ️ DEBUG - No hay cuadernos seleccionados para asignar');
       }
       
       // Guardar la categoría en la colección de categorías (siempre)
@@ -356,7 +356,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         ? `Categoría "${newCategoryName}" creada exitosamente y ${selectedNotebooks.length} cuaderno(s) asignado(s).`
         : `Categoría "${newCategoryName}" creada exitosamente.`;
       
-      console.log('🎉 DEBUG - Mensaje de éxito:', successMessage);
+      // console.log('🎉 DEBUG - Mensaje de éxito:', successMessage);
       alert(successMessage);
       
       // Limpiar formulario
@@ -366,13 +366,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
       
       // Forzar actualización de la lista de cuadernos
       if (onCreateNotebook) {
-        console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
+        // console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
         onCreateNotebook();
       }
       
       // Forzar actualización de categorías
       if (onRefreshCategories) {
-        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        // console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
         onRefreshCategories();
       }
       
@@ -387,18 +387,18 @@ const NotebookList: React.FC<NotebookListProps> = ({
   // Función para actualizar la categoría de un cuaderno
   const updateNotebookCategory = async (notebookId: string, category: string) => {
     try {
-      console.log('🔧 DEBUG - Actualizando categoría del cuaderno:', notebookId, 'a:', category);
+      // console.log('🔧 DEBUG - Actualizando categoría del cuaderno:', notebookId, 'a:', category);
       
       const notebookRef = doc(db, 'notebooks', notebookId);
       
-      console.log('🔧 DEBUG - Referencia del documento:', notebookRef.path);
+      // console.log('🔧 DEBUG - Referencia del documento:', notebookRef.path);
       
       await updateDoc(notebookRef, {
         category: category,
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ DEBUG - Categoría actualizada exitosamente para cuaderno:', notebookId);
+      // console.log('✅ DEBUG - Categoría actualizada exitosamente para cuaderno:', notebookId);
       
     } catch (error) {
       console.error('❌ Error updating notebook category:', error);
@@ -430,7 +430,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
     try {
       if (!user) return;
       
-      console.log('🔧 DEBUG - Guardando categoría en colección:', categoryName);
+      // console.log('🔧 DEBUG - Guardando categoría en colección:', categoryName);
       
       // Crear un documento con el nombre de la categoría como ID
       const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
@@ -442,7 +442,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         updatedAt: serverTimestamp()
       });
       
-      console.log('✅ DEBUG - Categoría guardada exitosamente en colección');
+      // console.log('✅ DEBUG - Categoría guardada exitosamente en colección');
       
     } catch (error) {
       console.error('❌ Error saving category to collection:', error);
@@ -455,13 +455,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
     try {
       if (!user) return;
       
-      console.log('🔧 DEBUG - Eliminando categoría de colección:', categoryName);
+      // console.log('🔧 DEBUG - Eliminando categoría de colección:', categoryName);
       
       const categoryRef = doc(db, 'categories', `${user.uid}_${categoryName}`);
       
       await deleteDoc(categoryRef);
       
-      console.log('✅ DEBUG - Categoría eliminada exitosamente de colección');
+      // console.log('✅ DEBUG - Categoría eliminada exitosamente de colección');
       
     } catch (error) {
       console.error('❌ Error deleting category from collection:', error);
@@ -572,13 +572,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
       
       // Forzar actualización de la lista de cuadernos
       if (onCreateNotebook) {
-        console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
+        // console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
         onCreateNotebook();
       }
       
       // Forzar actualización de categorías
       if (onRefreshCategories) {
-        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        // console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
         onRefreshCategories();
       }
       
@@ -629,7 +629,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
 
     try {
       if (!categoryToAddNotebook) return;
-      console.log('🚀 DEBUG - Cuadernos seleccionados para agregar:', selectedNotebooksToAdd);
+      // console.log('🚀 DEBUG - Cuadernos seleccionados para agregar:', selectedNotebooksToAdd);
       
       for (const notebookId of selectedNotebooksToAdd) {
         await updateNotebookCategory(notebookId, categoryToAddNotebook);
@@ -640,7 +640,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
         ? `Categoría "${categoryToAddNotebook}" actualizada exitosamente y ${selectedNotebooksToAdd.length} cuaderno(s) asignado(s).`
         : `Categoría "${categoryToAddNotebook}" actualizada exitosamente.`;
       
-      console.log('🎉 DEBUG - Mensaje de éxito:', successMessage);
+      // console.log('🎉 DEBUG - Mensaje de éxito:', successMessage);
       alert(successMessage);
       
       // Limpiar formulario
@@ -649,13 +649,13 @@ const NotebookList: React.FC<NotebookListProps> = ({
       
       // Forzar actualización de la lista de cuadernos
       if (onCreateNotebook) {
-        console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
+        // console.log('🔄 DEBUG - Llamando onCreateNotebook para forzar actualización');
         onCreateNotebook();
       }
       
       // Forzar actualización de categorías
       if (onRefreshCategories) {
-        console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
+        // console.log('🔄 DEBUG - Llamando onRefreshCategories para actualizar categorías');
         onRefreshCategories();
       }
       
@@ -785,14 +785,92 @@ const NotebookList: React.FC<NotebookListProps> = ({
         </div>
       )}
 
+      {/* Empty state cuando no hay cuadernos */}
+      {!selectedCategory && notebooks.length === 0 && showCreateButton && (
+        <div className="empty-state-container enhanced">
+          <div className="background-decoration">
+            <div className="circle circle-1"></div>
+            <div className="circle circle-2"></div>
+            <div className="circle circle-3"></div>
+          </div>
+          
+          <div className="empty-state-illustration">
+            <div className="book-stack">
+              <div className="book book-1" style={{backgroundColor: materiaColor || '#6147FF'}}></div>
+              <div className="book book-2" style={{backgroundColor: '#4CAF50'}}></div>
+              <div className="book book-3" style={{backgroundColor: '#FF6B6B'}}></div>
+            </div>
+          </div>
+          
+          <div className="empty-state-content">
+            <div className="empty-state-module">
+              <div className="module-header">
+                <div className="module-icon">
+                  <i className="fas fa-book-open"></i>
+                </div>
+                <button 
+                  className="module-title-button" 
+                  onClick={() => {
+                    setShowCreateModal(true);
+                  }}
+                >
+                  ¡Crea tu primer cuaderno!
+                </button>
+              </div>
+              
+              <div className="suggestions-section">
+                <span className="suggestions-label">
+                  <i className="fas fa-lightbulb"></i>
+                  Temas populares
+                </span>
+                <div className="suggestion-cards">
+                  <button className="suggestion-card" onClick={() => {
+                    setShowCreateModal(true);
+                  }}>
+                    <div className="card-bg" style={{background: `linear-gradient(135deg, ${materiaColor || '#6147FF'}, #8B5DFF)`}}></div>
+                    <div className="card-content">
+                      <span className="card-emoji">⚔️</span>
+                      <span className="card-title">1ra Guerra Mundial</span>
+                      <span className="card-subtitle">Causas y consecuencias</span>
+                    </div>
+                  </button>
+                  
+                  <button className="suggestion-card" onClick={() => {
+                    setShowCreateModal(true);
+                  }}>
+                    <div className="card-bg" style={{background: 'linear-gradient(135deg, #4CAF50, #66BB6A)'}}></div>
+                    <div className="card-content">
+                      <span className="card-emoji">🧬</span>
+                      <span className="card-title">Revolución Industrial</span>
+                      <span className="card-subtitle">Cambios sociales</span>
+                    </div>
+                  </button>
+                  
+                  <button className="suggestion-card" onClick={() => {
+                    setShowCreateModal(true);
+                  }}>
+                    <div className="card-bg" style={{background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)'}}></div>
+                    <div className="card-content">
+                      <span className="card-emoji">🌍</span>
+                      <span className="card-title">Cambio Climático</span>
+                      <span className="card-subtitle">Efectos globales</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal para crear nuevo cuaderno */}
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content create-notebook-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Crear nuevo cuaderno</h3>
+          <div className="modal-content create-notebook-modal-new" onClick={(e) => e.stopPropagation()}>
+            {/* Header simplificado */}
+            <div className="modal-header-simple">
               <button 
-                className="close-button" 
+                className="close-button-simple" 
                 onClick={() => {
                   setShowCreateModal(false);
                   setNewNotebookTitle('');
@@ -800,71 +878,81 @@ const NotebookList: React.FC<NotebookListProps> = ({
                   setErrorMessage('');
                 }}
               >
-                ×
+                <i className="fas fa-times"></i>
               </button>
             </div>
-            <form onSubmit={handleCreateNotebook} className="modal-body">
-              <div className="form-group">
-                <label htmlFor="notebookTitle">Nombre del cuaderno</label>
-                <input
-                  id="notebookTitle"
-                  type="text"
-                  value={newNotebookTitle}
-                  onChange={(e) => setNewNotebookTitle(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Ej: Álgebra, Biología, etc."
-                  className="form-control"
-                  autoFocus
-                  required
-                  disabled={isSubmitting}
-                />
+            
+            {/* Contenido principal */}
+            <div className="modal-main-content">
+              <div className="modal-icon">
+                <i className="fas fa-book-open" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
               </div>
+              <h2 className="modal-title">Nuevo Cuaderno</h2>
+              <p className="modal-subtitle">Crea un nuevo cuaderno para organizar tus conceptos</p>
               
-              <div className="form-group">
-                <label>Color del cuaderno</label>
-                <div className="color-picker-grid">
-                  {colorPresets.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`color-preset ${newNotebookColor === color ? 'selected' : ''}`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setNewNotebookColor(color)}
-                    />
-                  ))}
+              <form onSubmit={handleCreateNotebook} className="modal-form">
+                <div className="input-group">
+                  <input
+                    id="notebookTitle"
+                    type="text"
+                    value={newNotebookTitle}
+                    onChange={(e) => setNewNotebookTitle(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Nombre del cuaderno"
+                    className="modal-input"
+                    autoFocus
+                    required
+                    disabled={isSubmitting}
+                  />
                 </div>
-              </div>
-
-              {errorMessage && (
-                <div className="error-message">
-                  <span className="error-icon">⚠️</span>
-                  <span className="error-text">{errorMessage}</span>
+                
+                <div className="color-section">
+                  <p className="color-label">Elige un color</p>
+                  <div className="color-options">
+                    {colorPresets.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`color-option ${newNotebookColor === color ? 'selected' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setNewNotebookColor(color)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              )}
 
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setNewNotebookTitle('');
-                    setNewNotebookColor('#6147FF');
-                    setErrorMessage('');
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="create-button"
-                  disabled={isSubmitting || !newNotebookTitle.trim()}
-                >
-                  {isSubmitting ? 'Creando...' : 'Crear cuaderno'}
-                </button>
-              </div>
-            </form>
+                {errorMessage && (
+                  <div className="error-message-new">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-text">{errorMessage}</span>
+                  </div>
+                )}
+                
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setNewNotebookTitle('');
+                      setNewNotebookColor('#6147FF');
+                      setErrorMessage('');
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-create"
+                    disabled={isSubmitting || !newNotebookTitle.trim()}
+                  >
+                    <i className="fas fa-plus"></i>
+                    {isSubmitting ? 'Creando...' : 'Crear Cuaderno'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -65,6 +65,15 @@ const Materias: React.FC = () => {
   const [adminMaterias, setAdminMaterias] = useState<any[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [examsByMateria, setExamsByMateria] = useState<Record<string, any[]>>({});
+  const [newMateriaTitle, setNewMateriaTitle] = useState('');
+  const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  
+  // Color presets para las materias
+  const colorPresets = [
+    '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
+  ];
 
   // Cargar materias del usuario
   useEffect(() => {
@@ -573,14 +582,64 @@ const Materias: React.FC = () => {
     setSelectedCategory(null);
   };
 
-  const [newMateriaTitle, setNewMateriaTitle] = useState('');
-  const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
-  const colorPresets = [
-    '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
-  ];
+  // Funciones para el modal
+  const handleCreateMateria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newMateriaTitle.trim()) {
+      setErrorMessage('Por favor, ingresa un título para la materia.');
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await handleCreate(newMateriaTitle.trim(), newMateriaColor);
+      
+      setNewMateriaTitle('');
+      setNewMateriaColor('#6147FF');
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error("Error creating materia:", error);
+      if (error instanceof Error && error.message.includes('Ya existe')) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Error al crear la materia. Por favor, intenta de nuevo.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCreateMateria(e as any);
+    } else if (e.key === 'Escape') {
+      setShowCreateModal(false);
+      setNewMateriaTitle('');
+      setErrorMessage('');
+    }
+  };
+
 
   const [streakData, setStreakData] = useState<any>(null);
   const [loadingStreak, setLoadingStreak] = useState(true);
+
+  // Efecto para bloquear el body cuando el modal está abierto
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup al desmontar el componente
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showCreateModal]);
 
   if (loading || authLoading || loadingStreak) {
     // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
@@ -827,8 +886,6 @@ const Materias: React.FC = () => {
                       </span>
                       <div className="suggestion-cards">
                         <button className="suggestion-card" onClick={() => {
-                          setNewMateriaTitle('Cálculo Diferencial');
-                          setNewMateriaColor('#6147FF');
                           setShowCreateModal(true);
                         }}>
                           <div className="card-bg" style={{background: 'linear-gradient(135deg, #6147FF, #8B5DFF)'}}></div>
@@ -840,8 +897,6 @@ const Materias: React.FC = () => {
                         </button>
                         
                         <button className="suggestion-card" onClick={() => {
-                          setNewMateriaTitle('Química Orgánica');
-                          setNewMateriaColor('#4CAF50');
                           setShowCreateModal(true);
                         }}>
                           <div className="card-bg" style={{background: 'linear-gradient(135deg, #4CAF50, #66BB6A)'}}></div>
@@ -853,8 +908,6 @@ const Materias: React.FC = () => {
                         </button>
                         
                         <button className="suggestion-card" onClick={() => {
-                          setNewMateriaTitle('Historia Universal');
-                          setNewMateriaColor('#FF6B6B');
                           setShowCreateModal(true);
                         }}>
                           <div className="card-bg" style={{background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)'}}></div>
@@ -869,70 +922,6 @@ const Materias: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {showCreateModal && (
-                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-                  <div className="modal-content create-materia-modal" onClick={e => e.stopPropagation()}>
-                    <div className="modal-header">
-                      <h3>Crear nueva materia</h3>
-                      <button className="close-button" onClick={() => setShowCreateModal(false)}>
-                        <i className="fas fa-times"></i>
-                      </button>
-                    </div>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!newMateriaTitle.trim()) return;
-                      await handleCreate(newMateriaTitle.trim(), newMateriaColor);
-                      setNewMateriaTitle('');
-                      setNewMateriaColor('#6147FF');
-                      setShowCreateModal(false);
-                    }} className="modal-body">
-                      <div className="form-group">
-                        <label htmlFor="materiaTitle">Nombre de la materia</label>
-                        <input
-                          id="materiaTitle"
-                          type="text"
-                          value={newMateriaTitle}
-                          onChange={e => setNewMateriaTitle(e.target.value)}
-                          placeholder="Ej: Matemáticas, Historia, etc."
-                          className="form-control"
-                          autoFocus
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Color de la materia</label>
-                        <div className="color-picker-grid">
-                          {colorPresets.map(color => (
-                            <button
-                              key={color}
-                              type="button"
-                              className={`color-preset ${newMateriaColor === color ? 'selected' : ''}`}
-                              style={{ backgroundColor: color }}
-                              onClick={() => setNewMateriaColor(color)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="modal-footer">
-                        <button
-                          type="button"
-                          className="cancel-button"
-                          onClick={() => setShowCreateModal(false)}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="submit"
-                          className="create-button"
-                          disabled={!newMateriaTitle.trim()}
-                        >
-                          Crear materia
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <MateriaList 
@@ -956,6 +945,98 @@ const Materias: React.FC = () => {
           )}
         </div>
       </main>
+      
+      {/* Modal para crear nueva materia */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content create-materia-modal-new" onClick={(e) => e.stopPropagation()}>
+            {/* Header simplificado */}
+            <div className="modal-header-simple">
+              <button 
+                className="close-button-simple" 
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewMateriaTitle('');
+                  setErrorMessage('');
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            {/* Contenido principal */}
+            <div className="modal-main-content">
+              <div className="modal-icon">
+                <i className="fas fa-book" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+              </div>
+              <h2 className="modal-title">Nueva Materia</h2>
+              <p className="modal-subtitle">Crea una nueva materia para organizar tus estudios</p>
+              
+              <form onSubmit={handleCreateMateria} className="modal-form">
+                <div className="input-group">
+                  <input
+                    id="materiaTitle"
+                    type="text"
+                    value={newMateriaTitle}
+                    onChange={(e) => setNewMateriaTitle(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Nombre de la materia"
+                    className="modal-input"
+                    autoFocus
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+                
+                <div className="color-section">
+                  <p className="color-label">Elige un color</p>
+                  <div className="color-options">
+                    {colorPresets.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`color-option ${newMateriaColor === color ? 'selected' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setNewMateriaColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <div className="error-message-new">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-text">{errorMessage}</span>
+                  </div>
+                )}
+                
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setNewMateriaTitle('');
+                      setErrorMessage('');
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-create"
+                    disabled={isSubmitting || !newMateriaTitle.trim()}
+                  >
+                    <i className="fas fa-plus"></i>
+                    {isSubmitting ? 'Creando...' : 'Crear Materia'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

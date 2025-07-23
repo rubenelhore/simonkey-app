@@ -22,7 +22,6 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
 
   // Si está cargando, mostrar loading
   if (authLoading) {
-    console.log('🔐 PasswordChangeGuard mostrando loading');
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -54,7 +53,6 @@ const PasswordChangeGuard: React.FC<PasswordChangeGuardProps> = ({ children }) =
     return <Navigate to="/" replace />;
   }
 
-  console.log('🔐 PasswordChangeGuard - Renderizando children');
   return <>{children}</>;
 };
 

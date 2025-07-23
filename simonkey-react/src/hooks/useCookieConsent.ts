@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface CookiePreferences {
   essential: boolean;
@@ -173,16 +173,23 @@ export const useCookieConsent = () => {
     });
   };
 
+  // Cache para evitar logs repetidos
+  const analyticsState = useRef<boolean | null>(null);
+  
   const configureAnalytics = (enabled: boolean) => {
+    // Solo configurar si el estado cambió
+    if (analyticsState.current === enabled) {
+      return;
+    }
+    analyticsState.current = enabled;
+    
     // Configurar Google Analytics u otros servicios de análisis
     if (typeof window !== 'undefined') {
       if (enabled) {
-        // Habilitar analytics
-        console.log('🔊 Analytics habilitado');
+        // Habilitar analytics silenciosamente
         // Aquí se habilitaría Google Analytics cuando se implemente
       } else {
         // Deshabilitar analytics
-        console.log('🔇 Analytics deshabilitado');
         // Deshabilitar tracking
         if (typeof (window as any).gtag === 'function') {
           (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
@@ -195,9 +202,18 @@ export const useCookieConsent = () => {
     }
   };
 
+  // Cache para evitar logs repetidos
+  const marketingState = useRef<boolean | null>(null);
+  
   const configureMarketing = (enabled: boolean) => {
-    // Configurar servicios de marketing
-    console.log(enabled ? '📢 Marketing habilitado' : '🚫 Marketing deshabilitado');
+    // Solo configurar si el estado cambió
+    if (marketingState.current === enabled) {
+      return;
+    }
+    marketingState.current = enabled;
+    
+    // Configurar servicios de marketing silenciosamente
+    // Los logs se removieron para evitar spam
   };
 
   const giveConsent = useCallback((newPreferences: CookiePreferences) => {

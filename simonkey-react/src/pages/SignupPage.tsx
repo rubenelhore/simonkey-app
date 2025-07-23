@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SignupPage.css';
 import simonLogo from '/img/favicon.svg';
 // Arreglamos las importaciones de Firebase
@@ -18,7 +18,7 @@ import { sendVerificationEmail } from '../services/emailVerificationService';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { handleGoogleAuth, isLoading: googleLoading, error: googleError } = useGoogleAuth();
+  const { handleGoogleAuth, handleRedirectResult, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const [email, setEmail] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -26,6 +26,11 @@ const SignupPage: React.FC = () => {
   const [birthdate, setBirthdate] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Manejar resultado de redirect al cargar la página
+  useEffect(() => {
+    handleRedirectResult();
+  }, [handleRedirectResult]);
   
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);

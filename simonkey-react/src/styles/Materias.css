@@ -317,19 +317,8 @@
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  animation: slideIn 0.3s ease;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 .modal-header {
   padding: 1.5rem;
@@ -796,6 +785,498 @@
 .notebook-detail-container .concepts-list .empty-state .add-first-concept-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(79,70,229,0.13) !important;
+}
+
+/* Estilos para el nuevo modal rediseñado */
+.create-materia-modal-new {
+  max-width: 400px;
+  padding: 0;
+  border-radius: 20px;
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: white !important;
+}
+
+.create-materia-modal-new .modal-header-simple {
+  position: relative;
+  padding: 1rem 1rem 0 1rem;
+  display: flex;
+  justify-content: flex-end;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .close-button-simple {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-materia-modal-new .close-button-simple:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.create-materia-modal-new .modal-main-content {
+  padding: 0 2rem 2rem 2rem;
+  text-align: center;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .modal-icon {
+  margin-bottom: 1rem;
+}
+
+.create-materia-modal-new .modal-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.create-materia-modal-new .modal-subtitle {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0 0 2rem 0;
+  line-height: 1.4;
+}
+
+.create-materia-modal-new .modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .input-group {
+  text-align: left;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .modal-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #f3f4f6;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: #f9fafb;
+  box-sizing: border-box;
+}
+
+.create-materia-modal-new .modal-input:focus {
+  outline: none;
+  border-color: #6147FF;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.08);
+}
+
+.create-materia-modal-new .color-section {
+  text-align: center;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .color-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+}
+
+.create-materia-modal-new .color-options {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.create-materia-modal-new .color-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-materia-modal-new .color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.create-materia-modal-new .color-option.selected {
+  border-color: #1f2937;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #1f2937;
+}
+
+.create-materia-modal-new .error-message-new {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.create-materia-modal-new .modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-materia-modal-new .btn-cancel {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  background: #f8f9fa;
+  color: #6b7280;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-materia-modal-new .btn-cancel:hover {
+  background: #f3f4f6;
+  color: #374151;
+  transform: translateY(-1px);
+}
+
+.create-materia-modal-new .btn-create {
+  flex: 2;
+  padding: 0.875rem 1rem;
+  background: #6147FF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(97, 71, 255, 0.2);
+}
+
+.create-materia-modal-new .btn-create:hover:not(:disabled) {
+  background: #5a3fd4;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(97, 71, 255, 0.3);
+}
+
+.create-materia-modal-new .btn-create:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Estilos para el nuevo modal de crear cuaderno - mismo estilo que materia */
+.create-notebook-modal-new {
+  max-width: 400px;
+  padding: 0;
+  border-radius: 20px;
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: white !important;
+}
+
+.create-notebook-modal-new .modal-header-simple {
+  position: relative;
+  padding: 1rem 1rem 0 1rem;
+  display: flex;
+  justify-content: flex-end;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .close-button-simple {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-notebook-modal-new .close-button-simple:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.create-notebook-modal-new .modal-main-content {
+  padding: 0 2rem 2rem 2rem;
+  text-align: center;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .modal-icon {
+  margin-bottom: 1rem;
+}
+
+.create-notebook-modal-new .modal-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.create-notebook-modal-new .modal-subtitle {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0 0 2rem 0;
+  line-height: 1.4;
+}
+
+.create-notebook-modal-new .modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .input-group {
+  text-align: left;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .modal-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #f3f4f6;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: #f9fafb;
+  box-sizing: border-box;
+}
+
+.create-notebook-modal-new .modal-input:focus {
+  outline: none;
+  border-color: #6147FF;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.08);
+}
+
+.create-notebook-modal-new .color-section {
+  text-align: center;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .color-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+}
+
+.create-notebook-modal-new .color-options {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.create-notebook-modal-new .color-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-notebook-modal-new .color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.create-notebook-modal-new .color-option.selected {
+  border-color: #1f2937;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #1f2937;
+}
+
+.create-notebook-modal-new .error-message-new {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.create-notebook-modal-new .modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.create-notebook-modal-new .btn-cancel {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  background: #f8f9fa;
+  color: #6b7280;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-notebook-modal-new .btn-cancel:hover {
+  background: #f3f4f6;
+  color: #374151;
+  transform: translateY(-1px);
+}
+
+.create-notebook-modal-new .btn-create {
+  flex: 2;
+  padding: 0.875rem 1rem;
+  background: #6147FF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(97, 71, 255, 0.2);
+}
+
+.create-notebook-modal-new .btn-create:hover:not(:disabled) {
+  background: #5a3fd4;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(97, 71, 255, 0.3);
+}
+
+.create-notebook-modal-new .btn-create:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Configuración completa del modal overlay */
+.modal-overlay {
+  z-index: 10000 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Bloquear header y elementos cuando el modal está abierto */
+body:has(.modal-overlay) header,
+body:has(.modal-overlay) .header-container,
+body:has(.modal-overlay) .hamburger-menu,
+body:has(.modal-overlay) .burger-button,
+body:has(.modal-overlay) .notification,
+body:has(.modal-overlay) .toast,
+body:has(.modal-overlay) .alert {
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 1 !important;
+}
+
+/* Alternativa más específica para navegadores que no soportan :has() */
+.modal-open header,
+.modal-open .header-container,
+.modal-open .hamburger-menu,
+.modal-open .burger-button,
+.modal-open .notification,
+.modal-open .toast,
+.modal-open .alert {
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 1 !important;
+}
+
+/* Asegurar que el modal esté perfectamente centrado y sin animaciones */
+.modal-overlay .create-materia-modal-new {
+  position: static !important;
+  margin: 0 !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  animation: none !important;
+  transition: none !important;
 }
 
 /* ========================================

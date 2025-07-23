@@ -39,8 +39,26 @@
 }
 
 .concept-detail-header .back-button {
-  position: absolute;
-  left: 0;
+  background: white !important;
+  border: none !important;
+  color: var(--theme-color, #6147FF) !important;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  width: 40px !important;
+  height: 40px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, opacity 0.2s, box-shadow 0.2s;
+  outline: none;
+  position: absolute !important;
+  left: 8rem;
+  top: 50%;
+  transform: translateY(-50%) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  margin: 0 !important;
 }
 
 .concept-detail-header .centered-title {
