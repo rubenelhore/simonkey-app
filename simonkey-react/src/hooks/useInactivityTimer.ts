@@ -296,14 +296,22 @@ export const useInactivityTimer = ({
   // Eventos que resetean el timer - SOLO interacciones reales con la plataforma
   useEffect(() => {
     if (!enabled) {
-      console.log('⏸️ Timer de inactividad pausado - Condiciones no cumplidas:', {
-        enabled,
-        isAuthenticated: (window as any).firebase?.auth?.currentUser ? true : false,
-        pathname: window.location.pathname
-      });
+      // Solo mostrar log si el estado cambió
+      if (eventListenersAddedRef.current) {
+        console.log('⏸️ Timer de inactividad pausado - Condiciones no cumplidas:', {
+          enabled,
+          isAuthenticated: (window as any).firebase?.auth?.currentUser ? true : false,
+          pathname: window.location.pathname
+        });
+      }
       pauseTimer();
       setIsFullyLoggedIn(false);
       eventListenersAddedRef.current = false;
+      return;
+    }
+
+    // Evitar múltiples inicializaciones si ya está configurado
+    if (eventListenersAddedRef.current && isFullyLoggedIn) {
       return;
     }
 
