@@ -790,64 +790,76 @@ const Materias: React.FC = () => {
               {showCreateModal && (
                 <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
                   <div className="modal-content create-materia-modal" onClick={e => e.stopPropagation()}>
-                    <div className="modal-header">
-                      <h3>Crear nueva materia</h3>
-                      <button className="close-button" onClick={() => setShowCreateModal(false)}>
+                    {/* Header simplificado */}
+                    <div className="modal-header-simple">
+                      <button className="close-button-simple" onClick={() => setShowCreateModal(false)}>
                         <i className="fas fa-times"></i>
                       </button>
                     </div>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!newMateriaTitle.trim()) return;
-                      await handleCreate(newMateriaTitle.trim(), newMateriaColor);
-                      setNewMateriaTitle('');
-                      setNewMateriaColor('#6147FF');
-                      setShowCreateModal(false);
-                    }} className="modal-body">
-                      <div className="form-group">
-                        <label htmlFor="materiaTitle">Nombre de la materia</label>
-                        <input
-                          id="materiaTitle"
-                          type="text"
-                          value={newMateriaTitle}
-                          onChange={e => setNewMateriaTitle(e.target.value)}
-                          placeholder="Ej: Matemáticas, Historia, etc."
-                          className="form-control"
-                          autoFocus
-                          required
-                        />
+                    
+                    {/* Contenido principal */}
+                    <div className="modal-main-content">
+                      <div className="modal-icon">
+                        <i className="fas fa-book" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
                       </div>
-                      <div className="form-group">
-                        <label>Color de la materia</label>
-                        <div className="color-picker-grid">
-                          {colorPresets.map(color => (
-                            <button
-                              key={color}
-                              type="button"
-                              className={`color-preset ${newMateriaColor === color ? 'selected' : ''}`}
-                              style={{ backgroundColor: color }}
-                              onClick={() => setNewMateriaColor(color)}
-                            />
-                          ))}
+                      <h2 className="modal-title">Nueva Materia</h2>
+                      <p className="modal-subtitle">Crea una nueva materia para organizar tus estudios</p>
+                      
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!newMateriaTitle.trim()) return;
+                        await handleCreate(newMateriaTitle.trim(), newMateriaColor);
+                        setNewMateriaTitle('');
+                        setNewMateriaColor('#6147FF');
+                        setShowCreateModal(false);
+                      }} className="modal-form">
+                        <div className="input-group">
+                          <input
+                            id="materiaTitle"
+                            type="text"
+                            value={newMateriaTitle}
+                            onChange={e => setNewMateriaTitle(e.target.value)}
+                            placeholder="Nombre de la materia"
+                            className="modal-input"
+                            autoFocus
+                            required
+                          />
                         </div>
-                      </div>
-                      <div className="modal-footer">
-                        <button
-                          type="button"
-                          className="cancel-button"
-                          onClick={() => setShowCreateModal(false)}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="submit"
-                          className="create-button"
-                          disabled={!newMateriaTitle.trim()}
-                        >
-                          Crear materia
-                        </button>
-                      </div>
-                    </form>
+                        
+                        <div className="color-section">
+                          <p className="color-label">Elige un color</p>
+                          <div className="color-options">
+                            {colorPresets.map(color => (
+                              <button
+                                key={color}
+                                type="button"
+                                className={`color-option ${newMateriaColor === color ? 'selected' : ''}`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => setNewMateriaColor(color)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="modal-actions">
+                          <button
+                            type="button"
+                            className="btn-cancel"
+                            onClick={() => setShowCreateModal(false)}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="submit"
+                            className="btn-create"
+                            disabled={!newMateriaTitle.trim()}
+                          >
+                            <i className="fas fa-plus"></i>
+                            Crear Materia
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 </div>
               )}
@@ -874,9 +886,6 @@ const Materias: React.FC = () => {
           )}
         </div>
       </main>
-      <footer className="materias-footer">
-        <p>&copy; {new Date().getFullYear()} Simonkey - Todos los derechos reservados</p>
-      </footer>
     </>
   );
 };

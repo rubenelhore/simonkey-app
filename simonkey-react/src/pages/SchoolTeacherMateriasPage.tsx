@@ -199,9 +199,6 @@ const SchoolTeacherMateriasPage: React.FC = () => {
           )}
         </div>
       </main>
-      <footer className="materias-footer">
-        <p>&copy; {new Date().getFullYear()} Simonkey - Sistema Escolar</p>
-      </footer>
     </>
   );
 };
