@@ -432,14 +432,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         <div className="side-menu-content">
           <div className="user-section">
             <button 
-              className={`side-menu-button personalization-button ${isProfilePage ? 'disabled' : ''}`} 
-              onClick={isProfilePage ? undefined : handleProfileClick}
-              disabled={isProfilePage}
-            >
-              <i className="fas fa-user-cog"></i> 
-              <span>Mi perfil</span>
-            </button>
-            <button 
               className={`side-menu-button voice-settings-button ${isVoiceSettingsPage ? 'disabled' : ''}`} 
               onClick={isVoiceSettingsPage ? undefined : handleVoiceSettingsClick}
               disabled={isVoiceSettingsPage}
@@ -467,7 +459,19 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 <span>Súper Admin</span>
               </button>
             )}
-            <button className="side-menu-button logout-button" onClick={handleLogout}>
+          </div>
+          
+          {/* Botones de perfil y cerrar sesión al final, horizontalmente */}
+          <div className="bottom-buttons-section">
+            <button 
+              className={`side-menu-button personalization-button horizontal-button ${isProfilePage ? 'disabled' : ''}`} 
+              onClick={isProfilePage ? undefined : handleProfileClick}
+              disabled={isProfilePage}
+            >
+              <i className="fas fa-user-cog"></i> 
+              <span>Mi perfil</span>
+            </button>
+            <button className="side-menu-button logout-button horizontal-button" onClick={handleLogout}>
               <i className="fas fa-sign-out-alt"></i> 
               <span>Cerrar sesión</span>
             </button>

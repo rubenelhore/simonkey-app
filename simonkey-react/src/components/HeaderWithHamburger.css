@@ -304,12 +304,36 @@
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .side-menu-content .user-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex: 1;
+}
+
+/* Sección de botones al final (Mi perfil y Cerrar sesión) */
+.bottom-buttons-section {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Botones horizontales */
+.horizontal-button {
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.horizontal-button span {
+  font-size: 0.9rem;
 }
 
 /* Botones del menú lateral */
@@ -638,6 +662,19 @@
   .side-menu-button {
     padding: 0.875rem;
     font-size: 0.95rem;
+  }
+  
+  /* Estilos responsivos para botones horizontales en móvil */
+  .horizontal-button {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .horizontal-button span {
+    font-size: 0.85rem;
+  }
+  
+  .bottom-buttons-section {
+    gap: 0.4rem;
   }
   
   .modal-content {
