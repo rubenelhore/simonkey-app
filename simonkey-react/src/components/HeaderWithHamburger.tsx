@@ -380,7 +380,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // El cierre del popup ahora se maneja con el overlay onClick
 
   return (
-    <div className={`header-with-hamburger-container ${(isSidebarExpanded || isSidebarPinned) ? 'menu-open' : ''}`}>
+    <div className={`header-with-hamburger-container ${(isSidebarExpanded || isSidebarPinned) ? 'menu-open' : ''} ${isFullscreen ? 'fullscreen-mode' : ''}`}>
       
       {/* Header limitado */}
       <header className="limited-header">

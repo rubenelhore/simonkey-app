@@ -89,6 +89,60 @@
   justify-content: center;
 }
 
+/* Estilos para modo pantalla completa */
+:fullscreen .header-with-hamburger-container,
+.fullscreen-mode {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+}
+
+:fullscreen .limited-header,
+.fullscreen-mode .limited-header {
+  position: fixed;
+  top: 0;
+  left: 60px;
+  right: 0;
+  height: 64px;
+  z-index: 10000;
+}
+
+:fullscreen .sidebar-nav,
+.fullscreen-mode .sidebar-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 10001;
+}
+
+:fullscreen .content-wrapper,
+.fullscreen-mode .content-wrapper {
+  position: fixed !important;
+  top: 64px !important;
+  left: 60px !important;
+  width: calc(100vw - 60px) !important;
+  height: calc(100vh - 64px) !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  overflow-y: auto;
+  z-index: 9998;
+}
+
+:fullscreen .menu-open .content-wrapper,
+.fullscreen-mode.menu-open .content-wrapper {
+  left: 250px !important;
+  width: calc(100vw - 250px) !important;
+}
+
+:fullscreen .menu-open .limited-header,
+.fullscreen-mode.menu-open .limited-header {
+  left: 250px;
+}
+
 .hamburger-icon {
   width: 20px;
   height: 16px;
