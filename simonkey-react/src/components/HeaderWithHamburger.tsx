@@ -29,14 +29,17 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 }) => {
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription } = useUserType();
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarExpanded, setSidebarExpanded] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNotification, setHasNotification] = useState(false);
   const [todayEvents, setTodayEvents] = useState<{ id: string; title: string; type: string }[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,8 +51,41 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   // Detectar si estamos en la página de calendario
   const isCalendarPage = location.pathname === '/calendar';
+  
+  // Detectar si estamos en la página de inicio
+  const isHomePage = location.pathname === '/inicio';
+  
+  // Detectar si estamos en la página de ayuda/contacto
+  const isHelpPage = location.pathname === '/contact';
+  
+  // Detectar otras páginas
+  const isMateriasPage = location.pathname === '/materias';
+  const isStudyPage = location.pathname === '/study';
+  const isProgressPage = location.pathname === '/progress';
 
   const isFreeUser = subscription === 'free';
+
+  // Obtener la inicial del usuario
+  const getUserInitial = () => {
+    if (user?.displayName) {
+      return user.displayName.charAt(0).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
+  // Obtener el nombre completo del usuario
+  const getUserFullName = () => {
+    if (user?.displayName) {
+      return user.displayName;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Usuario';
+  };
 
   // Fetch today's calendar events
   useEffect(() => {
@@ -202,10 +238,22 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   //   console.log('  - subscription:', subscription);
   // }, [user, userProfile, isSuperAdmin, subscription]);
 
-  const toggleMenu = () => {
-    setMobileMenuOpen(!isMobileMenuOpen);
-    if (isMobileMenuOpen) {
+  const handleSidebarMouseEnter = () => {
+    if (!isSidebarPinned) {
+      setSidebarExpanded(true);
     }
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (!isSidebarPinned) {
+      setSidebarExpanded(false);
+    }
+  };
+
+  const toggleSidebarPin = () => {
+    const newPinnedState = !isSidebarPinned;
+    setIsSidebarPinned(newPinnedState);
+    setSidebarExpanded(newPinnedState);
   };
 
   const handleLogout = async () => {
@@ -218,7 +266,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   };
 
   const handleOpenUpgradeModal = () => {
-    setMobileMenuOpen(false);
     setIsUpgradeModalOpen(true);
   };
 
@@ -244,7 +291,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleHelpClick = () => {
     navigate('/contact');
-    setMobileMenuOpen(false);
   };
 
   useEffect(() => {
@@ -263,221 +309,379 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     };
   }, [showNotifications]);
 
-  return (
-    <div className={`header-with-hamburger-container ${isMobileMenuOpen ? 'menu-open' : ''}`}>
-      {/* Overlay para cerrar el menú */}
-      {isMobileMenuOpen && (
-        <div className="menu-overlay" onClick={toggleMenu}></div>
-      )}
+  // Forzar reajuste de módulos cuando cambia el sidebar
+  useEffect(() => {
+    const forceResize = () => {
+      // Disparar evento de resize para que los módulos se reajusten
+      window.dispatchEvent(new Event('resize'));
       
-      <header
-        className="header-with-hamburger"
-        style={{ 
-          opacity: 1, 
-          color: '#fff', 
-          zIndex: 9999, 
-          position: 'relative',
-          backgroundColor: themeColor || undefined
-        }}
-      >
-        <div className="header-content">
-          {/* Botón de retroceso si es necesario - ahora al inicio */}
-          {showBackButton && (
-            <button 
-              className="back-button" 
-              onClick={onBackClick}
-              style={{
-                '--theme-color': themeColor || '#6147FF'
-              } as React.CSSProperties}
-            >
-              <i className="fas fa-arrow-left"></i>
-            </button>
-          )}
-          
-          {/* Solo mostrar el logo si NO hay back button */}
-          {!showBackButton && (
-            <div className="logo2-title-group" style={{ cursor: 'pointer' }} onClick={() => navigate('/materias')}>
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
-                <span>Simon</span>
-                <span>key</span>
-              </h1>
-              <img
-                src="/img/favicon.svg"
-                alt="Logo Simonkey"
-                className="logo-img"
-                width="24"
-                height="24"
-                style={{ filter: 'brightness(0) invert(1)' }}
-              />  
-            </div>
-          )}
-          
+      // Forzar reflow
+      const contentWrapper = document.querySelector('.content-wrapper');
+      if (contentWrapper) {
+        // Aplicar estilos directamente via JavaScript
+        const elements = contentWrapper.querySelectorAll('*');
+        elements.forEach((el: any) => {
+          if (el.style) {
+            el.style.maxWidth = '100%';
+            el.style.boxSizing = 'border-box';
+          }
+        });
+        
+        // Específicamente para dashboard-content
+        const dashboardContent = contentWrapper.querySelector('.dashboard-content');
+        if (dashboardContent) {
+          (dashboardContent as HTMLElement).style.maxWidth = '100%';
+          (dashboardContent as HTMLElement).style.margin = '0';
+          (dashboardContent as HTMLElement).style.width = '100%';
+        }
+      }
+    };
+
+    // Pequeño delay para asegurar que las transiciones terminen
+    const timeoutId = setTimeout(forceResize, 100);
+    return () => clearTimeout(timeoutId);
+  }, [isSidebarExpanded]);
+
+  // El cierre del popup ahora se maneja con el overlay onClick
+
+  return (
+    <div className={`header-with-hamburger-container ${isSidebarExpanded ? 'menu-open' : ''}`}>
+      
+      {/* Header limitado */}
+      <header className="limited-header">
+        <div className="header-content-limited">
           {/* Título de la página */}
-          <div className="page-title-section">
-            <h2 className="page-title">{title}</h2>
-            {subtitle && <p className="page-subtitle">{subtitle}</p>}
+          <div className="page-title-section-limited">
+            <h2 className="page-title-limited">{title}</h2>
+            {subtitle && <p className="page-subtitle-limited">{subtitle}</p>}
           </div>
-          
-          {/* Botón de notificaciones */}
-          <button
-            className={`notification-btn${hasNotification && !showNotifications ? ' shake' : ''}`}
-            aria-label="Notificaciones"
-            onClick={() => setShowNotifications((v) => !v)}
+
+          {/* Botón de notificaciones en esquina superior derecha */}
+          <button 
+            className={`notification-btn-header ${hasNotification && !showNotifications ? 'notification-highlight' : ''}`} 
+            onClick={() => setShowNotifications((v) => !v)} 
+            title="Notificaciones"
           >
-            <FontAwesomeIcon icon={faBell} size="lg" />
+            <FontAwesomeIcon icon={faBell} />
             {hasNotification && (
-              <span style={{
-                position: 'absolute',
-                top: 2,
-                right: 2,
-                width: 10,
-                height: 10,
-                background: 'red',
-                borderRadius: '50%',
-                border: '2px solid white',
-                display: 'inline-block',
-                zIndex: 2,
-              }} />
+              <span className="notification-dot-header"></span>
             )}
           </button>
-          {/* Botón hamburguesa */}
-          <button className="notebooks-hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
-            <span className="notebooks-hamburger-line"></span>
-            <span className="notebooks-hamburger-line"></span>
-            <span className="notebooks-hamburger-line"></span>
-          </button>
-          {/* Menú de notificaciones */}
-          {showNotifications && (
-            <div
-              ref={notificationMenuRef}
-              style={{
-                position: 'absolute',
-                top: 50,
-                right: 20,
-                background: 'white',
-                color: '#222',
-                border: '1px solid #eee',
-                borderRadius: 8,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                padding: 16,
-                minWidth: 220,
-                zIndex: 10000,
-              }}
-            >
-              <button
-                onClick={() => setShowNotifications(false)}
-                aria-label="Cerrar notificaciones"
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 20,
-                  color: '#888',
-                  cursor: 'pointer',
-                  padding: 4,
-                  zIndex: 2
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-              <strong>Notificaciones</strong>
-              <div style={{ marginTop: 8 }}>
-                {todayEvents.length > 0 || smartEvents.length > 0 ? (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {todayEvents.map((event) => (
-                      <li
-                        key={event.id}
-                        style={{ cursor: 'pointer', padding: '6px 0', color: '#6147FF', fontWeight: 500 }}
-                        onClick={() => {
-                          setShowNotifications(false);
-                          navigate('/calendar');
-                        }}
-                      >
-                        📅 {event.title}
-                      </li>
-                    ))}
-                    {smartEvents.map((event) => (
-                      <li
-                        key={event.id}
-                        style={{ cursor: 'pointer', padding: '6px 0', color: '#10b981', fontWeight: 500 }}
-                        onClick={() => {
-                          setShowNotifications(false);
-                          navigate('/study', { state: { selectedNotebookId: event.notebookId } });
-                        }}
-                      >
-                        {event.title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div>No tienes notificaciones nuevas.</div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </header>
       
-      {/* Menú lateral deslizante */}
-      <div className={`side-menu ${isMobileMenuOpen ? 'side-menu-open' : ''}`}>
-        <div className="side-menu-header">
-          <h3>Menú</h3>
-          <button className="side-menu-close" onClick={toggleMenu}>
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <div className="side-menu-content">
-          <div className="user-section">
-            <button 
-              className={`side-menu-button voice-settings-button ${isVoiceSettingsPage ? 'disabled' : ''}`} 
-              onClick={isVoiceSettingsPage ? undefined : handleVoiceSettingsClick}
-              disabled={isVoiceSettingsPage}
-            >
-              <i className="fas fa-volume-up"></i> 
-              <span>Configuración de voz</span>
-            </button>
-            <button className={`side-menu-button calendar-button${isCalendarPage ? ' disabled' : ''}`} onClick={isCalendarPage ? undefined : handleCalendarClick} disabled={isCalendarPage}>
-              <i className="fas fa-calendar-alt"></i>
-              <span>Calendario</span>
-            </button>
-            <button className="side-menu-button help-button" onClick={handleHelpClick}>
-              <i className="fas fa-question-circle"></i> 
-              <span>Ayuda</span>
-            </button>
-            {isFreeUser && (
-              <button className="side-menu-button upgrade-pro-button" onClick={handleOpenUpgradeModal}>
-                <i className="fas fa-star"></i>
-                <span>Upgrade a Pro</span>
-              </button>
-            )}
-            {isSuperAdmin && (
-              <button className="side-menu-button super-admin-button" onClick={handleSuperAdminClick}>
-                <i className="fas fa-crown"></i> 
-                <span>Súper Admin</span>
-              </button>
+      {/* Nueva barra lateral fija */}
+      <div 
+        className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+      >
+        {/* Botón de pin/unpin en el extremo */}
+        <button 
+          className="sidebar-toggle-btn-edge"
+          onClick={toggleSidebarPin}
+          title={isSidebarPinned ? "Desfijar sidebar" : "Fijar sidebar"}
+        >
+          <i className={`fas fa-chevron-${isSidebarPinned ? 'left' : 'right'}`}></i>
+        </button>
+        {/* Logo */}
+        <div className="sidebar-header">
+          <div className="sidebar-logo" onClick={() => navigate('/inicio')} title="Ir al inicio">
+            <img
+              src="/img/favicon.svg"
+              alt="Logo Simonkey"
+              width="32"
+              height="32"
+            />
+            {isSidebarExpanded && (
+              <div className="sidebar-logo-text">
+                <span>Simon</span><span>key</span>
+              </div>
             )}
           </div>
-          
-          {/* Botones de perfil y cerrar sesión al final, horizontalmente */}
-          <div className="bottom-buttons-section">
+        </div>
+        
+        {/* Iconos de navegación */}
+        <div className="sidebar-icons">
+          <button 
+            className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
+            onClick={() => navigate('/inicio')}
+            title="Pagina principal"
+          >
+            <i className="fas fa-home"></i>
+            {isSidebarExpanded && <span>Pagina principal</span>}
+          </button>
+          <button 
+            className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
+            onClick={() => navigate('/materias')}
+            title="Mis materias"
+          >
+            <i className="fas fa-book"></i>
+            {isSidebarExpanded && <span>Mis materias</span>}
+          </button>
+          <button 
+            className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
+            onClick={() => navigate('/study')}
+            title="Estudiar"
+          >
+            <i className="fas fa-graduation-cap"></i>
+            {isSidebarExpanded && <span>Estudiar</span>}
+          </button>
+          <button 
+            className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
+            onClick={() => navigate('/progress')}
+            title="Mi progreso"
+          >
+            <i className="fas fa-chart-line"></i>
+            {isSidebarExpanded && <span>Mi progreso</span>}
+          </button>
+          <button 
+            className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
+            onClick={handleCalendarClick} 
+            title="Calendario"
+          >
+            <i className="fas fa-calendar-alt"></i>
+            {isSidebarExpanded && <span>Calendario</span>}
+          </button>
+          {isSuperAdmin && (
             <button 
-              className={`side-menu-button personalization-button horizontal-button ${isProfilePage ? 'disabled' : ''}`} 
-              onClick={isProfilePage ? undefined : handleProfileClick}
-              disabled={isProfilePage}
+              className="sidebar-icon-btn" 
+              onClick={handleSuperAdminClick}
+              title="Súper Admin"
             >
-              <i className="fas fa-user-cog"></i> 
-              <span>Mi perfil</span>
+              <i className="fas fa-crown"></i>
+              {isSidebarExpanded && <span>Súper Admin</span>}
             </button>
-            <button className="side-menu-button logout-button horizontal-button" onClick={handleLogout}>
-              <i className="fas fa-sign-out-alt"></i> 
-              <span>Cerrar sesión</span>
-            </button>
+          )}
+        </div>
+        
+        {/* Sección de usuario al final */}
+        <div className="sidebar-user-section">
+          <div 
+            className="user-avatar-container"
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            title="Opciones de usuario"
+          >
+            <div className="user-avatar">
+              {getUserInitial()}
+            </div>
+            {isSidebarExpanded && (
+              <div className="user-info">
+                <span className="user-name">{getUserFullName()}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      
+      {/* Menú de notificaciones */}
+      {showNotifications && (
+        <div
+          ref={notificationMenuRef}
+          style={{
+            position: 'fixed',
+            top: '70px',
+            right: '1rem',
+            background: 'white',
+            color: '#222',
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+            padding: 20,
+            minWidth: 280,
+            maxWidth: 320,
+            zIndex: 10000,
+          }}
+        >
+          <button
+            onClick={() => setShowNotifications(false)}
+            aria-label="Cerrar notificaciones"
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              background: 'none',
+              border: 'none',
+              fontSize: 18,
+              color: '#6b7280',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: '50%',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ×
+          </button>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 600, color: '#1f2937' }}>
+            🔔 Notificaciones
+          </h3>
+          <div>
+            {todayEvents.length > 0 || smartEvents.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {todayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{ 
+                      cursor: 'pointer', 
+                      padding: '12px', 
+                      backgroundColor: '#f8fafc',
+                      borderRadius: 8,
+                      border: '1px solid #e2e8f0',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => {
+                      setShowNotifications(false);
+                      navigate('/calendar');
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e2e8f0';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8fafc';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ fontSize: '0.9rem', fontWeight: 500, color: '#6147FF' }}>
+                      📅 {event.title}
+                    </div>
+                  </div>
+                ))}
+                {smartEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{ 
+                      cursor: 'pointer', 
+                      padding: '12px', 
+                      backgroundColor: '#f0fdf4',
+                      borderRadius: 8,
+                      border: '1px solid #bbf7d0',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => {
+                      setShowNotifications(false);
+                      navigate('/study', { state: { selectedNotebookId: event.notebookId } });
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#dcfce7';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ fontSize: '0.9rem', fontWeight: 500, color: '#10b981' }}>
+                      {event.title}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#6b7280', 
+                fontSize: '0.9rem',
+                padding: '20px 0'
+              }}>
+                📭 No tienes notificaciones nuevas
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Popup del menú de usuario fuera del sidebar */}
+      {isUserMenuOpen && (
+        <div 
+          className="user-menu-popup-overlay"
+          onClick={() => setIsUserMenuOpen(false)}
+        >
+          <div 
+            className="user-menu-popup-external" 
+            ref={userMenuRef}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="user-menu-header">
+              <div className="user-avatar-large">
+                {getUserInitial()}
+              </div>
+              <div className="user-details">
+                <h4>{getUserFullName()}</h4>
+                <p>{user?.email}</p>
+              </div>
+            </div>
+            <div className="user-menu-options">
+              <button 
+                className={`user-menu-btn ${isProfilePage ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (!isProfilePage) {
+                    handleProfileClick();
+                    setIsUserMenuOpen(false);
+                  }
+                }}
+                disabled={isProfilePage}
+              >
+                <i className="fas fa-user-cog"></i>
+                <span>Mi perfil</span>
+              </button>
+              <button 
+                className={`user-menu-btn ${isVoiceSettingsPage ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (!isVoiceSettingsPage) {
+                    handleVoiceSettingsClick();
+                    setIsUserMenuOpen(false);
+                  }
+                }}
+                disabled={isVoiceSettingsPage}
+              >
+                <i className="fas fa-volume-up"></i>
+                <span>Configuración de voz</span>
+              </button>
+              <button 
+                className={`user-menu-btn ${isHelpPage ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (!isHelpPage) {
+                    handleHelpClick();
+                    setIsUserMenuOpen(false);
+                  }
+                }}
+                disabled={isHelpPage}
+              >
+                <i className="fas fa-question-circle"></i>
+                <span>Ayuda</span>
+              </button>
+              {isFreeUser && (
+                <button 
+                  className="user-menu-btn upgrade-btn"
+                  onClick={() => {
+                    handleOpenUpgradeModal();
+                    setIsUserMenuOpen(false);
+                  }}
+                >
+                  <i className="fas fa-star"></i>
+                  <span>Upgrade a Pro</span>
+                </button>
+              )}
+              <div className="user-menu-divider"></div>
+              <button 
+                className="user-menu-btn logout-btn"
+                onClick={() => {
+                  handleLogout();
+                  setIsUserMenuOpen(false);
+                }}
+              >
+                <i className="fas fa-sign-out-alt"></i>
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {isUpgradeModalOpen && (
         <div className="modal-overlay">
@@ -517,7 +721,21 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       )}
       {/* Renderiza children debajo del header y menú */}
-      {children}
+      <div 
+        className="content-wrapper"
+        style={{ 
+          '--sidebar-width': isSidebarExpanded ? '250px' : '60px',
+          marginLeft: isSidebarExpanded ? '250px' : '60px', 
+          paddingTop: '64px',
+          width: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          maxWidth: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        } as React.CSSProperties}
+      >
+        {children}
+      </div>
     </div>
   );
 };
