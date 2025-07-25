@@ -279,6 +279,223 @@
   background: #fafafa;
 }
 
+/* Vista semanal con horas del día */
+.week-schedule {
+  background: white;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.week-schedule-header {
+  padding: 1rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.week-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1rem;
+  margin-left: 80px; /* Espacio para las horas */
+}
+
+.week-day-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.week-day-header.today {
+  background: #fef3c7;
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.week-day-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.week-day-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.week-day-header.today .week-day-number {
+  background: #f59e0b;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.week-hour-grid {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.week-hour-row {
+  display: flex;
+  border-bottom: 1px solid #f3f4f6;
+  min-height: 35px;
+  position: relative;
+}
+
+.week-hour-row.off-hours {
+  background: #f8f9fa;
+  opacity: 0.7;
+}
+
+.week-hour-label {
+  width: 80px;
+  padding: 0.5rem;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.week-hour-row.off-hours .week-hour-label {
+  color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.week-hour-slots {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+}
+
+.week-hour-slot {
+  border-right: 1px solid #e5e7eb;
+  position: relative;
+  min-height: 35px;
+}
+
+.week-hour-slot.current-hour {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.week-hour-slot.today {
+  background: rgba(245, 158, 11, 0.02);
+}
+
+.week-hour-content {
+  height: 100%;
+  min-height: 35px;
+  padding: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.week-hour-content:hover {
+  background: #f9fafb;
+}
+
+.week-event {
+  background: #6366f1;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  margin-bottom: 0.125rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+}
+
+.week-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.week-event-title {
+  font-weight: 600;
+  margin-bottom: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-event-description {
+  font-size: 0.625rem;
+  opacity: 0.9;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive para vista semanal */
+@media (max-width: 768px) {
+  .week-header {
+    grid-template-columns: 60px repeat(7, 1fr);
+  }
+  
+  .week-grid {
+    grid-template-columns: 60px 1fr;
+  }
+  
+  .week-hours {
+    width: 60px;
+  }
+  
+  .week-hour-label {
+    padding: 0.25rem;
+    font-size: 0.7rem;
+  }
+  
+  .week-day-header {
+    padding: 0.5rem 0.25rem;
+  }
+  
+  .week-day-name {
+    font-size: 0.7rem;
+  }
+  
+  .week-day-number {
+    font-size: 1rem;
+  }
+  
+  .week-day-header.today .week-day-number {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .week-event {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.7rem;
+  }
+  
+  .week-event-title {
+    font-size: 0.7rem;
+  }
+  
+  .week-event-description {
+    font-size: 0.6rem;
+  }
+}
+
 /* Eliminada la línea roja de la vista semanal */
 
 .day-header {
@@ -373,14 +590,23 @@
 }
 
 .more-events {
-  font-size: 0.65rem;
-  color: #6b7280;
+  font-size: 0.7rem;
+  color: #374151;
   font-weight: 600;
   text-align: center;
-  padding: 2px;
-  background: #f3f4f6;
-  border-radius: 3px;
-  margin-top: 2px;
+  padding: 4px 6px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-top: 3px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.more-events:hover {
+  background: #d1d5db;
+  color: #1f2937;
+  transform: translateY(-1px);
 }
 
 /* Eventos detallados para vista de día */

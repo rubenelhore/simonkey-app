@@ -325,15 +325,18 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     return hour >= 23 || hour <= 6;
   };
 
-  // Auto-scroll a las 7am en vista de día
+  // Auto-scroll a las 7am en vista de día y semana
   useEffect(() => {
-    if (viewMode === 'day') {
+    if (viewMode === 'day' || viewMode === 'week') {
       const scrollToSevenAM = () => {
-        const hourGrid = document.querySelector('.hour-grid');
-        if (hourGrid) {
+        const scrollContainer = viewMode === 'day' 
+          ? document.querySelector('.hour-grid')
+          : document.querySelector('.week-hour-grid');
+        
+        if (scrollContainer) {
           // Hora 7 (index 7) * 35px de altura por hora
           const scrollPosition = 7 * 35;
-          hourGrid.scrollTo({
+          scrollContainer.scrollTo({
             top: scrollPosition,
             behavior: 'smooth'
           });
@@ -397,7 +400,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
       </div>
 
       {/* Días de la semana */}
-      {viewMode !== 'day' && (
+      {viewMode === 'month' && (
         <div className="calendar-weekdays">
           {dayNames.map(day => (
             <div key={day} className="weekday">
@@ -463,6 +466,82 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
             })}
           </div>
         </div>
+      ) : viewMode === 'week' ? (
+        <div className="week-schedule">
+          <div className="week-schedule-header">
+            <div className="week-days-header">
+              {getDaysInWeek(currentDate).map((day, index) => (
+                <div key={index} className={`week-day-header ${day.isToday ? 'today' : ''}`}>
+                  <div className="week-day-name">{dayNames[day.fullDate!.getDay()]}</div>
+                  <div className="week-day-number">{day.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="week-hour-grid">
+            {Array.from({ length: 24 }, (_, hour) => {
+              const isOffHour = isOffHours(hour);
+              
+              return (
+                <div key={hour} className={`week-hour-row ${isOffHour ? 'off-hours' : ''}`}>
+                  <div className="week-hour-label">
+                    {`${hour.toString().padStart(2, '0')}:00`}
+                  </div>
+                  <div className="week-hour-slots">
+                    {getDaysInWeek(currentDate).map((day, dayIndex) => {
+                      const hourEvents = events.filter(event => {
+                        if (event.date !== day.dateString) return false;
+                        if (!event.time) return hour === 0;
+                        const eventHour = parseInt(event.time.split(':')[0]);
+                        return eventHour === hour;
+                      });
+
+                      const currentHour = getCurrentHour();
+                      const currentMinutes = getCurrentMinutes();
+                      const isCurrentHour = hour === currentHour && isCurrentDay(day.dateString);
+                      const timeIndicatorPosition = isCurrentHour ? (currentMinutes / 60) * 35 : 0;
+
+                      return (
+                        <div 
+                          key={`${day.dateString}-${hour}`} 
+                          className={`week-hour-slot ${isCurrentHour ? 'current-hour' : ''} ${day.isToday ? 'today' : ''}`}
+                        >
+                          <div 
+                            className="week-hour-content"
+                            onClick={() => handleHourClick(day.dateString, hour)}
+                          >
+                            {hourEvents.map(event => (
+                              <div
+                                key={event.id}
+                                className="week-event"
+                                style={{ backgroundColor: event.color }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEventModal(event);
+                                }}
+                              >
+                                <div className="week-event-title">{event.title}</div>
+                                {event.description && (
+                                  <div className="week-event-description">{event.description}</div>
+                                )}
+                              </div>
+                            ))}
+                            {isCurrentHour && (
+                              <div 
+                                className="current-time-indicator" 
+                                style={{ top: `${timeIndicatorPosition}px` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <div className={`calendar-grid ${viewMode}`}>
           {days.map((day, index) => {
@@ -471,10 +550,13 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
               return null; // Skip if this is an hour slot instead of a day
             }
             
-            const dayEvents = viewMode === 'week' 
-              ? getEventsForDate(day.dateString)
-              : getEventsForDate(day.dateString);
+            const dayEvents = getEventsForDate(day.dateString);
             const isSelected = selectedDate === day.dateString;
+            
+            // Debug logging para eventos
+            if (dayEvents.length > 0) {
+              console.log(`📅 Fecha: ${day.dateString}, Eventos: ${dayEvents.length}`, dayEvents);
+            }
             
             return (
               <div
@@ -485,14 +567,11 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
               >
                 <div className="day-header">
                   <span className="day-number">{day.date}</span>
-                  {viewMode === 'week' && (
-                    <span className="day-name">{dayNames[new Date(day.dateString).getDay()]}</span>
-                  )}
                 </div>
                 
                 {/* Eventos del día */}
                 <div className="day-events">
-                  {dayEvents.slice(0, 3).map(event => (
+                  {dayEvents.slice(0, 2).map(event => (
                     <div
                       key={event.id}
                       className="event-dot"
@@ -506,8 +585,18 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
                       <span className="event-title">{event.title}</span>
                     </div>
                   ))}
-                  {dayEvents.length > 3 && (
-                    <div className="more-events">+{dayEvents.length - 3}</div>
+                  {(() => {
+                    const hasMoreThanTwo = dayEvents.length > 2;
+                    const extraCount = dayEvents.length - 2;
+                    console.log(`🔍 Día ${day.dateString}: ${dayEvents.length} eventos, mostrar indicador: ${hasMoreThanTwo}, extra: ${extraCount}`);
+                    
+                    return hasMoreThanTwo ? (
+                      <div className="more-events">+{extraCount} más eventos</div>
+                    ) : null;
+                  })()}
+                  {/* Debug: mostrar siempre el contador para verificar */}
+                  {process.env.NODE_ENV === 'development' && dayEvents.length > 0 && (
+                    <div style={{fontSize: '10px', color: 'red'}}>Debug: {dayEvents.length} eventos</div>
                   )}
                 </div>
               </div>
