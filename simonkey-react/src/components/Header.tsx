@@ -1,15 +1,45 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom'; // Añadimos useLocation
 import './Header.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false); // Added for notifications menu
   const [hasNotification] = useState(false); // Placeholder, replace with real logic if needed
+  const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
+    // Cargar estado del sidebar desde localStorage
+    const savedState = localStorage.getItem('headerSidebarPinned');
+    return savedState === 'true';
+  });
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
+    const savedState = localStorage.getItem('headerSidebarPinned');
+    return savedState === 'true';
+  });
   const location = useLocation(); // Usamos el hook useLocation para acceder a la ubicación actual
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const toggleSidebarPin = () => {
+    const newPinnedState = !isSidebarPinned;
+    setIsSidebarPinned(newPinnedState);
+    setIsSidebarExpanded(newPinnedState);
+    // Guardar estado en localStorage
+    localStorage.setItem('headerSidebarPinned', newPinnedState.toString());
+  };
+
+  const handleSidebarMouseEnter = () => {
+    if (!isSidebarPinned) {
+      setIsSidebarExpanded(true);
+    }
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (!isSidebarPinned) {
+      setIsSidebarExpanded(false);
+    }
   };
 
   const closeMenu = () => {
@@ -35,33 +65,81 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="header">
+    <>
+      {/* Sidebar */}
+      <div 
+        className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+      >
+        {/* Contenido del sidebar */}
+        <div className="sidebar-content">
+          <div className="sidebar-menu-items">
+            <Link 
+              to="/"
+              className="sidebar-link"
+              onClick={() => scrollToSection('features')}
+            >
+              <i className="fas fa-star"></i>
+              {(isSidebarExpanded || isSidebarPinned) && <span>Características</span>}
+            </Link>
+            <Link 
+              to="/"
+              className="sidebar-link"
+              onClick={() => scrollToSection('how-it-works')}
+            >
+              <i className="fas fa-cogs"></i>
+              {(isSidebarExpanded || isSidebarPinned) && <span>Cómo funciona</span>}
+            </Link>
+            <Link 
+              to="/pricing"
+              className="sidebar-link"
+            >
+              <i className="fas fa-tag"></i>
+              {(isSidebarExpanded || isSidebarPinned) && <span>Precios</span>}
+            </Link>
+            <div className="sidebar-divider"></div>
+            <Link 
+              to="/login"
+              className="sidebar-link"
+            >
+              <i className="fas fa-sign-in-alt"></i>
+              {(isSidebarExpanded || isSidebarPinned) && <span>Iniciar Sesión</span>}
+            </Link>
+            <Link 
+              to="/signup"
+              className="sidebar-link"
+            >
+              <i className="fas fa-user-plus"></i>
+              {(isSidebarExpanded || isSidebarPinned) && <span>Registrarse</span>}
+            </Link>
+          </div>
+        </div>
+      </div>
+      
+      <header className="header" style={{ marginLeft: isSidebarPinned ? '250px' : '0', transition: 'margin-left 0.3s ease' }}>
       <div className="header-container">
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
           <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Link to="/inicio" className="logo" onClick={(e) => {
-                e.preventDefault();
-                window.location.href = '/inicio';
-                closeMenu();
-              }}>
-                <h1 style={{ margin: '0px', fontSize: '1.5rem', fontWeight: 700, color: '#000' }}>
-                  <span style={{ color: 'var(--primary)' }}>Simon</span><span>key</span>
-                </h1>
-              </Link>
-              <img 
-                alt="Logo Simonkey" 
-                className="logo-img" 
-                width="24" 
-                height="24" 
-                src="/img/favicon.svg" 
-              />
-            </div>
-            {/* Botón hamburguesa */}
-            <button className="hamburger-btn" aria-label="Menú" onClick={toggleMenu}>
-              <span className="hamburger-line"></span>
-              <span className="hamburger-line"></span>
-              <span className="hamburger-line"></span>
+            {/* Botón hamburguesa donde estaba el logo */}
+            <button 
+              className="hamburger-btn"
+              onClick={toggleSidebarPin}
+              title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                display: 'flex',
+                position: 'static'
+              }}
+            >
+              <div className="hamburger-icon">
+                <span className="hamburger-line"></span>
+                <span className="hamburger-line"></span>
+                <span className="hamburger-line"></span>
+              </div>
             </button>
           </div>
           {/* Menú de notificaciones */}
@@ -149,6 +227,7 @@ const Header: React.FC = () => {
         </nav>
       </div>
     </header>
+    </>
   );
 };
 

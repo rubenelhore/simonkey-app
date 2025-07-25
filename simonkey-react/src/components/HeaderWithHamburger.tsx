@@ -29,8 +29,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 }) => {
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription } = useUserType();
-  const [isSidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
+  const [isSidebarExpanded, setSidebarExpanded] = useState(() => {
+    const savedState = localStorage.getItem('headerSidebarPinned');
+    return savedState === 'true';
+  });
+  const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
+    const savedState = localStorage.getItem('headerSidebarPinned');
+    return savedState === 'true';
+  });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -38,6 +44,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [todayEvents, setTodayEvents] = useState<{ id: string; title: string; type: string }[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -254,6 +261,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     const newPinnedState = !isSidebarPinned;
     setIsSidebarPinned(newPinnedState);
     setSidebarExpanded(newPinnedState);
+    // Guardar estado en localStorage
+    localStorage.setItem('headerSidebarPinned', newPinnedState.toString());
   };
 
   const handleLogout = async () => {
@@ -291,6 +300,22 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   const handleHelpClick = () => {
     navigate('/contact');
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(err => {
+        console.error(`Error attempting to exit fullscreen: ${err.message}`);
+      });
+    }
   };
 
   useEffect(() => {
@@ -340,7 +365,17 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     // Pequeño delay para asegurar que las transiciones terminen
     const timeoutId = setTimeout(forceResize, 100);
     return () => clearTimeout(timeoutId);
-  }, [isSidebarExpanded]);
+  }, [isSidebarExpanded, isSidebarPinned]);
+
+  // Detectar cambios en el estado de pantalla completa
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // El cierre del popup ahora se maneja con el overlay onClick
 
@@ -354,26 +389,23 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           <div className="header-left-section">
             <button 
               className="hamburger-btn"
-              onClick={() => setIsSidebarPinned(!isSidebarPinned)}
+              onClick={toggleSidebarPin}
               title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
             >
-              <div className={`hamburger-icon ${isSidebarPinned ? 'open' : ''}`}>
+              <div className="hamburger-icon">
                 <span></span>
                 <span></span>
                 <span></span>
               </div>
             </button>
-            <div className="header-logo-section" onClick={() => navigate('/inicio')}>
-              <img
-                src="/img/favicon.svg"
-                alt="Logo Simonkey"
-                width="24"
-                height="24"
-              />
-              <span className="header-logo-text">
-                <span>Simon</span><span>key</span>
-              </span>
-            </div>
+            
+            <button 
+              className="fullscreen-btn"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            >
+              <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+            </button>
           </div>
 
           {/* Título de la página */}
@@ -402,14 +434,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         onMouseEnter={!isSidebarPinned ? handleSidebarMouseEnter : undefined}
         onMouseLeave={!isSidebarPinned ? handleSidebarMouseLeave : undefined}
       >
-        {/* Botón de pin/unpin en el extremo */}
-        <button 
-          className="sidebar-toggle-btn-edge"
-          onClick={toggleSidebarPin}
-          title={isSidebarPinned ? "Desfijar sidebar" : "Fijar sidebar"}
-        >
-          <i className={`fas fa-chevron-${isSidebarPinned ? 'left' : 'right'}`}></i>
-        </button>
         {/* Logo */}
         <div className="sidebar-header">
           <div className="sidebar-logo" onClick={() => navigate('/inicio')} title="Ir al inicio">
@@ -750,11 +774,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       <div 
         className="content-wrapper"
         style={{ 
-          '--sidebar-width': isSidebarExpanded ? '250px' : '60px',
-          marginLeft: isSidebarExpanded ? '250px' : '60px', 
+          marginLeft: (isSidebarExpanded || isSidebarPinned) ? '250px' : '60px', 
           paddingTop: '64px',
-          width: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
-          maxWidth: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          width: (isSidebarExpanded || isSidebarPinned) ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          maxWidth: (isSidebarExpanded || isSidebarPinned) ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxSizing: 'border-box',
           overflow: 'hidden'

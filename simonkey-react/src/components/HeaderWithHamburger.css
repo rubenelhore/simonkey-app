@@ -15,7 +15,7 @@
   z-index: 997;
   box-shadow: 0 4px 20px rgba(99, 102, 241, 0.12);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.8) !important;
   display: flex;
   align-items: center;
   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -58,6 +58,35 @@
 
 .hamburger-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* Botón de pantalla completa */
+.fullscreen-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-left: 2px;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.fullscreen-btn i {
+  font-size: 18px;
+  color: white;
+  width: 20px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .hamburger-icon {
