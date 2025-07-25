@@ -209,9 +209,6 @@ const ContactPage: React.FC = () => {
             </div>
           </div>
         </div>
-      <footer className="notebooks-footer">
-        <p>&copy; {new Date().getFullYear()} Simonkey - Todos los derechos reservados</p>
-      </footer>
     </>
   );
 };

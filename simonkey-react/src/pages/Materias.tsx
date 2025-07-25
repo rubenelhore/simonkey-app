@@ -7,7 +7,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Materias.css';
 import '../styles/AdminMaterias.css';
-import StreakTracker from '../components/StreakTracker';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +14,6 @@ import CategoryDropdown from '../components/CategoryDropdown';
 import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
-import { studyStreakService } from '../services/studyStreakService';
 
 interface Materia {
   id: string;
@@ -77,27 +75,20 @@ const Materias: React.FC = () => {
 
   // Cargar materias del usuario
   useEffect(() => {
-    const loadMateriasYStreak = async () => {
+    const loadMaterias = async () => {
       if (!user) return;
       if (isSchoolStudent) {
-        // Para estudiantes escolares, solo establecer loadingStreak a false
-        setLoadingStreak(false);
+        // Para estudiantes escolares, no cargar materias regulares
         return;
       }
       setLoading(true);
-      setLoadingStreak(true);
       try {
         // Query optimizada: solo una lectura para materias
         const materiasQuery = query(
           collection(db, 'materias'),
           where('userId', '==', user.uid)
         );
-        // Query optimizada: solo una lectura para racha
-        const streakDocRef = doc(db, 'users', user.uid, 'stats', 'studyStreak');
-        const [materiasSnap, streakDoc] = await Promise.all([
-          getDocs(materiasQuery),
-          getDoc(streakDocRef)
-        ]);
+        const materiasSnap = await getDocs(materiasQuery);
         const materiasData: Materia[] = materiasSnap.docs.map(docSnap => ({
           id: docSnap.id,
           title: docSnap.data().title,
@@ -127,24 +118,13 @@ const Materias: React.FC = () => {
 
         setMaterias(materiasData);
         setError(null);
-        // Racha optimizada
-        const streakDataRaw = streakDoc.exists() ? streakDoc.data() : null;
-        setStreakData(streakDataRaw ? {
-          days: streakDataRaw.weekDays || {
-            monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: false, sunday: false
-          },
-          consecutiveDays: streakDataRaw.currentStreak || 0,
-          streakBonus:  streakDataRaw.currentStreak ? (streakDataRaw.currentStreak * 200) : 0,
-          hasStudiedToday: streakDataRaw.hasStudiedToday || false
-        } : null);
       } catch (err) {
         setError(err as Error);
       } finally {
         setLoading(false);
-        setLoadingStreak(false);
       }
     };
-    loadMateriasYStreak();
+    loadMaterias();
   }, [user, refreshTrigger, isSchoolStudent]);
 
   // Función para cargar exámenes de estudiante
@@ -624,8 +604,6 @@ const Materias: React.FC = () => {
   };
 
 
-  const [streakData, setStreakData] = useState<any>(null);
-  const [loadingStreak, setLoadingStreak] = useState(true);
 
   // Efecto para bloquear el body cuando el modal está abierto
   useEffect(() => {
@@ -641,7 +619,7 @@ const Materias: React.FC = () => {
     };
   }, [showCreateModal]);
 
-  if (loading || authLoading || loadingStreak) {
+  if (loading || authLoading) {
     // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
       <div className="loading-container" style={{ 
@@ -826,10 +804,6 @@ const Materias: React.FC = () => {
         </div>
       )}
       <main className="materias-main">
-        <div className="left-column">
-          <StreakTracker streakData={streakData} />
-          {/* CategoryDropdown eliminado */}
-        </div>
         <div className="materias-list-section">
           {materias.length === 0 ? (
             <>
@@ -945,7 +919,6 @@ const Materias: React.FC = () => {
           )}
         </div>
       </main>
-<<<<<<< HEAD
       
       {/* Modal para crear nueva materia */}
       {showCreateModal && (

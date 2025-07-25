@@ -109,6 +109,7 @@ import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
 import CalendarPage from './pages/CalendarPage';
 import Materias from './pages/Materias';
+import InicioPage from './pages/InicioPage';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
@@ -391,9 +392,9 @@ const AppContent: React.FC = () => {
           }
         }
         
-        // TODOS LOS USUARIOS: Si está en login/signup y verificado, redirigir a materias
+        // TODOS LOS USUARIOS: Si está en login/signup y verificado, redirigir a inicio
         if (isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
-          navigate('/materias', { replace: true });
+          navigate('/inicio', { replace: true });
         }
       }
     }
@@ -453,10 +454,10 @@ const AppContent: React.FC = () => {
                 if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
                 if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
                 if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
-                if (isSchoolStudent) return <Navigate to="/materias" replace />;
+                if (isSchoolStudent) return <Navigate to="/inicio" replace />;
                 // Usuarios regulares requieren verificación
                 if (isEmailVerified) {
-                  return <Navigate to="/materias" replace />;
+                  return <Navigate to="/inicio" replace />;
                 }
               }
               // Usuarios no autenticados ven la página de inicio
@@ -489,9 +490,9 @@ const AppContent: React.FC = () => {
           <Route path="/contact" element={<ContactPage />} />
           
           {/* Rutas protegidas - requieren autenticación Y verificación de email */}
-          {/* Nueva ruta principal: Materias */}
+          {/* Nueva ruta principal: Inicio */}
           <Route
-            path="/materias"
+            path="/inicio"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -503,8 +504,21 @@ const AppContent: React.FC = () => {
                         localStorage.setItem('hasCompletedOnboarding', 'true');
                       }} />
                     ) : (
-                      <Materias />
+                      <InicioPage />
                     )}
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          {/* Ruta de Materias */}
+          <Route
+            path="/materias"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <Materias />
                   </PasswordChangeGuard>
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
@@ -553,7 +567,7 @@ const AppContent: React.FC = () => {
                       localStorage.setItem('hasCompletedOnboarding', 'true');
                     }} />
                   ) : (
-                    <Navigate to="/materias" replace />
+                    <Navigate to="/inicio" replace />
                   )}
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />

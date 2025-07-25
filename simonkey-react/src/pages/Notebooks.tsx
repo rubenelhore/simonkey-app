@@ -796,9 +796,6 @@ const Notebooks: React.FC = () => {
           </div>
         </div>
       )}
-      <footer className="notebooks-footer">
-        <p>&copy; {new Date().getFullYear()} Simonkey - Todos los derechos reservados</p>
-      </footer>
     </>
   );
 };

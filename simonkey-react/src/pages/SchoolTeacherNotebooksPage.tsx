@@ -603,9 +603,6 @@ const SchoolTeacherNotebooksPage: React.FC = () => {
           )}
         </div>
       </main>
-      <footer className="notebooks-footer">
-        <p>&copy; {new Date().getFullYear()} Simonkey - Sistema Escolar</p>
-      </footer>
     </>
   );
 };

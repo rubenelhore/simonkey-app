@@ -477,21 +477,6 @@ body.menu-open {
   border-radius: 8px;
 }
 
-/* Footer */
-.notebooks-footer {
-  height: 60px;
-  min-height: 60px;
-  background: #6147FF;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  position: relative;
-}
 
 /* Componente de loading */
 .loading-container {
@@ -2154,18 +2139,6 @@ body.modal-open .notebooks-hamburger-btn {
     padding-left: 2.5rem !important;
     width: 244.23px !important;
     max-width: 244.23px !important;
-  }
-  
-  /* Centrar texto del footer en móvil */
-  .notebooks-footer {
-    text-align: center;
-    padding: 0 1rem;
-  }
-  
-  .notebooks-footer p {
-    text-align: center;
-    margin: 0;
-    font-size: 0.875rem;
   }
 }
 

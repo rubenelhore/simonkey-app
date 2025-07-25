@@ -40,13 +40,9 @@ const Header: React.FC = () => {
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
           <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Link to="/" className="logo" onClick={(e) => {
+              <Link to="/inicio" className="logo" onClick={(e) => {
                 e.preventDefault();
-                if (location.pathname === '/') {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  window.location.href = '/';
-                }
+                window.location.href = '/inicio';
                 closeMenu();
               }}>
                 <h1 style={{ margin: '0px', fontSize: '1.5rem', fontWeight: 700, color: '#000' }}>

@@ -18,7 +18,7 @@ interface CalendarEvent {
   notebookId?: string;
 }
 
-const CalendarPage: React.FC = () => {
+const NewCalendarPage: React.FC = () => {
   const { user } = useAuth();
   const userTypeData = useUserType();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -174,6 +174,24 @@ const CalendarPage: React.FC = () => {
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h1 style={{ 
+            fontSize: '2rem', 
+            fontWeight: '700', 
+            color: '#111827',
+            margin: '0 0 0.5rem 0'
+          }}>
+            Mi Calendario
+          </h1>
+          <p style={{ 
+            color: '#6b7280', 
+            fontSize: '1rem',
+            margin: 0
+          }}>
+            Organiza tus estudios, exámenes y eventos personales
+          </p>
+        </div>
+
         <CustomCalendar 
           events={events}
           onEventAdd={handleEventAdd}
@@ -181,9 +199,60 @@ const CalendarPage: React.FC = () => {
           onEventDelete={handleEventDelete}
           onDateSelect={handleDateSelect}
         />
+
+        {/* Leyenda de tipos de eventos */}
+        <div style={{ 
+          marginTop: '2rem',
+          padding: '1.5rem',
+          background: '#f8fafc',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ 
+            fontSize: '1.1rem', 
+            fontWeight: '600', 
+            color: '#374151',
+            margin: '0 0 1rem 0'
+          }}>
+            Tipos de Eventos
+          </h3>
+          <div style={{ 
+            display: 'flex', 
+            gap: '2rem',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#6366f1', 
+                borderRadius: '4px'
+              }}></div>
+              <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Personal</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#10b981', 
+                borderRadius: '4px'
+              }}></div>
+              <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Estudio</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#f59e0b', 
+                borderRadius: '4px'
+              }}></div>
+              <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Examen</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CalendarPage;
+export default NewCalendarPage;
