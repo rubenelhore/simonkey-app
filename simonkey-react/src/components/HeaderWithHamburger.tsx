@@ -345,11 +345,37 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // El cierre del popup ahora se maneja con el overlay onClick
 
   return (
-    <div className={`header-with-hamburger-container ${isSidebarExpanded ? 'menu-open' : ''}`}>
+    <div className={`header-with-hamburger-container ${(isSidebarExpanded || isSidebarPinned) ? 'menu-open' : ''}`}>
       
       {/* Header limitado */}
       <header className="limited-header">
         <div className="header-content-limited">
+          {/* Sección izquierda: Botón hamburguesa y logo */}
+          <div className="header-left-section">
+            <button 
+              className="hamburger-btn"
+              onClick={() => setIsSidebarPinned(!isSidebarPinned)}
+              title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
+            >
+              <div className={`hamburger-icon ${isSidebarPinned ? 'open' : ''}`}>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </button>
+            <div className="header-logo-section" onClick={() => navigate('/inicio')}>
+              <img
+                src="/img/favicon.svg"
+                alt="Logo Simonkey"
+                width="24"
+                height="24"
+              />
+              <span className="header-logo-text">
+                <span>Simon</span><span>key</span>
+              </span>
+            </div>
+          </div>
+
           {/* Título de la página */}
           <div className="page-title-section-limited">
             <h2 className="page-title-limited">{title}</h2>
@@ -372,9 +398,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       
       {/* Nueva barra lateral fija */}
       <div 
-        className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
+        className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}
+        onMouseEnter={!isSidebarPinned ? handleSidebarMouseEnter : undefined}
+        onMouseLeave={!isSidebarPinned ? handleSidebarMouseLeave : undefined}
       >
         {/* Botón de pin/unpin en el extremo */}
         <button 
@@ -393,7 +419,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               width="32"
               height="32"
             />
-            {isSidebarExpanded && (
+            {(isSidebarExpanded || isSidebarPinned) && (
               <div className="sidebar-logo-text">
                 <span>Simon</span><span>key</span>
               </div>
@@ -409,7 +435,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             title="Pagina principal"
           >
             <i className="fas fa-home"></i>
-            {isSidebarExpanded && <span>Pagina principal</span>}
+            {(isSidebarExpanded || isSidebarPinned) && <span>Pagina principal</span>}
           </button>
           <button 
             className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
@@ -417,7 +443,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             title="Mis materias"
           >
             <i className="fas fa-book"></i>
-            {isSidebarExpanded && <span>Mis materias</span>}
+            {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
           </button>
           <button 
             className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
@@ -425,7 +451,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             title="Estudiar"
           >
             <i className="fas fa-graduation-cap"></i>
-            {isSidebarExpanded && <span>Estudiar</span>}
+            {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
           </button>
           <button 
             className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
@@ -433,7 +459,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             title="Mi progreso"
           >
             <i className="fas fa-chart-line"></i>
-            {isSidebarExpanded && <span>Mi progreso</span>}
+            {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
           </button>
           <button 
             className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
@@ -441,7 +467,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             title="Calendario"
           >
             <i className="fas fa-calendar-alt"></i>
-            {isSidebarExpanded && <span>Calendario</span>}
+            {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
           </button>
           {isSuperAdmin && (
             <button 
@@ -450,7 +476,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               title="Súper Admin"
             >
               <i className="fas fa-crown"></i>
-              {isSidebarExpanded && <span>Súper Admin</span>}
+              {(isSidebarExpanded || isSidebarPinned) && <span>Súper Admin</span>}
             </button>
           )}
         </div>

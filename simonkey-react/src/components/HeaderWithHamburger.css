@@ -28,6 +28,7 @@
 .header-content-limited {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex: 1;
   width: 100%;
   padding: 0 2rem;
@@ -35,9 +36,112 @@
   position: relative;
 }
 
+/* Sección izquierda del header */
+.header-left-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Botón hamburguesa */
+.hamburger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hamburger-icon {
+  width: 20px;
+  height: 16px;
+  position: relative;
+  transform: rotate(0deg);
+  transition: 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+.hamburger-icon span {
+  display: block;
+  position: absolute;
+  height: 2px;
+  width: 100%;
+  background: white;
+  border-radius: 1px;
+  opacity: 1;
+  left: 0;
+  transform: rotate(0deg);
+  transition: 0.25s ease-in-out;
+}
+
+.hamburger-icon span:nth-child(1) {
+  top: 0px;
+}
+
+.hamburger-icon span:nth-child(2) {
+  top: 7px;
+}
+
+.hamburger-icon span:nth-child(3) {
+  top: 14px;
+}
+
+.hamburger-icon.open span:nth-child(1) {
+  top: 7px;
+  transform: rotate(135deg);
+}
+
+.hamburger-icon.open span:nth-child(2) {
+  opacity: 0;
+  left: -60px;
+}
+
+.hamburger-icon.open span:nth-child(3) {
+  top: 7px;
+  transform: rotate(-135deg);
+}
+
+/* Logo en el header */
+.header-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.header-logo-section:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.header-logo-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: white;
+}
+
+.header-logo-text span:first-child {
+  color: white;
+}
+
+.header-logo-text span:last-child {
+  color: #fbbf24;
+}
+
 .page-title-section-limited {
   flex: 1;
   text-align: center;
+  margin: 0 2rem;
 }
 
 .page-title-limited {
@@ -422,6 +526,16 @@
 
 .sidebar-nav.sidebar-expanded {
   width: 250px;
+}
+
+.sidebar-nav.sidebar-pinned {
+  width: 250px;
+  box-shadow: 4px 0 30px rgba(99, 102, 241, 0.15);
+}
+
+.sidebar-nav.sidebar-pinned::after {
+  background: #4f46e5;
+  width: 2px;
 }
 
 /* Header de la barra lateral */
