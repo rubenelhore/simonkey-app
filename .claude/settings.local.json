@@ -26,7 +26,8 @@
       "Bash(firebase projects:list:*)",
       "WebFetch(domain:simonkey-5c78f.web.app)",
       "Bash(firebase hosting:releases:list:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
