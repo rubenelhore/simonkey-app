@@ -10,7 +10,7 @@
   left: 60px;
   right: 0;
   height: 64px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: #6366f1;
   color: white;
   z-index: 997;
   box-shadow: 0 4px 20px rgba(99, 102, 241, 0.12);
@@ -405,26 +405,20 @@
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid white;
 }
 
 .sidebar-nav::after {
   content: '';
   position: absolute;
-  right: -3px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 40px;
-  background: linear-gradient(90deg, transparent, rgba(97, 71, 255, 0.1));
-  border-radius: 0 3px 3px 0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  right: -1px;
+  top: 0;
+  width: 1px;
+  height: 64px;
+  background: #6366f1;
+  z-index: 999;
 }
 
-.sidebar-nav:hover::after {
-  opacity: 1;
-}
 
 .sidebar-nav.sidebar-expanded {
   width: 250px;
@@ -436,7 +430,8 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  background: #6366f1;
+  border-bottom: 1px solid white;
 }
 
 /* Botón de expansión/contracción en el extremo */
@@ -488,7 +483,7 @@
 .sidebar-logo-text {
   font-weight: 700;
   font-size: 1.2rem;
-  color: #374151;
+  color: white;
   opacity: 0;
   width: 0;
   overflow: hidden;
@@ -613,7 +608,7 @@
 /* Sección de usuario - rediseñada más compacta */
 .sidebar-user-section {
   padding: 0.125rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid white;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -946,12 +941,36 @@
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .side-menu-content .user-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex: 1;
+}
+
+/* Sección de botones al final (Mi perfil y Cerrar sesión) */
+.bottom-buttons-section {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Botones horizontales */
+.horizontal-button {
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.horizontal-button span {
+  font-size: 0.9rem;
 }
 
 /* Botones del menú lateral */
@@ -1326,7 +1345,7 @@
   
   .sidebar-user-section {
     padding: 0.75rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1390,6 +1409,19 @@
   
   .header-with-hamburger-container.menu-open ~ * {
     margin-left: 200px;
+  }
+  
+  /* Estilos responsivos para botones horizontales en móvil */
+  .horizontal-button {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .horizontal-button span {
+    font-size: 0.85rem;
+  }
+  
+  .bottom-buttons-section {
+    gap: 0.4rem;
   }
   
   .modal-content {
