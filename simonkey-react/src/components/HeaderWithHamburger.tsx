@@ -8,7 +8,23 @@ import { useUserType } from '../hooks/useUserType';
 import { UserSubscriptionType, Notebook } from '../types/interfaces';
 import './HeaderWithHamburger.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faBell, 
+  faHome, 
+  faBook, 
+  faGraduationCap, 
+  faChartLine, 
+  faCalendarAlt, 
+  faCrown,
+  faExpand,
+  faCompress,
+  faUserCog,
+  faVolumeUp,
+  faQuestionCircle,
+  faStar,
+  faSignOutAlt,
+  faEnvelope
+} from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderWithHamburgerProps {
   title: string;
@@ -404,7 +420,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               onClick={toggleFullscreen}
               title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
             >
-              <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+              <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
             </button>
           </div>
 
@@ -457,7 +473,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             onClick={() => navigate('/inicio')}
             title="Pagina principal"
           >
-            <i className="fas fa-home"></i>
+            <FontAwesomeIcon icon={faHome} />
             {(isSidebarExpanded || isSidebarPinned) && <span>Pagina principal</span>}
           </button>
           <button 
@@ -465,7 +481,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             onClick={() => navigate('/materias')}
             title="Mis materias"
           >
-            <i className="fas fa-book"></i>
+            <FontAwesomeIcon icon={faBook} />
             {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
           </button>
           <button 
@@ -473,7 +489,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             onClick={() => navigate('/study')}
             title="Estudiar"
           >
-            <i className="fas fa-graduation-cap"></i>
+            <FontAwesomeIcon icon={faGraduationCap} />
             {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
           </button>
           <button 
@@ -481,7 +497,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             onClick={() => navigate('/progress')}
             title="Mi progreso"
           >
-            <i className="fas fa-chart-line"></i>
+            <FontAwesomeIcon icon={faChartLine} />
             {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
           </button>
           <button 
@@ -489,7 +505,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             onClick={handleCalendarClick} 
             title="Calendario"
           >
-            <i className="fas fa-calendar-alt"></i>
+            <FontAwesomeIcon icon={faCalendarAlt} />
             {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
           </button>
           {isSuperAdmin && (
@@ -498,7 +514,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               onClick={handleSuperAdminClick}
               title="Súper Admin"
             >
-              <i className="fas fa-crown"></i>
+              <FontAwesomeIcon icon={faCrown} />
               {(isSidebarExpanded || isSidebarPinned) && <span>Súper Admin</span>}
             </button>
           )}
@@ -675,7 +691,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 }}
                 disabled={isProfilePage}
               >
-                <i className="fas fa-user-cog"></i>
+                <FontAwesomeIcon icon={faUserCog} />
                 <span>Mi perfil</span>
               </button>
               <button 
@@ -688,7 +704,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 }}
                 disabled={isVoiceSettingsPage}
               >
-                <i className="fas fa-volume-up"></i>
+                <FontAwesomeIcon icon={faVolumeUp} />
                 <span>Configuración de voz</span>
               </button>
               <button 
@@ -701,7 +717,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 }}
                 disabled={isHelpPage}
               >
-                <i className="fas fa-question-circle"></i>
+                <FontAwesomeIcon icon={faQuestionCircle} />
                 <span>Ayuda</span>
               </button>
               {isFreeUser && (
@@ -712,7 +728,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                     setIsUserMenuOpen(false);
                   }}
                 >
-                  <i className="fas fa-star"></i>
+                  <FontAwesomeIcon icon={faStar} />
                   <span>Upgrade a Pro</span>
                 </button>
               )}
@@ -724,7 +740,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                   setIsUserMenuOpen(false);
                 }}
               >
-                <i className="fas fa-sign-out-alt"></i>
+                <FontAwesomeIcon icon={faSignOutAlt} />
                 <span>Cerrar sesión</span>
               </button>
             </div>
@@ -758,7 +774,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 <h4>📧 ¿Necesitas ayuda para decidir?</h4>
                 <p>Nuestro equipo de soporte está aquí para ayudarte:</p>
                 <div className="support-contact">
-                  <i className="fas fa-envelope"></i>
+                  <FontAwesomeIcon icon={faEnvelope} />
                   <span>ruben@simonkey.ai</span>
                 </div>
                 <p className="support-note">

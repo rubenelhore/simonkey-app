@@ -79,7 +79,7 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-.fullscreen-btn i {
+.fullscreen-btn svg {
   font-size: 18px;
   color: white;
   width: 20px;
@@ -738,11 +738,17 @@
   color: var(--primary-color, #6147FF);
 }
 
-.sidebar-icon-btn i {
+.sidebar-icon-btn:hover svg {
+  color: var(--primary-color, #6147FF);
+}
+
+.sidebar-icon-btn svg {
   width: 20px;
   font-size: 1.1rem;
   text-align: center;
   min-width: 20px;
+  color: #374151;
+  display: inline-block;
 }
 
 .sidebar-icon-btn span {
@@ -778,8 +784,8 @@
   color: white;
 }
 
-.sidebar-icon-btn.active i {
-  color: white;
+.sidebar-icon-btn.active svg {
+  color: white !important;
 }
 
 /* Estilos para notificaciones en sidebar */
@@ -1050,10 +1056,11 @@
   cursor: not-allowed;
 }
 
-.user-menu-btn i {
+.user-menu-btn svg {
   width: 16px;
   font-size: 0.9rem;
   text-align: center;
+  margin-right: 12px;
 }
 
 .user-menu-btn span {
@@ -1531,7 +1538,7 @@
     justify-content: flex-start;
   }
   
-  .sidebar-icon-btn i {
+  .sidebar-icon-btn svg {
     font-size: 1.1rem;
     width: 20px;
     text-align: center;
