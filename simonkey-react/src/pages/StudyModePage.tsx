@@ -1,7 +1,7 @@
 // src/pages/StudyModePage.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { Notebook } from '../types/interfaces';
@@ -13,6 +13,8 @@ import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { studyStreakService } from '../services/studyStreakService';
 import { useStudyService } from '../hooks/useStudyService';
+import { gamePointsService } from '../services/gamePointsService';
+import { kpiService } from '../services/kpiService';
 
 // División levels configuration
 const DIVISION_LEVELS = {
@@ -47,6 +49,31 @@ const StudyModePage = () => {
   const [showNotebookDropdown, setShowNotebookDropdown] = useState<boolean>(false);
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [allUserNotebooks, setAllUserNotebooks] = useState<{ [materiaId: string]: { materia: any, notebooks: Notebook[] } }>({});
+  const [studyAvailability, setStudyAvailability] = useState<{ available: boolean; nextAvailable?: Date; conceptsCount: number }>({ 
+    available: false, 
+    conceptsCount: 0 
+  });
+  const [quizAvailability, setQuizAvailability] = useState<{ available: boolean; nextAvailable?: Date }>({
+    available: true
+  });
+  const [smartStudyCount, setSmartStudyCount] = useState<number>(0);
+  const [maxQuizScore, setMaxQuizScore] = useState<number>(0);
+  const [freeStudyCount, setFreeStudyCount] = useState<number>(0);
+  const [notebookRanking, setNotebookRanking] = useState<{
+    userPosition: number;
+    totalUsers: number;
+    userScore: number;
+    pointsToNext: number;
+    topUsers: Array<{
+      position: number;
+      userId: string;
+      displayName: string;
+      score: number;
+      isCurrentUser: boolean;
+    }>;
+  } | null>(null);
+  const [gamePoints, setGamePoints] = useState<number>(0);
   
   // Motivational modules state
   const [streakData, setStreakData] = useState({ days: 0, message: '' });
@@ -105,12 +132,12 @@ const StudyModePage = () => {
             '¡Estudia hoy para mantener tu racha!'
         });
 
-        // Calculate dominated concepts across all notebooks
-        const totalDominatedConcepts = await calculateTotalDominatedConcepts(effectiveUserId);
-        setConceptsLearned(totalDominatedConcepts);
+        // Calculate dominated concepts across all notebooks using kpiService
+        const conceptStats = await kpiService.getTotalDominatedConceptsByUser(effectiveUserId);
+        setConceptsLearned(conceptStats.conceptosDominados);
         
         // Calculate division based on dominated concepts
-        calculateDivision(totalDominatedConcepts);
+        calculateDivision(conceptStats.conceptosDominados);
 
         // Generate suggestions and challenges
         generateSuggestionsAndChallenges(streak.currentStreak);
@@ -130,6 +157,13 @@ const StudyModePage = () => {
     // Generate default suggestions and challenges while loading
     generateSuggestionsAndChallenges(0);
   }, []);
+  
+  // Regenerate suggestions when concepts learned or streak changes
+  useEffect(() => {
+    if (streakData.days !== undefined) {
+      generateSuggestionsAndChallenges(streakData.days);
+    }
+  }, [conceptsLearned, streakData.days, divisionData]);
 
   // Load materias
   useEffect(() => {
@@ -176,6 +210,66 @@ const StudyModePage = () => {
     
     fetchMaterias();
   }, [navigate, isSchoolStudent, schoolSubjects]);
+
+  // Load all user notebooks organized by materia
+  useEffect(() => {
+    const fetchAllUserNotebooks = async () => {
+      if (!auth.currentUser || !materias.length) return;
+      
+      try {
+        const notebooksByMateria: { [materiaId: string]: { materia: any, notebooks: Notebook[] } } = {};
+        
+        for (const materia of materias) {
+          let notebooksData: Notebook[] = [];
+          
+          if (isSchoolStudent && schoolNotebooks) {
+            notebooksData = schoolNotebooks
+              .filter(notebook => notebook.idMateria === materia.id)
+              .map(notebook => ({
+                id: notebook.id,
+                title: notebook.title,
+                color: notebook.color || '#6147FF',
+                type: 'school' as const,
+                materiaId: notebook.idMateria,
+                isFrozen: notebook.isFrozen || false,
+                frozenScore: notebook.frozenScore
+              }));
+          } else {
+            const notebooksQuery = query(
+              collection(db, 'notebooks'),
+              where('userId', '==', auth.currentUser.uid),
+              where('materiaId', '==', materia.id)
+            );
+            
+            const notebooksSnapshot = await getDocs(notebooksQuery);
+            notebooksData = notebooksSnapshot.docs.map(doc => ({
+              id: doc.id,
+              title: doc.data().title,
+              color: doc.data().color || '#6147FF',
+              type: doc.data().type || 'personal' as const,
+              materiaId: doc.data().materiaId
+            }));
+          }
+          
+          // Ordenar cuadernos alfabéticamente
+          notebooksData.sort((a, b) => a.title.localeCompare(b.title));
+          
+          if (notebooksData.length > 0) {
+            notebooksByMateria[materia.id] = {
+              materia: materia,
+              notebooks: notebooksData
+            };
+          }
+        }
+        
+        setAllUserNotebooks(notebooksByMateria);
+      } catch (error) {
+        console.error("Error loading all notebooks:", error);
+      }
+    };
+    
+    fetchAllUserNotebooks();
+  }, [materias, isSchoolStudent, schoolNotebooks]);
 
   // Load notebooks when materia is selected
   useEffect(() => {
@@ -228,81 +322,6 @@ const StudyModePage = () => {
     fetchNotebooksForMateria();
   }, [selectedMateria, isSchoolStudent, schoolNotebooks]);
 
-  // Calculate total dominated concepts across all notebooks
-  const calculateTotalDominatedConcepts = async (userId: string): Promise<number> => {
-    try {
-      console.log('🏅 Calculating total dominated concepts for user:', userId);
-      
-      // Get all notebooks for the user
-      const notebooksQuery = query(
-        collection(db, 'notebooks'),
-        where('userId', '==', userId)
-      );
-      const notebooksSnapshot = await getDocs(notebooksQuery);
-      
-      let totalDominated = 0;
-      
-      // For each notebook, calculate dominated concepts
-      for (const notebookDoc of notebooksSnapshot.docs) {
-        const notebookId = notebookDoc.id;
-        console.log(`📚 Checking notebook: ${notebookDoc.data().title} (${notebookId})`);
-        
-        // Get all learning data for this notebook
-        const learningDataQuery = query(
-          collection(db, 'users', userId, 'learningData'),
-          where('notebookId', '==', notebookId)
-        );
-        const learningDataSnapshot = await getDocs(learningDataQuery);
-        
-        // Count concepts with repetitions >= 2 (green - dominated)
-        const dominatedInNotebook = learningDataSnapshot.docs.filter(doc => {
-          const data = doc.data();
-          return data.repetitions >= 2; // 2 or more repetitions = green/dominated
-        }).length;
-        
-        console.log(`✅ Dominated in ${notebookDoc.data().title}: ${dominatedInNotebook}`);
-        totalDominated += dominatedInNotebook;
-      }
-      
-      // Also check for school notebooks if user is a school student
-      if (isSchoolStudent) {
-        console.log('🎓 Checking school notebooks...');
-        const schoolNotebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('assignedStudents', 'array-contains', userId)
-        );
-        const schoolNotebooksSnapshot = await getDocs(schoolNotebooksQuery);
-        
-        for (const notebookDoc of schoolNotebooksSnapshot.docs) {
-          const notebookId = notebookDoc.id;
-          console.log(`📚 Checking school notebook: ${notebookDoc.data().title} (${notebookId})`);
-          
-          // Get learning data for this school notebook
-          const learningDataQuery = query(
-            collection(db, 'users', userId, 'learningData'),
-            where('notebookId', '==', notebookId)
-          );
-          const learningDataSnapshot = await getDocs(learningDataQuery);
-          
-          // Count dominated concepts
-          const dominatedInNotebook = learningDataSnapshot.docs.filter(doc => {
-            const data = doc.data();
-            return data.repetitions >= 2;
-          }).length;
-          
-          console.log(`✅ Dominated in school ${notebookDoc.data().title}: ${dominatedInNotebook}`);
-          totalDominated += dominatedInNotebook;
-        }
-      }
-      
-      console.log('🏆 Total dominated concepts across all notebooks:', totalDominated);
-      return totalDominated;
-      
-    } catch (error) {
-      console.error('Error calculating total dominated concepts:', error);
-      return 0;
-    }
-  };
 
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
@@ -371,14 +390,48 @@ const StudyModePage = () => {
     // Dynamic suggestions based on progress
     if (divisionData.progress < divisionData.nextMilestone) {
       const remaining = divisionData.nextMilestone - divisionData.progress;
-      newSuggestions.push(`Estudia ${remaining} conceptos más y consigue la siguiente medalla`);
+      newSuggestions.push(`Estudia ${remaining} concepto${remaining > 1 ? 's' : ''} más y consigue la siguiente medalla`);
     }
     
+    // Streak-based suggestions
     if (streakDays === 0) {
       newSuggestions.push('Inicia tu racha estudiando al menos 1 concepto hoy');
-    } else if (streakDays < 7) {
-      newSuggestions.push(`Mantén tu racha ${7 - streakDays} días más para el bonus semanal`);
+    } else if (streakDays > 0) {
+      newSuggestions.push(`¡Mantén tu racha! Llevas ${streakDays} día${streakDays > 1 ? 's' : ''} seguido${streakDays > 1 ? 's' : ''}`);
     }
+    
+    // Division-based suggestions
+    if (divisionData.current === 'WOOD' && conceptsLearned === 0) {
+      newSuggestions.push('Domina tu primer concepto para empezar tu progreso');
+    } else if (divisionData.current === 'WOOD' && conceptsLearned < 20) {
+      newSuggestions.push(`Completa la división Madera dominando ${20 - conceptsLearned} conceptos más`);
+    }
+    
+    // Weekly bonus suggestion
+    if (streakDays > 0 && streakDays < 7) {
+      newSuggestions.push(`${7 - streakDays} día${7 - streakDays > 1 ? 's' : ''} más para bonus semanal (+1400 pts)`);
+    } else if (streakDays >= 7 && streakDays < 30) {
+      newSuggestions.push(`${30 - streakDays} días más para bonus mensual especial`);
+    }
+    
+    // Score milestone suggestions
+    if (streakData.days >= 5) {
+      const bonusPoints = streakData.days * 200;
+      newSuggestions.push(`Tu racha actual te da ${bonusPoints} puntos de bonus`);
+    }
+    
+    // Add motivational suggestions based on time of day
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) {
+      newSuggestions.push('La mañana es el mejor momento para aprender conceptos nuevos');
+    } else if (hour >= 12 && hour < 18) {
+      newSuggestions.push('Repasa conceptos anteriores para reforzar tu memoria');
+    } else if (hour >= 18 && hour < 22) {
+      newSuggestions.push('Termina el día dominando al menos 3 conceptos más');
+    }
+    
+    // Limit to 3 suggestions max
+    setSuggestions(newSuggestions.slice(0, 3));
     
     // Generate daily challenges (2 options that change daily)
     const allChallenges = [
@@ -389,7 +442,15 @@ const StudyModePage = () => {
       { text: 'Aprende 3 conceptos nuevos en modo libre', boost: '+40 puntos' },
       { text: 'Mantén una racha de respuestas correctas de 8 seguidas', boost: '+60 puntos' },
       { text: 'Completa 2 sesiones de estudio en el mismo día', boost: '+75 puntos' },
-      { text: 'Alcanza el 90% de precisión en un quiz', boost: '+35% XP' }
+      { text: 'Alcanza el 90% de precisión en un quiz', boost: '+35% XP' },
+      { text: 'Domina 10 conceptos en un solo día', boost: '+150 puntos' },
+      { text: 'Juega Space Invaders y obtén más de 500 puntos', boost: '+50 puntos' },
+      { text: 'Completa un Mini-Quiz sin errores', boost: '+40 puntos' },
+      { text: 'Estudia conceptos de 2 materias diferentes hoy', boost: '+80 puntos' },
+      { text: 'Alcanza una racha de 3 días consecutivos', boost: '+200 puntos' },
+      { text: 'Domina tu primer concepto del día antes de las 10 AM', boost: '+45% XP' },
+      { text: 'Completa el modo Historia de un juego', boost: '+100 puntos' },
+      { text: 'Repasa 5 conceptos que dominaste hace una semana', boost: '+30 puntos' }
     ];
     
     // Use current date to select 2 daily challenges
@@ -441,23 +502,372 @@ const StudyModePage = () => {
         console.log('Mastered concepts:', masteredConcepts);
         console.log('Studied concepts:', studiedConcepts);
         
-        // Score calculation based on mastery and study engagement
-        const masteryScore = masteredConcepts * 10; // 10 points per mastered concept
-        const studyScore = (studiedConcepts - masteredConcepts) * 3; // 3 points per studied concept
-        const totalScore = masteryScore + studyScore;
+        // Temporarily set a placeholder score - will be calculated after all data is loaded
+        setNotebookScore({
+          score: 0,
+          level: 1,
+          progress: 0
+        });
+
+        // Check study availability based on SM-3 algorithm
+        const now = new Date();
+        let availableConcepts = 0;
+        let nextAvailableDate: Date | undefined;
+
+        console.log('Checking study availability for notebook:', notebook.id);
+        console.log('Total concepts in notebook:', allConcepts.length);
+        console.log('Learning data entries:', learningData.length);
+
+        if (allConcepts.length === 0) {
+          // No concepts in notebook
+          console.log('No concepts found in notebook');
+          setStudyAvailability({
+            available: false,
+            nextAvailable: undefined,
+            conceptsCount: 0
+          });
+        } else {
+          for (const concept of allConcepts) {
+            const learningDataItem = learningData.find(ld => ld.conceptId === concept.id);
+            
+            if (!learningDataItem || learningDataItem.repetitions === 0) {
+              // New concepts are always available
+              availableConcepts++;
+              console.log(`Concept ${concept.id} is new/unlearned - available`);
+            } else if (learningDataItem.nextReviewDate) {
+              // Handle both Timestamp and Date objects
+              let nextReview: Date;
+              if (learningDataItem.nextReviewDate.toDate) {
+                nextReview = learningDataItem.nextReviewDate.toDate();
+              } else if (learningDataItem.nextReviewDate instanceof Date) {
+                nextReview = learningDataItem.nextReviewDate;
+              } else {
+                // If it's a string or number, try to parse it
+                nextReview = new Date(learningDataItem.nextReviewDate);
+              }
+              
+              if (nextReview <= now) {
+                // Concept is due for review
+                availableConcepts++;
+                console.log(`Concept ${concept.id} is due for review - available`);
+              } else if (!nextAvailableDate || nextReview < nextAvailableDate) {
+                // Track the earliest next review date
+                nextAvailableDate = nextReview;
+                console.log(`Concept ${concept.id} next review at:`, nextReview);
+              }
+            }
+          }
+
+          console.log('Available concepts:', availableConcepts);
+          console.log('Next available date:', nextAvailableDate);
+
+          setStudyAvailability({
+            available: availableConcepts > 0,
+            nextAvailable: nextAvailableDate,
+            conceptsCount: availableConcepts
+          });
+        }
+
+        // Initialize variables for all data we need
+        let completedSmartStudies = 0;
+        let maxQuizScoreValue = 0;
+        let gamePointsValue = 0;
+        let streakBonusValue = 0;
         
-        console.log('Total score calculated:', totalScore);
+        // Count completed smart study sessions for this notebook
+        try {
+          // Try first with completed field
+          let studySessionsQuery = query(
+            collection(db, 'studySessions'),
+            where('userId', '==', effectiveUserId),
+            where('notebookId', '==', notebook.id),
+            where('mode', '==', 'smart'),
+            where('completed', '==', true)
+          );
+          let studySessionsSnapshot = await getDocs(studySessionsQuery);
+          completedSmartStudies = studySessionsSnapshot.size;
+          
+          console.log('Query 1 - Completed smart studies:', completedSmartStudies);
+          
+          // If no results, try without completed field (all smart sessions)
+          if (completedSmartStudies === 0) {
+            studySessionsQuery = query(
+              collection(db, 'studySessions'),
+              where('userId', '==', effectiveUserId),
+              where('notebookId', '==', notebook.id),
+              where('mode', '==', 'smart')
+            );
+            studySessionsSnapshot = await getDocs(studySessionsQuery);
+            completedSmartStudies = studySessionsSnapshot.size;
+            console.log('Query 2 - All smart studies:', completedSmartStudies);
+          }
+          
+          // If still no results, try with sessionType field
+          if (completedSmartStudies === 0) {
+            studySessionsQuery = query(
+              collection(db, 'studySessions'),
+              where('userId', '==', effectiveUserId),
+              where('notebookId', '==', notebook.id),
+              where('sessionType', '==', 'smart')
+            );
+            studySessionsSnapshot = await getDocs(studySessionsQuery);
+            completedSmartStudies = studySessionsSnapshot.size;
+            console.log('Query 3 - Smart studies with sessionType:', completedSmartStudies);
+          }
+          
+          // If still no results, check all study sessions for this notebook
+          if (completedSmartStudies === 0) {
+            const allSessionsQuery = query(
+              collection(db, 'studySessions'),
+              where('userId', '==', effectiveUserId),
+              where('notebookId', '==', notebook.id)
+            );
+            const allSessionsSnapshot = await getDocs(allSessionsQuery);
+            console.log('All sessions for notebook:', allSessionsSnapshot.size);
+            
+            // Log all documents to see their structure
+            allSessionsSnapshot.docs.forEach((doc, index) => {
+              if (index < 3) { // Log first 3 documents
+                console.log(`Session ${index + 1}:`, doc.data());
+              }
+            });
+          }
+          
+          setSmartStudyCount(completedSmartStudies);
+          
+          // Count free study sessions
+          const freeStudyQuery = query(
+            collection(db, 'studySessions'),
+            where('userId', '==', effectiveUserId),
+            where('notebookId', '==', notebook.id),
+            where('mode', '==', 'free')
+          );
+          const freeStudySnapshot = await getDocs(freeStudyQuery);
+          const completedFreeStudies = freeStudySnapshot.size;
+          setFreeStudyCount(completedFreeStudies);
+          console.log('Free study count:', completedFreeStudies);
+          
+        } catch (error) {
+          console.error('Error counting smart studies:', error);
+          setSmartStudyCount(0);
+          setFreeStudyCount(0);
+        }
+
+        // Get max quiz score for this notebook
+        try {
+          const quizStatsRef = doc(db, 'users', effectiveUserId, 'quizStats', notebook.id);
+          const quizStatsDoc = await getDoc(quizStatsRef);
+          
+          if (quizStatsDoc.exists()) {
+            const stats = quizStatsDoc.data();
+            maxQuizScoreValue = stats.maxScore || 0;
+            setMaxQuizScore(maxQuizScoreValue);
+            console.log('Max quiz score:', maxQuizScoreValue);
+          } else {
+            maxQuizScoreValue = 0;
+            setMaxQuizScore(0);
+          }
+        } catch (error) {
+          console.error('Error getting quiz stats:', error);
+          maxQuizScoreValue = 0;
+          setMaxQuizScore(0);
+        }
+
+        // Get game points for this notebook
+        try {
+          const notebookPoints = await gamePointsService.getNotebookPoints(effectiveUserId, notebook.id);
+          gamePointsValue = notebookPoints.totalPoints || 0;
+          setGamePoints(gamePointsValue);
+          console.log('Game points:', gamePointsValue);
+        } catch (error) {
+          console.error('Error getting game points:', error);
+          gamePointsValue = 0;
+          setGamePoints(0);
+        }
+
+        // Check quiz availability (once per week)
+        const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebook.id);
+        const notebookLimitsDoc = await getDoc(notebookLimitsRef);
+        
+        if (notebookLimitsDoc.exists()) {
+          const limits = notebookLimitsDoc.data();
+          
+          if (limits.lastQuizDate) {
+            const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);
+            const now = new Date();
+            
+            // Check if it's been a week since last quiz
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            if (lastQuizDate > oneWeekAgo) {
+              // Quiz not available yet
+              const nextQuizDate = new Date(lastQuizDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+              setQuizAvailability({
+                available: false,
+                nextAvailable: nextQuizDate
+              });
+              console.log('Quiz not available until:', nextQuizDate);
+            } else {
+              // Quiz is available
+              setQuizAvailability({
+                available: true,
+                nextAvailable: undefined
+              });
+              console.log('Quiz is available');
+            }
+          } else {
+            // Never taken quiz, it's available
+            setQuizAvailability({
+              available: true,
+              nextAvailable: undefined
+            });
+            console.log('Quiz available - never taken');
+          }
+        } else {
+          // No limits doc, quiz is available
+          setQuizAvailability({
+            available: true,
+            nextAvailable: undefined
+          });
+          setSmartStudyCount(0);
+        }
+        
+        // Calculate general score using the correct formula
+        // SCORE = (Smart Studies × Max Quiz Score) + Game Points + Streak Bonus
+        let streakDays = 0;
+        try {
+          const userStreak = await studyStreakService.getUserStreak(effectiveUserId);
+          streakDays = userStreak.currentStreak;
+          streakBonusValue = studyStreakService.getStreakBonus(userStreak.currentStreak);
+          console.log(`Streak details:`, {
+            currentStreak: userStreak.currentStreak,
+            lastStudyDate: userStreak.lastStudyDate,
+            hasStudiedToday: userStreak.hasStudiedToday,
+            streakBonus: streakBonusValue,
+            calculation: `${streakDays} days × 200 = ${streakBonusValue} pts`
+          });
+        } catch (error) {
+          console.error('Error getting streak bonus:', error);
+          streakBonusValue = 0;
+        }
+        
+        // Calculate final score with all the data we've collected
+        const studyScore = completedSmartStudies * maxQuizScoreValue;
+        const totalScore = studyScore + gamePointsValue + streakBonusValue;
+        
+        console.log('DETAILED Score calculation:', {
+          completedSmartStudies: completedSmartStudies,
+          maxQuizScore: maxQuizScoreValue,
+          studyScore: `${completedSmartStudies} × ${maxQuizScoreValue} = ${studyScore}`,
+          gamePoints: gamePointsValue,
+          streakDays,
+          streakBonus: streakBonusValue,
+          totalScore,
+          expectedTotal: studyScore + gamePointsValue + streakBonusValue,
+          formula: `(${completedSmartStudies} × ${maxQuizScoreValue}) + ${gamePointsValue} + ${streakBonusValue} = ${totalScore}`
+        });
         
         setNotebookScore({
           score: totalScore,
           level: Math.floor(totalScore / 50) + 1, // Level up every 50 points
           progress: totalScore % 50
         });
+        
+        // Load ranking for this notebook
+        await loadNotebookRanking(notebook.id);
       }
     } catch (error) {
       console.error('Error loading notebook stats:', error);
       // Set default score on error
       setNotebookScore({ score: 0, level: 1, progress: 0 });
+      setStudyAvailability({ available: false, conceptsCount: 0 });
+      setQuizAvailability({ available: true });
+    }
+  };
+
+  // Load notebook ranking
+  const loadNotebookRanking = async (notebookId: string) => {
+    if (!effectiveUserId || !isSchoolStudent) {
+      setNotebookRanking(null);
+      return;
+    }
+    
+    try {
+      console.log('Loading ranking for notebook:', notebookId);
+      
+      // Get user document to find classroom
+      const userDoc = await getDoc(doc(db, 'users', effectiveUserId));
+      const userData = userDoc.data();
+      
+      if (!userData?.idSalon) {
+        console.log('User has no classroom');
+        setNotebookRanking(null);
+        return;
+      }
+      
+      // Get all students in the classroom
+      const classroomQuery = query(
+        collection(db, 'users'),
+        where('idSalon', '==', userData.idSalon)
+      );
+      const classroomSnap = await getDocs(classroomQuery);
+      
+      // Collect scores for each student in this notebook
+      const studentScores: Array<{
+        userId: string;
+        displayName: string;
+        score: number;
+      }> = [];
+      
+      for (const studentDoc of classroomSnap.docs) {
+        const studentId = studentDoc.id;
+        const studentData = studentDoc.data();
+        
+        // Get KPIs for this student
+        const kpis = await kpiService.getUserKPIs(studentId);
+        const notebookScore = kpis?.cuadernos?.[notebookId]?.scoreCuaderno || 0;
+        
+        studentScores.push({
+          userId: studentId,
+          displayName: studentData.displayName || studentData.email?.split('@')[0] || 'Usuario',
+          score: notebookScore
+        });
+      }
+      
+      // Sort by score (descending)
+      studentScores.sort((a, b) => b.score - a.score);
+      
+      // Find current user position
+      const userIndex = studentScores.findIndex(s => s.userId === effectiveUserId);
+      const userPosition = userIndex + 1;
+      const userScore = studentScores[userIndex]?.score || 0;
+      
+      // Calculate points to next position
+      let pointsToNext = 0;
+      if (userIndex > 0) {
+        pointsToNext = studentScores[userIndex - 1].score - userScore;
+      }
+      
+      // Get top 10 users (or all if less than 10)
+      const topUsers = studentScores.slice(0, 10).map((student, index) => ({
+        position: index + 1,
+        userId: student.userId,
+        displayName: student.displayName,
+        score: student.score,
+        isCurrentUser: student.userId === effectiveUserId
+      }));
+      
+      setNotebookRanking({
+        userPosition,
+        totalUsers: studentScores.length,
+        userScore,
+        pointsToNext,
+        topUsers
+      });
+      
+    } catch (error) {
+      console.error('Error loading notebook ranking:', error);
+      setNotebookRanking(null);
     }
   };
 
@@ -523,6 +933,26 @@ const StudyModePage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Format time until next available study
+  const formatTimeUntil = (date: Date) => {
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Disponible ahora';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `Disponible en ${days} día${days > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `Disponible en ${hours} hora${hours > 1 ? 's' : ''}`;
+    } else {
+      return `Disponible en ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+    }
+  };
+
   if (loading) {
     return (
       <div className="study-mode-container">
@@ -539,18 +969,6 @@ const StudyModePage = () => {
     <div className="study-mode-container">
       <HeaderWithHamburger title="Espacio de estudio" subtitle="" />
       
-      {/* Small Score Module - Upper Left Corner */}
-      {selectedNotebook && (
-        <div className="corner-score-module">
-          <div className="corner-score-icon">
-            <FontAwesomeIcon icon={faTrophy} />
-          </div>
-          <div className="corner-score-content">
-            <div className="corner-score-value">{notebookScore.score}</div>
-            <div className="corner-score-label">Pts</div>
-          </div>
-        </div>
-      )}
       
       <main className="study-mode-main">
 
@@ -564,7 +982,7 @@ const StudyModePage = () => {
             </div>
             <div className="study-score-content">
               <div className="study-score-value">
-                {selectedNotebook ? (selectedNotebook.frozenScore?.toLocaleString() || '0') : '0'}
+                {selectedNotebook ? notebookScore.score.toLocaleString() : '0'}
               </div>
               <div className="study-score-label">
                 {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}
@@ -661,49 +1079,43 @@ const StudyModePage = () => {
               
               {showNotebookDropdown && (
                 <div className="notebook-dropdown">
-                  {materias.length === 0 ? (
-                    <div className="dropdown-empty">No hay materias disponibles</div>
+                  {Object.keys(allUserNotebooks).length === 0 ? (
+                    <div className="dropdown-empty">No hay cuadernos disponibles</div>
                   ) : (
                     <>
-                      {/* Materias section */}
-                      <div className="dropdown-section">
-                        <div className="dropdown-section-title">Materias</div>
-                        {materias.map(materia => (
-                          <div 
-                            key={materia.id}
-                            className={`dropdown-item materia-item ${selectedMateria?.id === materia.id ? 'selected' : ''}`}
-                            onClick={() => {
-                              setSelectedMateria(materia);
-                              const lastMateriaKey = isSchoolStudent ? 
-                                `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
-                                'lastStudyMateriaId';
-                              localStorage.setItem(lastMateriaKey, materia.id);
-                            }}
-                          >
-                            {materia.nombre || materia.title}
+                      {/* Mostrar todas las materias con sus cuadernos */}
+                      {Object.entries(allUserNotebooks)
+                        .sort(([, a], [, b]) => {
+                          // Ordenar materias alfabéticamente
+                          const nombreA = a.materia.nombre || a.materia.title || '';
+                          const nombreB = b.materia.nombre || b.materia.title || '';
+                          return nombreA.localeCompare(nombreB);
+                        })
+                        .map(([materiaId, { materia, notebooks }]) => (
+                          <div key={materiaId} className="materia-group">
+                            <div className="dropdown-section-title">
+                              {materia.nombre || materia.title}
+                            </div>
+                            {notebooks.map(notebook => (
+                              <div 
+                                key={notebook.id}
+                                className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
+                                onClick={() => {
+                                  setSelectedMateria(materia);
+                                  handleSelectNotebook(notebook);
+                                  setShowNotebookDropdown(false);
+                                  const lastMateriaKey = isSchoolStudent ? 
+                                    `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
+                                    'lastStudyMateriaId';
+                                  localStorage.setItem(lastMateriaKey, materia.id);
+                                }}
+                              >
+                                <span>{notebook.title}</span>
+                                {notebook.isFrozen && <FontAwesomeIcon icon={faSnowflake} />}
+                              </div>
+                            ))}
                           </div>
                         ))}
-                      </div>
-                      
-                      {/* Notebooks section */}
-                      {selectedMateria && notebooks.length > 0 && (
-                        <div className="dropdown-section">
-                          <div className="dropdown-section-title">Cuadernos</div>
-                          {notebooks.map(notebook => (
-                            <div 
-                              key={notebook.id}
-                              className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
-                              onClick={() => {
-                                handleSelectNotebook(notebook);
-                                setShowNotebookDropdown(false);
-                              }}
-                            >
-                              <span>{notebook.title}</span>
-                              {notebook.isFrozen && <FontAwesomeIcon icon={faSnowflake} />}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -721,55 +1133,105 @@ const StudyModePage = () => {
           {/* Study Functions */}
           <div className="study-functions">
             <div 
-              className="study-function-card"
-              onClick={() => handleStudyMode('smart')}
+              className={`study-function-card ${!selectedNotebook || !studyAvailability.available ? 'disabled' : ''}`}
+              onClick={() => studyAvailability.available && handleStudyMode('smart')}
             >
+              {selectedNotebook && (
+                <div className="study-count-badge">#{smartStudyCount || 0}</div>
+              )}
               <div className="function-icon">
                 <FontAwesomeIcon icon={faBrain} />
               </div>
               <h3>Estudio Inteligente</h3>
-              <button className="function-btn">
-                <FontAwesomeIcon icon={faPlay} /> Iniciar
-              </button>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : studyAvailability.available ? (
+                <>
+                  <p className="function-status available">{studyAvailability.conceptsCount} conceptos disponibles</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              ) : (
+                <p className="function-status unavailable">
+                  {studyAvailability.nextAvailable ? 
+                    formatTimeUntil(studyAvailability.nextAvailable) : 
+                    'Agrega conceptos al cuaderno'}
+                </p>
+              )}
             </div>
 
             <div 
-              className="study-function-card"
-              onClick={() => handleStudyMode('quiz')}
+              className={`study-function-card ${!selectedNotebook || !quizAvailability.available ? 'disabled' : ''}`}
+              onClick={() => quizAvailability.available && handleStudyMode('quiz')}
             >
+              {selectedNotebook && maxQuizScore > 0 && (
+                <div className="quiz-score-badge">Max: {maxQuizScore}</div>
+              )}
               <div className="function-icon">
                 <FontAwesomeIcon icon={faQuestion} />
               </div>
               <h3>Quiz</h3>
-              <button className="function-btn">
-                <FontAwesomeIcon icon={faPlay} /> Iniciar
-              </button>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : quizAvailability.available ? (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              ) : (
+                <p className="function-status unavailable">
+                  {formatTimeUntil(quizAvailability.nextAvailable!)}
+                </p>
+              )}
             </div>
 
             <div 
-              className="study-function-card"
-              onClick={() => handleStudyMode('free')}
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => selectedNotebook && handleStudyMode('free')}
             >
+              {selectedNotebook && (
+                <div className="free-study-badge">#{freeStudyCount || 0}</div>
+              )}
               <div className="function-icon">
                 <FontAwesomeIcon icon={faBook} />
               </div>
               <h3>Estudio Libre</h3>
-              <button className="function-btn">
-                <FontAwesomeIcon icon={faPlay} /> Iniciar
-              </button>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
             </div>
 
             <div 
-              className="study-function-card"
-              onClick={() => handleStudyMode('games')}
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => selectedNotebook && handleStudyMode('games')}
             >
+              {selectedNotebook && (
+                <div className="game-points-badge">Pts: {gamePoints || 0}</div>
+              )}
               <div className="function-icon">
                 <FontAwesomeIcon icon={faGamepad} />
               </div>
               <h3>Juegos</h3>
-              <button className="function-btn">
-                <FontAwesomeIcon icon={faPlay} /> Iniciar
-              </button>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -793,31 +1255,78 @@ const StudyModePage = () => {
               </div>
             </div>
 
-            {/* Challenges Section - Two horizontal modules */}
+            {/* Ranking Section */}
             <div className="learning-module">
               <div className="section-header">
                 <FontAwesomeIcon icon={faTrophy} />
-                <h4>Reto del día</h4>
+                <h4>Ranking del Cuaderno</h4>
               </div>
               
-              <div className="challenges-grid">
-                {challenges.map((challenge, index) => (
-                  <div 
-                    key={index} 
-                    className="challenge-module expanded"
-                  >
-                    <div className="challenge-full">
-                      <div className="challenge-content">
-                        <FontAwesomeIcon icon={faStar} />
-                        <span className="challenge-text">{challenge.text}</span>
-                      </div>
-                      <div className="challenge-boost">
-                        {challenge.boost}
-                      </div>
+              {!selectedNotebook ? (
+                <div className="ranking-empty-state">
+                  <p>Selecciona un cuaderno para ver el ranking</p>
+                </div>
+              ) : !isSchoolStudent ? (
+                <div className="ranking-empty-state">
+                  <p>El ranking está disponible solo para estudiantes escolares</p>
+                </div>
+              ) : !notebookRanking ? (
+                <div className="ranking-loading">
+                  <p>Cargando ranking...</p>
+                </div>
+              ) : (
+                <div className="ranking-content">
+                  {/* Your position card */}
+                  <div className="your-position-card">
+                    <div className="position-badge">#{notebookRanking.userPosition}</div>
+                    <div className="position-info">
+                      <span className="position-label">Tu posición</span>
+                      <span className="position-score">{notebookRanking.userScore.toLocaleString()} pts</span>
+                      {notebookRanking.pointsToNext > 0 && (
+                        <span className="points-to-next">
+                          {notebookRanking.pointsToNext} pts para el siguiente
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                  
+                  {/* Top 3 Podium */}
+                  <div className="ranking-podium">
+                    {notebookRanking.topUsers.slice(0, 3).map((user, index) => (
+                      <div 
+                        key={user.userId} 
+                        className={`podium-position position-${index + 1} ${user.isCurrentUser ? 'is-current-user' : ''}`}
+                      >
+                        <div className="podium-medal">
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                        </div>
+                        <div className="podium-name">{user.displayName}</div>
+                        <div className="podium-score">{user.score.toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Rest of top 10 */}
+                  {notebookRanking.topUsers.length > 3 && (
+                    <div className="ranking-list">
+                      {notebookRanking.topUsers.slice(3).map((user) => (
+                        <div 
+                          key={user.userId} 
+                          className={`ranking-item ${user.isCurrentUser ? 'is-current-user' : ''}`}
+                        >
+                          <span className="rank-position">#{user.position}</span>
+                          <span className="rank-name">{user.displayName}</span>
+                          <span className="rank-score">{user.score.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="ranking-footer">
+                    <span className="total-students">Total: {notebookRanking.totalUsers} estudiantes</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

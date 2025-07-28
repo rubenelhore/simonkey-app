@@ -235,11 +235,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.125rem;
-  margin-bottom: 0.75rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
   color: white;
   text-align: center;
-  padding-top: 0.25rem;
+  padding-top: 0.5rem;
 }
 
 .section-header.clickable {
@@ -247,13 +247,21 @@
   transition: var(--transition);
 }
 
+.section-header svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: white;
+  fill: white;
+}
+
 .section-header h4 {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: white;
   flex: 1;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.02em;
 }
 
 .section-header .expand-icon {
@@ -649,13 +657,14 @@
   padding: 1rem 1.5rem;
   box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
   color: white;
-  min-width: 150px;
+  width: 221.02px;
   z-index: 10;
 }
 
 .study-score-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
@@ -824,6 +833,24 @@
   letter-spacing: 0.05em;
 }
 
+.materia-group {
+  margin-bottom: 0.5rem;
+}
+
+.materia-group:last-child {
+  margin-bottom: 0;
+}
+
+.materia-group .dropdown-section-title {
+  background-color: var(--bg-light);
+  margin: 0.25rem 0;
+  border-radius: 4px;
+}
+
+.materia-group .dropdown-item {
+  padding-left: 2rem;
+}
+
 .dropdown-item {
   padding: 0.75rem 1rem;
   cursor: pointer;
@@ -982,6 +1009,17 @@
   box-shadow: var(--shadow-md);
 }
 
+.study-function-card.disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.study-function-card.disabled:hover {
+  border-color: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
 
 .function-icon {
   font-size: 2rem;
@@ -1016,6 +1054,91 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
+}
+
+/* Study availability status */
+.function-status {
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.function-status.available {
+  color: #10b981;
+}
+
+.function-status.unavailable {
+  color: #ef4444;
+}
+
+/* Study count badge */
+.study-count-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #6147FF;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 14px;
+  min-width: 28px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+/* Quiz score badge */
+.quiz-score-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #6147FF;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 14px;
+  min-width: auto;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* Free study badge */
+.free-study-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #6147FF;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 14px;
+  min-width: 28px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+/* Game points badge */
+.game-points-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #6147FF;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 14px;
+  min-width: auto;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+  white-space: nowrap;
 }
 
 .function-btn:hover {
@@ -1195,74 +1318,6 @@
   }
 }
 
-/* Corner Score Module - Small and Elegant */
-.corner-score-module {
-  position: fixed;
-  top: 80px;
-  left: 20px;
-  background: var(--bg-white);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: var(--shadow-sm);
-  z-index: 100;
-  transition: var(--transition);
-  font-size: 0.875rem;
-}
-
-.corner-score-module:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-md);
-}
-
-.corner-score-icon {
-  font-size: 1rem;
-  color: var(--primary-color);
-  opacity: 0.8;
-}
-
-.corner-score-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.corner-score-value {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-dark);
-}
-
-.corner-score-label {
-  font-size: 0.625rem;
-  color: var(--text-light);
-  margin-top: -2px;
-}
-
-/* Mobile adjustments for corner score */
-@media (max-width: 768px) {
-  .corner-score-module {
-    top: 70px;
-    left: 15px;
-    padding: 0.375rem 0.625rem;
-  }
-  
-  .corner-score-icon {
-    font-size: 0.875rem;
-  }
-  
-  .corner-score-value {
-    font-size: 0.875rem;
-  }
-  
-  .corner-score-label {
-    font-size: 0.5rem;
-  }
-}
 
 /* Corner Medal Module - Smaller and elegant with navigation */
 .corner-medal-module {
@@ -1533,4 +1588,198 @@
   .modal-header h3 {
     font-size: 1.125rem;
   }
+}
+
+/* Ranking Module Styles */
+.ranking-empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+}
+
+.ranking-loading {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+}
+
+.ranking-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+/* Your position card */
+.your-position-card {
+  background: rgba(97, 71, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(97, 71, 255, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.your-position-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.2);
+}
+
+.position-badge {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #FFD700;
+  background: rgba(255, 215, 0, 0.1);
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.position-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.position-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.position-score {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+}
+
+.points-to-next {
+  font-size: 0.75rem;
+  color: #FFD700;
+  font-weight: 500;
+}
+
+/* Podium */
+.ranking-podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.podium-position {
+  background: rgba(26, 36, 67, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 80px;
+}
+
+.podium-position:hover {
+  background: rgba(26, 36, 67, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.podium-position.is-current-user {
+  background: rgba(97, 71, 255, 0.1);
+  border-color: rgba(97, 71, 255, 0.3);
+}
+
+.podium-medal {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.podium-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.podium-score {
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+/* Ranking list */
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.ranking-item {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(26, 36, 67, 0.05);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+}
+
+.ranking-item:hover {
+  background: rgba(26, 36, 67, 0.1);
+}
+
+.ranking-item.is-current-user {
+  background: rgba(97, 71, 255, 0.1);
+  border: 1px solid rgba(97, 71, 255, 0.2);
+}
+
+.rank-position {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rank-name {
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-score {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ranking-footer {
+  text-align: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 0.75rem;
+}
+
+.total-students {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
 }

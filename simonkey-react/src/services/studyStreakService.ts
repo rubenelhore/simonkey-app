@@ -72,9 +72,31 @@ export class StudyStreakService {
 
       if (streakDoc.exists()) {
         const data = streakDoc.data();
+        const lastStudyDate = data.lastStudyDate ? data.lastStudyDate.toDate() : null;
+        let currentStreak = data.currentStreak || 0;
+        
+        // Verificar si la racha sigue siendo válida
+        if (lastStudyDate && currentStreak > 0) {
+          const today = new Date();
+          const daysSinceLastStudy = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Si han pasado más de 1 día sin estudiar, la racha se rompe
+          if (daysSinceLastStudy > 1) {
+            console.log('[StudyStreakService] Racha rota - días sin estudiar:', daysSinceLastStudy);
+            currentStreak = 0;
+            
+            // Actualizar en Firebase para reflejar la racha rota
+            await setDoc(streakRef, {
+              ...data,
+              currentStreak: 0,
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+        
         return {
-          currentStreak: data.currentStreak || 0,
-          lastStudyDate: data.lastStudyDate ? data.lastStudyDate.toDate() : null,
+          currentStreak,
+          lastStudyDate,
           studyHistory: data.studyHistory ? 
             data.studyHistory.map((t: Timestamp) => t.toDate()) : [],
           updatedAt: data.updatedAt ? data.updatedAt.toDate() : new Date()

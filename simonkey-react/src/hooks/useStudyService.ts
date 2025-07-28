@@ -585,9 +585,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           totalConceptsNotMastered: increment(detailedResults?.conceptosNoDominados || 0)
         });
         
-        // Si se completaron suficientes conceptos, actualizar streak
-        if (metrics.conceptsReviewed >= 5) {
-          await updateStreak(sessionData.userId);
+        // Actualizar streak siempre que se complete una sesión (sin importar cuántos conceptos)
+        if (metrics.conceptsReviewed > 0 || sessionDuration > 0) {
+          console.log('[StudyService] Actualizando streak después de completar sesión');
+          // Usar el servicio de streak centralizado
+          const { studyStreakService } = await import('../services/studyStreakService');
+          await studyStreakService.updateStreakIfStudied(sessionData.userId);
         }
         
         // Actualizar KPIs después de completar la sesión

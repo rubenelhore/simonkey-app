@@ -1047,7 +1047,155 @@ export class KPIService {
       throw error;
     }
   }
+
+  /**
+   * Obtiene el conteo total de conceptos dominados para un usuario
+   * Suma todos los conceptos dominados de todos los cuadernos
+   */
+  async getTotalDominatedConceptsByUser(userId: string): Promise<{
+    conceptosDominados: number;
+    conceptosNoDominados: number;
+    totalConceptosEstudiados: number;
+    porcentajeDominio: number;
+  }> {
+    try {
+      console.log('[KPIService] Obteniendo total de conceptos dominados para usuario:', userId);
+      
+      // Obtener los KPIs actualizados
+      const kpis = await this.getUserKPIs(userId);
+      
+      if (!kpis || !kpis.cuadernos) {
+        console.log('[KPIService] No hay KPIs o cuadernos para el usuario');
+        return {
+          conceptosDominados: 0,
+          conceptosNoDominados: 0,
+          totalConceptosEstudiados: 0,
+          porcentajeDominio: 0
+        };
+      }
+      
+      let totalConceptosDominados = 0;
+      let totalConceptosNoDominados = 0;
+      
+      // Sumar conceptos de todos los cuadernos
+      for (const [cuadernoId, cuadernoData] of Object.entries(kpis.cuadernos)) {
+        totalConceptosDominados += cuadernoData.conceptosDominados || 0;
+        totalConceptosNoDominados += cuadernoData.conceptosNoDominados || 0;
+        
+        console.log(`[KPIService] Cuaderno ${cuadernoId}: ${cuadernoData.conceptosDominados} dominados, ${cuadernoData.conceptosNoDominados} no dominados`);
+      }
+      
+      const totalConceptosEstudiados = totalConceptosDominados + totalConceptosNoDominados;
+      const porcentajeDominio = totalConceptosEstudiados > 0 
+        ? Math.round((totalConceptosDominados / totalConceptosEstudiados) * 100)
+        : 0;
+      
+      const result = {
+        conceptosDominados: totalConceptosDominados,
+        conceptosNoDominados: totalConceptosNoDominados,
+        totalConceptosEstudiados,
+        porcentajeDominio
+      };
+      
+      console.log('[KPIService] Total de conceptos del usuario:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('[KPIService] Error obteniendo total de conceptos dominados:', error);
+      return {
+        conceptosDominados: 0,
+        conceptosNoDominados: 0,
+        totalConceptosEstudiados: 0,
+        porcentajeDominio: 0
+      };
+    }
+  }
+
+  /**
+   * Obtiene el conteo de conceptos dominados, aprendiz y no dominados por materia
+   * Similar a getConceptStatsForNotebook pero agrupado por materia
+   */
+  async getConceptStatsBySubject(userId: string): Promise<{
+    [subjectId: string]: {
+      subjectName: string;
+      conceptosDominados: number;
+      conceptosAprendiz: number;
+      conceptosNoDominados: number;
+      totalConceptos: number;
+    }
+  }> {
+    try {
+      console.log('[KPIService] Obteniendo estadísticas de conceptos por materia para usuario:', userId);
+      
+      // Primero obtener los KPIs actualizados
+      const kpis = await this.getUserKPIs(userId);
+      
+      if (!kpis || !kpis.materias) {
+        console.log('[KPIService] No hay KPIs o materias para el usuario');
+        return {};
+      }
+      
+      const statsBySubject: {
+        [subjectId: string]: {
+          subjectName: string;
+          conceptosDominados: number;
+          conceptosAprendiz: number;
+          conceptosNoDominados: number;
+          totalConceptos: number;
+        }
+      } = {};
+      
+      // Determinar si es usuario escolar
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const isSchoolUser = !!userData?.idInstitucion;
+      
+      // Obtener información de las materias
+      for (const [materiaId, materiaData] of Object.entries(kpis.materias)) {
+        let subjectName = 'Sin nombre';
+        
+        if (isSchoolUser) {
+          // Para usuarios escolares, buscar en schoolSubjects
+          const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          if (subjectDoc.exists()) {
+            const subjectData = subjectDoc.data();
+            subjectName = subjectData.nombre || subjectData.name || 'Sin nombre';
+          }
+        } else {
+          // Para usuarios regulares, buscar en materias
+          const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+          if (materiaDoc.exists()) {
+            const materiaDocData = materiaDoc.data();
+            subjectName = materiaDocData.nombre || materiaDocData.name || 'Sin nombre';
+          }
+        }
+        
+        // Los conceptos aprendiz serían el total menos los dominados y no dominados
+        const totalConceptos = materiaData.conceptosDominadosMateria + materiaData.conceptosNoDominadosMateria;
+        
+        statsBySubject[materiaId] = {
+          subjectName,
+          conceptosDominados: materiaData.conceptosDominadosMateria || 0,
+          conceptosAprendiz: 0, // Por ahora 0, ya que no se rastrea específicamente en KPIs
+          conceptosNoDominados: materiaData.conceptosNoDominadosMateria || 0,
+          totalConceptos
+        };
+      }
+      
+      console.log('[KPIService] Estadísticas de conceptos por materia:', statsBySubject);
+      return statsBySubject;
+      
+    } catch (error) {
+      console.error('[KPIService] Error obteniendo estadísticas de conceptos por materia:', error);
+      return {};
+    }
+  }
 }
 
 // Exportar instancia única
 export const kpiService = KPIService.getInstance();
+
+// También exportar la función getKPIsFromCache para compatibilidad
+export async function getKPIsFromCache(userId: string): Promise<DashboardKPIs | null> {
+  return kpiService.getUserKPIs(userId);
+}
