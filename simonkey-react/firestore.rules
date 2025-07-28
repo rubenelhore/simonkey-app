@@ -23,6 +23,8 @@ service cloud.firestore {
       // Lectura
       allow read: if request.auth != null && (
         // Notebooks personales: solo el propietario
+        (resource.data.userId == request.auth.uid) ||
+        // Notebooks con tipo personal explícito
         (resource.data.type == 'personal' && resource.data.userId == request.auth.uid) ||
         // Notebooks escolares: profesores, admins y estudiantes asignados
         (resource.data.type == 'school' && isSchoolUser() && (
@@ -109,6 +111,24 @@ service cloud.firestore {
       );
       
       allow delete: if false; // Nunca permitir eliminación directa
+      
+      // Subcolección notebookLimits
+      match /notebookLimits/{limitId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
+      
+      // Subcolección learningData
+      match /learningData/{dataId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
+      
+      // Subcolección migrationStatus
+      match /migrationStatus/{statusId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
     }
     
     // Reglas para users (compatibilidad)
@@ -127,6 +147,40 @@ service cloud.firestore {
       );
       
       allow delete: if false; // Nunca permitir eliminación directa
+      
+      // Subcolección notebookLimits
+      match /notebookLimits/{limitId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
+      
+      // Subcolección learningData
+      match /learningData/{dataId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
+      
+      // Subcolección migrationStatus
+      match /migrationStatus/{statusId} {
+        allow read, write: if request.auth != null && 
+                             request.auth.uid == userId;
+      }
+    }
+    
+    // Reglas para materias
+    match /materias/{materiaId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
     }
     
     // Reglas para materias escolares
@@ -150,6 +204,16 @@ service cloud.firestore {
     match /learningData/{dataId} {
       allow read, write: if request.auth != null && 
                            resource.data.userId == request.auth.uid;
+    }
+    
+    // Reglas para eventos del calendario
+    match /calendarEvents/{eventId} {
+      allow read: if request.auth != null && 
+                     resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              resource.data.userId == request.auth.uid;
     }
     
     // Reglas para sesiones de estudio

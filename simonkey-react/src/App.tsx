@@ -22,7 +22,7 @@ import SharedNotebook from './pages/SharedNotebook';
 import VoiceSettingsPage from './pages/VoiceSettingsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
-import OnboardingComponent from './components/Onboarding/OnboardingComponent';
+import InteractiveTour from './components/Onboarding/InteractiveTour';
 import MobileNavigation from './components/Mobile/MobileNavigation';
 import TeacherMobileNavigation from './components/Mobile/TeacherMobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
@@ -67,6 +67,9 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 // Importar el nuevo AuthProvider y useAuth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+// Importar el nuevo sistema de tour
+import { TourProvider } from './contexts/TourContext';
+import TourOverlay from './components/Onboarding/TourOverlay';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
 // Importar el nuevo componente de cambio de contraseña
@@ -314,7 +317,10 @@ const AppWrapper: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <AppContent />
+        <TourProvider>
+          <AppContent />
+          <TourOverlay />
+        </TourProvider>
       </Router>
     </AuthProvider>
   );
@@ -329,20 +335,40 @@ const AppContent: React.FC = () => {
   const { user: currentUser, setUser } = useContext(UserContext);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
-    // Priorizar el valor del localStorage para evitar conflictos
+    // Para usuarios nuevos, no confiar solo en localStorage
+    // Empezar como false y sincronizar con userProfile cuando esté disponible
     const completed = localStorage.getItem('hasCompletedOnboarding') === 'true';
     console.log('🎯 Estado inicial de onboarding desde localStorage:', completed);
+    // Si no hay userProfile todavía, ser conservador y mostrar onboarding si no está explícitamente completado
     return completed;
   });
   
   // Sincronizar con el perfil de usuario cuando esté disponible
   useEffect(() => {
-    if (userProfile && userProfile.hasCompletedOnboarding && !hasCompletedOnboarding) {
-      console.log('🎯 Sincronizando onboarding desde userProfile');
-      setHasCompletedOnboarding(true);
-      localStorage.setItem('hasCompletedOnboarding', 'true');
+    console.log('🎯 Verificando estado de onboarding...', { 
+      userProfile: !!userProfile, 
+      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding,
+      currentState: hasCompletedOnboarding 
+    });
+    
+    if (userProfile) {
+      // Si el perfil existe, usar su estado de onboarding
+      if (userProfile.hasCompletedOnboarding === true) {
+        console.log('🎯 Usuario ha completado onboarding según perfil');
+        if (!hasCompletedOnboarding) {
+          setHasCompletedOnboarding(true);
+          localStorage.setItem('hasCompletedOnboarding', 'true');
+        }
+      } else if (userProfile.hasCompletedOnboarding === false || !userProfile.hasCompletedOnboarding) {
+        // Usuario nuevo o no ha completado onboarding
+        console.log('🎯 Usuario nuevo o no ha completado onboarding - mostrando onboarding');
+        if (hasCompletedOnboarding) {
+          setHasCompletedOnboarding(false);
+          localStorage.removeItem('hasCompletedOnboarding');
+        }
+      }
     }
-  }, [userProfile, hasCompletedOnboarding]);
+  }, [userProfile]);
 
 
   // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
@@ -497,15 +523,7 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <PasswordChangeGuard>
-                    {!hasCompletedOnboarding ? (
-                      <OnboardingComponent onComplete={() => {
-                        console.log('🎯 Onboarding completado');
-                        setHasCompletedOnboarding(true);
-                        localStorage.setItem('hasCompletedOnboarding', 'true');
-                      }} />
-                    ) : (
-                      <InicioPage />
-                    )}
+                    <InicioPage />
                   </PasswordChangeGuard>
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
@@ -562,7 +580,7 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   {!hasCompletedOnboarding ? (
-                    <OnboardingComponent onComplete={() => {
+                    <InteractiveTour onComplete={() => {
                       setHasCompletedOnboarding(true);
                       localStorage.setItem('hasCompletedOnboarding', 'true');
                     }} />
