@@ -13,6 +13,19 @@ export const useGoogleAuth = () => {
     // Si hay un error previo guardado relacionado con COOP, usar redirect
     const hasPreviousCOOPError = localStorage.getItem('coop_error_detected') === 'true';
     
+    // IMPORTANTE: Limpiar errores COOP antiguos (más de 24 horas)
+    const coopErrorTimestamp = localStorage.getItem('coop_error_timestamp');
+    if (coopErrorTimestamp) {
+      const errorAge = Date.now() - parseInt(coopErrorTimestamp);
+      const oneDayInMs = 24 * 60 * 60 * 1000;
+      if (errorAge > oneDayInMs) {
+        console.log('🧹 Limpiando error COOP antiguo');
+        localStorage.removeItem('coop_error_detected');
+        localStorage.removeItem('coop_error_timestamp');
+        return false; // Intentar popup primero
+      }
+    }
+    
     // Detectar dominios conocidos con políticas COOP estrictas
     const hostname = window.location.hostname;
     const knownCOOPDomains = [
@@ -36,13 +49,9 @@ export const useGoogleAuth = () => {
     // Detectar si el navegador soporta Cross-Origin-Opener-Policy
     const supportsCOOP = 'crossOriginIsolated' in window;
     
-    // Usar redirect si:
-    // 1. Ya hubo error COOP previo
-    // 2. Dominio conocido con HTTPS
-    // 3. Entorno Vite con soporte COOP y ya hubo errores
-    return hasPreviousCOOPError || 
-           (isKnownCOOPDomain && isHTTPS) ||
-           (isViteDev && supportsCOOP && hasPreviousCOOPError);
+    // Usar redirect SOLO si hay error COOP previo reciente
+    // NO forzar redirect solo por ser dominio conocido
+    return hasPreviousCOOPError;
   };
 
   const handleGoogleAuth = async (isSignup: boolean = false) => {
@@ -107,6 +116,7 @@ export const useGoogleAuth = () => {
         
         if (isCOOPError) {
           localStorage.setItem('coop_error_detected', 'true');
+          localStorage.setItem('coop_error_timestamp', Date.now().toString());
           console.log('🔄 Error COOP detectado, usando redirect como fallback');
           console.log('🔍 Detalles del error:', {
             code: popupError.code,
@@ -171,6 +181,10 @@ export const useGoogleAuth = () => {
         // Limpiar el estado guardado
         localStorage.removeItem('google_auth_intent');
         
+        // Limpiar también los flags de COOP ya que el redirect funcionó
+        localStorage.removeItem('coop_error_detected');
+        localStorage.removeItem('coop_error_timestamp');
+        
         // Procesar el usuario como en el método original
         await processGoogleUser(user, isSignup);
         
@@ -180,6 +194,18 @@ export const useGoogleAuth = () => {
       }
     } catch (error) {
       console.error('❌ Error procesando redirect result:', error);
+      
+      // Si el redirect falla consistentemente, limpiar los flags
+      const attempts = parseInt(localStorage.getItem('redirect_attempts') || '0');
+      if (attempts > 2) {
+        console.log('🧹 Limpiando flags de COOP después de múltiples intentos fallidos');
+        localStorage.removeItem('coop_error_detected');
+        localStorage.removeItem('coop_error_timestamp');
+        localStorage.removeItem('redirect_attempts');
+      } else {
+        localStorage.setItem('redirect_attempts', (attempts + 1).toString());
+      }
+      
       setError('Error procesando la autenticación. Por favor, intenta nuevamente.');
     }
   };

@@ -160,39 +160,36 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Determinar si el tour debe estar activo basándose en el perfil del usuario
   useEffect(() => {
-    if (loading) return; // Esperar a que termine de cargar
-    
-    if (userProfile) {
-      const shouldShowTour = !userProfile.hasCompletedOnboarding;
-      console.log('🎯 TourContext - Verificando si mostrar tour:', {
-        hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
-        shouldShowTour,
-        currentlyActive: isActive
-      });
-      
-      if (shouldShowTour && !isActive) {
-        console.log('🎯 TourContext - Activando tour para usuario nuevo');
-        setIsActive(true);
-        setCurrentStepIndex(0);
-      } else if (!shouldShowTour && isActive) {
-        console.log('🎯 TourContext - Desactivando tour para usuario existente');
-        setIsActive(false);
-      }
-    } else {
-      // Si no hay perfil de usuario, desactivar tour
-      if (isActive) {
-        console.log('🎯 TourContext - Desactivando tour (sin perfil de usuario)');
-        setIsActive(false);
-      }
+    // Solo proceder si no estamos cargando y tenemos un usuario autenticado Y un perfil
+    if (loading || !user || !userProfile) {
+      return;
     }
-  }, [userProfile, loading, isActive]);
+    
+    // Solo activar el tour si el usuario NO ha completado el onboarding
+    const shouldShowTour = userProfile.hasCompletedOnboarding === false;
+    
+    console.log('🎯 TourContext - Verificando si mostrar tour:', {
+      hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
+      shouldShowTour,
+      currentlyActive: isActive
+    });
+    
+    if (shouldShowTour && !isActive) {
+      console.log('🎯 TourContext - Activando tour para usuario nuevo');
+      setIsActive(true);
+      setCurrentStepIndex(0);
+    } else if (!shouldShowTour && isActive) {
+      console.log('🎯 TourContext - Desactivando tour para usuario existente');
+      setIsActive(false);
+    }
+  }, [userProfile, loading, user]);
 
   // Función para completar el tour y actualizar el perfil
   const completeTour = async () => {
     try {
-      console.log('🎯 TourContext - Completando tour y actualizando perfil');
+      console.log('🎯 TourContext - Completando tour');
       
-      if (user) {
+      if (user && refreshUserProfile) {
         // Actualizar el perfil en Firestore
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, {
@@ -204,6 +201,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await refreshUserProfile();
         
         console.log('✅ TourContext - Perfil actualizado, tour completado');
+      } else {
+        console.log('⚠️ TourContext - No se pudo actualizar perfil (usuario o refreshUserProfile no disponible)');
       }
       
       // Desactivar el tour
@@ -267,6 +266,27 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await completeTour();
   };
 
+  // Funciones globales de debugging (disponibles en window) - simplificadas
+  useEffect(() => {
+    if (user) {
+      (window as any).debugTour = () => {
+        console.log('🔍 DEBUG TOUR - Estado actual:', {
+          userProfile,
+          loading,
+          isActive,
+          currentStepIndex,
+          userEmail: user?.email
+        });
+      };
+      
+      (window as any).forceCompleteTour = async () => {
+        console.log('🔧 FORZANDO COMPLETAR TOUR para usuario actual...');
+        await completeTour();
+      };
+      
+      console.log('🛠️ Debug functions available: window.debugTour(), window.forceCompleteTour()');
+    }
+  }, [user, userProfile, isActive]);
 
   const value: TourContextType = {
     currentStepIndex,

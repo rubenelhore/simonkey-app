@@ -19,6 +19,11 @@ const TourOverlay: React.FC = () => {
 
   // Verificar si el elemento objetivo existe
   useEffect(() => {
+    // NO ejecutar si el tour está inactivo
+    if (!isActive) {
+      return;
+    }
+    
     console.log(`🔍 Verificando elemento para paso ${currentStepIndex + 1}: ${currentStep.id}`);
     
     if (!currentStep.targetSelector) {
@@ -41,7 +46,7 @@ const TourOverlay: React.FC = () => {
 
     setElementFound(false);
     setTimeout(checkElement, 100);
-  }, [currentStep, currentStepIndex]);
+  }, [currentStep, currentStepIndex, isActive]);
 
   const getSpotlightPosition = (): React.CSSProperties => {
     if (!currentStep.targetSelector) return {};
