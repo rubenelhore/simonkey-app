@@ -45,14 +45,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 }) => {
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription } = useUserType();
-  const [isSidebarExpanded, setSidebarExpanded] = useState(() => {
-    const savedState = localStorage.getItem('headerSidebarPinned');
-    return savedState === 'true';
-  });
-  const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
-    const savedState = localStorage.getItem('headerSidebarPinned');
-    return savedState === 'true';
-  });
+  const [isSidebarExpanded, setSidebarExpanded] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -98,6 +92,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     }
     return 'U';
   };
+
+  // Asegurar que el sidebar siempre esté colapsado al cargar la página
+  useEffect(() => {
+    // Limpiar cualquier estado guardado al montar el componente
+    localStorage.removeItem('headerSidebarPinned');
+    setSidebarExpanded(false);
+    setIsSidebarPinned(false);
+  }, []);
 
   // Obtener el nombre completo del usuario
   const getUserFullName = () => {
@@ -277,8 +279,12 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     const newPinnedState = !isSidebarPinned;
     setIsSidebarPinned(newPinnedState);
     setSidebarExpanded(newPinnedState);
-    // Guardar estado en localStorage
-    localStorage.setItem('headerSidebarPinned', newPinnedState.toString());
+    // Solo guardar en localStorage si se está fijando (true), nunca cuando se desfija
+    if (newPinnedState) {
+      localStorage.setItem('headerSidebarPinned', newPinnedState.toString());
+    } else {
+      localStorage.removeItem('headerSidebarPinned');
+    }
   };
 
   const handleLogout = async () => {

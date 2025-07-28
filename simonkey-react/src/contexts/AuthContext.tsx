@@ -433,6 +433,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (user) {
         // console.log('👤 Usuario encontrado:', user.email);
         
+        // Limpiar estado del sidebar al iniciar sesión
+        localStorage.removeItem('headerSidebarPinned');
+        
         // Establecer estado de carga
         setAuthState(prev => ({
           ...prev,
