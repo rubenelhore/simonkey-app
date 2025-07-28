@@ -64,14 +64,19 @@ const Header: React.FC = () => {
     }
   };
 
+  // Hide sidebar on homepage
+  const isHomePage = location.pathname === '/';
+  const shouldShowSidebar = !isHomePage;
+
   return (
     <>
-      {/* Sidebar */}
-      <div 
-        className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
-      >
+      {/* Sidebar - Only show if not on homepage */}
+      {shouldShowSidebar && (
+        <div 
+          className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}
+          onMouseEnter={handleSidebarMouseEnter}
+          onMouseLeave={handleSidebarMouseLeave}
+        >
         {/* Contenido del sidebar */}
         <div className="sidebar-content">
           <div className="sidebar-menu-items">
@@ -116,8 +121,9 @@ const Header: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
       
-      <header className="header" style={{ marginLeft: isSidebarPinned ? '250px' : '0', transition: 'margin-left 0.3s ease' }}>
+      <header className="header" style={{ marginLeft: shouldShowSidebar && isSidebarPinned ? '250px' : '0', transition: 'margin-left 0.3s ease' }}>
       <div className="header-container">
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
           <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

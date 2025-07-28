@@ -33,7 +33,7 @@
 /* Main Container */
 .study-mode-container {
   min-height: 100vh;
-  background-color: var(--bg-light);
+  background-color: #ffffff;
   display: flex;
   flex-direction: column;
 }
@@ -45,6 +45,7 @@
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  background-color: #ffffff;
 }
 
 /* Loading State */
@@ -638,6 +639,58 @@
   min-height: calc(100vh - 380px);
 }
 
+/* Study Score Module - Left side */
+.study-score-module {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+  color: white;
+  min-width: 150px;
+  z-index: 10;
+}
+
+.study-score-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.study-score-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.study-score-icon {
+  font-size: 1.2rem;
+  color: white;
+}
+
+.study-score-content {
+  text-align: center;
+}
+
+.study-score-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.study-score-label {
+  font-size: 0.75rem;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
 /* Motivational Message */
 .motivational-message {
   text-align: center;
@@ -662,16 +715,19 @@
 
 /* Study Module Header */
 .study-module-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin-bottom: 2rem;
-  align-items: start;
 }
 
 /* Notebook Dropdown */
 .notebook-dropdown-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 300px;
 }
 
 .dropdown-instruction {
@@ -679,6 +735,7 @@
   color: var(--text-medium);
   margin-bottom: 0.5rem;
   font-weight: 500;
+  text-align: center;
 }
 
 .notebook-dropdown-btn {
@@ -976,8 +1033,9 @@
   
   
   .study-module-header {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
   
   .study-functions {

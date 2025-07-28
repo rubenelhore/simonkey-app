@@ -593,6 +593,11 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid white;
+  font-family: 'Poppins', sans-serif;
+}
+
+.sidebar-nav * {
+  font-family: 'Poppins', sans-serif;
 }
 
 .sidebar-nav::after {
@@ -683,6 +688,7 @@
   color: white;
   opacity: 0;
   width: 0;
+  font-family: 'Poppins', sans-serif;
   overflow: hidden;
   transform: translateX(-10px);
   transition: all 0.3s ease;
@@ -738,6 +744,7 @@
 }
 
 .sidebar-icon-btn span {
+  font-family: 'Poppins', sans-serif;
   font-weight: 500;
   white-space: nowrap;
   opacity: 0;
@@ -845,6 +852,7 @@
   justify-content: center;
   font-weight: 600;
   font-size: 0.65rem;
+  font-family: 'Poppins', sans-serif;
   flex-shrink: 0;
   min-width: 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -868,6 +876,7 @@
 }
 
 .user-name {
+  font-family: 'Poppins', sans-serif;
   font-weight: 500;
   font-size: 0.7rem;
   color: #4b5563;
@@ -998,12 +1007,14 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: #374151;
+  font-family: 'Poppins', sans-serif;
 }
 
 .user-details p {
   margin: 0.25rem 0 0 0;
   font-size: 0.75rem;
   color: #6b7280;
+  font-family: 'Poppins', sans-serif;
 }
 
 .user-menu-options {
@@ -1024,6 +1035,7 @@
   text-align: left;
   font-size: 0.85rem;
   color: #374151;
+  font-family: 'Poppins', sans-serif;
 }
 
 .user-menu-btn:hover:not(.disabled) {
@@ -1044,6 +1056,7 @@
 
 .user-menu-btn span {
   font-weight: 500;
+  font-family: 'Poppins', sans-serif;
 }
 
 .user-menu-btn.upgrade-btn {
@@ -1524,6 +1537,7 @@
   }
   
   .sidebar-icon-btn span {
+    font-family: 'Poppins', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
     white-space: nowrap;

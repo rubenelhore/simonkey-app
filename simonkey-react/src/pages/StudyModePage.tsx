@@ -556,6 +556,22 @@ const StudyModePage = () => {
 
         {/* Main Study Module */}
         <div className="main-study-module">
+          {/* Score Module on the Left */}
+          <div className="study-score-module">
+            <div className="study-score-header">
+              <FontAwesomeIcon icon={faTrophy} className="study-score-icon" />
+              <h3>Score</h3>
+            </div>
+            <div className="study-score-content">
+              <div className="study-score-value">
+                {selectedNotebook ? (selectedNotebook.frozenScore?.toLocaleString() || '0') : '0'}
+              </div>
+              <div className="study-score-label">
+                {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}
+              </div>
+            </div>
+          </div>
+
           {/* Simple Medal Corner with Current Division Medals */}
           <div className="corner-medal-module">
             <div className="corner-medal-header">
@@ -618,7 +634,6 @@ const StudyModePage = () => {
           {/* Motivational Message */}
           <div className="motivational-message">
             <h3>¡Es hora de estudiar y brillar! ✨</h3>
-            <p>Cada sesión de estudio te acerca más a tus metas. ¡Tú puedes lograrlo!</p>
           </div>
 
           {/* Top Row: Dropdowns */}
@@ -713,7 +728,6 @@ const StudyModePage = () => {
                 <FontAwesomeIcon icon={faBrain} />
               </div>
               <h3>Estudio Inteligente</h3>
-              <p>Repasa los conceptos que necesitas según el algoritmo SM-3</p>
               <button className="function-btn">
                 <FontAwesomeIcon icon={faPlay} /> Iniciar
               </button>
@@ -727,7 +741,6 @@ const StudyModePage = () => {
                 <FontAwesomeIcon icon={faQuestion} />
               </div>
               <h3>Quiz</h3>
-              <p>Evalúa tu conocimiento con 10 preguntas aleatorias</p>
               <button className="function-btn">
                 <FontAwesomeIcon icon={faPlay} /> Iniciar
               </button>
@@ -741,7 +754,6 @@ const StudyModePage = () => {
                 <FontAwesomeIcon icon={faBook} />
               </div>
               <h3>Estudio Libre</h3>
-              <p>Repasa todos los conceptos del cuaderno sin restricciones</p>
               <button className="function-btn">
                 <FontAwesomeIcon icon={faPlay} /> Iniciar
               </button>
@@ -755,7 +767,6 @@ const StudyModePage = () => {
                 <FontAwesomeIcon icon={faGamepad} />
               </div>
               <h3>Juegos</h3>
-              <p>Aprende jugando con actividades interactivas</p>
               <button className="function-btn">
                 <FontAwesomeIcon icon={faPlay} /> Iniciar
               </button>

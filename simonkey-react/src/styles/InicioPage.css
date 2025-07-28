@@ -2,13 +2,14 @@
 
 .dashboard-container {
   height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: #ffffff;
   overflow: hidden;
 }
 
 .dashboard-content {
   height: calc(100vh - 4rem);
   padding: 1rem;
+  padding-left: 5rem; /* Add space for sidebar on desktop */
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -124,6 +125,11 @@
   background: #fef2f2;
 }
 
+.metric-icon.bonus {
+  color: #a855f7;
+  background: #faf5ff;
+}
+
 .metric-icon.time {
   color: #06b6d4;
   background: #ecfeff;
@@ -132,6 +138,16 @@
 .metric-icon.progress {
   color: #10b981;
   background: #ecfdf5;
+}
+
+.metric-icon.division {
+  color: #f59e0b;
+  background: #fffbeb;
+}
+
+.metric-icon.score {
+  color: #eab308;
+  background: #fefce8;
 }
 
 .metric-content {
@@ -185,8 +201,49 @@
 .quick-access-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 1.5rem;
   height: 100%;
+  padding: 1rem;
+}
+
+.quick-access-btn {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  min-height: 150px;
+}
+
+.quick-access-btn:hover {
+  transform: translateY(-4px);
+  border-color: #6366f1;
+  background: white;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+}
+
+.quick-btn-icon {
+  font-size: 3rem;
+  color: #6366f1;
+  transition: all 0.3s ease;
+}
+
+.quick-access-btn:hover .quick-btn-icon {
+  transform: scale(1.1);
+}
+
+.quick-btn-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
 }
 
 .access-card {
@@ -732,6 +789,7 @@
   .dashboard-content {
     height: auto;
     padding: 0.5rem;
+    padding-left: 0.5rem; /* Reset sidebar padding on mobile */
     gap: 0.5rem;
   }
   
@@ -749,8 +807,22 @@
   }
   
   .quick-access-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
+    padding: 0.5rem;
+  }
+  
+  .quick-access-btn {
+    padding: 1.5rem;
+    min-height: 120px;
+  }
+  
+  .quick-btn-icon {
+    font-size: 2rem;
+  }
+  
+  .quick-btn-label {
+    font-size: 1rem;
   }
   
   .quick-actions-grid {

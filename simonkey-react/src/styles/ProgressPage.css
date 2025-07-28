@@ -5,6 +5,7 @@
   background-color: #f3f4f6;
   padding: 20px;
   padding-top: 20px; /* Padding normal, el header ya tiene su propio espacio */
+  padding-left: 80px; /* Space for sidebar on desktop */
 }
 
 .progress-modules-row {
@@ -502,6 +503,7 @@
 @media (max-width: 768px) {
   .progress-layout {
     padding: 12px;
+    padding-left: 12px; /* Reset sidebar padding on mobile */
   }
 
   .progress-modules-row {
