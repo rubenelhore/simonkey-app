@@ -537,8 +537,8 @@ const StudyModePage = () => {
             } else if (learningDataItem.nextReviewDate) {
               // Handle both Timestamp and Date objects
               let nextReview: Date;
-              if (learningDataItem.nextReviewDate.toDate) {
-                nextReview = learningDataItem.nextReviewDate.toDate();
+              if ((learningDataItem.nextReviewDate as any).toDate) {
+                nextReview = (learningDataItem.nextReviewDate as any).toDate();
               } else if (learningDataItem.nextReviewDate instanceof Date) {
                 nextReview = learningDataItem.nextReviewDate;
               } else {
@@ -742,7 +742,6 @@ const StudyModePage = () => {
           console.log(`Streak details:`, {
             currentStreak: userStreak.currentStreak,
             lastStudyDate: userStreak.lastStudyDate,
-            hasStudiedToday: userStreak.hasStudiedToday,
             streakBonus: streakBonusValue,
             calculation: `${streakDays} days × 200 = ${streakBonusValue} pts`
           });
