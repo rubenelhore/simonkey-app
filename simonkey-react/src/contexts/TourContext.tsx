@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface TourStep {
   id: string;
@@ -22,7 +25,6 @@ interface TourContextType {
   nextStep: () => void;
   prevStep: () => void;
   skipTour: () => void;
-  restartTour: () => void;
 }
 
 const tourSteps: TourStep[] = [
@@ -151,9 +153,67 @@ const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isActive, setIsActive] = useState(true); // Tour activo por defecto en demo
+  const [isActive, setIsActive] = useState(false); // Tour inactivo por defecto
   const [isNavigating, setIsNavigating] = useState(false);
   const navigate = useNavigate();
+  const { userProfile, loading, user, refreshUserProfile } = useAuth();
+
+  // Determinar si el tour debe estar activo basándose en el perfil del usuario
+  useEffect(() => {
+    if (loading) return; // Esperar a que termine de cargar
+    
+    if (userProfile) {
+      const shouldShowTour = !userProfile.hasCompletedOnboarding;
+      console.log('🎯 TourContext - Verificando si mostrar tour:', {
+        hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
+        shouldShowTour,
+        currentlyActive: isActive
+      });
+      
+      if (shouldShowTour && !isActive) {
+        console.log('🎯 TourContext - Activando tour para usuario nuevo');
+        setIsActive(true);
+        setCurrentStepIndex(0);
+      } else if (!shouldShowTour && isActive) {
+        console.log('🎯 TourContext - Desactivando tour para usuario existente');
+        setIsActive(false);
+      }
+    } else {
+      // Si no hay perfil de usuario, desactivar tour
+      if (isActive) {
+        console.log('🎯 TourContext - Desactivando tour (sin perfil de usuario)');
+        setIsActive(false);
+      }
+    }
+  }, [userProfile, loading, isActive]);
+
+  // Función para completar el tour y actualizar el perfil
+  const completeTour = async () => {
+    try {
+      console.log('🎯 TourContext - Completando tour y actualizando perfil');
+      
+      if (user) {
+        // Actualizar el perfil en Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, {
+          hasCompletedOnboarding: true,
+          updatedAt: new Date()
+        });
+        
+        // Refrescar el perfil del usuario para que se actualice el contexto
+        await refreshUserProfile();
+        
+        console.log('✅ TourContext - Perfil actualizado, tour completado');
+      }
+      
+      // Desactivar el tour
+      setIsActive(false);
+    } catch (error) {
+      console.error('❌ Error completando tour:', error);
+      // Aún así desactivar el tour para evitar que se quede colgado
+      setIsActive(false);
+    }
+  };
 
   const nextStep = async () => {
     console.log(`🎯 NextStep - Paso actual: ${currentStepIndex + 1}/${tourSteps.length}`);
@@ -167,14 +227,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigate(currentStep.actionTarget);
         
         // Esperar navegación y luego completar tour
-        setTimeout(() => {
-          console.log(`🎯 Tour completado después de navegación final`);
-          setIsActive(false);
+        setTimeout(async () => {
+          await completeTour();
         }, 500);
       } else {
         // Completar tour sin navegación
-        console.log(`🎯 Tour completado - desactivando`);
-        setIsActive(false);
+        await completeTour();
       }
       return;
     }
@@ -204,24 +262,11 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const skipTour = () => {
+  const skipTour = async () => {
     console.log('🔄 Usuario saltó el tour');
-    setIsActive(false);
+    await completeTour();
   };
 
-  const restartTour = () => {
-    console.log('🔄 Reiniciando tour');
-    setCurrentStepIndex(0);
-    setIsActive(true);
-    setIsNavigating(false);
-    navigate('/inicio');
-  };
-
-  // Función global para reiniciar (disponible en window)
-  useEffect(() => {
-    (window as any).restartTour = restartTour;
-    console.log('🎮 Tour en modo demo. Ejecuta window.restartTour() para reiniciar');
-  }, []);
 
   const value: TourContextType = {
     currentStepIndex,
@@ -233,8 +278,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tourSteps,
     nextStep,
     prevStep,
-    skipTour,
-    restartTour
+    skipTour
   };
 
   return (
