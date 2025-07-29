@@ -372,6 +372,15 @@ export interface UserProfile {
   totalStudyTime?: number;
   photoURL?: string;
   hasCompletedOnboarding?: boolean;
+  location?: string;
+  preferences?: {
+    studyMode?: string;
+    difficulty?: string;
+    timePerSession?: string;
+  };
+  weeklyGoal?: number;
+  achievementsCount?: number;
+  averageSessionTime?: number;
 }
 
 /**
