@@ -64,9 +64,23 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   };
 
   const handleCardClick = () => {
+    // Si hay error, no hacer nada
     if (hasError) {
       return;
     }
+    
+    // Al hacer click en la card, entrar directamente a la materia
+    handleView({ stopPropagation: () => {} } as React.MouseEvent);
+  };
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevenir que se active handleCardClick
+    
+    // Si hay error, no permitir abrir el menú
+    if (hasError) {
+      return;
+    }
+    
     onToggleActions(id);
   };
 
@@ -217,7 +231,40 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            <h3>{editableTitle}</h3>
+            {/* Botón de menú de 3 puntos */}
+            <button 
+              className="materia-menu-button"
+              onClick={handleMenuClick}
+              title="Opciones"
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.2s ease',
+                zIndex: 2
+              }}
+            >
+              <i 
+                className="fas fa-ellipsis-v" 
+                style={{ 
+                  fontSize: '14px', 
+                  color: '#666',
+                  transform: 'rotate(0deg)'
+                }}
+              ></i>
+            </button>
+
+            <h3 style={{ paddingRight: '40px' }}>{editableTitle}</h3>
             {isAdminView ? (
               <div className="materia-admin-info">
                 <span className="materia-teacher">
@@ -254,68 +301,160 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
       </div>
       {showActions && (
         <div 
-          className="materia-card-actions"
-          style={{ 
-            backgroundColor: materiaColor
+          className="materia-dropdown-menu"
+          style={{
+            position: 'absolute',
+            top: '40px',
+            right: '8px',
+            background: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            border: '1px solid #e0e0e0',
+            minWidth: '180px',
+            zIndex: 10,
+            overflow: 'hidden'
           }}
         >
           <button 
-            onClick={handleView} 
-            className="action-view" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleView(e);
+            }}
+            className="dropdown-menu-item" 
             title="Ver cuadernos"
             disabled={hasError}
-            style={{ 
-              backgroundColor: materiaColor,
-              opacity: hasError ? 0.5 : 1, 
-              cursor: hasError ? 'not-allowed' : 'pointer' 
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: 'none',
+              background: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: hasError ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              color: hasError ? '#ccc' : '#333',
+              transition: 'background-color 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!hasError) {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <i className="fas fa-eye"></i>
+            <i className="fas fa-eye" style={{ width: '16px', textAlign: 'center' }}></i>
+            <span>Ver cuadernos</span>
           </button>
-          {onColorChange && (
-            <button 
-              onClick={handleColorClick} 
-              className="action-color" 
-              title="Cambiar color"
-              disabled={hasError}
-              style={{ 
-                backgroundColor: materiaColor,
-                opacity: hasError ? 0.5 : 1, 
-                cursor: hasError ? 'not-allowed' : 'pointer' 
-              }}
-            >
-              <i className="fas fa-palette"></i>
-            </button>
-          )}
           {onEdit && (
             <button 
-              onClick={handleEditClick} 
-              className="action-edit" 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditClick(e);
+              }}
+              className="dropdown-menu-item" 
               title="Editar nombre"
               disabled={hasError}
-              style={{ 
-                backgroundColor: materiaColor,
-                opacity: hasError ? 0.5 : 1, 
-                cursor: hasError ? 'not-allowed' : 'pointer' 
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: hasError ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                color: hasError ? '#ccc' : '#333',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!hasError) {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <i className="fas fa-pencil-alt"></i>
+              <i className="fas fa-pencil-alt" style={{ width: '16px', textAlign: 'center' }}></i>
+              <span>Editar nombre</span>
+            </button>
+          )}
+          {onColorChange && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleColorClick(e);
+              }}
+              className="dropdown-menu-item" 
+              title="Cambiar color"
+              disabled={hasError}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: hasError ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                color: hasError ? '#ccc' : '#333',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!hasError) {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <i className="fas fa-palette" style={{ width: '16px', textAlign: 'center' }}></i>
+              <span>Cambiar color</span>
             </button>
           )}
           {onDelete && (
-            <button 
-              onClick={handleDelete} 
-              className="action-delete" 
-              title="Eliminar materia"
-              disabled={hasError}
-              style={{ 
-                backgroundColor: materiaColor,
-                opacity: hasError ? 0.5 : 1, 
-                cursor: hasError ? 'not-allowed' : 'pointer' 
-              }}
-            >
-              <i className="fas fa-trash"></i>
-            </button>
+            <>
+              <div style={{ height: '1px', background: '#e0e0e0', margin: '4px 0' }}></div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(e);
+                }}
+                className="dropdown-menu-item" 
+                title="Eliminar materia"
+                disabled={hasError}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  background: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: hasError ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  color: hasError ? '#ccc' : '#dc3545',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!hasError) {
+                    e.currentTarget.style.backgroundColor = '#fef2f2';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <i className="fas fa-trash" style={{ width: '16px', textAlign: 'center' }}></i>
+                <span>Eliminar materia</span>
+              </button>
+            </>
           )}
         </div>
       )}
