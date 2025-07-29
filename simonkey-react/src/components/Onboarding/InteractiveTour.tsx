@@ -408,7 +408,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
         await setDoc(userDocRef, { hasCompletedOnboarding: true }, { merge: true });
       }
       onComplete();
-      navigate('/materias');
+      navigate('/inicio');
     } catch (error) {
       console.error('Error al completar el tour:', error);
       setTourClosed(true);

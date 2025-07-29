@@ -102,7 +102,27 @@ export const getPositionHistory = async (
       limit(weeksCount)
     );
     
-    const historySnap = await getDocs(historyQuery);
+    let historySnap;
+    try {
+      historySnap = await getDocs(historyQuery);
+    } catch (error: any) {
+      if (error.code === 'failed-precondition' && error.message.includes('index')) {
+        console.warn('[GetPositionHistory] Firebase index missing for position history query');
+        console.warn('[GetPositionHistory] Index needed for: userId, subjectId, weekStart (desc), __name__');
+        
+        // Try to extract the Firebase console URL for index creation
+        const indexUrlMatch = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/);
+        if (indexUrlMatch) {
+          console.warn('[GetPositionHistory] Create the missing index here:', indexUrlMatch[0]);
+        }
+        
+        console.warn('[GetPositionHistory] Returning empty history as fallback');
+        return [];
+      }
+      
+      console.error('[GetPositionHistory] Unexpected error:', error);
+      throw error;
+    }
     
     const history: Array<{
       semana: string;
