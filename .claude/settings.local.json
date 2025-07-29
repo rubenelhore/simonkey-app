@@ -30,7 +30,8 @@
       "Bash(rm:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git submodule:*)"
     ],
     "deny": []
   }
