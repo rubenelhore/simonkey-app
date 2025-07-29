@@ -24,7 +24,6 @@ import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
 import InteractiveTour from './components/Onboarding/InteractiveTour';
 import MobileNavigation from './components/Mobile/MobileNavigation';
-import TeacherMobileNavigation from './components/Mobile/TeacherMobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
 import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
@@ -446,7 +445,6 @@ const AppContent: React.FC = () => {
   
   // Show mobile navigation for all authenticated users except admin and tutor
   const showMobileNav = isAuthenticated && !isSchoolAdmin && !isSchoolTutor;
-  const showTeacherNav = isAuthenticated && isSchoolTeacher && location.pathname.startsWith('/school/teacher');
   // const helpPages = [
   //   '/pricing',
   //   '/examples',
@@ -869,7 +867,7 @@ const AppContent: React.FC = () => {
             }
           />
         </Routes>
-        {showTeacherNav ? <TeacherMobileNavigation /> : (showMobileNav && !location.pathname.startsWith('/school/teacher') && location.pathname !== '/super-admin' ? <MobileNavigation /> : null)}
+        {showMobileNav && location.pathname !== '/super-admin' ? <MobileNavigation /> : null}
         {/* Sistema de gestión de cookies - siempre visible */}
         <CookieManager />
         {/* <AuthDiagnostic /> */}

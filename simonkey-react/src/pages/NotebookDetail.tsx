@@ -306,13 +306,14 @@ const NotebookDetail = () => {
     };
   }, [isModalOpen]);
 
-  const SUPPORTED_EXTENSIONS = ['txt', 'csv', 'jpg', 'jpeg', 'pdf'];
+  const SUPPORTED_EXTENSIONS = ['txt', 'csv', 'jpg', 'jpeg', 'pdf', 'png'];
   const SUPPORTED_MIME_TYPES = [
     'text/plain',
     'text/csv',
     'image/jpeg',
     'image/jpg',
-    'application/pdf'
+    'application/pdf',
+    'image/png'
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,7 +323,7 @@ const NotebookDetail = () => {
         const ext = file.name.split('.').pop()?.toLowerCase();
         const isValid = (ext && SUPPORTED_EXTENSIONS.includes(ext)) || SUPPORTED_MIME_TYPES.includes(file.type);
         if (!isValid) {
-          alert('El documento "' + file.name + '" no es soportado por la plataforma. Solo se permiten archivos .TXT, .CSV, .JPG, .PDF');
+          alert('El documento "' + file.name + '" no es soportado por la plataforma. Solo se permiten archivos .TXT, .CSV, .JPG, .PNG, .PDF');
         }
         return isValid;
       });
@@ -1442,7 +1443,7 @@ const NotebookDetail = () => {
                       <p>Haz clic aquí para seleccionar archivos</p>
                       <span>o arrastra y suelta archivos aquí</span>
                       <span style={{ color: '#6147FF', fontWeight: 600, marginTop: 6, display: 'block', fontSize: '0.98rem' }}>
-                        Formatos soportados: .TXT, .CSV, .JPG, .PDF
+                        Formatos soportados: .TXT, .CSV, .JPG, .PNG, .PDF
                       </span>
                     </div>
                   </label>

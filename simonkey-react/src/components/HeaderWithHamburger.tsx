@@ -44,7 +44,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
-  const { isSuperAdmin, subscription } = useUserType();
+  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -474,46 +474,88 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         
         {/* Iconos de navegación */}
         <div className="sidebar-icons">
-          <button 
-            className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
-            onClick={() => navigate('/inicio')}
-            title="Pagina principal"
-          >
-            <FontAwesomeIcon icon={faHome} />
-            {(isSidebarExpanded || isSidebarPinned) && <span>Pagina principal</span>}
-          </button>
-          <button 
-            className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
-            onClick={() => navigate('/materias')}
-            title="Mis materias"
-          >
-            <FontAwesomeIcon icon={faBook} />
-            {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
-          </button>
-          <button 
-            className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
-            onClick={() => navigate('/study')}
-            title="Estudiar"
-          >
-            <FontAwesomeIcon icon={faGraduationCap} />
-            {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
-          </button>
-          <button 
-            className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
-            onClick={() => navigate('/progress')}
-            title="Mi progreso"
-          >
-            <FontAwesomeIcon icon={faChartLine} />
-            {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
-          </button>
-          <button 
-            className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
-            onClick={handleCalendarClick} 
-            title="Calendario"
-          >
-            <FontAwesomeIcon icon={faCalendarAlt} />
-            {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
-          </button>
+          {isSchoolAdmin ? (
+            <>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/materias' ? 'active' : ''}`} 
+                onClick={() => navigate('/materias')}
+                title="Materias"
+              >
+                <FontAwesomeIcon icon={faBook} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Materias</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/school/admin' ? 'active' : ''}`} 
+                onClick={() => navigate('/school/admin')}
+                title="Analítica"
+              >
+                <FontAwesomeIcon icon={faChartLine} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+              </button>
+            </>
+          ) : isSchoolTeacher ? (
+            <>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/school/teacher' || location.pathname.includes('/school/teacher/materias/') ? 'active' : ''}`} 
+                onClick={() => navigate('/school/teacher')}
+                title="Materias"
+              >
+                <FontAwesomeIcon icon={faBook} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Materias</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/school/teacher/analytics' ? 'active' : ''}`} 
+                onClick={() => navigate('/school/teacher/analytics')}
+                title="Analítica"
+              >
+                <FontAwesomeIcon icon={faChartLine} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
+                onClick={() => navigate('/inicio')}
+                title="Pagina principal"
+              >
+                <FontAwesomeIcon icon={faHome} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Pagina principal</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
+                onClick={() => navigate('/materias')}
+                title="Mis materias"
+              >
+                <FontAwesomeIcon icon={faBook} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
+                onClick={() => navigate('/study')}
+                title="Estudiar"
+              >
+                <FontAwesomeIcon icon={faGraduationCap} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
+                onClick={() => navigate('/progress')}
+                title="Mi progreso"
+              >
+                <FontAwesomeIcon icon={faChartLine} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
+                onClick={handleCalendarClick} 
+                title="Calendario"
+              >
+                <FontAwesomeIcon icon={faCalendarAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
+              </button>
+            </>
+          )}
           {isSuperAdmin && (
             <button 
               className="sidebar-icon-btn" 

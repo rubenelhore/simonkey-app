@@ -127,26 +127,45 @@ const Header: React.FC = () => {
       <div className="header-container">
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
           <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* Botón hamburguesa donde estaba el logo */}
-            <button 
-              className="hamburger-btn"
-              onClick={toggleSidebarPin}
-              title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                display: 'flex',
-                position: 'static'
-              }}
-            >
-              <div className="hamburger-icon">
-                <span className="hamburger-line"></span>
-                <span className="hamburger-line"></span>
-                <span className="hamburger-line"></span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* Botón hamburguesa donde estaba el logo */}
+              <button 
+                className="hamburger-btn"
+                onClick={toggleSidebarPin}
+                title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  position: 'static'
+                }}
+              >
+                <div className="hamburger-icon">
+                  <span className="hamburger-line"></span>
+                  <span className="hamburger-line"></span>
+                  <span className="hamburger-line"></span>
+                </div>
+              </button>
+              
+              {/* Logo y texto Simonkey */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <img 
+                  src="/img/favicon.svg" 
+                  alt="Simonkey Logo" 
+                  style={{ height: '32px', width: 'auto' }}
+                />
+                <span style={{ 
+                  fontSize: '20px', 
+                  fontWeight: 'bold', 
+                  color: '#4F46E5',
+                  letterSpacing: '-0.5px'
+                }}>
+                  Simonkey
+                </span>
               </div>
-            </button>
+            </div>
           </div>
           {/* Menú de notificaciones */}
           {showNotifications && (

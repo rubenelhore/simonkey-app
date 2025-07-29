@@ -495,23 +495,48 @@ const Materias: React.FC = () => {
   const handleEdit = async (id: string, newTitle: string) => {
     // Los estudiantes escolares no pueden editar materias
     if (isSchoolStudent) return;
+    if (!user) return;
+    
     try {
-      // Verificar si ya existe una materia con ese nombre
-      const materiasQuery = query(
-        collection(db, 'materias'),
-        where('userId', '==', user?.uid),
-        where('title', '==', newTitle)
-      );
-      const snapshot = await getDocs(materiasQuery);
-      
-      if (!snapshot.empty && snapshot.docs[0].id !== id) {
-        throw new Error('Ya existe una materia con ese nombre');
+      if (isSchoolAdmin || isSchoolTeacher) {
+        // Para admin escolar o profesor: actualizar materia escolar
+        const adminId = userProfile?.idAdmin || userProfile?.id || user.uid;
+        
+        // Verificar si ya existe una materia escolar con ese nombre
+        const materiasQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('idAdmin', '==', adminId),
+          where('nombre', '==', newTitle)
+        );
+        const snapshot = await getDocs(materiasQuery);
+        
+        if (!snapshot.empty && snapshot.docs[0].id !== id) {
+          throw new Error('Ya existe una materia con ese nombre');
+        }
+        
+        // Actualizar la materia escolar en la colección correcta
+        await updateDoc(doc(db, 'schoolSubjects', id), {
+          nombre: newTitle,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Para usuarios regulares: actualizar materia regular
+        const materiasQuery = query(
+          collection(db, 'materias'),
+          where('userId', '==', user?.uid),
+          where('title', '==', newTitle)
+        );
+        const snapshot = await getDocs(materiasQuery);
+        
+        if (!snapshot.empty && snapshot.docs[0].id !== id) {
+          throw new Error('Ya existe una materia con ese nombre');
+        }
+        
+        await updateDoc(doc(db, 'materias', id), {
+          title: newTitle,
+          updatedAt: serverTimestamp()
+        });
       }
-      
-      await updateDoc(doc(db, 'materias', id), {
-        title: newTitle,
-        updatedAt: serverTimestamp()
-      });
       
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
@@ -523,8 +548,13 @@ const Materias: React.FC = () => {
   const handleColorChange = async (id: string, newColor: string) => {
     // Los estudiantes escolares no pueden cambiar colores
     if (isSchoolStudent) return;
+    if (!user) return;
+    
     try {
-      await updateDoc(doc(db, 'materias', id), {
+      const isSchoolMateria = isSchoolAdmin || isSchoolTeacher;
+      const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
+      
+      await updateDoc(doc(db, materiaCollection, id), {
         color: newColor,
         updatedAt: serverTimestamp()
       });
@@ -756,24 +786,6 @@ const Materias: React.FC = () => {
             )}
           </div>
         </main>
-
-        {/* Mobile Navigation */}
-        <nav className="admin-mobile-nav">
-          <button 
-            className="nav-item active"
-            onClick={() => navigate('/materias')}
-          >
-            <i className="fas fa-book"></i>
-            <span>Materias</span>
-          </button>
-          <button 
-            className="nav-item"
-            onClick={() => navigate('/school/admin')}
-          >
-            <i className="fas fa-chart-line"></i>
-            <span>Analítica</span>
-          </button>
-        </nav>
       </>
     );
   }

@@ -528,24 +528,6 @@ const SchoolAdminPage: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      {/* Mobile Navigation */}
-      <nav className="admin-mobile-nav">
-        <button 
-          className="nav-item"
-          onClick={() => navigate('/materias')}
-        >
-          <i className="fas fa-book"></i>
-          <span>Materias</span>
-        </button>
-        <button 
-          className="nav-item active"
-          onClick={() => navigate('/school/admin')}
-        >
-          <i className="fas fa-chart-line"></i>
-          <span>Analítica</span>
-        </button>
-      </nav>
     </>
   );
 };
