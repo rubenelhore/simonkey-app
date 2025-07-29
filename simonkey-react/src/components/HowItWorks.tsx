@@ -31,9 +31,9 @@ const funcionalidades = [
 const imagenes = [
   '/img/image1.png',
   '/img/image2.png',
-  '/img/image3.jpg',
-  '/img/image4.png',
-  '/img/image5.png',
+  '/img/image3.png',
+  '/img/image4.jpg',
+  '/img/image5.jpg',
   '/img/image6.png',
 ];
 
@@ -107,13 +107,10 @@ const HowItWorks: React.FC = () => {
   return (
     <>
       {/* Sección Funcionalidades de Simonkey */}
-      <section id="funcionalidades-de-simonkey" style={{ width: '100%', backgroundColor: 'rgb(249, 250, 251)', minHeight: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 20, paddingBottom: 20, marginBottom: 40 }}>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#111', margin: '0 0 8px', textAlign: 'center', letterSpacing: 0.1, fontFamily: '"Segoe UI", "Arial", sans-serif' }}>
+      <section id="funcionalidades-de-simonkey" style={{ width: '100%', backgroundColor: 'rgb(249, 250, 251)', minHeight: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 20, paddingBottom: 20, marginBottom: 40, fontFamily: 'Poppins, sans-serif' }}>
+        <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#111', margin: '0 0 8px', textAlign: 'center', letterSpacing: 0.1, fontFamily: 'Poppins, sans-serif' }}>
           Descubre nuestras <span style={{ color: '#4F46E5', fontWeight: 700 }}>Funcionalidades</span>
         </h2>
-        <div style={{ fontFamily: '"Segoe UI", "Arial", sans-serif', fontSize: '0.9rem', color: '#6366F1', marginBottom: 12, textAlign: 'center', fontStyle: 'italic', fontWeight: 400, letterSpacing: 0.05 }}>
-          Descubre todo lo que puedes hacer con Simonkey.
-        </div>
         <div style={{ width: '100%', maxWidth: 1100, display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'stretch', gap: 32 }}>
           <div style={{ flex: '0 0 50%', maxWidth: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, alignItems: 'flex-start', paddingLeft: 0 }}>
             <ul style={{ fontSize: '1rem', color: 'rgb(34, 34, 34)', listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>

@@ -15,9 +15,6 @@ const AboutSimonkeyInline: React.FC = () => {
         <div className="about-content">
           <div className="content-wrapper">
             <h2 className="about-title">¿Qué es Simonkey?</h2>
-            <div className="about-subtitle">
-              Tu compañero inteligente para aprender mejor cada día.
-            </div>
             <p className="about-description">
               Simonkey es tu asistente inteligente de estudio, diseñado para adaptarse a tu ritmo y necesidades. 
               <span className="highlight"> Utiliza inteligencia artificial para ayudarte a aprender</span> de 
