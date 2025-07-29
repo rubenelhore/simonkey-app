@@ -618,6 +618,26 @@
   animation: bounceIn 0.6s ease;
 }
 
+/* Botón regresar a estudio */
+.quiz-results .back-to-study-btn {
+  background: var(--quiz-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: block;
+  margin: 2rem auto 0;
+}
+
+.quiz-results .back-to-study-btn:hover {
+  background: #E5531F;
+  transform: translateY(-1px);
+}
+
 .results-header {
   margin-bottom: 40px;
 }

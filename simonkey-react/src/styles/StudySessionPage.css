@@ -166,9 +166,10 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
 }
 
-.intensity-option:hover {
+.intensity-option:hover:not(.disabled) {
   border-color: #6147FF;
   transform: translateY(-2px);
 }
@@ -178,11 +179,27 @@
   background: rgba(97, 71, 255, 0.05);
 }
 
+.intensity-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #F0F0F0;
+  border-color: #D0D0D0;
+}
+
+.intensity-option.disabled:hover {
+  transform: none;
+  border-color: #D0D0D0;
+}
+
 .intensity-option i {
   font-size: 2rem;
   color: #6147FF;
   margin-bottom: 0.75rem;
   display: block;
+}
+
+.intensity-option.disabled i {
+  color: #8E8E93;
 }
 
 .intensity-option h4 {
@@ -192,10 +209,51 @@
   color: #1C1C1E;
 }
 
+.intensity-option.disabled h4 {
+  color: #8E8E93;
+}
+
 .intensity-option p {
   margin: 0;
   font-size: 0.875rem;
   color: #48484A;
+}
+
+.intensity-option .intensity-requirement {
+  color: #FF3B30;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.intensity-option .intensity-value {
+  color: #6147FF;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.intensity-warning {
+  background: #FFF3CD;
+  border: 1px solid #FFE69C;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #856404;
+}
+
+.intensity-warning i {
+  font-size: 1.25rem;
+  color: #FFB700;
+}
+
+.intensity-warning p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 /* Intro Actions */
@@ -223,8 +281,14 @@
   color: white;
 }
 
-.action-button.primary:hover {
+.action-button.primary:hover:not(:disabled) {
   background: #5138E5;
+}
+
+.action-button.primary:disabled {
+  background: #C7C7CC;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .action-button.secondary {
@@ -253,6 +317,7 @@
   text-align: center;
   max-width: 500px;
   width: 100%;
+  margin: 0 auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
@@ -319,6 +384,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: block;
+  margin: 0 auto;
 }
 
 .back-to-study-btn:hover {

@@ -1286,6 +1286,13 @@ const QuizModePage: React.FC = () => {
             <div className="stat-label">Score más alto</div>
           </div>
         </div>
+        
+        <button 
+          className="back-to-study-btn"
+          onClick={() => navigate('/study')}
+        >
+          Regresar a estudio
+        </button>
       </div>
     );
   };
