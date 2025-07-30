@@ -69,29 +69,47 @@ const GamesPage: React.FC = () => {
       console.log('🎮 userId:', userId);
       console.log('🎮 notebookId:', notebookId);
       
-      // PRIMERA OPCIÓN: Verificar si hay sesiones de estudio completadas para este cuaderno
+      // PRIMERA OPCIÓN: Verificar si hay CUALQUIER sesión de estudio para este cuaderno
+      // Incluye sesiones completadas Y sesiones en progreso con al menos un concepto
       const studySessionsQuery = query(
         collection(db, 'studySessions'),
         where('userId', '==', userId),
         where('notebookId', '==', notebookId),
-        where('endTime', '!=', null)
+        limit(10) // Aumentar límite para no perder sesiones
       );
       
       const studySessionsSnapshot = await getDocs(studySessionsQuery);
-      console.log('🎮 Sesiones de estudio completadas encontradas:', studySessionsSnapshot.size);
+      console.log('🎮 Total sesiones de estudio encontradas:', studySessionsSnapshot.size);
       
-      if (studySessionsSnapshot.size > 0) {
-        // Verificar que al menos una sesión tenga conceptos estudiados
-        for (const doc of studySessionsSnapshot.docs) {
-          const sessionData = doc.data();
-          if (sessionData.metrics?.conceptsReviewed > 0 || sessionData.concepts?.length > 0) {
-            console.log('✅ Se encontró sesión con conceptos estudiados');
-            return true;
-          }
+      // Verificar si alguna sesión tiene endTime o concepts
+      let hasValidSession = false;
+      studySessionsSnapshot.forEach(doc => {
+        const data = doc.data();
+        console.log('📋 Sesión:', doc.id, {
+          endTime: !!data.endTime,
+          hasConceptsArray: !!data.concepts,
+          conceptsLength: data.concepts?.length || 0,
+          mode: data.mode,
+          metrics: data.metrics
+        });
+        
+        // Una sesión es válida si:
+        // 1. Tiene endTime (está completada) O
+        // 2. Tiene array de concepts con al menos un elemento O
+        // 3. Tiene métricas que indican que se estudiaron conceptos
+        if (data.endTime || 
+            (data.concepts && data.concepts.length > 0) ||
+            (data.metrics && (data.metrics.conceptsReviewed > 0 || data.metrics.totalConcepts > 0))) {
+          hasValidSession = true;
         }
+      });
+      
+      if (hasValidSession) {
+        console.log('✅ Se encontró al menos una sesión válida');
+        return true;
       }
       
-      // SEGUNDA OPCIÓN: Buscar directamente en la colección learningData
+      // SEGUNDA OPCIÓN: Verificar si hay datos de aprendizaje (sin importar notebookId en el documento)
       const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
       
       console.log('🎮 learningData encontrados (servicio):', learningData.length);
@@ -101,59 +119,32 @@ const GamesPage: React.FC = () => {
         return true;
       }
       
-      // TERCERA OPCIÓN: Buscar en la colección de conceptos del cuaderno para ver si hay alguno estudiado
-      const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
-      
-      const conceptsQuery = query(
-        collection(db, collectionName),
-        where('cuadernoId', '==', notebookId)
+      // TERCERA OPCIÓN: Buscar CUALQUIER documento en learningData del usuario
+      // Esto es más permisivo para casos edge
+      const anyLearningQuery = query(
+        collection(db, 'users', userId, 'learningData'),
+        limit(50) // Buscar en los primeros 50 documentos
       );
       
-      const conceptDocs = await getDocs(conceptsQuery);
-      console.log('🎮 Documentos de conceptos encontrados:', conceptDocs.size);
+      const anyLearningSnapshot = await getDocs(anyLearningQuery);
+      console.log('🎮 Total documentos de learningData:', anyLearningSnapshot.size);
       
-      // Obtener todos los IDs de conceptos del cuaderno
-      const conceptIds: string[] = [];
-      conceptDocs.forEach(doc => {
-        const conceptosData = doc.data().conceptos || [];
-        conceptosData.forEach((concepto: any, index: number) => {
-          const conceptId = concepto.id || `${doc.id}-${index}`;
-          conceptIds.push(conceptId);
-        });
-      });
-      
-      console.log('🎮 Total de conceptos en el cuaderno:', conceptIds.length);
-      
-      // Verificar si alguno de estos conceptos tiene datos de aprendizaje
-      for (const conceptId of conceptIds.slice(0, 10)) { // Verificar solo los primeros 10 para evitar demasiadas consultas
-        const learningRef = doc(db, 'users', userId, 'learningData', conceptId);
-        const learningDoc = await getDoc(learningRef);
-        
-        if (learningDoc.exists()) {
-          console.log('✅ Se encontró concepto con datos de aprendizaje:', conceptId);
+      // Verificar si alguno pertenece a este notebook verificando los conceptos
+      if (anyLearningSnapshot.size > 0 && learningData.length === 0) {
+        console.log('⚠️ Hay datos de aprendizaje pero no se pudieron asociar al notebook');
+        // En este caso, permitir jugar si hay al menos algunos datos
+        if (anyLearningSnapshot.size >= 1) {
+          console.log('✅ Permitiendo jugar por tener datos de aprendizaje generales');
           return true;
         }
-      }
-      
-      // CUARTA OPCIÓN: Verificar mini quiz results para este cuaderno
-      const miniQuizQuery = query(
-        collection(db, 'users', userId, 'miniQuizResults'),
-        where('notebookId', '==', notebookId)
-      );
-      
-      const miniQuizSnapshot = await getDocs(miniQuizQuery);
-      console.log('🎮 Mini quiz completados encontrados:', miniQuizSnapshot.size);
-      
-      if (miniQuizSnapshot.size > 0) {
-        console.log('✅ Se encontraron mini quiz completados');
-        return true;
       }
       
       console.log('❌ No se encontraron conceptos repasados');
       return false;
     } catch (error) {
       console.error('Error verificando conceptos repasados:', error);
-      return false;
+      // En caso de error, ser permisivo
+      return true;
     }
   };
 

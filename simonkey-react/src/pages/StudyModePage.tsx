@@ -850,8 +850,8 @@ const StudyModePage = () => {
           progress: totalScore % 50
         });
         
-        // Load ranking for this notebook
-        await loadNotebookRanking(notebook.id);
+        // Load ranking for this notebook with the current score
+        await loadNotebookRanking(notebook.id, totalScore);
       }
     } catch (error) {
       console.error('Error loading notebook stats:', error);
@@ -863,7 +863,7 @@ const StudyModePage = () => {
   };
 
   // Load notebook ranking
-  const loadNotebookRanking = async (notebookId: string) => {
+  const loadNotebookRanking = async (notebookId: string, currentScore?: number) => {
     if (!effectiveUserId || !isSchoolStudent) {
       setNotebookRanking(null);
       setRankingLoadError(null);
@@ -919,13 +919,39 @@ const StudyModePage = () => {
       
       // Find current user in ranking
       const userIndex = ranking.students.findIndex((s: any) => s.userId === effectiveUserId);
-      const userPosition = userIndex >= 0 ? userIndex + 1 : 0;
-      const userScore = ranking.students[userIndex]?.score || 0;
+      // Use the score from ranking if found, otherwise use the provided score or notebookScore
+      const userScore = userIndex >= 0 ? ranking.students[userIndex].score : (currentScore || notebookScore?.score || 0);
+      
+      // Calculate user position
+      let userPosition = userIndex >= 0 ? userIndex + 1 : 0;
+      
+      // If user is not in ranking but has score, calculate their position
+      if (userIndex < 0 && userScore > 0) {
+        // Find where the user would be positioned based on their score
+        // Count how many students have a higher score
+        const studentsWithHigherScore = ranking.students.filter((s: any) => s.score > userScore).length;
+        userPosition = studentsWithHigherScore + 1;
+        
+        // Log for debugging
+        console.log('User not in ranking, calculating position:', {
+          userScore,
+          studentsWithHigherScore,
+          calculatedPosition: userPosition,
+          topStudentScore: ranking.students[0]?.score
+        });
+      }
       
       // Calculate points to next position
       let pointsToNext = 0;
-      if (userIndex > 0) {
-        pointsToNext = ranking.students[userIndex - 1].score - userScore;
+      if (userPosition > 1 && userPosition <= ranking.students.length) {
+        // Points to reach the person above them
+        const aboveIndex = userPosition - 2; // -2 because position is 1-based and we want the person above
+        if (aboveIndex >= 0 && aboveIndex < ranking.students.length) {
+          pointsToNext = ranking.students[aboveIndex].score - userScore;
+        }
+      } else if (userPosition === 1) {
+        // Already first, no points needed
+        pointsToNext = 0;
       }
       
       // Get top 10 users (or all if less than 10)

@@ -715,7 +715,6 @@ const Materias: React.FC = () => {
       <>
         <HeaderWithHamburger
           title="Gestión de Mis Materias"
-          subtitle={`Administrador: ${userData.nombre || 'Admin'}`}
         />
         <main className="materias-main admin-view">
           <div className="admin-controls-section">
@@ -833,7 +832,6 @@ const Materias: React.FC = () => {
     <>
       <HeaderWithHamburger
         title="Mis Materias"
-        subtitle={isSchoolStudent && institutionName ? institutionName : `Espacio Personal de ${userData.nombre || 'Simón'}`}
       />
       {/* Notificación de migración */}
       {migrationStatus && migrationMessage && (
