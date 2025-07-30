@@ -561,6 +561,8 @@ const StudyModePage = () => {
           console.log('Available concepts:', availableConcepts);
           console.log('Next available date:', nextAvailableDate);
 
+          // Temporarily set availability based on concepts
+          // Will be updated later after checking daily limit
           setStudyAvailability({
             available: availableConcepts > 0,
             nextAvailable: nextAvailableDate,
@@ -685,12 +687,42 @@ const StudyModePage = () => {
           setGamePoints(0);
         }
 
-        // Check quiz availability (once per week)
+        // Check study limits (quiz and smart study)
         const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebook.id);
         const notebookLimitsDoc = await getDoc(notebookLimitsRef);
         
         if (notebookLimitsDoc.exists()) {
           const limits = notebookLimitsDoc.data();
+          
+          // Check smart study availability (once per day)
+          if (limits.lastSmartStudyDate) {
+            const lastSmartStudyDate = limits.lastSmartStudyDate.toDate ? limits.lastSmartStudyDate.toDate() : new Date(limits.lastSmartStudyDate);
+            const now = new Date();
+            
+            // Check if it's the same day
+            const isSameDay = lastSmartStudyDate.toDateString() === now.toDateString();
+            
+            if (isSameDay) {
+              // Smart study already done today
+              const tomorrow = new Date(now);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              tomorrow.setHours(0, 0, 0, 0);
+              
+              setStudyAvailability(prev => ({
+                ...prev,
+                available: false,
+                nextAvailable: tomorrow
+              }));
+              console.log('Smart study already done today, next available:', tomorrow);
+            } else if (availableConcepts === 0) {
+              // No concepts available but it's a new day
+              setStudyAvailability(prev => ({
+                ...prev,
+                available: false,
+                nextAvailable: nextAvailableDate || undefined
+              }));
+            }
+          }
           
           if (limits.lastQuizDate) {
             const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);
@@ -946,7 +978,7 @@ const StudyModePage = () => {
       const days = Math.floor(hours / 24);
       return `Disponible en ${days} día${days > 1 ? 's' : ''}`;
     } else if (hours > 0) {
-      return `Disponible en ${hours} hora${hours > 1 ? 's' : ''}`;
+      return 'Disponible mañana';
     } else {
       return `Disponible en ${minutes} minuto${minutes > 1 ? 's' : ''}`;
     }
@@ -1153,7 +1185,9 @@ const StudyModePage = () => {
                 </>
               ) : (
                 <p className="function-status unavailable">
-                  {studyAvailability.nextAvailable ? 
+                  {studyAvailability.nextAvailable && studyAvailability.conceptsCount > 0 ? 
+                    'Ya estudiaste hoy. Disponible mañana' :
+                    studyAvailability.nextAvailable ? 
                     formatTimeUntil(studyAvailability.nextAvailable) : 
                     'Agrega conceptos al cuaderno'}
                 </p>

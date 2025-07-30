@@ -99,6 +99,21 @@ const StudySessionPage = () => {
         
         const allConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
         setTotalNotebookConcepts(allConcepts.length);
+        
+        // Set appropriate default study intensity based on available concepts
+        if (allConcepts.length < 5) {
+          // Not enough concepts for any mode
+          setStudyIntensity(StudyIntensity.WARM_UP);
+        } else if (allConcepts.length < 10) {
+          // Can only do Warm-Up
+          setStudyIntensity(StudyIntensity.WARM_UP);
+        } else if (allConcepts.length < 20) {
+          // Can do Warm-Up or Progress, default to Progress
+          setStudyIntensity(StudyIntensity.PROGRESS);
+        } else {
+          // Can do any mode, keep default (Progress)
+          setStudyIntensity(StudyIntensity.PROGRESS);
+        }
       } catch (error) {
         console.error('Error loading notebook info:', error);
       }
@@ -578,32 +593,50 @@ const StudySessionPage = () => {
               
               <div className="intro-section">
                 <h3>Elige tu intensidad:</h3>
+                {totalNotebookConcepts < 5 && (
+                  <div className="intensity-warning">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    <p>Este cuaderno tiene solo {totalNotebookConcepts} conceptos. Necesitas al menos 5 conceptos para estudiar.</p>
+                  </div>
+                )}
                 <div className="intensity-options">
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''}`}
-                    onClick={() => setStudyIntensity(StudyIntensity.WARM_UP)}
+                    className={`intensity-option ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${totalNotebookConcepts < 5 ? 'disabled' : ''}`}
+                    onClick={() => totalNotebookConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
                   >
                     <i className="fas fa-coffee"></i>
                     <h4>Warm-Up</h4>
                     <p>5 conceptos</p>
+                    {totalNotebookConcepts < 5 && (
+                      <p className="intensity-requirement">Requiere 5+ conceptos</p>
+                    )}
+                    <p className="intensity-value">0.5 estudios inteligentes</p>
                   </div>
                   
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''}`}
-                    onClick={() => setStudyIntensity(StudyIntensity.PROGRESS)}
+                    className={`intensity-option ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${totalNotebookConcepts < 10 ? 'disabled' : ''}`}
+                    onClick={() => totalNotebookConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
                   >
                     <i className="fas fa-chart-line"></i>
                     <h4>Progreso</h4>
                     <p>10 conceptos</p>
+                    {totalNotebookConcepts < 10 && (
+                      <p className="intensity-requirement">Requiere 10+ conceptos</p>
+                    )}
+                    <p className="intensity-value">1 estudio inteligente</p>
                   </div>
                   
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''}`}
-                    onClick={() => setStudyIntensity(StudyIntensity.ROCKET)}
+                    className={`intensity-option ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${totalNotebookConcepts < 20 ? 'disabled' : ''}`}
+                    onClick={() => totalNotebookConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
                   >
                     <i className="fas fa-rocket"></i>
                     <h4>Rocket</h4>
                     <p>20 conceptos</p>
+                    {totalNotebookConcepts < 20 && (
+                      <p className="intensity-requirement">Requiere 20+ conceptos</p>
+                    )}
+                    <p className="intensity-value">2 estudios inteligentes</p>
                   </div>
                 </div>
               </div>
@@ -620,9 +653,10 @@ const StudySessionPage = () => {
               <button
                 className="action-button primary"
                 onClick={beginStudySession}
+                disabled={totalNotebookConcepts < 5}
               >
                 <i className="fas fa-play"></i>
-                Iniciar
+                {totalNotebookConcepts < 5 ? 'Conceptos insuficientes' : 'Iniciar'}
               </button>
             </div>
           </div>
