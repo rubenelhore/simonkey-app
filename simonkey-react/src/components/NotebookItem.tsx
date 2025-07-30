@@ -274,13 +274,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   return (
-    <div className="notebook-card-wrapper">
-      <div className="notebook-card">
+    <div className="materia-card-wrapper">
+      <div className="materia-card">
         <div 
-          className={`notebook-card-content ${isFrozen ? 'frozen' : ''}`}
+          className={`materia-card-content ${isFrozen ? 'frozen' : ''}`}
           onClick={handleCardClick}
           style={{ 
-            '--notebook-color': notebookColor,
+            '--materia-color': notebookColor,
             cursor: (isFrozen && !isTeacher) ? 'not-allowed' : 'pointer'
           } as React.CSSProperties}
         >
@@ -337,7 +337,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           <>
             {/* Botón de menú de 3 puntos */}
             <button 
-              className="notebook-menu-button"
+              className="materia-menu-button"
               onClick={handleMenuClick}
               title="Opciones"
               style={{
@@ -369,12 +369,12 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
             </button>
 
             <h3 style={{ paddingRight: '40px' }}>{editableTitle}</h3>
-            <div className="notebook-info-container">
-              <span className="notebook-info">
+            <div className="materia-info-container">
+              <span className="materia-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}
               </span>
               {domainProgress && domainProgress.total > 0 && (
-                <span className="notebook-progress-badge" style={{ 
+                <span className="materia-exams-badge" style={{ 
                   backgroundColor: notebookColor,
                   color: 'white',
                   padding: '2px 8px',
@@ -399,7 +399,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
       </div>
       {showActions && (
         <div 
-          className="notebook-dropdown-menu"
+          className="materia-dropdown-menu"
           style={{
             position: 'absolute',
             top: '40px',
