@@ -547,6 +547,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           ) : (
             <>
               <button 
+                className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
+                onClick={() => navigate('/inicio')}
+                title="Inicio"
+              >
+                <FontAwesomeIcon icon={faHome} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Inicio</span>}
+              </button>
+              <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
                 onClick={() => navigate('/materias')}
                 title="Mis materias"

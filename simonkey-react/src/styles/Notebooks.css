@@ -4221,3 +4221,35 @@ body.modal-open .notebooks-hamburger-btn {
 .no-materials-content p {
   margin: 0;
 }
+
+/* Notebook card wrapper - matches materia design */
+.notebook-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  position: relative;
+  background: #fff !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.notebook-card-wrapper:hover .notebook-card {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Color picker for notebook wrapper */
+.notebook-card-wrapper .color-picker-container {
+  position: absolute;
+  bottom: auto;
+  top: calc(100% - 70px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem;
+  min-width: 280px;
+}

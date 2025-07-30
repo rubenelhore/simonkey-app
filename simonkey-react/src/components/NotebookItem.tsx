@@ -274,17 +274,16 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   return (
-    <div 
-      className="notebook-card"
-    >
-      <div 
-        className={`notebook-card-content ${isFrozen ? 'frozen' : ''}`}
-        onClick={handleCardClick}
-        style={{ 
-          '--notebook-color': notebookColor,
-          cursor: (isFrozen && !isTeacher) ? 'not-allowed' : 'pointer'
-        } as React.CSSProperties}
-      >
+    <div className="notebook-card-wrapper">
+      <div className="notebook-card">
+        <div 
+          className={`notebook-card-content ${isFrozen ? 'frozen' : ''}`}
+          onClick={handleCardClick}
+          style={{ 
+            '--notebook-color': notebookColor,
+            cursor: (isFrozen && !isTeacher) ? 'not-allowed' : 'pointer'
+          } as React.CSSProperties}
+        >
         {isEditing ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <div style={{ flex: 1 }}>
@@ -369,41 +368,24 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               ></i>
             </button>
 
-            <h3 style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: '0.5rem',
-              width: '100%',
-              paddingRight: '40px', // Espacio para el botón de menú
-              color: '#1f2937'
-            }}>
-              <span style={{
-                flex: '1',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                color: '#1f2937'
-              }}>
-                {editableTitle || title || 'Sin título'}
-              </span>
-              {domainProgress && domainProgress.total > 0 && (
-                <span 
-                  style={{ 
-                    color: '#10b981', 
-                    fontSize: '1.1rem', 
-                    fontWeight: 'bold',
-                    flexShrink: 0
-                  }}
-                  title="% de Dominio"
-                >
-                  {Math.round((domainProgress.dominated / domainProgress.total) * 100)}%
-                </span>
-              )}
-            </h3>
+            <h3 style={{ paddingRight: '40px' }}>{editableTitle}</h3>
             <div className="notebook-info-container">
               <span className="notebook-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}
               </span>
+              {domainProgress && domainProgress.total > 0 && (
+                <span className="notebook-progress-badge" style={{ 
+                  backgroundColor: notebookColor,
+                  color: 'white',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  marginLeft: '8px'
+                }}>
+                  {Math.round((domainProgress.dominated / domainProgress.total) * 100)}% dominio
+                </span>
+              )}
             </div>
             {isFrozen && (
               <div className="frozen-indicator-subtle">
@@ -413,21 +395,22 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
             )}
           </>
         )}
+        </div>
       </div>
       {showActions && (
         <div 
           className="notebook-dropdown-menu"
           style={{
             position: 'absolute',
-            bottom: '40px',
+            top: '40px',
             right: '8px',
             background: 'white',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             border: '1px solid #e0e0e0',
             minWidth: '180px',
-            zIndex: 1000,
-            overflow: 'visible'
+            zIndex: 10,
+            overflow: 'hidden'
           }}
         >
           {!(isFrozen && !isTeacher) && (
@@ -655,9 +638,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
                 style={{ backgroundColor: color }}
                 onClick={() => handleColorChange(color)}
                 title={`Seleccionar color ${color}`}
-              >
-                {/* Content for color option */}
-              </button>
+              />
             ))}
           </div>
         </div>
