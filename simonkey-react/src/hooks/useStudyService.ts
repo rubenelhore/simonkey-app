@@ -528,7 +528,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         
         // Agregar intensidad si está presente (solo para sesiones smart)
         if (detailedResults?.studyIntensity) {
-          updateData.intensity = detailedResults.studyIntensity;
+          (updateData as any).intensity = detailedResults.studyIntensity;
         }
         
         // Log detallado del objeto antes de updateDoc

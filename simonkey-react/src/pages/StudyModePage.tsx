@@ -918,7 +918,7 @@ const StudyModePage = () => {
       }
       
       // Find current user in ranking
-      const userIndex = ranking.students.findIndex(s => s.userId === effectiveUserId);
+      const userIndex = ranking.students.findIndex((s: any) => s.userId === effectiveUserId);
       const userPosition = userIndex >= 0 ? userIndex + 1 : 0;
       const userScore = ranking.students[userIndex]?.score || 0;
       
@@ -929,7 +929,7 @@ const StudyModePage = () => {
       }
       
       // Get top 10 users (or all if less than 10)
-      const topUsers = ranking.students.slice(0, 10).map((student, index) => ({
+      const topUsers = ranking.students.slice(0, 10).map((student: any, index: number) => ({
         position: index + 1,
         userId: student.userId,
         displayName: student.displayName,

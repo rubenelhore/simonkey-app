@@ -79,25 +79,21 @@ const SchoolStudentMateriaPage: React.FC = () => {
             color: materiaData.color || '#6147FF',
             idEscuela: materiaData.idEscuela
           });
-        } else {
-          console.error('Materia no encontrada:', decodedMateriaName);
-          return;
-        }
 
-        // Cargar cuadernos del estudiante
-        if (userProfile?.idCuadernos && userProfile.idCuadernos.length > 0) {
-          const notebooksData: SchoolNotebook[] = [];
-          
-          for (const notebookId of userProfile.idCuadernos) {
-            try {
-              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-              if (notebookDoc.exists()) {
-                const data = notebookDoc.data();
-                console.log('📚 Notebook ID:', notebookDoc.id);
-                console.log('📚 Título del notebook:', data.title);
-                console.log('📚 Tipo del título:', typeof data.title);
-                console.log('📚 Longitud del título:', data.title?.length);
-                if (data.idMateria === currentMateriaId) {
+          // Cargar cuadernos del estudiante (dentro del bloque where currentMateriaId está definido)
+          if (userProfile?.idCuadernos && userProfile.idCuadernos.length > 0) {
+            const notebooksData: SchoolNotebook[] = [];
+            
+            for (const notebookId of userProfile.idCuadernos) {
+              try {
+                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+                if (notebookDoc.exists()) {
+                  const data = notebookDoc.data();
+                  console.log('📚 Notebook ID:', notebookDoc.id);
+                  console.log('📚 Título del notebook:', data.title);
+                  console.log('📚 Tipo del título:', typeof data.title);
+                  console.log('📚 Longitud del título:', data.title?.length);
+                  if (data.idMateria === currentMateriaId) {
                   // Calcular el progreso de dominio para cada notebook
                   const domainProgress = await getDomainProgressForNotebook(notebookDoc.id);
                   console.log('📊 Progreso de dominio calculado para', data.title, ':', domainProgress);
@@ -127,8 +123,12 @@ const SchoolStudentMateriaPage: React.FC = () => {
           
           console.log('📋 Notebooks finales cargados:', notebooksData);
           setNotebooks(notebooksData);
+          } else {
+            console.log('❌ No hay idCuadernos en userProfile:', userProfile);
+          }
         } else {
-          console.log('❌ No hay idCuadernos en userProfile:', userProfile);
+          console.error('Materia no encontrada:', decodedMateriaName);
+          return;
         }
         
       } catch (err) {
