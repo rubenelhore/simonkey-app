@@ -111,10 +111,19 @@ const MateriaList: React.FC<MateriaListProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (!openActionsId) return;
       
-      if (materiaListRef.current && materiaListRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      
+      // Si el clic fue en un dropdown menu o sus hijos, no hacer nada
+      if (target.closest('.materia-dropdown-menu')) {
         return;
       }
       
+      // Si el clic fue en el botón de menú, no hacer nada (se maneja en handleToggleActions)
+      if (target.closest('.materia-menu-button')) {
+        return;
+      }
+      
+      // Si el clic fue fuera, cerrar las acciones
       setOpenActionsId(null);
     };
 

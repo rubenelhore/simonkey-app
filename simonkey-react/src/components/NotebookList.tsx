@@ -1,6 +1,6 @@
 // src/components/NotebookList.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import NotebookItem from './NotebookItem';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../services/firebase';
@@ -97,6 +97,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   // console.log('🔍 DEBUG - Notebooks no es null, continuando...');
 
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newNotebookColor, setNewNotebookColor] = useState('#6147FF');
@@ -183,8 +184,15 @@ const NotebookList: React.FC<NotebookListProps> = ({
       // Si no hay acciones abiertas, no hacer nada
       if (!openActionsId) return;
       
-      // Si el clic fue dentro de la lista de cuadernos, no hacer nada
-      if (notebookListRef.current && notebookListRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      
+      // Si el clic fue en un dropdown menu o sus hijos, no hacer nada
+      if (target.closest('.notebook-dropdown-menu') || target.closest('.materia-dropdown-menu')) {
+        return;
+      }
+      
+      // Si el clic fue en el botón de menú, no hacer nada (se maneja en handleToggleActions)
+      if (target.closest('.notebook-menu-button') || target.closest('.materia-menu-button')) {
         return;
       }
       
@@ -667,10 +675,21 @@ const NotebookList: React.FC<NotebookListProps> = ({
     }
   };
 
+
   return (
     <>
       <div className="notebook-list-controls">
         <div className="notebook-list-header">
+          {/* Botón de volver cuando estamos dentro de una materia */}
+          {materiaId && (
+            <button 
+              className="back-button-notebooks"
+              onClick={() => navigate('/materias')}
+              title="Volver a materias"
+            >
+              <i className="fas fa-arrow-left"></i>
+            </button>
+          )}
           {showCreateButton && (
             <button 
               className="create-notebook-button"
