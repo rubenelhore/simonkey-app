@@ -2,28 +2,29 @@
 
 /* Layout sin sidebar para profesores */
 .notebooks-main-no-sidebar {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
-  max-width: 1400px;
+  display: block;
+  padding: 0;
+  width: 100%;
   background: #fff;
   border-radius: 0;
   box-shadow: none;
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0;
   min-height: calc(100vh - 70px);
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
 
 .notebooks-list-section-full {
   width: 100%;
-  max-width: 1400px;
-  padding: 2rem;
+  max-width: none;
+  padding: 0 1rem 1rem 1rem;
   background: #fff !important;
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0;
 }
 
 
@@ -4032,4 +4033,191 @@ body.modal-open .notebooks-hamburger-btn {
     padding: 1.25rem 1rem;
     min-height: 100px;
   }
+}
+
+/* Notebook list controls and header */
+.notebook-list-controls {
+  margin-bottom: 1.5rem;
+}
+
+.notebook-list-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* Back button for notebooks page */
+.back-button-notebooks {
+  background: #f3f4f6;
+  color: #4a5568;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.back-button-notebooks:hover {
+  border-color: #6147FF;
+  color: #6147FF;
+  transform: translateY(-1px);
+}
+
+.back-button-notebooks i {
+  font-size: 1rem;
+}
+
+/* Create notebook button */
+.create-notebook-button {
+  background: #6147FF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(97, 71, 255, 0.2);
+}
+
+.create-notebook-button:hover {
+  background: #4d35e0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(97, 71, 255, 0.3);
+}
+
+/* Notebook cards styles */
+.notebook-card {
+  background: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.notebook-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.notebook-card-content {
+  padding: 16px 20px;
+  background: white;
+  transition: background-color 0.2s;
+}
+
+/* Categories section */
+.categories-section {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Notebooks Grid */
+.notebooks-grid, .notebook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Back button for notebooks page */
+.back-button-notebooks {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  outline: none;
+  flex-shrink: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.back-button-notebooks i {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* Section header with back button */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-header-left h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+/* Materials chevron spinner */
+.materials-chevron-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top: 2px solid #6147FF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 8px;
+}
+
+/* Materials loading content */
+.materials-loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.no-materials-content {
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.no-materials-content p {
+  margin: 0;
 }

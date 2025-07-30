@@ -53,8 +53,8 @@
 /* Exam Cards Grid */
 .exams-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
 /* Quitar línea divisoria en la sección de exámenes dentro de la página de materia */
@@ -66,38 +66,93 @@
 
 .exam-card {
   background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 200px;
 }
 
 .exam-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-color: #d1d5db;
+}
+
+/* Responsive styles for smaller notebooks and exams */
+@media (max-width: 768px) {
+  .notebooks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  
+  .exams-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .exam-card {
+    height: 180px;
+  }
+  
+  .exam-card-header {
+    padding: 0.75rem;
+  }
+  
+  .exam-card-header i {
+    font-size: 1.5rem;
+  }
+  
+  .exam-card-body {
+    padding: 0.75rem;
+  }
+  
+  .exam-card-body h3 {
+    font-size: 1rem;
+  }
+  
+  .exam-description {
+    font-size: 0.75rem;
+  }
+  
+  .exam-card-footer {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .start-exam-button {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
 }
 
 .exam-card-header {
-  padding: 2rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  flex-shrink: 0;
 }
 
 .exam-card-header i {
-  font-size: 3rem;
+  font-size: 2rem;
 }
 
 .exam-card-body {
-  padding: 1.5rem;
+  padding: 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .exam-card-body h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
   color: #1f2937;
+  line-height: 1.3;
 }
 
 .exam-description {
@@ -129,24 +184,25 @@
 }
 
 .exam-card-footer {
-  padding: 1.5rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .start-exam-button {
   width: 100%;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   background: #6147FF;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   transition: background 0.2s ease;
 }
 
@@ -182,29 +238,13 @@
   gap: 1.5rem;
 }
 
-.notebook-card {
-  background: white;
-  border: none;
-  border-radius: 12px;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+/* Eliminar este estilo específico para usar el estilo global de Notebooks.css */
+/* Los estilos de .notebook-card están definidos en Notebooks.css */
 
 
-.notebook-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
+/* Usar estilos globales de Notebooks.css */
 
-.notebook-card-content {
-  padding: 16px 20px;
-  background: white;
-  transition: background-color 0.2s;
-}
+/* Usar estilos globales de Notebooks.css */
 
 .notebook-card-content:hover {
   background: white;

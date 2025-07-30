@@ -24,6 +24,7 @@ import { generateConcepts, prepareFilesForGeneration } from '../services/firebas
 import { MaterialService } from '../services/materialService';
 import '../styles/NotebookDetail.css';
 import ReactDOM from 'react-dom';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 
 // TypeScript declarations no longer needed for Gemini API
 
@@ -46,6 +47,7 @@ const NotebookDetail = () => {
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
+  const [loadingConceptos, setLoadingConceptos] = useState<boolean>(true);
   const [cargando, setCargando] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>("Cargando...");
   const [nuevoConcepto, setNuevoConcepto] = useState<Concept>({
@@ -72,7 +74,7 @@ const NotebookDetail = () => {
   // Estado para los materiales del notebook
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
-  const [loadingMaterials, setLoadingMaterials] = useState<boolean>(false);
+  const [loadingMaterials, setLoadingMaterials] = useState<boolean>(true);
   const [showMaterialsList, setShowMaterialsList] = useState<boolean>(false);
   
   // Referencia para el modal
@@ -162,6 +164,7 @@ const NotebookDetail = () => {
       }
       
       try {
+        setLoadingConceptos(true);
         // Fetch notebook using unified service
         const notebook = await UnifiedNotebookService.getNotebook(notebookId);
         
@@ -193,51 +196,65 @@ const NotebookDetail = () => {
           })) as ConceptDoc[];
           
           setConceptosDocs(conceptosData);
+          setLoadingConceptos(false);
           // console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
           
-          // Cargar datos de aprendizaje para el semáforo
+          // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
           if (auth.currentUser && conceptosData.length > 0) {
-            const learningMap = new Map<string, number>();
-            
-            try {
-              // Obtener todos los IDs de conceptos
-              const allConceptIds = conceptosData.flatMap(doc => 
-                doc.conceptos.map(c => c.id)
-              );
+            // No bloquear la carga de conceptos, hacer esto en background
+            (async () => {
+              const learningMap = new Map<string, number>();
               
-              // Cargar datos de aprendizaje para cada concepto
-              for (const conceptId of allConceptIds) {
-                const learningDataRef = doc(db, 'users', auth.currentUser.uid, 'learningData', conceptId);
-                const learningDataSnap = await getDoc(learningDataRef);
+              try {
+                // Obtener todos los IDs de conceptos
+                const allConceptIds = conceptosData.flatMap(doc => 
+                  doc.conceptos.map(c => c.id)
+                );
                 
-                if (learningDataSnap.exists()) {
-                  const data = learningDataSnap.data();
-                  // Usar las repeticiones del algoritmo SM-3
-                  learningMap.set(conceptId, data.repetitions || 0);
-                } else {
-                  // Si no existe, es un concepto nuevo (0 repeticiones)
-                  learningMap.set(conceptId, 0);
-                }
+                // Cargar datos de aprendizaje en paralelo
+                const learningPromises = allConceptIds.map(async (conceptId) => {
+                  const learningDataRef = doc(db, 'users', auth.currentUser!.uid, 'learningData', conceptId);
+                  const learningDataSnap = await getDoc(learningDataRef);
+                  
+                  if (learningDataSnap.exists()) {
+                    const data = learningDataSnap.data();
+                    return { conceptId, repetitions: data.repetitions || 0 };
+                  } else {
+                    return { conceptId, repetitions: 0 };
+                  }
+                });
+                
+                const learningResults = await Promise.all(learningPromises);
+                learningResults.forEach(({ conceptId, repetitions }) => {
+                  learningMap.set(conceptId, repetitions);
+                });
+                
+                setLearningDataMap(learningMap);
+                // console.log('🚦 Datos de aprendizaje cargados para semáforo');
+              } catch (error) {
+                console.warn('⚠️ Error cargando datos de aprendizaje:', error);
               }
-              
-              setLearningDataMap(learningMap);
-              // console.log('🚦 Datos de aprendizaje cargados para semáforo');
-            } catch (error) {
-              console.warn('⚠️ Error cargando datos de aprendizaje:', error);
-            }
+            })();
           }
         } catch (conceptsError: any) {
           console.warn('⚠️ Error cargando conceptos (continuando sin conceptos):', conceptsError.message);
           // No fallar completamente, solo mostrar un warning
           setConceptosDocs([]);
+          setLoadingConceptos(false);
         }
         
-        // Cargar materiales del notebook
+        // Cargar materiales del notebook con timeout
         try {
           setLoadingMaterials(true);
-          const notebookMaterials = await MaterialService.getNotebookMaterials(notebookId);
-          setMaterials(notebookMaterials);
-          // console.log('📚 Materiales cargados:', notebookMaterials.length);
+          // Timeout para evitar loading infinito
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Timeout')), 3000);
+          });
+          
+          const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
+          const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
+          setMaterials(notebookMaterials as Material[]);
+          // console.log('📚 Materiales cargados:', (notebookMaterials as Material[]).length);
         } catch (materialsError) {
           console.warn('⚠️ Error cargando materiales:', materialsError);
           setMaterials([]);
@@ -246,6 +263,7 @@ const NotebookDetail = () => {
         }
       } catch (error) {
         console.error("Error fetching data:", error);
+        setLoadingConceptos(false);
       }
     };
     
@@ -1042,8 +1060,8 @@ const NotebookDetail = () => {
   //   };
   // }, [conceptosDocs, cuaderno, notebookId, isSchoolStudent]);
 
-  // Muestra spinner de carga mientras se obtienen los datos
-  if (!cuaderno) {
+  // Muestra spinner de carga solo mientras se obtienen los datos básicos
+  if (!cuaderno || !notebookId) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -1053,53 +1071,81 @@ const NotebookDetail = () => {
   }
 
   return (
-    <div className="notebook-detail-container">
-      <header className="notebook-detail-header">
-        <div className="header-content">
-          <button 
-            onClick={() => {
-              // Si es profesor escolar, ir a su página de notebooks
-              if (isSchoolTeacher) {
-                // Verificar si estamos en una ruta de profesor
-                const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
-                if (teacherMateriaMatch) {
-                  const materiaId = teacherMateriaMatch[1];
-                  navigate(`/school/teacher/materias/${materiaId}/notebooks`);
-                } else {
-                  // Si no hay materiaId, ir a la página principal del profesor
-                  navigate('/school/teacher');
-                }
-                return;
-              }
-              
-              // Para usuarios regulares, verificar si vienen de una materia
-              const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-              if (materiaMatch) {
-                const urlMateriaId = materiaMatch[1];
-                navigate(`/materias/${urlMateriaId}/notebooks`);
-              } else {
-                // Si no hay materiaId en la URL, ir a /notebooks
-                navigate('/notebooks');
-              }
-            }} 
-            className="back-button"
-          >
-            <i className="fas fa-arrow-left"></i>
-          </button>
+    <>
+      <HeaderWithHamburger
+        title={cuaderno.title}
+        subtitle="Conceptos del cuaderno"
+        showBackButton={true}
+        onBackClick={() => {
+          // Si es profesor escolar, ir a su página de notebooks
+          if (isSchoolTeacher) {
+            // Verificar si estamos en una ruta de profesor
+            const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
+            if (teacherMateriaMatch) {
+              const materiaId = teacherMateriaMatch[1];
+              navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+            } else {
+              // Si no hay materiaId, ir a la página principal del profesor
+              navigate('/school/teacher');
+            }
+            return;
+          }
           
-          <div className="title-container">
-            <h1>{cuaderno.title}</h1>
-          </div>
-        </div>
-      </header>
-
-      <main className="notebook-detail-main">
+          // Para usuarios regulares, verificar si vienen de una materia
+          const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+          if (materiaMatch) {
+            const urlMateriaId = materiaMatch[1];
+            navigate(`/materias/${urlMateriaId}/notebooks`);
+          } else {
+            // Si no hay materiaId en la URL, ir a /notebooks
+            navigate('/notebooks');
+          }
+        }}
+        themeColor={cuaderno.color || '#6147FF'}
+      />
+      <main className="notebooks-main notebooks-main-no-sidebar">
+        <div className="notebooks-list-section notebooks-list-section-full">
+          <div className="notebook-detail-content">
         {/* Sección de Materiales */}
-        {materials.length > 0 && (
-          <section className="materials-section">
+        <section className="materials-section">
             <div className="section-header">
-              <h2>
-                Materiales de Estudio
+              <div className="section-header-left">
+                <button 
+                  className="back-button-notebooks"
+                  onClick={() => {
+                    // Si es profesor escolar, ir a su página de notebooks
+                    if (isSchoolTeacher) {
+                      // Verificar si estamos en una ruta de profesor
+                      const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
+                      if (teacherMateriaMatch) {
+                        const materiaId = teacherMateriaMatch[1];
+                        navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+                      } else {
+                        // Si no hay materiaId, ir a la página principal del profesor
+                        navigate('/school/teacher');
+                      }
+                      return;
+                    }
+                    
+                    // Para usuarios regulares, verificar si vienen de una materia
+                    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+                    if (materiaMatch) {
+                      const urlMateriaId = materiaMatch[1];
+                      navigate(`/materias/${urlMateriaId}/notebooks`);
+                    } else {
+                      // Si no hay materiaId en la URL, ir a /notebooks
+                      navigate('/notebooks');
+                    }
+                  }}
+                  title="Volver a cuadernos"
+                >
+                  <i className="fas fa-arrow-left"></i>
+                </button>
+                <h2>Materiales de Estudio</h2>
+              </div>
+              {loadingMaterials ? (
+                <div className="materials-chevron-spinner"></div>
+              ) : materials.length > 0 ? (
                 <button 
                   className="toggle-materials-btn"
                   onClick={() => setShowMaterialsList(!showMaterialsList)}
@@ -1107,8 +1153,9 @@ const NotebookDetail = () => {
                 >
                   <i className={`fas fa-chevron-${showMaterialsList ? 'up' : 'down'}`}></i>
                 </button>
-              </h2>
-              {selectedMaterialId && showMaterialsList && (
+              ) : null}
+            </div>
+            {selectedMaterialId && showMaterialsList && (
                 <div className="material-actions">
                   <button
                     className="view-material-btn"
@@ -1166,10 +1213,20 @@ const NotebookDetail = () => {
                   )}
                 </div>
               )}
-            </div>
+            
             {showMaterialsList && (
               <div className="materials-list">
-              {materials.map((material) => (
+                {loadingMaterials ? (
+                  <div className="materials-loading-content">
+                    <div className="loading-spinner" style={{ width: '24px', height: '24px' }}></div>
+                    <span>Cargando materiales...</span>
+                  </div>
+                ) : materials.length === 0 ? (
+                  <div className="no-materials-content">
+                    <p>No hay materiales disponibles para este cuaderno</p>
+                  </div>
+                ) : (
+                  materials.map((material) => (
                 <div 
                   key={material.id} 
                   className={`material-card ${selectedMaterialId === material.id ? 'selected' : ''}`}
@@ -1190,11 +1247,11 @@ const NotebookDetail = () => {
                     </span>
                   </div>
                 </div>
-              ))}
+                  ))
+                )}
               </div>
             )}
           </section>
-        )}
         
         <section className="concepts-section">
           <div className="concepts-header">
@@ -1304,6 +1361,11 @@ const NotebookDetail = () => {
                   </div>
                 )}
               </div>
+            ) : loadingConceptos ? (
+              <div className="loading-concepts-container">
+                <div className="loading-spinner"></div>
+                <p>Cargando conceptos...</p>
+              </div>
             ) : conceptosDocs.length === 0 ? (
               <div className="empty-state-concepts-new">
                 <div className="empty-concepts-icon">
@@ -1377,25 +1439,13 @@ const NotebookDetail = () => {
                       );
                     }).filter(Boolean)
                   )}
-                  
-                  {/* Tarjeta para añadir nuevos conceptos - Para usuarios no escolares ni admin, y para profesores */}
-                  {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) &&
-                   !cuaderno.isFrozen && (
-                    <div 
-                      className="add-concept-card" 
-                      onClick={() => openModalWithTab('upload')}
-                    >
-                      <div className="add-icon">
-                        <i className="fas fa-plus-circle"></i>
-                      </div>
-                      <h4>Añadir nuevos conceptos</h4>
-                    </div>
-                  )}
                 </div>
               </>
             )}
           </div>
         </section>
+          </div>
+        </div>
       </main>
 
       {/* Modal - Solo visible para usuarios con permisos (incluye profesores) */}
@@ -1582,7 +1632,7 @@ const NotebookDetail = () => {
         document.body
       )}
       
-    </div>
+    </>
   );
 };
 

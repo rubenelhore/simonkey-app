@@ -599,7 +599,7 @@ const Notebooks: React.FC = () => {
   return (
     <>
       <HeaderWithHamburger
-        title=""
+        title={materiaData ? materiaData.title : ""}
         subtitle={materiaData ? `Cuadernos de ${materiaData.title}` : `Espacio Personal de ${userData.nombre || 'Simón'}`}
         showBackButton={!!materiaId}
         onBackClick={() => navigate('/materias')}
