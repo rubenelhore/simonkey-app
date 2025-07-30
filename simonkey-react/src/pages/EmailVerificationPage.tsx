@@ -42,8 +42,8 @@ const EmailVerificationPage: React.FC = () => {
           
           // Redirigir a notebooks después de 3 segundos
           setTimeout(() => {
-            console.log('🚀 Redirigiendo a notebooks...');
-            navigate('/notebooks', { replace: true });
+            console.log('🚀 Redirigiendo a inicio...');
+            navigate('/inicio', { replace: true });
           }, 3000);
         } else {
           setMessage('Tu email aún no ha sido verificado. Revisa tu bandeja de entrada y spam.');
@@ -66,8 +66,8 @@ const EmailVerificationPage: React.FC = () => {
   // Redirigir si ya está verificado
   useEffect(() => {
     if (isEmailVerified && !loading) {
-      console.log('✅ Email ya verificado, redirigiendo a notebooks');
-      navigate('/notebooks', { replace: true });
+      console.log('✅ Email ya verificado, redirigiendo a inicio');
+      navigate('/inicio', { replace: true });
     }
   }, [isEmailVerified, navigate, loading]);
 
@@ -113,7 +113,7 @@ const EmailVerificationPage: React.FC = () => {
         setMessageType('success');
         
         setTimeout(() => {
-          navigate('/notebooks', { replace: true });
+          navigate('/inicio', { replace: true });
         }, 2000);
       } else {
         setMessage('Email aún no verificado. El email puede tardar unos minutos en llegar.');

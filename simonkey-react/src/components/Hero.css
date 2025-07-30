@@ -97,7 +97,7 @@
 }
 
 .highlight {
-  color: #4F46E5;
+  color: #6147FF;
 }
 
 .hero-subtitle {
@@ -134,19 +134,19 @@
 }
 
 .btn-primary {
-  background-color: #4F46E5;
+  background-color: #6147FF;
   color: white;
   border: none;
 }
 
 .btn-primary:hover {
-  background-color: #4338CA;
+  background-color: #5038E0;
 }
 
 .hero-buttons .btn-outline {
   background-color: transparent;
-  color: #4F46E5;
-  border: 1px solid #4F46E5;
+  color: #6147FF;
+  border: 1px solid #6147FF;
   display: inline-flex !important;
   align-items: center !important;
   padding-top: 0.75rem !important;
@@ -154,7 +154,7 @@
 }
 
 .hero-buttons .btn-outline:hover {
-  background-color: rgba(79, 70, 229, 0.1);
+  background-color: rgba(97, 71, 255, 0.1);
 }
 
 /* Estilo específico para centrar el texto verticalmente */

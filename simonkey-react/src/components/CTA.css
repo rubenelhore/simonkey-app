@@ -1,6 +1,6 @@
 .cta {
     padding: 50px 0;
-    background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+    background: linear-gradient(135deg, #6147FF 0%, #4936CC 100%);
     color: white;
     text-align: center;
   }
@@ -38,7 +38,7 @@
   .btn-white {
     background-color: white;
     border: 2px solid white;
-    color: #4F46E5;
+    color: #6147FF;
   }
   
   .btn-white:hover {

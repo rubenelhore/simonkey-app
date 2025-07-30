@@ -206,6 +206,7 @@ export const createUserProfile = async (
       notebooksCreatedThisWeek: 0,
       conceptsCreatedThisWeek: 0,
       weekStartDate: serverTimestamp() as any,
+      hasCompletedOnboarding: false, // Nuevo usuario debe ver el tutorial
     };
 
     // Solo agregar password si está presente

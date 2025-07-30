@@ -271,6 +271,18 @@
   align-self: center !important; /* Asegurar que el elemento se centre */
 }
 
+/* Forzar colores específicos para el botón de login */
+.header .auth-buttons .btn-outline {
+  background: transparent !important;
+  border: 2px solid #6147FF !important;
+  color: #6147FF !important;
+}
+
+.header .auth-buttons .btn-outline:hover {
+  background-color: #6147FF !important;
+  color: white !important;
+}
+
 /* --- Notificaciones --- */
 .notification-btn {
   position: relative;

@@ -322,7 +322,7 @@ const AppWrapper: React.FC = () => {
       <Router>
         <TourProvider>
           <AppContent />
-          <TourOverlay />
+          {/* <TourOverlay /> */}
         </TourProvider>
       </Router>
     </AuthProvider>
@@ -351,7 +351,8 @@ const AppContent: React.FC = () => {
     console.log('🎯 Verificando estado de onboarding...', { 
       userProfile: !!userProfile, 
       hasCompletedOnboarding: userProfile?.hasCompletedOnboarding,
-      currentState: hasCompletedOnboarding 
+      currentState: hasCompletedOnboarding,
+      isEmailVerified
     });
     
     if (userProfile) {
@@ -371,7 +372,8 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [userProfile]);
+  }, [userProfile, isEmailVerified]);
+
 
 
   // ENABLE MAINTENANCE MODE TO STOP FIREBASE OPERATIONS
@@ -526,7 +528,17 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <PasswordChangeGuard>
-                    <InicioPage />
+                    <>
+                      <InicioPage />
+                      {/* Tutorial deshabilitado temporalmente
+                      {!hasCompletedOnboarding && (
+                        <InteractiveTour onComplete={() => {
+                          setHasCompletedOnboarding(true);
+                          localStorage.setItem('hasCompletedOnboarding', 'true');
+                        }} />
+                      )}
+                      */}
+                    </>
                   </PasswordChangeGuard>
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
@@ -581,16 +593,7 @@ const AppContent: React.FC = () => {
             path="/notebooks"
             element={
               isAuthenticated ? (
-                <EmailVerificationGuard>
-                  {!hasCompletedOnboarding ? (
-                    <InteractiveTour onComplete={() => {
-                      setHasCompletedOnboarding(true);
-                      localStorage.setItem('hasCompletedOnboarding', 'true');
-                    }} />
-                  ) : (
-                    <Navigate to="/inicio" replace />
-                  )}
-                </EmailVerificationGuard>
+                <Navigate to="/inicio" replace />
               ) : <Navigate to="/login" replace />
             }
           />

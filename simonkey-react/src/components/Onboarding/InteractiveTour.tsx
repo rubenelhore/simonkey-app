@@ -525,6 +525,9 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
         e.stopPropagation();
       }}
     >
+      {/* Fondo oscuro */}
+      <div className="tour-backdrop" />
+      
       {/* Spotlight que "recorta" el overlay oscuro */}
       <div 
         className={`tour-spotlight ${
