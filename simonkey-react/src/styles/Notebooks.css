@@ -13,6 +13,7 @@
   min-height: calc(100vh - 70px);
   margin-top: 0 !important;
   padding-top: 0 !important;
+  margin-left: 60px !important; /* Agregar margen para el sidebar colapsado */
 }
 
 .notebooks-list-section-full {
@@ -581,13 +582,15 @@ button[type="submit"]:hover {
   min-height: 160px;
 }
 
+.notebooks-container .notebook-card:hover,
+.notebook-grid .notebook-card:hover,
 .notebook-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .notebook-card-content {
-  padding: 1.5rem;
+  padding: 0 !important;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -615,6 +618,7 @@ button[type="submit"]:hover {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
+  padding: 0.75rem 1rem 0 1rem;
   color: var(--text-primary);
   line-height: 1.4;
   letter-spacing: -0.02em;
@@ -1310,7 +1314,7 @@ select.form-control {
   border-color: var(--primary-color);
   background: #f8f9fa; /* Fondo gris muy claro en hover */
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border-style: solid;
 }
 
@@ -1709,7 +1713,7 @@ body .logo2-title-group h1 * {
 
 .color-preset.selected {
   border-color: #1f2937;
-  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
 }
 
 .color-preset.selected::after {
@@ -1831,7 +1835,7 @@ body.modal-open .notebooks-hamburger-btn {
   background: var(--primary-color);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .support-contact i {
@@ -2032,7 +2036,7 @@ body.modal-open .notebooks-hamburger-btn {
   border-color: var(--primary-color);
   background: #f8f9fa;
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border-style: solid;
 }
 
@@ -2040,7 +2044,7 @@ body.modal-open .notebooks-hamburger-btn {
   border-color: var(--primary-color);
   background: #f8f9fa;
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(97, 71, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border-style: solid;
 }
 
@@ -2067,7 +2071,7 @@ body.modal-open .notebooks-hamburger-btn {
   outline: none;
   border-color: #6147FF;
   background: white;
-  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .clear-search-button {
@@ -2193,7 +2197,7 @@ body.modal-open .notebooks-hamburger-btn {
 .form-group select:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(97, 71, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .form-group select option {
@@ -2479,7 +2483,7 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .category-notebooks-grid .notebook-item:hover {
-  box-shadow: 0 8px 24px rgba(97, 71, 255, 0.13), 0 1.5px 6px rgba(80,80,120,0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 1.5px 6px rgba(80,80,120,0.08);
   border-color: var(--primary-color);
   transform: translateY(-2px) scale(1.035);
 }
@@ -3699,7 +3703,7 @@ body.modal-open .notebooks-hamburger-btn {
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(97, 71, 255, 0.05) 0%, rgba(139, 93, 255, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0%, rgba(139, 93, 255, 0.05) 100%);
 }
 
 .circle-1 {
@@ -3744,7 +3748,7 @@ body.modal-open .notebooks-hamburger-btn {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(97, 71, 255, 0.03) 0%, transparent 50%);
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.03) 0%, transparent 50%);
   animation: rotate 20s linear infinite;
 }
 
@@ -3851,7 +3855,7 @@ body.modal-open .notebooks-hamburger-btn {
   align-items: center;
   justify-content: center;
   margin-bottom: 1.5rem;
-  box-shadow: 0 8px 25px rgba(97, 71, 255, 0.3);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
 .module-icon i {
@@ -3881,7 +3885,7 @@ body.modal-open .notebooks-hamburger-btn {
   border-radius: 16px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .module-title-button::before {
@@ -3904,7 +3908,7 @@ body.modal-open .notebooks-hamburger-btn {
 
 .module-title-button:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(97, 71, 255, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
 .module-title-button:active {
@@ -4089,36 +4093,44 @@ body.modal-open .notebooks-hamburger-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 2px 4px rgba(97, 71, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .create-notebook-button:hover {
   background: #4d35e0;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(97, 71, 255, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Notebook cards styles */
+/* Estilos más específicos para sobrescribir conflictos */
+.notebooks-container .notebook-card,
+.notebook-grid .notebook-card,
 .notebook-card {
-  background: white;
-  border: none;
-  border-radius: 12px;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  width: 100%;
+  background: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+  transform: none !important;
+  backdrop-filter: none !important;
 }
 
+.notebooks-container .notebook-card:hover,
+.notebook-grid .notebook-card:hover,
 .notebook-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .notebook-card-content {
-  padding: 16px 20px;
+  padding: 0 !important;
   background: white;
   transition: background-color 0.2s;
 }
@@ -4235,8 +4247,8 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .notebook-card-wrapper:hover .notebook-card {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Color picker for notebook wrapper */

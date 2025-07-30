@@ -45,7 +45,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
-  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor } = useUserType();
+  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -544,6 +544,57 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
               </button>
             </>
+          ) : isSchoolStudent ? (
+            <>
+              <button 
+                className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
+                onClick={() => navigate('/inicio')}
+                title="Inicio"
+              >
+                <FontAwesomeIcon icon={faHome} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Inicio</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
+                onClick={() => navigate('/materias')}
+                title="Mis materias"
+              >
+                <FontAwesomeIcon icon={faBook} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
+                onClick={() => navigate('/study')}
+                title="Estudiar"
+              >
+                <FontAwesomeIcon icon={faGraduationCap} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
+                onClick={() => navigate('/exams')}
+                title="Mis exámenes"
+              >
+                <FontAwesomeIcon icon={faFileAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
+                onClick={() => navigate('/progress')}
+                title="Mi progreso"
+              >
+                <FontAwesomeIcon icon={faChartLine} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
+                onClick={handleCalendarClick} 
+                title="Calendario"
+              >
+                <FontAwesomeIcon icon={faCalendarAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
+              </button>
+            </>
           ) : (
             <>
               <button 
@@ -577,6 +628,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               >
                 <FontAwesomeIcon icon={faChartLine} />
                 {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
+                onClick={() => navigate('/exams')}
+                title="Mis exámenes"
+              >
+                <FontAwesomeIcon icon={faFileAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
