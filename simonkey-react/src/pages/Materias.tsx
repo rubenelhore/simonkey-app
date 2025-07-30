@@ -67,6 +67,7 @@ const Materias: React.FC = () => {
   const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [institutionName, setInstitutionName] = useState<string>('');
   
   // Color presets para las materias
   const colorPresets = [
@@ -226,6 +227,31 @@ const Materias: React.FC = () => {
       });
     }
   }, [userProfile]);
+
+  // Cargar información de la institución para estudiantes escolares
+  useEffect(() => {
+    const loadInstitutionInfo = async () => {
+      if (!isSchoolStudent || !userProfile) return;
+      
+      try {
+        // Buscar información del admin usando el idAdmin del estudiante
+        if (userProfile.idAdmin) {
+          const adminDoc = await getDoc(doc(db, 'users', userProfile.idAdmin));
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            // Buscar el nombre de la institución en el perfil del admin
+            const institutionName = adminData.institutionName || adminData.schoolName || adminData.institucionName || adminData.nombre || 'Institución Educativa';
+            setInstitutionName(institutionName);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading institution info:', error);
+        setInstitutionName('Institución Educativa');
+      }
+    };
+    
+    loadInstitutionInfo();
+  }, [isSchoolStudent, userProfile]);
 
   // Cargar profesores y estudiantes para admin
   useEffect(() => {
@@ -572,7 +598,8 @@ const Materias: React.FC = () => {
     
     // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
     if (isSchoolStudent) {
-      navigate(`/school/student/materia/${materiaId}`);
+      const encodedName = encodeURIComponent(materia.title);
+      navigate(`/school/student/materia/${encodedName}`);
     } else {
       // Los demás usuarios navegan a la ruta normal usando el nombre de la materia
       const encodedName = encodeURIComponent(materia.title);
@@ -682,7 +709,7 @@ const Materias: React.FC = () => {
     return (
       <>
         <HeaderWithHamburger
-          title="Gestión de Materias"
+          title="Gestión de Mis Materias"
           subtitle={`Administrador: ${userData.nombre || 'Admin'}`}
         />
         <main className="materias-main admin-view">
@@ -800,8 +827,8 @@ const Materias: React.FC = () => {
   return (
     <>
       <HeaderWithHamburger
-        title="Materias"
-        subtitle={`Espacio Personal de ${userData.nombre || 'Simón'}`}
+        title="Mis Materias"
+        subtitle={isSchoolStudent && institutionName ? institutionName : `Espacio Personal de ${userData.nombre || 'Simón'}`}
       />
       {/* Notificación de migración */}
       {migrationStatus && migrationMessage && (
@@ -868,7 +895,7 @@ const Materias: React.FC = () => {
                     <div className="quick-suggestions enhanced">
                       <span className="suggestions-label">
                         <i className="fas fa-lightbulb"></i>
-                        Sugerencias de cuadernos
+                        Sugerencias de Mis Materias
                       </span>
                       <div className="suggestion-cards">
                         <button className="suggestion-card" onClick={() => {

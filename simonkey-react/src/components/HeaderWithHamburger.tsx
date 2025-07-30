@@ -433,6 +433,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           {/* Título de la página */}
           <div className="page-title-section-limited">
             <h2 className="page-title-limited">{title}</h2>
+            {subtitle && <p className="page-subtitle-limited">{subtitle}</p>}
           </div>
 
           {/* Botón de notificaciones en esquina superior derecha */}

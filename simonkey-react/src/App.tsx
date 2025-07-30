@@ -749,7 +749,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/school/student/materia/:materiaId"
+            path="/school/student/materia/:materiaName"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>

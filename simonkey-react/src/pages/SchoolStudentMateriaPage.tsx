@@ -45,7 +45,7 @@ interface Exam {
 
 const SchoolStudentMateriaPage: React.FC = () => {
   const navigate = useNavigate();
-  const { materiaId } = useParams<{ materiaId: string }>();
+  const { materiaName } = useParams<{ materiaName: string }>();
   const { user, userProfile, loading: authLoading } = useAuth();
   const { isSchoolStudent } = useUserType();
   
@@ -55,17 +55,30 @@ const SchoolStudentMateriaPage: React.FC = () => {
   const [examAttempts, setExamAttempts] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'notebooks' | 'exams'>('notebooks');
+  const [materiaId, setMateriaId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMateriaData = async () => {
-      if (!user || !materiaId || !isSchoolStudent) return;
+      if (!user || !materiaName || !isSchoolStudent) return;
       
       setLoading(true);
       try {
-        // Cargar información de la materia
-        const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
-        if (materiaDoc.exists()) {
+        // Decodificar el nombre de la materia
+        const decodedMateriaName = decodeURIComponent(materiaName);
+        
+        // Buscar la materia por nombre
+        const materiaQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('nombre', '==', decodedMateriaName)
+        );
+        const materiaSnapshot = await getDocs(materiaQuery);
+        
+        if (!materiaSnapshot.empty) {
+          const materiaDoc = materiaSnapshot.docs[0];
           const materiaData = materiaDoc.data();
+          const currentMateriaId = materiaDoc.id;
+          setMateriaId(currentMateriaId);
+          
           setMateria({
             id: materiaDoc.id,
             nombre: materiaData.nombre,
@@ -73,6 +86,9 @@ const SchoolStudentMateriaPage: React.FC = () => {
             color: materiaData.color || '#6147FF',
             idEscuela: materiaData.idEscuela
           });
+        } else {
+          console.error('Materia no encontrada:', decodedMateriaName);
+          return;
         }
 
         // Cargar cuadernos del estudiante
@@ -84,7 +100,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
               const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
               if (notebookDoc.exists()) {
                 const data = notebookDoc.data();
-                if (data.idMateria === materiaId) {
+                if (data.idMateria === currentMateriaId) {
                   notebooksData.push({
                     id: notebookDoc.id,
                     title: data.title,
@@ -112,7 +128,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
         // Cargar exámenes activos usando el servicio
         try {
           console.log('📝 Cargando exámenes para estudiante...');
-          const activeExams = await ExamService.getActiveExamsForStudent(user.uid, materiaId);
+          const activeExams = await ExamService.getActiveExamsForStudent(user.uid, currentMateriaId);
           setExams(activeExams as any[]);
           console.log('📝 Exámenes disponibles:', activeExams.length);
           
@@ -142,7 +158,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
     };
     
     loadMateriaData();
-  }, [user, materiaId, isSchoolStudent, userProfile]);
+  }, [user, materiaName, isSchoolStudent, userProfile]);
 
   const handleNotebookClick = (notebookId: string) => {
     navigate(`/school/notebooks/${notebookId}`);
