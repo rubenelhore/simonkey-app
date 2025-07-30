@@ -30,6 +30,13 @@ interface NotebookItemProps {
 }
 
 const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
+  console.log('📝 NotebookItem recibió props:', {
+    id,
+    title,
+    hasTitle: !!title,
+    titleType: typeof title,
+    titleLength: title?.length || 0
+  });
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -51,6 +58,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   }, [isFrozen]);
 
   useEffect(() => {
+    console.log('🔄 Actualizando editableTitle:', { oldTitle: editableTitle, newTitle: title });
     setEditableTitle(title);
   }, [title]);
 
@@ -78,7 +86,14 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     const encodedNotebookName = encodeNotebookName(title);
     
     if (isSchoolNotebook) {
-      navigate(`/school/notebooks/${encodedNotebookName}`);
+      // Si estamos en una ruta de profesor escolar, mantener esa ruta
+      const isSchoolTeacherRoute = window.location.pathname.includes('/school/teacher/materias/');
+      if (isSchoolTeacherRoute) {
+        // Navegar a la vista del cuaderno escolar usando el ID
+        navigate(`/school/notebooks/${id}`);
+      } else {
+        navigate(`/school/notebooks/${encodedNotebookName}`);
+      }
     } else if (materiaName) {
       // Keep the encoded materia name as it appears in the URL
       navigate(`/materias/${materiaName}/notebooks/${encodedNotebookName}`);
@@ -359,15 +374,17 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               alignItems: 'baseline',
               gap: '0.5rem',
               width: '100%',
-              paddingRight: '40px' // Espacio para el botón de menú
+              paddingRight: '40px', // Espacio para el botón de menú
+              color: '#1f2937'
             }}>
               <span style={{
                 flex: '1',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                color: '#1f2937'
               }}>
-                {editableTitle}
+                {editableTitle || title || 'Sin título'}
               </span>
               {domainProgress && domainProgress.total > 0 && (
                 <span 
@@ -402,15 +419,15 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           className="notebook-dropdown-menu"
           style={{
             position: 'absolute',
-            top: '40px',
+            bottom: '40px',
             right: '8px',
             background: 'white',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             border: '1px solid #e0e0e0',
             minWidth: '180px',
-            zIndex: 10,
-            overflow: 'hidden'
+            zIndex: 1000,
+            overflow: 'visible'
           }}
         >
           {!(isFrozen && !isTeacher) && (

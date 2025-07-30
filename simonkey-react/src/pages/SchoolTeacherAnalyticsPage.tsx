@@ -115,6 +115,7 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
     }
   };
 
+
   const processMaterias = () => {
     console.log('[TeacherAnalytics] processMaterias - teacherMetrics:', teacherMetrics);
     console.log('[TeacherAnalytics] processMaterias - teacherMetrics.materias:', teacherMetrics?.materias);
@@ -379,7 +380,10 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
   };
 
   const processStudyTimeData = () => {
+    console.log('[TeacherAnalytics] processStudyTimeData - tiempoEstudioSemanal:', teacherMetrics?.tiempoEstudioSemanal);
+    
     if (!teacherMetrics?.tiempoEstudioSemanal) {
+      console.log('[TeacherAnalytics] No hay datos de tiempo semanal, usando valores en cero');
       setStudyTimeData([
         { dia: 'Lun', tiempo: 0 },
         { dia: 'Mar', tiempo: 0 },
@@ -408,17 +412,27 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
   };
 
   const processCuadernosData = async () => {
-    if (!teacherMetrics?.cuadernos || !selectedMateria) return;
+    console.log('[TeacherAnalytics] processCuadernosData - cuadernos:', teacherMetrics?.cuadernos);
+    console.log('[TeacherAnalytics] processCuadernosData - selectedMateria:', selectedMateria);
+    
+    if (!teacherMetrics?.cuadernos || !selectedMateria) {
+      console.log('[TeacherAnalytics] No hay cuadernos o no hay materia seleccionada');
+      return;
+    }
     
     try {
       const cuadernosTemp: CuadernoData[] = [];
       const scoreData: ScoreData[] = [];
       
       // Filtrar cuadernos por materia seleccionada
+      console.log('[TeacherAnalytics] Filtrando cuadernos para materia:', selectedMateria);
       for (const [cuadernoId, cuadernoData] of Object.entries(teacherMetrics.cuadernos)) {
         const data = cuadernoData as any;
+        console.log(`[TeacherAnalytics] Cuaderno ${cuadernoId}:`, data);
+        console.log(`[TeacherAnalytics] materiaId del cuaderno:`, data.materiaId);
         
         if (data.materiaId === selectedMateria) {
+          console.log(`[TeacherAnalytics] ✅ Cuaderno ${cuadernoId} coincide con materia seleccionada`);
           // Para los datos de la tabla
           cuadernosTemp.push({
             id: cuadernoId,
@@ -456,6 +470,14 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
   const globalTiempoEfectivo = teacherMetrics?.global?.tiempoEfectivo || 0;
   const globalTiempoActivo = teacherMetrics?.global?.tiempoActivo || 0;
   const globalEstudioPromedio = teacherMetrics?.global?.estudioPromedio || 0;
+
+  console.log('[TeacherAnalytics] Métricas globales:', {
+    globalDominioConceptos,
+    globalTiempoEfectivo,
+    globalTiempoActivo,
+    globalEstudioPromedio,
+    teacherMetricsGlobal: teacherMetrics?.global
+  });
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);

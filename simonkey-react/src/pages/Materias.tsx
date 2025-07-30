@@ -567,15 +567,20 @@ const Materias: React.FC = () => {
 
   const handleView = (materiaId: string) => {
     // Find the materia to get its name
-    const materia = materias.find(m => m.id === materiaId);
+    // Si es admin, buscar en adminMaterias, si no en materias
+    const materiasList = isSchoolAdmin ? adminMaterias : materias;
+    const materia = materiasList.find(m => m.id === materiaId);
     if (!materia) return;
     
     // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
     if (isSchoolStudent) {
       navigate(`/school/student/materia/${materiaId}`);
+    } else if (isSchoolAdmin) {
+      // Los admin navegan a la vista de notebooks del profesor
+      navigate(`/school/teacher/materias/${materiaId}/notebooks`);
     } else {
       // Los demás usuarios navegan a la ruta normal usando el nombre de la materia
-      const encodedName = encodeURIComponent(materia.title);
+      const encodedName = encodeURIComponent(materia.title || materia.nombre);
       navigate(`/materias/${encodedName}/notebooks`);
     }
   };

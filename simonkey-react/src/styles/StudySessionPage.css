@@ -83,6 +83,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+  padding-top: 100px; /* Espacio adicional para evitar que lo tape el header */
 }
 
 .study-intro-modal {

@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFistRaised, faArrowLeft, faClock, faHeart, faBolt, faShield } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
+import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
 import '../../styles/QuizBattle.css';
 
@@ -57,7 +58,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
-  const studyService = useStudyService();
+  const { isSchoolStudent } = useUserType();
+  const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
   
   // Animation states
   const [playerAttacking, setPlayerAttacking] = useState(false);
@@ -435,7 +437,6 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       <div className="battle-header">
         <button className="back-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
-          <span>Volver</span>
         </button>
         
         <div className="battle-info">

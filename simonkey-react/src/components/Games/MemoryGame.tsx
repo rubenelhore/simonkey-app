@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faArrowLeft, faRedo, faClock, faFire } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
+import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
 import '../../styles/MemoryGame.css';
 
@@ -45,7 +46,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
-  const studyService = useStudyService();
+  const { isSchoolStudent } = useUserType();
+  const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
 
   // Timer effect
   useEffect(() => {

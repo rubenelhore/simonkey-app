@@ -10,11 +10,16 @@ import '../styles/CreateExamModal.css';
 interface CreateExamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  materiaId: string;
-  notebooks: Array<{
+  materiaId?: string;
+  notebooks?: Array<{
     id: string;
     title: string;
     conceptCount: number;
+  }>;
+  materias?: Array<{
+    id: string;
+    nombre: string;
+    color?: string;
   }>;
   onExamCreated: () => void;
 }
@@ -23,10 +28,17 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
   isOpen,
   onClose,
   materiaId,
-  notebooks,
+  notebooks = [],
+  materias = [],
   onExamCreated
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedMateriaId, setSelectedMateriaId] = useState(materiaId || '');
+  const [notebooksForSelectedMateria, setNotebooksForSelectedMateria] = useState<Array<{
+    id: string;
+    title: string;
+    conceptCount: number;
+  }>>([]);
   const [examData, setExamData] = useState({
     title: '',
     description: '',
@@ -38,12 +50,68 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
 
+  // Inicializar materia seleccionada
+  useEffect(() => {
+    if (materiaId) {
+      setSelectedMateriaId(materiaId);
+    } else if (materias && materias.length > 0 && !selectedMateriaId) {
+      setSelectedMateriaId(materias[0].id);
+    }
+  }, [materiaId, materias, selectedMateriaId]);
+
+  // Cargar notebooks cuando se selecciona una materia
+  useEffect(() => {
+    const loadNotebooksForMateria = async () => {
+      if (!selectedMateriaId) return;
+
+      try {
+        console.log('📚 Cargando notebooks para materia:', selectedMateriaId);
+        
+        // Si ya tenemos notebooks (modo legacy), usarlos
+        if (notebooks && notebooks.length > 0) {
+          setNotebooksForSelectedMateria(notebooks);
+          return;
+        }
+
+        // Cargar notebooks de la materia usando UnifiedNotebookService
+        const teacherNotebooks = await UnifiedNotebookService.getTeacherNotebooks([selectedMateriaId]);
+        
+        const notebooksData = [];
+        for (const notebook of teacherNotebooks) {
+          const conceptCount = await UnifiedConceptService.getConceptCount(notebook.id);
+          notebooksData.push({
+            id: notebook.id,
+            title: notebook.title,
+            conceptCount: conceptCount
+          });
+        }
+        
+        console.log('📚 Notebooks cargados:', notebooksData);
+        setNotebooksForSelectedMateria(notebooksData);
+      } catch (error) {
+        console.error('❌ Error cargando notebooks:', error);
+        setNotebooksForSelectedMateria([]);
+      }
+    };
+
+    loadNotebooksForMateria();
+  }, [selectedMateriaId, notebooks]);
+
   // Calcular total de conceptos cuando cambian los cuadernos seleccionados
   useEffect(() => {
     const calculateTotalConcepts = () => {
-      const total = notebooks
+      // Usar los notebooks de la materia seleccionada
+      const notebooksToUse = notebooksForSelectedMateria;
+      
+      // Verificar que notebooks existe y es un array
+      if (!notebooksToUse || !Array.isArray(notebooksToUse)) {
+        console.log('⚠️ Notebooks no disponible o no es array:', notebooksToUse);
+        return;
+      }
+
+      const total = notebooksToUse
         .filter(nb => examData.selectedNotebooks.includes(nb.id))
-        .reduce((sum, nb) => sum + nb.conceptCount, 0);
+        .reduce((sum, nb) => sum + (nb.conceptCount || 0), 0);
       
       setExamData(prev => ({
         ...prev,
@@ -53,7 +121,7 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
     };
 
     calculateTotalConcepts();
-  }, [examData.selectedNotebooks, examData.percentageQuestions, notebooks]);
+  }, [examData.selectedNotebooks, examData.percentageQuestions, notebooksForSelectedMateria]);
 
   const handleNotebookToggle = (notebookId: string) => {
     setExamData(prev => ({
@@ -95,7 +163,8 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
-        return examData.title.trim() !== '';
+        const hasTitleAndMateria = examData.title.trim() !== '' && selectedMateriaId !== '';
+        return hasTitleAndMateria;
       case 2:
         return examData.selectedNotebooks.length > 0;
       case 3:
@@ -145,7 +214,7 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
       const newExam: Omit<SchoolExam, 'id'> = {
         title: examData.title,
         description: examData.description,
-        idMateria: materiaId,
+        idMateria: selectedMateriaId,
         idProfesor: auth.currentUser.uid,
         idEscuela: idEscuela,
         notebookIds: examData.selectedNotebooks,
@@ -221,6 +290,25 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
                   className="form-input"
                 />
               </div>
+              {/* Selector de materia (solo si hay múltiples materias) */}
+              {materias && materias.length > 0 && (
+                <div className="form-group">
+                  <label>Materia *</label>
+                  <select
+                    value={selectedMateriaId}
+                    onChange={(e) => setSelectedMateriaId(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="">Selecciona una materia</option>
+                    {materias.map(materia => (
+                      <option key={materia.id} value={materia.id}>
+                        {materia.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
               <div className="form-group">
                 <label>Descripción (opcional)</label>
                 <textarea
@@ -241,8 +329,17 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
               <p className="step-description">
                 Los conceptos del examen se tomarán de estos cuadernos
               </p>
-              <div className="notebooks-grid">
-                {notebooks.map(notebook => (
+              {notebooksForSelectedMateria.length === 0 ? (
+                <div className="no-notebooks-message">
+                  <i className="fas fa-book" style={{ fontSize: '2rem', color: '#9ca3af', marginBottom: '1rem' }}></i>
+                  <p>No hay cuadernos disponibles para esta materia.</p>
+                  {!selectedMateriaId && (
+                    <p>Selecciona una materia para ver los cuadernos disponibles.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="notebooks-grid">
+                  {notebooksForSelectedMateria.map(notebook => (
                   <div
                     key={notebook.id}
                     className={`notebook-checkbox-card ${
@@ -265,8 +362,9 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               {examData.selectedNotebooks.length > 0 && (
                 <div className="total-concepts-info">
                   <i className="fas fa-info-circle"></i>

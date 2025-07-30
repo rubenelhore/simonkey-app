@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece, faArrowLeft, faClock, faTrophy, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
+import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
 import '../../styles/PuzzleGame.css';
 
@@ -20,6 +21,7 @@ interface Fragment {
   text: string;
   order: number;
   currentPosition: number;
+  correctStartPosition?: number;
 }
 
 interface PuzzleGameProps {
@@ -47,7 +49,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
-  const studyService = useStudyService();
+  const { isSchoolStudent } = useUserType();
+  const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
 
   // Timer
   useEffect(() => {
@@ -131,17 +134,34 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const fragmentDefinition = (definition: string, conceptId: string): Fragment[] => {
-    // Split definition into 3 parts
-    const words = definition.split(' ');
-    const partSize = Math.ceil(words.length / 3);
+    const words = definition.split(' ').filter(word => word.trim() !== '');
+    const wordCount = words.length;
+    
+    // Determinar número óptimo de fragmentos basado en la longitud
+    let fragmentCount: number;
+    if (wordCount <= 4) {
+      fragmentCount = 2; // Definiciones muy cortas: 2 fragmentos
+    } else if (wordCount <= 8) {
+      fragmentCount = 3; // Definiciones cortas-medianas: 3 fragmentos
+    } else if (wordCount <= 15) {
+      fragmentCount = 4; // Definiciones medianas: 4 fragmentos
+    } else {
+      fragmentCount = 5; // Definiciones largas: 5 fragmentos
+    }
+    
     const parts: Fragment[] = [];
-
-    for (let i = 0; i < 3; i++) {
-      const start = i * partSize;
-      const end = Math.min((i + 1) * partSize, words.length);
-      const text = words.slice(start, end).join(' ');
+    const minWordsPerFragment = Math.floor(wordCount / fragmentCount);
+    const extraWords = wordCount % fragmentCount;
+    
+    let currentIndex = 0;
+    
+    for (let i = 0; i < fragmentCount; i++) {
+      // Algunos fragmentos tendrán una palabra extra para distribuir el resto
+      const wordsInThisFragment = minWordsPerFragment + (i < extraWords ? 1 : 0);
+      const fragmentWords = words.slice(currentIndex, currentIndex + wordsInThisFragment);
+      const text = fragmentWords.join(' ');
       
-      if (text) {
+      if (text.trim()) {
         parts.push({
           id: `${conceptId}_${i}`,
           conceptId,
@@ -150,6 +170,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
           currentPosition: -1
         });
       }
+      
+      currentIndex += wordsInThisFragment;
     }
 
     return parts;
@@ -163,14 +185,27 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     setCurrentConcepts(selected);
     setCorrectPuzzles([]);
     
-    // Create fragments for all 3 concepts
+    // Create fragments for all 3 concepts with proper positioning
     const allFragments: Fragment[] = [];
-    selected.forEach(concept => {
+    let currentPosition = 0;
+    
+    selected.forEach((concept, conceptIndex) => {
       const frags = fragmentDefinition(concept.definition, concept.id);
-      allFragments.push(...frags);
+      const conceptStartPosition = currentPosition;
+      
+      // Asignar posiciones correctas para cada fragmento del concepto
+      frags.forEach((frag, fragIndex) => {
+        allFragments.push({
+          ...frag,
+          currentPosition: -1, // Inicialmente sin posición
+          correctStartPosition: conceptStartPosition // Todos los fragmentos del concepto comparten la misma posición de inicio
+        });
+      });
+      
+      currentPosition += frags.length; // Incrementar por el número real de fragmentos
     });
 
-    // Shuffle all fragments
+    // Shuffle all fragments para las posiciones iniciales
     const shuffledFragments = allFragments.sort(() => Math.random() - 0.5);
     shuffledFragments.forEach((frag, index) => {
       frag.currentPosition = index;
@@ -247,17 +282,22 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     const newCorrectPuzzles: string[] = [];
 
     currentConcepts.forEach((concept, conceptIndex) => {
+      if (correctPuzzles.includes(concept.id)) return; // Ya está completo
+      
       const conceptFragments = currentFragments
         .filter(f => f.conceptId === concept.id)
-        .sort((a, b) => a.currentPosition - b.currentPosition);
+        .sort((a, b) => a.order - b.order); // Ordenar por orden original, no posición actual
 
-      // Check if fragments are in correct order
+      // Verificar si todos los fragmentos están en posiciones consecutivas y correctas
+      const firstFragment = conceptFragments[0];
+      if (!firstFragment || firstFragment.correctStartPosition === undefined) return;
+      
+      const expectedStartPosition = firstFragment.correctStartPosition;
       const isCorrect = conceptFragments.every((frag, index) => {
-        const expectedPosition = conceptIndex * 3 + index;
-        return frag.currentPosition === expectedPosition && frag.order === index;
+        return frag.currentPosition === expectedStartPosition + index && frag.order === index;
       });
 
-      if (isCorrect && !correctPuzzles.includes(concept.id)) {
+      if (isCorrect) {
         newCorrectPuzzles.push(concept.id);
         setCombo(combo + 1);
         if (combo + 1 > maxCombo) {
@@ -269,9 +309,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       }
     });
 
-    if (newCorrectPuzzles.length > correctPuzzles.length) {
+    if (newCorrectPuzzles.length > 0) {
       setCorrectPuzzles([...correctPuzzles, ...newCorrectPuzzles]);
-    } else if (newCorrectPuzzles.length === 0 && correctPuzzles.length === 0) {
+    } else if (correctPuzzles.length === 0) {
       setCombo(0);
     }
   };
@@ -371,7 +411,6 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       <div className="puzzle-header">
         <button className="back-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
-          <span>Volver</span>
         </button>
         
         <div className="game-title">
@@ -396,45 +435,58 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       </div>
 
       <div className={`puzzle-board ${isAnimating ? 'animating' : ''}`}>
-        {currentConcepts.map((concept, rowIndex) => (
-          <div 
-            key={concept.id} 
-            className={`puzzle-row ${correctPuzzles.includes(concept.id) ? 'completed' : ''}`}
-          >
-            <div className="concept-term">
-              <h3>{concept.term}</h3>
-              {correctPuzzles.includes(concept.id) && (
-                <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
-              )}
+        {currentConcepts.map((concept, rowIndex) => {
+          // Calcular cuántos fragmentos tiene este concepto
+          const conceptFragments = fragments.filter(f => f.conceptId === concept.id);
+          const fragmentCount = conceptFragments.length;
+          
+          // Calcular la posición inicial para este concepto
+          let startPosition = 0;
+          for (let i = 0; i < rowIndex; i++) {
+            const prevConceptFragments = fragments.filter(f => f.conceptId === currentConcepts[i].id);
+            startPosition += prevConceptFragments.length;
+          }
+          
+          return (
+            <div 
+              key={concept.id} 
+              className={`puzzle-row ${correctPuzzles.includes(concept.id) ? 'completed' : ''}`}
+            >
+              <div className="concept-term">
+                <h3>{concept.term}</h3>
+                {correctPuzzles.includes(concept.id) && (
+                  <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
+                )}
+              </div>
+              
+              <div className="fragments-container" style={{ gridTemplateColumns: `repeat(${fragmentCount}, 1fr)` }}>
+                {Array.from({ length: fragmentCount }).map((_, position) => {
+                  const absolutePosition = startPosition + position;
+                  const fragment = fragments.find(f => f.currentPosition === absolutePosition);
+                  
+                  return (
+                    <div
+                      key={`slot-${absolutePosition}`}
+                      className="fragment-slot"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, absolutePosition)}
+                    >
+                      {fragment && (
+                        <div
+                          className={`fragment ${fragment.conceptId === concept.id ? 'correct-concept' : 'wrong-concept'}`}
+                          draggable={!correctPuzzles.includes(fragment.conceptId)}
+                          onDragStart={() => handleDragStart(fragment)}
+                        >
+                          <span>{fragment.text}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            
-            <div className="fragments-container">
-              {[0, 1, 2].map(position => {
-                const absolutePosition = rowIndex * 3 + position;
-                const fragment = fragments.find(f => f.currentPosition === absolutePosition);
-                
-                return (
-                  <div
-                    key={`slot-${absolutePosition}`}
-                    className="fragment-slot"
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, absolutePosition)}
-                  >
-                    {fragment && (
-                      <div
-                        className={`fragment ${fragment.conceptId === concept.id ? 'correct-concept' : 'wrong-concept'}`}
-                        draggable={!correctPuzzles.includes(fragment.conceptId)}
-                        onDragStart={() => handleDragStart(fragment)}
-                      >
-                        <span>{fragment.text}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {correctPuzzles.length === currentConcepts.length && currentConcepts.length > 0 && !gameCompleted && (

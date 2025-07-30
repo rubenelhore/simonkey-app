@@ -1,5 +1,12 @@
 /* Estilos para el sistema escolar de Simonkey */
 
+/* Página principal de materia del profesor */
+.school-teacher-materia-page {
+  margin-left: 80px; /* Espacio para el sidebar */
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
 /* Tabs Container */
 .tabs-container {
   display: flex;
@@ -160,6 +167,12 @@
   margin-top: 1rem;
   color: #6b7280;
   font-size: 1.1rem;
+}
+
+/* Notebooks Section */
+.notebooks-section {
+  margin-top: 2rem;
+  padding: 0 1.5rem;
 }
 
 /* Notebooks Grid */

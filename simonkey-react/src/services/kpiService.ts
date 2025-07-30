@@ -352,6 +352,7 @@ export class KPIService {
             estudiosInteligentesTotal: 0,
             estudiosLibresTotal: 0,
             estudiosInteligentesExitosos: 0,
+            estudiosInteligentesValidadosConIntensidad: 0, // NEW: Track validated studies with intensity values
             conceptosDominados: 0,
             conceptosNoDominados: 0,
             sesionesValidadas: 0,
@@ -383,10 +384,20 @@ export class KPIService {
         // Distribuir tiempo según el modo de estudio
         if (session.mode === 'smart') {
           stats.tiempoEstudioInteligente += sessionDuration;
-          stats.estudiosInteligentesTotal++;
+          
+          // Calcular estudios inteligentes basado en la intensidad
+          // Por defecto es 1 (Progress) si no está especificada la intensidad
+          let studyValue = 1;
+          if (session.intensity === 'warm_up') {
+            studyValue = 0.5;
+          } else if (session.intensity === 'rocket') {
+            studyValue = 2;
+          }
+          stats.estudiosInteligentesTotal += studyValue;
           
           if (session.validated) {
             stats.estudiosInteligentesExitosos++;
+            stats.estudiosInteligentesValidadosConIntensidad += studyValue; // Add fractional value
             stats.sesionesValidadas++;
           }
         } else if (session.mode === 'free') {
@@ -723,6 +734,7 @@ export class KPIService {
           estudiosInteligentesTotal: 0,
           estudiosLibresTotal: 0,
           estudiosInteligentesExitosos: 0,
+          estudiosInteligentesValidadosConIntensidad: 0, // Default value
           conceptosDominados: 0,
           conceptosNoDominados: 0,
           sesionesValidadas: 0,
@@ -812,11 +824,12 @@ export class KPIService {
         // Obtener número de conceptos del cuaderno
         const numeroConceptos = conceptsByNotebook.get(notebookId) || 0;
 
-        // Calcular score del cuaderno (scoreMax * estudiosInteligentesExitosos + gamePoints + streakBonus)
-        // Solo contar estudios inteligentes validados, igual que en StudyDashboard
+        // Calcular score del cuaderno (scoreMax * estudiosValidadosConIntensidad + gamePoints + streakBonus)
+        // Ahora usa valores fraccionarios: 0.5 (warm_up), 1.0 (progress), 2.0 (rocket)
         // Si no hay maxScore (no se han hecho quizzes), usar un valor base de 100 puntos
         const effectiveMaxScore = maxScore > 0 ? maxScore : 100;
-        const studyScore = effectiveMaxScore * stats.estudiosInteligentesExitosos;
+        const validatedStudiesWithIntensity = stats.estudiosInteligentesValidadosConIntensidad || stats.estudiosInteligentesExitosos; // Fallback for compatibility
+        const studyScore = effectiveMaxScore * validatedStudiesWithIntensity;
         const gameScore = gameData.totalPoints || 0;
         const scoreCuaderno = studyScore + gameScore + streakBonus;
         
@@ -825,11 +838,12 @@ export class KPIService {
           effectiveMaxScore,
           estudiosInteligentesTotal: stats.estudiosInteligentesTotal,
           estudiosInteligentesExitosos: stats.estudiosInteligentesExitosos,
+          estudiosInteligentesValidadosConIntensidad: validatedStudiesWithIntensity,
           studyScore,
           gameScore,
           streakBonus,
           scoreCuaderno,
-          formula: `(${effectiveMaxScore} × ${stats.estudiosInteligentesExitosos}) + ${gameScore} + ${streakBonus} = ${scoreCuaderno}`
+          formula: `(${effectiveMaxScore} × ${validatedStudiesWithIntensity}) + ${gameScore} + ${streakBonus} = ${scoreCuaderno}`
         });
 
         // Obtener el ID de la materia del cuaderno
@@ -1045,6 +1059,32 @@ export class KPIService {
     } catch (error) {
       console.error('[KPIService] Error obteniendo KPIs:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Obtiene el conteo total de conceptos con repeticiones >= 2
+   * Cuenta conceptos que han sido repasados al menos 2 veces (para divisiones)
+   */
+  async getConceptsWithMinRepetitions(userId: string, minRepetitions: number = 2): Promise<number> {
+    try {
+      console.log('[KPIService] Obteniendo conceptos con repeticiones >=', minRepetitions, 'para usuario:', userId);
+      
+      // Obtener todos los datos de aprendizaje del usuario
+      const learningDataQuery = query(
+        collection(db, 'users', userId, 'learningData'),
+        where('repetitions', '>=', minRepetitions)
+      );
+      
+      const learningDataSnapshot = await getDocs(learningDataQuery);
+      const count = learningDataSnapshot.size;
+      
+      console.log('[KPIService] Conceptos con repeticiones >=', minRepetitions, ':', count);
+      return count;
+      
+    } catch (error) {
+      console.error('[KPIService] Error obteniendo conceptos con repeticiones mínimas:', error);
+      return 0;
     }
   }
 
