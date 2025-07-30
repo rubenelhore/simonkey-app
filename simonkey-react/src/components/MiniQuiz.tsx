@@ -349,6 +349,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       
       console.log(`[MINI QUIZ] ✅ Respuesta correcta! Score actualizado: ${currentScore}/10 (${correctAnswers}/${totalQuestions} correctas)`);
       
+      // Crear efecto de confeti para respuestas correctas
+      createConfettiEffect();
+      
       setFeedbackMessage('¡Correcto! 🎉');
       setFeedbackType('success');
     } else {
@@ -390,6 +393,30 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         completeMiniQuiz(finalScore, finalTimeRemaining);
       }
     }, 1500);
+  };
+
+  // Crear efecto de confeti
+  const createConfettiEffect = () => {
+    const colors = ['#00D4AA', '#6147FF', '#9B88FF', '#FFD700', '#FF6B6B'];
+    const confettiCount = 15;
+    
+    for (let i = 0; i < confettiCount; i++) {
+      setTimeout(() => {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.width = `${Math.random() * 10 + 5}px`;
+        confetti.style.height = `${Math.random() * 10 + 5}px`;
+        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+        confetti.style.animationDuration = `${Math.random() * 2 + 2}s`;
+        
+        document.body.appendChild(confetti);
+        
+        // Remover después de la animación
+        setTimeout(() => confetti.remove(), 3000);
+      }, i * 50);
+    }
   };
 
   // Completar mini quiz

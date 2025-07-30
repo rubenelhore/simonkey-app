@@ -1,5 +1,12 @@
 /* Estilos para el sistema escolar de Simonkey */
 
+/* Página principal de materia del profesor */
+.school-teacher-materia-page {
+  margin-left: 80px; /* Espacio para el sidebar */
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
 /* Tabs Container */
 .tabs-container {
   display: flex;
@@ -218,7 +225,18 @@
   font-size: 1.1rem;
 }
 
-/* Usar estilos globales de Notebooks.css para notebooks-grid */
+/* Notebooks Section */
+.notebooks-section {
+  margin-top: 2rem;
+  padding: 0 1.5rem;
+}
+
+/* Notebooks Grid */
+.notebooks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
 
 /* Eliminar este estilo específico para usar el estilo global de Notebooks.css */
 /* Los estilos de .notebook-card están definidos en Notebooks.css */

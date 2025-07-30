@@ -31,7 +31,9 @@
       "Bash(pkill:*)",
       "Bash(true)",
       "Bash(taskkill:*)",
-      "Bash(git submodule:*)"
+      "Bash(git submodule:*)",
+      "Bash(npm install)",
+      "Bash(firebase functions:delete:*)"
     ],
     "deny": []
   }

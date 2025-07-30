@@ -36,10 +36,11 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   padding: 0 1rem;
   position: relative;
+  gap: 1rem;
 }
 
 /* Header actions container */
@@ -50,11 +51,9 @@
 }
 
 .title-container {
-  position: absolute;
-  left: 0;
-  right: 0;
   display: flex;
   justify-content: center;
+  flex: 1;
   pointer-events: none; /* Permite que los clics pasen a través del título */
 }
 
@@ -91,8 +90,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin: 0;
   transition: none;
-  position: absolute;
-  left: 0.25rem;
+  position: relative;
   z-index: 1;
 }
 

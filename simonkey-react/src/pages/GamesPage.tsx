@@ -11,8 +11,10 @@ import TicketDisplay from '../components/TicketDisplay';
 import { useTickets } from '../hooks/useTickets';
 import { useGamePoints } from '../hooks/useGamePoints';
 import { db, auth } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useUserType } from '../hooks/useUserType';
+import { useStudyService } from '../hooks/useStudyService';
+import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import '../styles/GamesPage.css';
 
 const GamesPage: React.FC = () => {
@@ -23,9 +25,12 @@ const GamesPage: React.FC = () => {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [pendingGame, setPendingGame] = useState<string | null>(null);
   const [isNotebookFrozen, setIsNotebookFrozen] = useState(false);
+  const [hasReviewedConcepts, setHasReviewedConcepts] = useState<boolean | null>(null);
+  const [checkingConcepts, setCheckingConcepts] = useState(false);
   const { tickets, loading: ticketsLoading, consumeTicket } = useTickets(notebookId);
   const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
+  const studyService = useStudyService();
 
   // Verificar si el cuaderno está congelado
   useEffect(() => {
@@ -52,12 +57,122 @@ const GamesPage: React.FC = () => {
     }
   }, [selectedGame]);
 
+  // Verificar si hay conceptos repasados
+  const checkReviewedConcepts = async () => {
+    if (!auth.currentUser || !notebookId) return false;
+    
+    try {
+      const effectiveUserData = await getEffectiveUserId();
+      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
+      console.log('🎮 GamesPage - Verificando conceptos repasados');
+      console.log('🎮 userId:', userId);
+      console.log('🎮 notebookId:', notebookId);
+      
+      // PRIMERA OPCIÓN: Verificar si hay sesiones de estudio completadas para este cuaderno
+      const studySessionsQuery = query(
+        collection(db, 'studySessions'),
+        where('userId', '==', userId),
+        where('notebookId', '==', notebookId),
+        where('endTime', '!=', null)
+      );
+      
+      const studySessionsSnapshot = await getDocs(studySessionsQuery);
+      console.log('🎮 Sesiones de estudio completadas encontradas:', studySessionsSnapshot.size);
+      
+      if (studySessionsSnapshot.size > 0) {
+        // Verificar que al menos una sesión tenga conceptos estudiados
+        for (const doc of studySessionsSnapshot.docs) {
+          const sessionData = doc.data();
+          if (sessionData.metrics?.conceptsReviewed > 0 || sessionData.concepts?.length > 0) {
+            console.log('✅ Se encontró sesión con conceptos estudiados');
+            return true;
+          }
+        }
+      }
+      
+      // SEGUNDA OPCIÓN: Buscar directamente en la colección learningData
+      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
+      
+      console.log('🎮 learningData encontrados (servicio):', learningData.length);
+      
+      if (learningData.length > 0) {
+        console.log('✅ Se encontraron datos de aprendizaje');
+        return true;
+      }
+      
+      // TERCERA OPCIÓN: Buscar en la colección de conceptos del cuaderno para ver si hay alguno estudiado
+      const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      
+      const conceptsQuery = query(
+        collection(db, collectionName),
+        where('cuadernoId', '==', notebookId)
+      );
+      
+      const conceptDocs = await getDocs(conceptsQuery);
+      console.log('🎮 Documentos de conceptos encontrados:', conceptDocs.size);
+      
+      // Obtener todos los IDs de conceptos del cuaderno
+      const conceptIds: string[] = [];
+      conceptDocs.forEach(doc => {
+        const conceptosData = doc.data().conceptos || [];
+        conceptosData.forEach((concepto: any, index: number) => {
+          const conceptId = concepto.id || `${doc.id}-${index}`;
+          conceptIds.push(conceptId);
+        });
+      });
+      
+      console.log('🎮 Total de conceptos en el cuaderno:', conceptIds.length);
+      
+      // Verificar si alguno de estos conceptos tiene datos de aprendizaje
+      for (const conceptId of conceptIds.slice(0, 10)) { // Verificar solo los primeros 10 para evitar demasiadas consultas
+        const learningRef = doc(db, 'users', userId, 'learningData', conceptId);
+        const learningDoc = await getDoc(learningRef);
+        
+        if (learningDoc.exists()) {
+          console.log('✅ Se encontró concepto con datos de aprendizaje:', conceptId);
+          return true;
+        }
+      }
+      
+      // CUARTA OPCIÓN: Verificar mini quiz results para este cuaderno
+      const miniQuizQuery = query(
+        collection(db, 'users', userId, 'miniQuizResults'),
+        where('notebookId', '==', notebookId)
+      );
+      
+      const miniQuizSnapshot = await getDocs(miniQuizQuery);
+      console.log('🎮 Mini quiz completados encontrados:', miniQuizSnapshot.size);
+      
+      if (miniQuizSnapshot.size > 0) {
+        console.log('✅ Se encontraron mini quiz completados');
+        return true;
+      }
+      
+      console.log('❌ No se encontraron conceptos repasados');
+      return false;
+    } catch (error) {
+      console.error('Error verificando conceptos repasados:', error);
+      return false;
+    }
+  };
+
   const handleGameClick = async (gameId: string, gameName: string) => {
     if (!notebookId) return;
     
     // Verificar si el cuaderno está congelado
     if (isNotebookFrozen) {
       alert('Este cuaderno está congelado. No puedes jugar en este momento.');
+      return;
+    }
+    
+    // Primero verificar si hay conceptos repasados
+    setCheckingConcepts(true);
+    const hasReviewed = await checkReviewedConcepts();
+    setCheckingConcepts(false);
+    
+    if (!hasReviewed) {
+      alert('¡Primero necesitas estudiar! Para jugar, necesitas haber repasado algunos conceptos en el estudio inteligente.');
       return;
     }
     
@@ -181,13 +296,14 @@ const GamesPage: React.FC = () => {
 
         <div className="games-grid">
           <div 
-            className={`game-card ${notebookId ? '' : 'disabled'}`}
-            onClick={() => handleGameClick('memory', 'Memorama')}
+            className={`game-card ${notebookId && !checkingConcepts ? '' : 'disabled'}`}
+            onClick={() => !checkingConcepts && handleGameClick('memory', 'Memorama')}
           >
             <div className="game-icon">🎯</div>
             <h3>Memorama</h3>
             {!notebookId && <p>Selecciona un cuaderno</p>}
-            {notebookId && (
+            {checkingConcepts && <p>Verificando...</p>}
+            {notebookId && !checkingConcepts && (
               <div className="game-ticket-cost">
                 <span>1</span>
                 <FontAwesomeIcon icon={faTicket} />
@@ -196,13 +312,14 @@ const GamesPage: React.FC = () => {
           </div>
 
           <div 
-            className={`game-card ${notebookId ? '' : 'disabled'}`}
-            onClick={() => handleGameClick('race', 'Carrera de Conceptos')}
+            className={`game-card ${notebookId && !checkingConcepts ? '' : 'disabled'}`}
+            onClick={() => !checkingConcepts && handleGameClick('race', 'Carrera de Conceptos')}
           >
             <div className="game-icon">🏃‍♂️</div>
             <h3>Carrera de Conceptos</h3>
             {!notebookId && <p>Selecciona un cuaderno</p>}
-            {notebookId && (
+            {checkingConcepts && <p>Verificando...</p>}
+            {notebookId && !checkingConcepts && (
               <div className="game-ticket-cost">
                 <span>1</span>
                 <FontAwesomeIcon icon={faTicket} />
@@ -211,13 +328,14 @@ const GamesPage: React.FC = () => {
           </div>
 
           <div 
-            className={`game-card ${notebookId ? '' : 'disabled'}`}
-            onClick={() => handleGameClick('puzzle', 'Puzzle de Definiciones')}
+            className={`game-card ${notebookId && !checkingConcepts ? '' : 'disabled'}`}
+            onClick={() => !checkingConcepts && handleGameClick('puzzle', 'Puzzle de Definiciones')}
           >
             <div className="game-icon">🧩</div>
             <h3>Puzzle de Definiciones</h3>
             {!notebookId && <p>Selecciona un cuaderno</p>}
-            {notebookId && (
+            {checkingConcepts && <p>Verificando...</p>}
+            {notebookId && !checkingConcepts && (
               <div className="game-ticket-cost">
                 <span>1</span>
                 <FontAwesomeIcon icon={faTicket} />
@@ -226,13 +344,14 @@ const GamesPage: React.FC = () => {
           </div>
 
           <div 
-            className={`game-card ${notebookId ? '' : 'disabled'}`}
-            onClick={() => handleGameClick('quiz', 'Quiz Battle')}
+            className={`game-card ${notebookId && !checkingConcepts ? '' : 'disabled'}`}
+            onClick={() => !checkingConcepts && handleGameClick('quiz', 'Quiz Battle')}
           >
             <div className="game-icon">⚔️</div>
             <h3>Quiz Battle</h3>
             {!notebookId && <p>Selecciona un cuaderno</p>}
-            {notebookId && (
+            {checkingConcepts && <p>Verificando...</p>}
+            {notebookId && !checkingConcepts && (
               <div className="game-ticket-cost">
                 <span>1</span>
                 <FontAwesomeIcon icon={faTicket} />

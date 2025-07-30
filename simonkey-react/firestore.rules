@@ -3,19 +3,28 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Función helper para verificar si el usuario es escolar
     function isSchoolUser() {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.subscription == 'school';
+      return request.auth != null && (
+             (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscription == 'school') ||
+             (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.subscription == 'school')
+      );
     }
     
     // Función helper para obtener el rol escolar del usuario
     function getSchoolRole() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.schoolRole;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ?
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolRole :
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.schoolRole;
     }
     
     // Función helper para verificar si es super admin
     function isSuperAdmin() {
-      return request.auth != null &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscription == 'super_admin';
+      return request.auth != null && (
+             (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.subscription == 'super_admin') ||
+             (request.auth.token.email == 'ruben.elhore@gmail.com')
+      );
     }
     
     // Reglas para notebooks unificados
@@ -30,8 +39,12 @@ service cloud.firestore {
         (resource.data.type == 'school' && isSchoolUser() && (
           getSchoolRole() == 'teacher' ||
           getSchoolRole() == 'admin' ||
-          (getSchoolRole() == 'student' && 
-           notebookId in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.idCuadernos)
+          (getSchoolRole() == 'student' && (
+           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            notebookId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.idCuadernos) ||
+           (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+            notebookId in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.idCuadernos)
+          ))
         )) ||
         // Super admin puede ver todo
         isSuperAdmin()

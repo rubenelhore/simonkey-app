@@ -34,7 +34,7 @@ const imagenes = [
   '/img/image3.png',
   '/img/image4.jpg',
   '/img/image5.jpg',
-  '/img/image6.png',
+  '/img/image6.jpg',
 ];
 
 const BulletModule = ({ title, description, active, onClick }: { title: string, description: string, active: boolean, onClick: () => void }) => {

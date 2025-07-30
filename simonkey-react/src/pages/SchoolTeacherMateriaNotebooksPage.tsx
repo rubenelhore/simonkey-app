@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotebookList from '../components/NotebookList';
-import CreateExamModal from '../components/CreateExamModal';
 import { db, auth } from '../services/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where, collection, addDoc, deleteDoc, writeBatch, Timestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
@@ -42,8 +41,6 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
   const [notebooks, setNotebooks] = useState<SchoolNotebook[]>([]);
   const [materia, setMateria] = useState<SchoolSubject | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
-  const [exams, setExams] = useState<any[]>([]);
   const [userData, setUserData] = useState({
     nombre: '',
     apellidos: '',
@@ -61,72 +58,6 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     notebooksCount: notebooks.length
   });
 
-  // Función para cargar exámenes
-  const loadExams = async () => {
-    if (!user || !materiaId) return;
-    
-    try {
-      console.log('🔍 Buscando exámenes con:', {
-        idMateria: materiaId,
-        idProfesor: user.uid,
-        collection: 'schoolExams'
-      });
-      
-      const examsQuery = query(
-        collection(db, 'schoolExams'),
-        where('idMateria', '==', materiaId),
-        where('idProfesor', '==', user.uid)
-      );
-      
-      const examsSnapshot = await getDocs(examsQuery);
-      console.log(`📊 Exámenes encontrados: ${examsSnapshot.size}`);
-      
-      const examsData = examsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log('📋 Examen cargado:', {
-          id: doc.id,
-          title: data.title,
-          isActive: data.isActive,
-          fields: Object.keys(data)
-        });
-        return {
-          id: doc.id,
-          ...data
-        };
-      });
-      
-      setExams(examsData);
-      console.log('📝 Exámenes cargados:', examsData.length, 'exámenes');
-      
-      // Log detallado si no se encuentran exámenes
-      if (examsData.length === 0) {
-        console.log('⚠️ No se encontraron exámenes. Verificando todos los exámenes de la materia...');
-        // Query solo por materia para debug
-        const allMateriaExamsQuery = query(
-          collection(db, 'schoolExams'),
-          where('idMateria', '==', materiaId)
-        );
-        const allExamsSnapshot = await getDocs(allMateriaExamsQuery);
-        console.log(`📊 Total de exámenes en la materia ${materiaId}:`, allExamsSnapshot.size);
-        
-        allExamsSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          console.log('Examen encontrado:', {
-            id: doc.id,
-            title: data.title,
-            idProfesor: data.idProfesor,
-            idMateria: data.idMateria,
-            isActive: data.isActive
-          });
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ Error cargando exámenes:', error);
-      if (error?.code === 'failed-precondition') {
-        console.error('🔧 Se requiere un índice compuesto en Firestore. Revisa la consola de Firebase.');
-      }
-    }
-  };
 
   // Cargar datos de la materia y sus cuadernos
   useEffect(() => {
@@ -178,10 +109,9 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
           return bTime - aTime;
         });
         
+        console.log('👨‍🏫 Notebooks cargados para teacher:', notebooksData);
         setNotebooks(notebooksData);
         
-        // Cargar exámenes también
-        await loadExams();
       } catch (err) {
         console.error('Error loading materia and notebooks:', err);
       } finally {
@@ -572,7 +502,13 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
       <main className="notebooks-main-no-sidebar">
         <div className="notebooks-list-section-full">
           <NotebookList 
-            notebooks={notebooks.map((notebook) => ({
+            notebooks={notebooks.map((notebook) => {
+              console.log('🎯 Mapeando notebook para NotebookList:', {
+                id: notebook.id,
+                title: notebook.title,
+                originalNotebook: notebook
+              });
+              return {
                 id: notebook.id,
                 title: notebook.title,
                 color: notebook.color,
@@ -591,150 +527,23 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
                 isFrozen: notebook.isFrozen,
                 frozenScore: notebook.frozenScore,
                 frozenAt: notebook.frozenAt
-              }))} 
+              };
+            })}
               onDeleteNotebook={handleDelete} 
               onEditNotebook={handleEdit}
               onColorChange={handleColorChange}
               onCreateNotebook={handleCreate}
               showCreateButton={true}
               isSchoolTeacher={true}
+              isSchoolNotebook={true}
               materiaColor={materia?.color}
               onFreezeNotebook={handleFreezeNotebook}
-              showExamButton={true}
-              onCreateExam={() => setIsExamModalOpen(true)}
-              examButtonDisabled={notebooks.length === 0}
-              examButtonTitle={notebooks.length === 0 ? "Necesitas crear cuadernos primero" : ""}
+              showExamButton={false}
             />
             
-            {/* Sección de Exámenes */}
-            {exams.length > 0 && (
-              <div className="exams-section" style={{ marginTop: '4rem', padding: '0 1rem' }}>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }}>
-                  <i className="fas fa-file-alt" style={{ marginRight: '0.5rem', fontSize: '1rem' }}></i>
-                  Exámenes Creados
-                </h2>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-                  gap: '1.5rem' 
-                }}>
-                  {exams.map(exam => (
-                    <div 
-                      key={exam.id} 
-                      style={{
-                        background: 'white',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '12px',
-                        padding: '1.5rem',
-                        transition: 'all 0.2s ease',
-                        position: 'relative'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = materia?.color || '#6147FF';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#e5e7eb';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: '600' }}>
-                          {exam.title}
-                        </h3>
-                        <span style={{
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          background: exam.isActive ? '#d1fae5' : '#fee2e2',
-                          color: exam.isActive ? '#065f46' : '#dc2626'
-                        }}>
-                          {exam.isActive ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
-                      {exam.description && (
-                        <p style={{ margin: '0.5rem 0', color: '#6b7280', fontSize: '0.95rem' }}>
-                          {exam.description}
-                        </p>
-                      )}
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '1rem', 
-                        marginTop: '1rem',
-                        fontSize: '0.875rem',
-                        color: '#6b7280'
-                      }}>
-                        <span>
-                          <i className="fas fa-question-circle" style={{ marginRight: '0.25rem' }}></i>
-                          {exam.questionsPerStudent} preguntas
-                        </span>
-                        <span>
-                          <i className="fas fa-clock" style={{ marginRight: '0.25rem' }}></i>
-                          {exam.timePerConcept}s por pregunta
-                        </span>
-                      </div>
-                      <button
-                        style={{
-                          marginTop: '1rem',
-                          width: '100%',
-                          padding: '0.75rem',
-                          background: '#4CAF50',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          console.log('🚀 Navegando a dashboard del examen:', exam.id);
-                          console.log('📍 Ruta completa:', `/exam/${exam.id}/dashboard`);
-                          console.log('📊 Datos del examen:', exam);
-                          try {
-                            navigate(`/exam/${exam.id}/dashboard`);
-                            console.log('✅ Navigate ejecutado');
-                          } catch (error) {
-                            console.error('❌ Error al navegar:', error);
-                          }
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.opacity = '0.9';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.opacity = '1';
-                        }}
-                      >
-                        Ver Dashboard
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
         </div>
       </main>
       
-      {materiaId && (
-        <CreateExamModal
-          isOpen={isExamModalOpen}
-          onClose={() => setIsExamModalOpen(false)}
-          materiaId={materiaId}
-          notebooks={notebooks.map(nb => ({
-            id: nb.id,
-            title: nb.title,
-            conceptCount: nb.conceptCount || 0
-          }))}
-          onExamCreated={() => {
-            console.log('Examen creado exitosamente');
-            loadExams(); // Recargar la lista de exámenes
-          }}
-        />
-      )}
     </>
   );
 };

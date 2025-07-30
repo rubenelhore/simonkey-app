@@ -129,7 +129,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
    * Crea una nueva sesión de estudio en Firestore
    */
   const createStudySession = useCallback(
-    async (userId: string, notebookId: string, mode: StudyMode): Promise<StudySession> => {
+    async (userId: string, notebookId: string, mode: StudyMode, intensity?: string): Promise<StudySession> => {
       try {
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
@@ -154,7 +154,8 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           mode,
           conceptsStudied: [],
           startTime: new Date(),
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          ...(intensity && mode === StudyMode.SMART && { intensity })
         };
         
         const sessionRef = await addDoc(collection(db, 'studySessions'), sessionData);
@@ -524,6 +525,11 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           },
           completedAt: serverTimestamp()
         };
+        
+        // Agregar intensidad si está presente (solo para sesiones smart)
+        if (detailedResults?.studyIntensity) {
+          updateData.intensity = detailedResults.studyIntensity;
+        }
         
         // Log detallado del objeto antes de updateDoc
         console.log('📦 Datos a enviar a updateDoc:', {
@@ -1028,11 +1034,13 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           ? (normalizedUserSub === UserSubscriptionType.SCHOOL || normalizedUserSub === 'school')
           : isSchoolStudent;
         const collectionName = isStudent ? 'schoolConcepts' : 'conceptos';
+        // IMPORTANTE: Ambas colecciones usan 'cuadernoId'
+        const notebookField = 'cuadernoId';
         
         // Buscar todos los documentos de conceptos del cuaderno
         const conceptsQuery = query(
           collection(db, collectionName),
-          where('cuadernoId', '==', notebookId)
+          where(notebookField, '==', notebookId)
         );
         
         const conceptDocs = await getDocs(conceptsQuery);
@@ -1088,7 +1096,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         return [];
       }
     },
-    []
+    [isSchoolStudent]
   );
   
   /**
@@ -1193,21 +1201,28 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
       try {
         // Use the isSchoolStudent from hook initialization
         const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        // IMPORTANTE: Ambas colecciones usan 'cuadernoId'
+        const notebookField = 'cuadernoId';
         
         console.log('🔍 getAllConceptsFromNotebook - isSchoolStudent:', isSchoolStudent);
         console.log('🔍 getAllConceptsFromNotebook - collectionName:', collectionName);
+        console.log('🔍 getAllConceptsFromNotebook - notebookField:', notebookField);
         console.log('🔍 getAllConceptsFromNotebook - notebookId:', notebookId);
         
         const conceptsQuery = query(
           collection(db, collectionName),
-          where('cuadernoId', '==', notebookId)
+          where(notebookField, '==', notebookId)
         );
         
         const conceptDocs = await getDocs(conceptsQuery);
+        console.log('🔍 getAllConceptsFromNotebook - documentos encontrados:', conceptDocs.size);
+        
         const allConcepts: Concept[] = [];
         
         for (const doc of conceptDocs.docs) {
           const conceptosData = doc.data().conceptos || [];
+          console.log(`📄 Documento ${doc.id} tiene ${conceptosData.length} conceptos`);
+          
           conceptosData.forEach((concepto: any, index: number) => {
             // Usar el ID que se generó al crear el concepto (UUID) o generar uno como fallback
             const conceptId = concepto.id || `${doc.id}-${index}`;
@@ -1226,13 +1241,14 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           });
         }
         
+        console.log('🔍 getAllConceptsFromNotebook - total conceptos encontrados:', allConcepts.length);
         return allConcepts;
       } catch (err) {
         console.error('Error getting concepts from notebook:', err);
         return [];
       }
     },
-    []
+    [isSchoolStudent]
   );
 
   /**

@@ -185,8 +185,8 @@ export class TeacherKpiService {
       const studentsByNotebook = new Map<string, string[]>();
       
       if (institutionId) {
-        // Si tenemos ID de institución, buscar por institución
-        const studentsQuery = query(
+        // Primero intentar con idEscuela
+        let studentsQuery = query(
           collection(db, 'users'),
           where('subscription', '==', 'school'),
           where('schoolRole', '==', 'student'),
@@ -194,6 +194,19 @@ export class TeacherKpiService {
         );
         studentsSnap = await getDocs(studentsQuery);
         console.log(`[TeacherKpiService] Estudiantes encontrados por idEscuela: ${studentsSnap.size}`);
+        
+        // Si no encuentra con idEscuela, intentar con idInstitucion
+        if (studentsSnap.size === 0) {
+          console.log('[TeacherKpiService] Intentando con idInstitucion...');
+          studentsQuery = query(
+            collection(db, 'users'),
+            where('subscription', '==', 'school'),
+            where('schoolRole', '==', 'student'),
+            where('idInstitucion', '==', institutionId)
+          );
+          studentsSnap = await getDocs(studentsQuery);
+          console.log(`[TeacherKpiService] Estudiantes encontrados por idInstitucion: ${studentsSnap.size}`);
+        }
       } else {
         // Si no tenemos ID de institución, buscar todos los estudiantes escolares
         const studentsQuery = query(

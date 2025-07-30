@@ -22,15 +22,17 @@
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
-  padding: 10px 20px;
+  padding: 12px;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
 }
 
 .back-button:hover {
@@ -57,12 +59,18 @@
 }
 
 .score-display {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
   padding: 10px 20px;
   border-radius: 12px;
-  color: white;
+  color: #1f2937 !important;
   font-weight: 600;
   font-size: 1.125rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.score-display span {
+  color: #1f2937 !important;
 }
 
 /* Battle Arena */
@@ -441,9 +449,10 @@
   cursor: pointer;
   width: 80%;
   max-width: 300px;
-  margin-top: 20px;
+  margin: 20px auto 0 auto;
   transition: transform 0.2s ease;
   box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  display: block;
 }
 
 .game-modal .back-button:hover {

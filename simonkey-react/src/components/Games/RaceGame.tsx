@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRunning, faArrowLeft, faTrophy, faClock, faHeart } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
+import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
 import '../../styles/RaceGame.css';
 
@@ -53,7 +54,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
-  const studyService = useStudyService();
+  const { isSchoolStudent } = useUserType();
+  const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
   
   // Animation state
   const [runnerFrame, setRunnerFrame] = useState(0);
@@ -380,7 +382,6 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       <div className="race-header">
         <button className="back-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
-          <span>Volver</span>
         </button>
         
         <div className="race-stats">

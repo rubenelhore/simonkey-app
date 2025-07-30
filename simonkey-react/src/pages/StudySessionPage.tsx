@@ -169,7 +169,8 @@ const StudySessionPage = () => {
       const session = await studyService.createStudySession(
         userKey, 
         notebookId,
-        studyMode
+        studyMode,
+        studyMode === StudyMode.SMART ? studyIntensity : undefined
       );
       
       setSessionId(session.id);
@@ -478,6 +479,9 @@ const StudySessionPage = () => {
       
       // Show mini quiz for smart study
       if (studyMode === StudyMode.SMART && notebookId) {
+        console.log('[STUDY SESSION] Mostrando mini quiz para estudio inteligente');
+        console.log('[STUDY SESSION] notebookId:', notebookId);
+        console.log('[STUDY SESSION] sessionReviewedConcepts:', sessionReviewedConcepts);
         setShowMiniQuiz(true);
         setSessionActive(false);
         setSessionComplete(true);
@@ -718,23 +722,27 @@ const StudySessionPage = () => {
     <>
       {/* Mini Quiz */}
       {showMiniQuiz && notebookId && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 99999,
-          backgroundColor: '#f8f9fa'
-        }}>
-          <MiniQuiz
-            notebookId={notebookId}
-            notebookTitle={notebookTitle || ''}
-            sessionConcepts={sessionReviewedConcepts}
-            onComplete={handleMiniQuizComplete}
-            onClose={() => setShowMiniQuiz(false)}
-          />
-        </div>
+        <>
+          {console.log('[RENDER] Renderizando MiniQuiz:', { showMiniQuiz, notebookId, sessionReviewedConcepts })}
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            backgroundColor: '#f8f9fa',
+            overflow: 'auto'
+          }}>
+            <MiniQuiz
+              notebookId={notebookId}
+              notebookTitle={notebookTitle || ''}
+              sessionConcepts={sessionReviewedConcepts}
+              onComplete={handleMiniQuizComplete}
+              onClose={() => setShowMiniQuiz(false)}
+            />
+          </div>
+        </>
       )}
       
       {/* Intro screen */}

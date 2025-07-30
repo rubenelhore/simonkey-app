@@ -30,42 +30,42 @@ const ExamPage: React.FC = () => {
   const questionStartTime = useRef<number>(Date.now());
   const lastSaveTime = useRef<number>(Date.now());
 
-  // Función para generar opciones múltiples
-  const generateOptions = (correctAnswer: string, allDefinitions: string[]) => {
-    console.log('🎯 Generando opciones para respuesta correcta:', correctAnswer);
-    console.log('📚 Total definiciones disponibles:', allDefinitions.length);
+  // Función para generar opciones múltiples (ahora genera términos como opciones)
+  const generateOptions = (correctTerm: string, allTerms: string[]) => {
+    console.log('🎯 Generando opciones para término correcto:', correctTerm);
+    console.log('📚 Total términos disponibles:', allTerms.length);
     
-    // Filtrar definiciones válidas y únicas
-    const validDefinitions = allDefinitions.filter(def => def && def.trim() !== '');
-    const uniqueDefinitions = [...new Set(validDefinitions)];
-    console.log('📋 Definiciones únicas válidas:', uniqueDefinitions.length);
+    // Filtrar términos válidos y únicos
+    const validTerms = allTerms.filter(term => term && term.trim() !== '');
+    const uniqueTerms = [...new Set(validTerms)];
+    console.log('📋 Términos únicos válidos:', uniqueTerms.length);
     
-    const options = [correctAnswer];
-    const otherDefinitions = uniqueDefinitions.filter(def => def !== correctAnswer);
-    console.log('🔀 Otras definiciones disponibles:', otherDefinitions.length);
+    const options = [correctTerm];
+    const otherTerms = uniqueTerms.filter(term => term !== correctTerm);
+    console.log('🔀 Otros términos disponibles:', otherTerms.length);
     
     // Si no hay suficientes opciones, generar opciones falsas
-    if (otherDefinitions.length < 3) {
-      console.warn('⚠️ No hay suficientes definiciones para generar 4 opciones');
-      console.warn('📝 Definiciones disponibles:', otherDefinitions);
+    if (otherTerms.length < 3) {
+      console.warn('⚠️ No hay suficientes términos para generar 4 opciones');
+      console.warn('📝 Términos disponibles:', otherTerms);
       
       // Usar las que hay disponibles
-      options.push(...otherDefinitions);
+      options.push(...otherTerms);
       
-      // Generar opciones falsas más realistas para completar hasta 4
+      // Generar términos falsos más realistas para completar hasta 4
       const fakeOptions = [
-        "Esta definición corresponde a otro concepto no incluido en este examen",
-        "Definición que no se aplica a este término específico", 
-        "Esta opción no es la definición correcta para el término mostrado"
+        "Término A",
+        "Término B", 
+        "Término C"
       ];
       
       const needed = 4 - options.length;
       options.push(...fakeOptions.slice(0, needed));
     } else {
-      // Seleccionar 3 opciones incorrectas aleatorias
-      const shuffled = otherDefinitions.sort(() => 0.5 - Math.random());
+      // Seleccionar 3 términos incorrectos aleatorios
+      const shuffled = otherTerms.sort(() => 0.5 - Math.random());
       const incorrectOptions = shuffled.slice(0, 3);
-      console.log('❌ Opciones incorrectas seleccionadas:', incorrectOptions.length);
+      console.log('❌ Términos incorrectos seleccionados:', incorrectOptions.length);
       
       options.push(...incorrectOptions);
     }
@@ -123,8 +123,8 @@ const ExamPage: React.FC = () => {
             definición: currentConcept.definición,
             conceptId: currentConcept.conceptId
           });
-          const allDefinitions = allConceptsData.map(c => c.definición);
-          const options = generateOptions(currentConcept.definición, allDefinitions);
+          const allTerms = allConceptsData.map(c => c.término);
+          const options = generateOptions(currentConcept.término, allTerms);
           setCurrentOptions(options);
           
           // Cargar respuesta actual si existe
@@ -235,12 +235,12 @@ const ExamPage: React.FC = () => {
     const currentConcept = attempt.assignedConcepts[attempt.currentQuestionIndex];
     const timeSpent = Math.round((Date.now() - questionStartTime.current) / 1000);
     
-    // Evaluar respuesta - comparar con la opción seleccionada
-    const isCorrect = currentAnswer.trim() === currentConcept.definición.trim();
+    // Evaluar respuesta - comparar con el término correcto
+    const isCorrect = currentAnswer.trim() === currentConcept.término.trim();
     
     console.log('📝 Evaluando respuesta:', {
       userAnswer: currentAnswer.trim(),
-      correctAnswer: currentConcept.definición.trim(),
+      correctAnswer: currentConcept.término.trim(),
       isCorrect: isCorrect
     });
     
@@ -283,8 +283,8 @@ const ExamPage: React.FC = () => {
             
             // Generar nuevas opciones para la siguiente pregunta
             const nextConcept = newAttempt.assignedConcepts[newAttempt.currentQuestionIndex];
-            const allDefinitions = allConcepts.map(c => c.definición);
-            const options = generateOptions(nextConcept.definición, allDefinitions);
+            const allTerms = allConcepts.map(c => c.término);
+            const options = generateOptions(nextConcept.término, allTerms);
             setCurrentOptions(options);
             setSelectedOption(null);
             
@@ -403,10 +403,10 @@ const ExamPage: React.FC = () => {
       
       <div className="exam-content">
         <div className="question-container">
-          <h2 className="question-term">{currentConcept.término}</h2>
+          <h2 className="question-definition">{currentConcept.definición}</h2>
           
           <div className="answer-section">
-            <label>Selecciona la definición correcta:</label>
+            <label>Selecciona el concepto correcto:</label>
             <div className="options-container">
               {currentOptions.map((option, index) => (
                 <button
@@ -415,21 +415,21 @@ const ExamPage: React.FC = () => {
                     selectedOption === index ? 'selected' : ''
                   } ${
                     showResult && index === selectedOption
-                      ? option === currentConcept.definición ? 'correct' : 'incorrect'
+                      ? option === currentConcept.término ? 'correct' : 'incorrect'
                       : ''
                   } ${
-                    showResult && option === currentConcept.definición ? 'show-correct' : ''
+                    showResult && option === currentConcept.término ? 'show-correct' : ''
                   }`}
                   onClick={async () => {
                     if (saving || showResult) return;
                     
                     setSelectedOption(index);
                     setShowResult(true);
-                    setLastAnswerCorrect(option.trim() === currentConcept.definición.trim());
+                    setLastAnswerCorrect(option.trim() === currentConcept.término.trim());
                     
                     // Guardar la respuesta directamente sin depender del estado
                     const timeSpent = Math.round((Date.now() - questionStartTime.current) / 1000);
-                    const isCorrect = option.trim() === currentConcept.definición.trim();
+                    const isCorrect = option.trim() === currentConcept.término.trim();
                     
                     const answer: ExamAnswer = {
                       conceptId: currentConcept.conceptId,
@@ -477,8 +477,8 @@ const ExamPage: React.FC = () => {
                         // Generar nuevas opciones para la siguiente pregunta
                         const nextIndex = attempt.currentQuestionIndex + 1;
                         const nextConcept = attempt.assignedConcepts[nextIndex];
-                        const allDefinitions = allConcepts.map(c => c.definición);
-                        const options = generateOptions(nextConcept.definición, allDefinitions);
+                        const allTerms = allConcepts.map(c => c.término);
+                        const options = generateOptions(nextConcept.término, allTerms);
                         setCurrentOptions(options);
                         setSelectedOption(null);
                         questionStartTime.current = Date.now();
@@ -501,10 +501,10 @@ const ExamPage: React.FC = () => {
                 >
                   <span className="option-letter">{String.fromCharCode(65 + index)}</span>
                   <span className="option-text">{option}</span>
-                  {showResult && option === currentConcept.definición && (
+                  {showResult && option === currentConcept.término && (
                     <i className="fas fa-check-circle" style={{ marginLeft: 'auto', color: '#10b981' }}></i>
                   )}
-                  {showResult && index === selectedOption && option !== currentConcept.definición && (
+                  {showResult && index === selectedOption && option !== currentConcept.término && (
                     <i className="fas fa-times-circle" style={{ marginLeft: 'auto', color: '#ef4444' }}></i>
                   )}
                 </button>

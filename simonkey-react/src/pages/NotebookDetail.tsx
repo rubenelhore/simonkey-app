@@ -99,10 +99,25 @@ const NotebookDetail = () => {
 
       try {
         const decodedName = decodeNotebookName(notebookName);
-        // console.log('Buscando cuaderno con nombre:', decodedName);
+        // console.log('Buscando cuaderno con nombre o ID:', decodedName);
 
         // Use the correct collection for school users
         const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isSchoolTeacher) ? 'schoolNotebooks' : 'notebooks';
+        
+        // Primero intentar buscar por ID si parece ser un ID de Firebase (20 caracteres alfanuméricos)
+        if (decodedName.match(/^[a-zA-Z0-9]{20}$/)) {
+          console.log('Buscando cuaderno por ID:', decodedName);
+          const notebookDoc = await getDoc(doc(db, notebooksCollection, decodedName));
+          
+          if (notebookDoc.exists()) {
+            setNotebookId(decodedName);
+            console.log('Cuaderno encontrado por ID:', decodedName);
+            return;
+          }
+        }
+        
+        // Si no se encontró por ID o no parece ser un ID, buscar por título
+        console.log('Buscando cuaderno por título:', decodedName);
         const notebooksQuery = query(
           collection(db, notebooksCollection),
           where('title', '==', decodedName)
@@ -112,7 +127,7 @@ const NotebookDetail = () => {
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
           setNotebookId(doc.id);
-          // console.log('Cuaderno encontrado:', doc.id);
+          console.log('Cuaderno encontrado por título:', doc.id);
         } else {
           console.error('No se encontró el cuaderno:', decodedName);
         }

@@ -15,6 +15,7 @@ import { studyStreakService } from '../services/studyStreakService';
 import { useStudyService } from '../hooks/useStudyService';
 import { gamePointsService } from '../services/gamePointsService';
 import { kpiService } from '../services/kpiService';
+import { rankingService } from '../services/rankingService';
 
 // División levels configuration
 const DIVISION_LEVELS = {
@@ -73,6 +74,7 @@ const StudyModePage = () => {
       isCurrentUser: boolean;
     }>;
   } | null>(null);
+  const [rankingLoadError, setRankingLoadError] = useState<string | null>(null);
   const [gamePoints, setGamePoints] = useState<number>(0);
   
   // Motivational modules state
@@ -132,12 +134,12 @@ const StudyModePage = () => {
             '¡Estudia hoy para mantener tu racha!'
         });
 
-        // Calculate dominated concepts across all notebooks using kpiService
-        const conceptStats = await kpiService.getTotalDominatedConceptsByUser(effectiveUserId);
-        setConceptsLearned(conceptStats.conceptosDominados);
+        // Calculate concepts with repetitions >= 2 for division system
+        const conceptsWithMinReps = await kpiService.getConceptsWithMinRepetitions(effectiveUserId, 2);
+        setConceptsLearned(conceptsWithMinReps);
         
-        // Calculate division based on dominated concepts
-        calculateDivision(conceptStats.conceptosDominados);
+        // Calculate division based on concepts with repetitions >= 2
+        calculateDivision(conceptsWithMinReps);
 
         // Generate suggestions and challenges
         generateSuggestionsAndChallenges(streak.currentStreak);
@@ -576,45 +578,89 @@ const StudyModePage = () => {
         let gamePointsValue = 0;
         let streakBonusValue = 0;
         
-        // Count completed smart study sessions for this notebook
+        // Count completed smart study sessions for this notebook - ONLY VALIDATED
         try {
-          // Try first with completed field
+          // Try first with completed and validated fields
           let studySessionsQuery = query(
             collection(db, 'studySessions'),
             where('userId', '==', effectiveUserId),
             where('notebookId', '==', notebook.id),
             where('mode', '==', 'smart'),
-            where('completed', '==', true)
+            where('completed', '==', true),
+            where('validated', '==', true)  // Solo sesiones validadas (mini quiz aprobado)
           );
           let studySessionsSnapshot = await getDocs(studySessionsQuery);
-          completedSmartStudies = studySessionsSnapshot.size;
           
-          console.log('Query 1 - Completed smart studies:', completedSmartStudies);
+          // Calculate total based on intensity
+          studySessionsSnapshot.docs.forEach(doc => {
+            const sessionData = doc.data();
+            let studyValue = 1; // Default value (Progress)
+            
+            if (sessionData.intensity === 'warm_up') {
+              studyValue = 0.5;
+            } else if (sessionData.intensity === 'rocket') {
+              studyValue = 2;
+            }
+            
+            completedSmartStudies += studyValue;
+          });
           
-          // If no results, try without completed field (all smart sessions)
+          console.log('Query 1 - Completed smart studies (with intensity):', completedSmartStudies);
+          
+          // If no results, try without completed field but still requiring validated
           if (completedSmartStudies === 0) {
             studySessionsQuery = query(
               collection(db, 'studySessions'),
               where('userId', '==', effectiveUserId),
               where('notebookId', '==', notebook.id),
-              where('mode', '==', 'smart')
+              where('mode', '==', 'smart'),
+              where('validated', '==', true)  // Solo sesiones validadas
             );
             studySessionsSnapshot = await getDocs(studySessionsQuery);
-            completedSmartStudies = studySessionsSnapshot.size;
-            console.log('Query 2 - All smart studies:', completedSmartStudies);
+            
+            // Recalculate with intensity
+            studySessionsSnapshot.docs.forEach(doc => {
+              const sessionData = doc.data();
+              let studyValue = 1; // Default value (Progress)
+              
+              if (sessionData.intensity === 'warm_up') {
+                studyValue = 0.5;
+              } else if (sessionData.intensity === 'rocket') {
+                studyValue = 2;
+              }
+              
+              completedSmartStudies += studyValue;
+            });
+            
+            console.log('Query 2 - All smart studies (with intensity):', completedSmartStudies);
           }
           
-          // If still no results, try with sessionType field
+          // If still no results, try with sessionType field and validated
           if (completedSmartStudies === 0) {
             studySessionsQuery = query(
               collection(db, 'studySessions'),
               where('userId', '==', effectiveUserId),
               where('notebookId', '==', notebook.id),
-              where('sessionType', '==', 'smart')
+              where('sessionType', '==', 'smart'),
+              where('validated', '==', true)  // Solo sesiones validadas
             );
             studySessionsSnapshot = await getDocs(studySessionsQuery);
-            completedSmartStudies = studySessionsSnapshot.size;
-            console.log('Query 3 - Smart studies with sessionType:', completedSmartStudies);
+            
+            // Recalculate with intensity
+            studySessionsSnapshot.docs.forEach(doc => {
+              const sessionData = doc.data();
+              let studyValue = 1; // Default value (Progress)
+              
+              if (sessionData.intensity === 'warm_up') {
+                studyValue = 0.5;
+              } else if (sessionData.intensity === 'rocket') {
+                studyValue = 2;
+              }
+              
+              completedSmartStudies += studyValue;
+            });
+            
+            console.log('Query 3 - Smart studies with sessionType (with intensity):', completedSmartStudies);
           }
           
           // If still no results, check all study sessions for this notebook
@@ -820,67 +866,70 @@ const StudyModePage = () => {
   const loadNotebookRanking = async (notebookId: string) => {
     if (!effectiveUserId || !isSchoolStudent) {
       setNotebookRanking(null);
+      setRankingLoadError(null);
       return;
     }
+    
+    // Reset error state when starting to load
+    setRankingLoadError(null);
     
     try {
       console.log('Loading ranking for notebook:', notebookId);
       
-      // Get user document to find classroom
-      const userDoc = await getDoc(doc(db, 'users', effectiveUserId));
-      const userData = userDoc.data();
-      
-      if (!userData?.idSalon) {
-        console.log('User has no classroom');
+      // Get notebook document to find its subject
+      const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+      if (!notebookDoc.exists()) {
+        console.log('Notebook not found');
         setNotebookRanking(null);
+        setRankingLoadError('Cuaderno no encontrado');
         return;
       }
       
-      // Get all students in the classroom
-      const classroomQuery = query(
-        collection(db, 'users'),
-        where('idSalon', '==', userData.idSalon)
-      );
-      const classroomSnap = await getDocs(classroomQuery);
+      const notebookData = notebookDoc.data();
+      const materiaId = notebookData.idMateria || notebookData.materiaId || notebookData.subjectId;
       
-      // Collect scores for each student in this notebook
-      const studentScores: Array<{
-        userId: string;
-        displayName: string;
-        score: number;
-      }> = [];
-      
-      for (const studentDoc of classroomSnap.docs) {
-        const studentId = studentDoc.id;
-        const studentData = studentDoc.data();
-        
-        // Get KPIs for this student
-        const kpis = await kpiService.getUserKPIs(studentId);
-        const notebookScore = kpis?.cuadernos?.[notebookId]?.scoreCuaderno || 0;
-        
-        studentScores.push({
-          userId: studentId,
-          displayName: studentData.displayName || studentData.email?.split('@')[0] || 'Usuario',
-          score: notebookScore
-        });
+      if (!materiaId) {
+        console.log('Notebook has no associated subject');
+        setNotebookRanking(null);
+        setRankingLoadError('Este cuaderno no está asociado a una materia escolar');
+        return;
       }
       
-      // Sort by score (descending)
-      studentScores.sort((a, b) => b.score - a.score);
+      // Get user's institution
+      const userDoc = await getDoc(doc(db, 'users', effectiveUserId));
+      const userData = userDoc.data();
+      const institutionId = userData?.idInstitucion || userData?.idEscuela;
       
-      // Find current user position
-      const userIndex = studentScores.findIndex(s => s.userId === effectiveUserId);
-      const userPosition = userIndex + 1;
-      const userScore = studentScores[userIndex]?.score || 0;
+      if (!institutionId) {
+        console.log('User has no institution');
+        setNotebookRanking(null);
+        setRankingLoadError('No estás asignado a una institución');
+        return;
+      }
+      
+      // Get the subject ranking from rankingService
+      const ranking = await rankingService.getSubjectRanking(institutionId, materiaId);
+      
+      if (!ranking || !ranking.students || ranking.students.length === 0) {
+        console.log('No ranking data available');
+        setNotebookRanking(null);
+        setRankingLoadError('No hay datos de ranking disponibles para esta materia');
+        return;
+      }
+      
+      // Find current user in ranking
+      const userIndex = ranking.students.findIndex(s => s.userId === effectiveUserId);
+      const userPosition = userIndex >= 0 ? userIndex + 1 : 0;
+      const userScore = ranking.students[userIndex]?.score || 0;
       
       // Calculate points to next position
       let pointsToNext = 0;
       if (userIndex > 0) {
-        pointsToNext = studentScores[userIndex - 1].score - userScore;
+        pointsToNext = ranking.students[userIndex - 1].score - userScore;
       }
       
       // Get top 10 users (or all if less than 10)
-      const topUsers = studentScores.slice(0, 10).map((student, index) => ({
+      const topUsers = ranking.students.slice(0, 10).map((student, index) => ({
         position: index + 1,
         userId: student.userId,
         displayName: student.displayName,
@@ -890,15 +939,23 @@ const StudyModePage = () => {
       
       setNotebookRanking({
         userPosition,
-        totalUsers: studentScores.length,
+        totalUsers: ranking.totalStudents,
         userScore,
         pointsToNext,
         topUsers
       });
       
+      console.log('Ranking loaded successfully:', {
+        userPosition,
+        totalUsers: ranking.totalStudents,
+        userScore,
+        materiaId
+      });
+      
     } catch (error) {
       console.error('Error loading notebook ranking:', error);
       setNotebookRanking(null);
+      setRankingLoadError('Error al cargar el ranking');
     }
   };
 
@@ -1302,6 +1359,10 @@ const StudyModePage = () => {
               ) : !isSchoolStudent ? (
                 <div className="ranking-empty-state">
                   <p>El ranking está disponible solo para estudiantes escolares</p>
+                </div>
+              ) : rankingLoadError ? (
+                <div className="ranking-empty-state">
+                  <p>{rankingLoadError}</p>
                 </div>
               ) : !notebookRanking ? (
                 <div className="ranking-loading">

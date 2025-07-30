@@ -45,6 +45,8 @@ import './utils/debugStudentMaterias';
 import './utils/debugExams';
 import './utils/fixStudentSchoolId';
 import './utils/verifyStudentExams';
+import './utils/debugSchoolConcepts';
+import './utils/debugTeacherKpis';
 import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';
@@ -119,6 +121,8 @@ import HelpWhatsAppButton from './components/HelpWhatsAppButton';
 import ExamPage from './pages/ExamPage';
 import ExamResultsPage from './pages/ExamResultsPage';
 import ExamDashboardPage from './pages/ExamDashboardPage';
+import StudentExamsPage from './pages/StudentExamsPage';
+import TeacherExamsPage from './pages/TeacherExamsPage';
 import StudySessionPage from './pages/StudySessionPage';
 
 // Definir el tipo para el usuario
@@ -399,19 +403,20 @@ const AppContent: React.FC = () => {
         const currentPath = window.location.pathname;
         
         // USUARIOS ESCOLARES: Redirigir a sus páginas específicas
-        if (['/login', '/signup'].includes(currentPath)) {
+        // Redireccionar desde login/signup o cuando accedan a rutas no apropiadas
+        if (['/login', '/signup', '/inicio', '/'].includes(currentPath)) {
           if (isSchoolTeacher) {
-            console.log('🏫 App - Redirigiendo profesor escolar desde login a /school/teacher');
+            console.log('🏫 App - Redirigiendo profesor escolar a /school/teacher');
             navigate('/school/teacher', { replace: true });
             return;
           }
           if (isSchoolAdmin) {
-            console.log('🏫 App - Redirigiendo admin escolar desde login a /school/admin');
+            console.log('🏫 App - Redirigiendo admin escolar a /school/admin');
             navigate('/school/admin', { replace: true });
             return;
           }
           if (isSchoolTutor) {
-            console.log('🏫 App - Redirigiendo tutor escolar desde login a /school/tutor');
+            console.log('🏫 App - Redirigiendo tutor escolar a /school/tutor');
             navigate('/school/tutor', { replace: true });
             return;
           }
@@ -721,6 +726,20 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
+            path="/school/teacher/exams"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <TeacherExamsPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
             path="/school/teacher/analytics"
             element={
               isAuthenticated ? (
@@ -830,6 +849,13 @@ const AppContent: React.FC = () => {
             }
           />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/exams" element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <StudentExamsPage />
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          } />
           
           {/* Rutas para el sistema de exámenes */}
           <Route

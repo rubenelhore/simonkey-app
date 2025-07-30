@@ -42,6 +42,7 @@ interface NotebookListProps {
   showCreateButton?: boolean;
   onCreateNotebook?: (title?: string, color?: string) => void | Promise<void>;
   isSchoolTeacher?: boolean;
+  isSchoolNotebook?: boolean;
   onColorChange?: (id: string, color: string) => void;
   onAddConcept?: (id: string) => void;
   selectedCategory?: string | null;
@@ -65,6 +66,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   showCreateButton = false, 
   onCreateNotebook,
   isSchoolTeacher = false,
+  isSchoolNotebook = false,
   onColorChange,
   onAddConcept,
   selectedCategory,
@@ -762,7 +764,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onColorChange={onColorChange}
                 showActions={openActionsId === notebook.id}
                 onToggleActions={handleToggleActions}
-                isSchoolNotebook={isSchoolTeacher}
+                isSchoolNotebook={isSchoolNotebook || isSchoolTeacher}
                 onAddConcept={onAddConcept}
                 isFrozen={notebook.isFrozen}
                 onFreeze={(id) => handleFreezeClick(id, notebook.title, notebook.isFrozen || false)}

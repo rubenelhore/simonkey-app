@@ -5,7 +5,7 @@ import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { db } from '../services/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { ExamService } from '../services/examService';
+import { getDomainProgressForNotebook } from '../utils/domainProgress';
 import '../styles/SchoolSystem.css';
 import '../styles/Notebooks.css';
 
@@ -22,6 +22,12 @@ interface SchoolNotebook {
   isFrozen?: boolean;
   frozenScore?: number;
   frozenAt?: any;
+  domainProgress?: {
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
 }
 
 interface SchoolSubject {
@@ -32,16 +38,6 @@ interface SchoolSubject {
   idEscuela?: string;
 }
 
-interface Exam {
-  id: string;
-  title: string;
-  description?: string;
-  isActive: boolean;
-  idMateria: string;
-  idProfesor: string;
-  createdAt: any;
-  questions?: any[];
-}
 
 const SchoolStudentMateriaPage: React.FC = () => {
   const navigate = useNavigate();
@@ -51,10 +47,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
   
   const [notebooks, setNotebooks] = useState<SchoolNotebook[]>([]);
   const [materia, setMateria] = useState<SchoolSubject | null>(null);
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [examAttempts, setExamAttempts] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'notebooks' | 'exams'>('notebooks');
   const [materiaId, setMateriaId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,10 +93,17 @@ const SchoolStudentMateriaPage: React.FC = () => {
               const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
               if (notebookDoc.exists()) {
                 const data = notebookDoc.data();
+                console.log('📚 Notebook ID:', notebookDoc.id);
+                console.log('📚 Título del notebook:', data.title);
+                console.log('📚 Tipo del título:', typeof data.title);
+                console.log('📚 Longitud del título:', data.title?.length);
                 if (data.idMateria === currentMateriaId) {
+                  // Calcular el progreso de dominio para cada notebook
+                  const domainProgress = await getDomainProgressForNotebook(notebookDoc.id);
+                  console.log('📊 Progreso de dominio calculado para', data.title, ':', domainProgress);
                   notebooksData.push({
                     id: notebookDoc.id,
-                    title: data.title,
+                    title: data.title || data.titulo || 'Sin título',
                     descripcion: data.descripcion,
                     color: data.color || '#6147FF',
                     idMateria: data.idMateria,
@@ -113,41 +113,22 @@ const SchoolStudentMateriaPage: React.FC = () => {
                     conceptCount: data.conceptCount || 0,
                     isFrozen: data.isFrozen,
                     frozenScore: data.frozenScore,
-                    frozenAt: data.frozenAt
+                    frozenAt: data.frozenAt,
+                    domainProgress: domainProgress
                   });
                 }
+              } else {
+                console.log('❌ Notebook no encontrado en schoolNotebooks:', notebookId);
               }
             } catch (error) {
               console.error('Error loading notebook:', notebookId, error);
             }
           }
           
+          console.log('📋 Notebooks finales cargados:', notebooksData);
           setNotebooks(notebooksData);
-        }
-
-        // Cargar exámenes activos usando el servicio
-        try {
-          console.log('📝 Cargando exámenes para estudiante...');
-          const activeExams = await ExamService.getActiveExamsForStudent(user.uid, currentMateriaId);
-          setExams(activeExams as any[]);
-          console.log('📝 Exámenes disponibles:', activeExams.length);
-          
-          // Verificar si el estudiante ya ha tomado cada examen
-          const attemptsMap = new Map<string, boolean>();
-          for (const exam of activeExams) {
-            const attemptsQuery = query(
-              collection(db, 'examAttempts'),
-              where('examId', '==', exam.id),
-              where('studentId', '==', user.uid)
-            );
-            const attemptsSnapshot = await getDocs(attemptsQuery);
-            attemptsMap.set(exam.id, !attemptsSnapshot.empty);
-          }
-          setExamAttempts(attemptsMap);
-          console.log('📊 Intentos de examen cargados:', attemptsMap);
-        } catch (error) {
-          console.error('❌ Error cargando exámenes:', error);
-          setExams([]);
+        } else {
+          console.log('❌ No hay idCuadernos en userProfile:', userProfile);
         }
         
       } catch (err) {
@@ -164,14 +145,6 @@ const SchoolStudentMateriaPage: React.FC = () => {
     navigate(`/school/notebooks/${notebookId}`);
   };
 
-  const handleExamClick = (examId: string) => {
-    // Verificar si el estudiante ya tomó el examen
-    if (examAttempts.get(examId)) {
-      alert('Ya has completado este examen. Solo se permite un intento por examen.');
-      return;
-    }
-    navigate(`/exam/${examId}`, { state: { materiaId } });
-  };
 
   if (loading || authLoading) {
     return (
@@ -197,137 +170,78 @@ const SchoolStudentMateriaPage: React.FC = () => {
     <>
       <HeaderWithHamburger
         title={materia.nombre}
-        subtitle={`Cuadernos de ${materia.nombre}`}
+        subtitle={`Cuadernos disponibles`}
         showBackButton={true}
         onBackClick={() => navigate('/materias')}
         themeColor="#FF6B6B"
       />
       <div className="school-teacher-materia-page">
-        {/* Tabs para cuadernos y exámenes */}
-        <div className="tabs-container">
-          <button
-            className={`tab-button ${activeTab === 'notebooks' ? 'active' : ''}`}
-            onClick={() => setActiveTab('notebooks')}
-          >
-            <i className="fas fa-book"></i>
-            Cuadernos ({notebooks.length})
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'exams' ? 'active' : ''}`}
-            onClick={() => setActiveTab('exams')}
-          >
-            <i className="fas fa-file-alt"></i>
-            Exámenes ({exams.length})
-          </button>
-        </div>
-
-        {/* Contenido según tab activo */}
-        <div className="tab-content">
-          {activeTab === 'notebooks' && (
-            <div className="notebooks-section">
-              {notebooks.length > 0 ? (
-                <div className="notebooks-grid">
-                  {notebooks.map(notebook => (
-                    <div 
-                      key={notebook.id} 
-                      className="notebook-card"
-                    >
-                      <div 
-                        className="notebook-card-content"
-                        onClick={() => handleNotebookClick(notebook.id)}
-                        style={{ 
-                          '--notebook-color': notebook.color,
-                          cursor: 'pointer'
-                        } as React.CSSProperties}
-                      >
-                        <h3 style={{
-                          display: 'flex',
-                          alignItems: 'baseline',
-                          gap: '0.5rem',
-                          width: '100%'
-                        }}>
-                          <span style={{
-                            flex: '1',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {notebook.title}
-                          </span>
+        {/* Cuadernos de la materia */}
+        <div className="notebooks-section">
+          {notebooks.length > 0 ? (
+            <div className="notebooks-grid">
+              {notebooks.map(notebook => {
+                console.log('🎨 ID del notebook a renderizar:', notebook.id);
+                console.log('🎨 Título a renderizar:', notebook.title);
+                console.log('🎨 Tiene título:', !!notebook.title);
+                console.log('🎨 Longitud del título:', notebook.title?.length || 0);
+                return (
+                <div 
+                  key={notebook.id} 
+                  className="notebook-card"
+                >
+                  <div 
+                    className="notebook-card-content"
+                    onClick={() => handleNotebookClick(notebook.id)}
+                    style={{ 
+                      '--notebook-color': notebook.color,
+                      cursor: 'pointer'
+                    } as React.CSSProperties}
+                  >
+                    <h3 style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: '0.5rem',
+                      width: '100%',
+                      color: '#1f2937'
+                    }}>
+                      <span style={{
+                        flex: '1',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: '#1f2937'
+                      }}>
+                        {(() => {
+                          const displayTitle = notebook.title || 'Sin título';
+                          console.log('🖼️ Título que se va a mostrar:', displayTitle);
+                          return displayTitle;
+                        })()}
+                      </span>
+                      {notebook.domainProgress && notebook.domainProgress.total > 0 && (() => {
+                        const percentage = Math.round((notebook.domainProgress.dominated / notebook.domainProgress.total) * 100);
+                        console.log('📊 Mostrando porcentaje para', notebook.title, ':', percentage + '%', 'dominados:', notebook.domainProgress.dominated, 'total:', notebook.domainProgress.total);
+                        return (
                           <span style={{ 
                             color: '#10b981', 
                             fontSize: '1.1rem', 
                             fontWeight: 'bold',
                             flexShrink: 0
                           }}>
-                            80%
+                            {percentage}%
                           </span>
-                        </h3>
-                      </div>
-                    </div>
-                  ))}
+                        );
+                      })()}
+                    </h3>
+                  </div>
                 </div>
-              ) : (
-                <div className="empty-state">
-                  <i className="fas fa-book" style={{ fontSize: '3rem', color: '#9ca3af' }}></i>
-                  <p>No hay cuadernos disponibles en esta materia</p>
-                </div>
-              )}
+                );
+              })}
             </div>
-          )}
-
-          {activeTab === 'exams' && (
-            <div className="exams-section">
-              {exams.length > 0 ? (
-                <div className="exams-grid">
-                  {exams.map(exam => {
-                    const hasAttempted = examAttempts.get(exam.id) || false;
-                    return (
-                      <div 
-                        key={exam.id} 
-                        className={`exam-card ${hasAttempted ? 'completed' : ''}`}
-                        onClick={() => handleExamClick(exam.id)}
-                        style={{ cursor: hasAttempted ? 'not-allowed' : 'pointer' }}
-                      >
-                        <div className="exam-card-header" style={{ backgroundColor: hasAttempted ? '#9ca3af' : materia.color }}>
-                          <i className="fas fa-file-alt"></i>
-                        </div>
-                        <div className="exam-card-body">
-                          <h3>{exam.title}</h3>
-                          {exam.description && (
-                            <p className="exam-description">{exam.description}</p>
-                          )}
-                          <div className="exam-info">
-                            <span className={`exam-status ${hasAttempted ? 'completed' : 'active'}`}>
-                              <i className={`fas ${hasAttempted ? 'fa-check' : 'fa-check-circle'}`}></i>
-                              {hasAttempted ? 'Completado' : 'Disponible'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="exam-card-footer">
-                          <button 
-                            className="start-exam-button"
-                            disabled={hasAttempted}
-                            style={{
-                              backgroundColor: hasAttempted ? '#9ca3af' : '',
-                              cursor: hasAttempted ? 'not-allowed' : 'pointer',
-                              opacity: hasAttempted ? 0.7 : 1
-                            }}
-                          >
-                            {hasAttempted ? 'No Disponible' : 'Comenzar examen'}
-                            <i className={`fas ${hasAttempted ? 'fa-lock' : 'fa-arrow-right'}`}></i>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <i className="fas fa-file-alt" style={{ fontSize: '3rem', color: '#9ca3af' }}></i>
-                  <p>No hay exámenes disponibles en esta materia</p>
-                </div>
-              )}
+          ) : (
+            <div className="empty-state">
+              <i className="fas fa-book" style={{ fontSize: '3rem', color: '#9ca3af' }}></i>
+              <p>No hay cuadernos disponibles en esta materia</p>
             </div>
           )}
         </div>

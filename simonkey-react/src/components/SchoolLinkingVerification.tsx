@@ -130,6 +130,9 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
     try {
       console.log('🔍 Iniciando carga de datos de vinculación escolar...');
       
+      // Primero, ejecutar diagnóstico
+      await runDiagnostics();
+      
       // Cargar todas las instituciones
       console.log('🏫 Cargando instituciones...');
       const institutionsSnapshot = await getDocs(collection(db, 'schoolInstitutions'));
@@ -432,6 +435,29 @@ const SchoolLinkingVerification: React.FC<SchoolLinkingVerificationProps> = ({ o
   const runDiagnostics = async () => {
     console.log('🔍 === DIAGNÓSTICO DE COLECCIONES ESCOLARES ===');
     try {
+      // Verificar usuario actual
+      const { auth } = await import('../services/firebase');
+      const currentUser = auth.currentUser;
+      console.log('👤 Usuario actual:', currentUser?.uid, currentUser?.email);
+      
+      if (currentUser) {
+        // Buscar en colección users
+        try {
+          const userDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', currentUser.uid)));
+          console.log('📊 Usuario en colección users:', userDoc.empty ? 'NO ENCONTRADO' : userDoc.docs[0].data());
+        } catch (err) {
+          console.error('❌ Error buscando en users:', err);
+        }
+        
+        // Buscar en colección usuarios
+        try {
+          const userDoc2 = await getDocs(query(collection(db, 'usuarios'), where('__name__', '==', currentUser.uid)));
+          console.log('📊 Usuario en colección usuarios:', userDoc2.empty ? 'NO ENCONTRADO' : userDoc2.docs[0].data());
+        } catch (err) {
+          console.error('❌ Error buscando en usuarios:', err);
+        }
+      }
+      
       // Verificar cada colección
       const collections = [
         'schoolInstitutions',

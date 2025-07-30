@@ -1148,10 +1148,6 @@ const QuizModePage: React.FC = () => {
       <div className="quiz-session-container">
         {/* Header con progreso y timer */}
         <div className="quiz-header">
-          <div className="progress-text">
-            Pregunta {currentQuestionIndex + 1} de {questions.length}
-          </div>
-          
           <div className="quiz-progress">
             <div className="progress-bar">
               <div 

@@ -69,8 +69,13 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
       return;
     }
     
+    // Si es vista de admin, no hacer nada (no navegar)
+    if (isAdminView) {
+      return;
+    }
+    
     // Al hacer click en la card, entrar directamente a la materia
-    handleView({ stopPropagation: () => {} } as React.MouseEvent);
+    onView(id);
   };
 
   const handleMenuClick = (e: React.MouseEvent) => {
@@ -178,7 +183,10 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
         <div 
           className="materia-card-content" 
           onClick={handleCardClick}
-          style={{ '--materia-color': materiaColor } as React.CSSProperties}
+          style={{ 
+            '--materia-color': materiaColor,
+            cursor: isAdminView ? 'default' : 'pointer'
+          } as React.CSSProperties}
         >
         {isEditing ? (
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -315,39 +323,41 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
             overflow: 'hidden'
           }}
         >
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleView(e);
-            }}
-            className="dropdown-menu-item" 
-            title="Ver cuadernos"
-            disabled={hasError}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: 'none',
-              background: 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: hasError ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              color: hasError ? '#ccc' : '#333',
-              transition: 'background-color 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (!hasError) {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <i className="fas fa-eye" style={{ width: '16px', textAlign: 'center' }}></i>
-            <span>Ver cuadernos</span>
-          </button>
+          {!isAdminView && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleView(e);
+              }}
+              className="dropdown-menu-item" 
+              title="Ver cuadernos"
+              disabled={hasError}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: hasError ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                color: hasError ? '#ccc' : '#333',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!hasError) {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <i className="fas fa-eye" style={{ width: '16px', textAlign: 'center' }}></i>
+              <span>Ver cuadernos</span>
+            </button>
+          )}
           {onEdit && (
             <button 
               onClick={(e) => {

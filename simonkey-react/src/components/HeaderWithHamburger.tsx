@@ -23,7 +23,8 @@ import {
   faQuestionCircle,
   faStar,
   faSignOutAlt,
-  faEnvelope
+  faEnvelope,
+  faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderWithHamburgerProps {
@@ -44,7 +45,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
-  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher } = useUserType();
+  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -79,6 +80,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const isMateriasPage = location.pathname === '/materias';
   const isStudyPage = location.pathname === '/study';
   const isProgressPage = location.pathname === '/progress';
+  const isExamsPage = location.pathname === '/exams';
 
   const isFreeUser = subscription === 'free';
 
@@ -458,7 +460,17 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       >
         {/* Logo */}
         <div className="sidebar-header">
-          <div className="sidebar-logo" onClick={() => navigate('/inicio')} title="Ir al inicio">
+          <div className="sidebar-logo" onClick={() => {
+            if (isSchoolAdmin) {
+              navigate('/school/admin');
+            } else if (isSchoolTeacher) {
+              navigate('/school/teacher');
+            } else if (isSchoolTutor) {
+              navigate('/school/tutor');
+            } else {
+              navigate('/inicio');
+            }
+          }} title="Ir al inicio">
             <img
               src="/img/favicon.svg"
               alt="Logo Simonkey"
@@ -505,6 +517,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {(isSidebarExpanded || isSidebarPinned) && <span>Materias</span>}
               </button>
               <button 
+                className={`sidebar-icon-btn ${location.pathname === '/school/teacher/exams' ? 'active' : ''}`} 
+                onClick={() => navigate('/school/teacher/exams')}
+                title="Mis exámenes"
+              >
+                <FontAwesomeIcon icon={faFileAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
+              </button>
+              <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher/analytics' ? 'active' : ''}`} 
                 onClick={() => navigate('/school/teacher/analytics')}
                 title="Analítica"
@@ -513,16 +533,19 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
               </button>
             </>
-          ) : (
+          ) : isSchoolTutor ? (
             <>
               <button 
-                className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
-                onClick={() => navigate('/inicio')}
-                title="Pagina principal"
+                className={`sidebar-icon-btn ${location.pathname === '/school/tutor' ? 'active' : ''}`} 
+                onClick={() => navigate('/school/tutor')}
+                title="Analítica"
               >
-                <FontAwesomeIcon icon={faHome} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Pagina principal</span>}
+                <FontAwesomeIcon icon={faChartLine} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
               </button>
+            </>
+          ) : (
+            <>
               <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
                 onClick={() => navigate('/materias')}
@@ -554,6 +577,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
                 {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${isExamsPage ? 'active' : ''}`} 
+                onClick={() => navigate('/exams')} 
+                title="Exámenes"
+              >
+                <FontAwesomeIcon icon={faFileAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Exámenes</span>}
               </button>
             </>
           )}

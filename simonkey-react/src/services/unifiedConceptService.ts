@@ -37,6 +37,7 @@ export class UnifiedConceptService {
   static async getConceptDocs(notebookId: string): Promise<ConceptDoc[]> {
     const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId);
     
+    // IMPORTANTE: Ambas colecciones usan 'cuadernoId'
     const q = query(
       collection(db, conceptsCollection),
       where('cuadernoId', '==', notebookId)
