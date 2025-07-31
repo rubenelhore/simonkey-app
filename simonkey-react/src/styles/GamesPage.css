@@ -395,12 +395,14 @@
   background: white;
   border-radius: 20px;
   padding: 32px;
-  max-width: 400px;
+  max-width: 450px !important;
   width: 90%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease;
   transform-origin: center center;
   will-change: transform, opacity;
+  position: relative;
+  margin: 0 auto;
 }
 
 @keyframes slideIn {

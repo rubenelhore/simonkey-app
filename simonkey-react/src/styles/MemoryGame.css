@@ -463,6 +463,8 @@
   display: flex;
   gap: 16px;
   justify-content: center;
+  align-items: center;
+  width: 100%;
 }
 
 .play-again-btn,
@@ -490,6 +492,8 @@
 .back-to-games-btn {
   background: #e5e7eb;
   color: #374151;
+  margin: 0 auto;
+  display: block;
 }
 
 .back-to-games-btn:hover {

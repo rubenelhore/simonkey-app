@@ -181,6 +181,26 @@ const GamesPage: React.FC = () => {
   const confirmUseTicket = async () => {
     if (!pendingGame || !tickets) return;
     
+    // Verificar nuevamente si el cuaderno está congelado antes de consumir el ticket
+    if (isNotebookFrozen) {
+      alert('Este cuaderno está congelado. No puedes jugar en este momento.');
+      setShowTicketModal(false);
+      setPendingGame(null);
+      return;
+    }
+    
+    // Verificar nuevamente si hay conceptos repasados antes de consumir el ticket
+    setCheckingConcepts(true);
+    const hasReviewed = await checkReviewedConcepts();
+    setCheckingConcepts(false);
+    
+    if (!hasReviewed) {
+      alert('¡Primero necesitas estudiar! Para jugar, necesitas haber repasado algunos conceptos en el estudio inteligente.');
+      setShowTicketModal(false);
+      setPendingGame(null);
+      return;
+    }
+    
     const gameNames: Record<string, string> = {
       'memory': 'Memorama',
       'race': 'Carrera de Conceptos',

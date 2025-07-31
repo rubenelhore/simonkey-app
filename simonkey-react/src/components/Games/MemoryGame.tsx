@@ -427,9 +427,6 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
             </div>
 
             <div className="modal-actions">
-              <button className="play-again-btn" onClick={resetGame}>
-                Jugar de nuevo
-              </button>
               <button className="back-to-games-btn" onClick={onBack}>
                 Volver a juegos
               </button>

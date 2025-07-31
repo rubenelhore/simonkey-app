@@ -630,14 +630,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
               </button>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
-                onClick={() => navigate('/exams')}
-                title="Mis exámenes"
-              >
-                <FontAwesomeIcon icon={faFileAlt} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
-              </button>
-              <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
                 onClick={handleCalendarClick} 
                 title="Calendario"

@@ -652,10 +652,10 @@
   position: absolute;
   top: 20px;
   left: 20px;
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
   border-radius: var(--radius-md);
   padding: 1rem 1.5rem;
-  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
   color: white;
   width: 221.02px;
   z-index: 10;
@@ -1324,19 +1324,19 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: var(--bg-white);
-  border: 1px solid var(--border-light);
+  background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
+  border: 1px solid rgba(97, 71, 255, 0.3);
   border-radius: var(--radius-md);
   padding: 0.875rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
   transition: var(--transition);
   z-index: 50;
   min-width: 150px;
 }
 
 .corner-medal-module:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-md);
+  border-color: rgba(97, 71, 255, 0.5);
+  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.4);
   transform: translateY(-1px);
 }
 
@@ -1372,20 +1372,22 @@
 .corner-medal-label {
   font-size: 0.7rem;
   font-weight: 500;
-  color: var(--primary-color);
+  color: white;
   margin-bottom: 0.1rem;
+  opacity: 0.9;
 }
 
 .corner-medal-division {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-dark);
+  color: white;
 }
 
 .corner-medal-progress {
   font-size: 0.75rem;
-  color: var(--text-medium);
+  color: white;
   margin-top: 0.125rem;
+  opacity: 0.9;
 }
 
 /* Corner medals grid */
@@ -1409,16 +1411,16 @@
 }
 
 .corner-medal-item:hover {
-  background: var(--bg-light);
+  background: rgba(255, 255, 255, 0.1);
   transform: scale(1.05);
 }
 
 .corner-medal-item.earned {
-  background: linear-gradient(135deg, rgba(97, 71, 255, 0.1), rgba(255, 215, 0, 0.1));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 215, 0, 0.2));
 }
 
 .corner-medal-item.current-target {
-  background: linear-gradient(135deg, rgba(97, 71, 255, 0.2), rgba(255, 215, 0, 0.1));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 215, 0, 0.2));
   animation: pulse-corner-medal 2s infinite;
 }
 
@@ -1435,7 +1437,7 @@
 .corner-medal-requirement {
   font-size: 0.5rem;
   font-weight: 600;
-  color: var(--text-dark);
+  color: white;
   text-align: center;
   line-height: 1;
 }
@@ -1447,11 +1449,11 @@
   gap: 1rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .corner-nav-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -1461,13 +1463,13 @@
   justify-content: center;
   cursor: pointer;
   transition: var(--transition);
-  color: var(--text-medium);
+  color: white;
   font-size: 0.625rem;
 }
 
 .corner-nav-btn:hover:not(:disabled) {
-  color: var(--primary-color);
-  background: rgba(97, 71, 255, 0.1);
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
 }
 
