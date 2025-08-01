@@ -77,17 +77,20 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.3); /* Lightened overlay for better contrast */
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
   padding-top: 100px; /* Espacio adicional para evitar que lo tape el header */
+  -webkit-backdrop-filter: blur(2px); /* iOS blur effect */
+  backdrop-filter: blur(2px);
 }
 
 .study-intro-modal {
   background: white;
+  background-color: #FFFFFF; /* Explicit white for iOS */
   border-radius: 16px;
   padding: 2rem;
   max-width: 600px;
@@ -95,6 +98,10 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   max-height: 90vh;
   overflow-y: auto;
+  position: relative; /* Ensure proper positioning */
+  z-index: 1001; /* Above overlay */
+  -webkit-transform: translateZ(0); /* Force GPU acceleration on iOS */
+  transform: translateZ(0);
 }
 
 .intro-header {
@@ -103,6 +110,7 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
   color: #6147FF;
+  -webkit-text-fill-color: #6147FF; /* iOS text color fix */
 }
 
 .intro-header i {
@@ -114,6 +122,7 @@
   font-size: 1.75rem;
   font-weight: 700;
   color: #1C1C1E;
+  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
 }
 
 .intro-content {
@@ -208,6 +217,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: #1C1C1E;
+  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
 }
 
 .intensity-option.disabled h4 {
@@ -218,6 +228,7 @@
   margin: 0;
   font-size: 0.875rem;
   color: #48484A;
+  -webkit-text-fill-color: #48484A; /* iOS text color fix */
 }
 
 .intensity-option .intensity-requirement {
@@ -416,5 +427,51 @@
   .action-button {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* iOS Safari specific fixes for study-intro-modal */
+@supports (-webkit-touch-callout: none) {
+  .study-intro-modal {
+    background-color: #FFFFFF !important;
+    -webkit-transform: translate3d(0,0,0);
+    transform: translate3d(0,0,0);
+  }
+  
+  .study-intro-modal * {
+    -webkit-text-fill-color: initial !important;
+    color: inherit !important;
+  }
+  
+  .study-intro-modal h2,
+  .study-intro-modal h3,
+  .study-intro-modal h4 {
+    color: #1C1C1E !important;
+    -webkit-text-fill-color: #1C1C1E !important;
+  }
+  
+  .study-intro-modal p {
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
+  }
+  
+  .intensity-option {
+    background-color: #F5F5F7 !important;
+  }
+  
+  .intensity-option.selected {
+    background-color: #E8E3FF !important;
+  }
+  
+  .action-button.primary {
+    background-color: #6147FF !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+  }
+  
+  .action-button.secondary {
+    background-color: #E5E5EA !important;
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
   }
 }

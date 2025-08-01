@@ -34,7 +34,8 @@
       "Bash(git submodule:*)",
       "Bash(npm install)",
       "Bash(firebase functions:delete:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(echo:*)"
     ],
     "deny": []
   }
