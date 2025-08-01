@@ -1192,47 +1192,56 @@ const StudyModePage = () => {
               </button>
               
               {showNotebookDropdown && (
-                <div className="notebook-dropdown">
-                  {Object.keys(allUserNotebooks).length === 0 ? (
-                    <div className="dropdown-empty">No hay cuadernos disponibles</div>
-                  ) : (
-                    <>
-                      {/* Mostrar todas las materias con sus cuadernos */}
-                      {Object.entries(allUserNotebooks)
-                        .sort(([, a], [, b]) => {
-                          // Ordenar materias alfabéticamente
-                          const nombreA = a.materia.nombre || a.materia.title || '';
-                          const nombreB = b.materia.nombre || b.materia.title || '';
-                          return nombreA.localeCompare(nombreB);
-                        })
-                        .map(([materiaId, { materia, notebooks }]) => (
-                          <div key={materiaId} className="materia-group">
-                            <div className="dropdown-section-title">
-                              {materia.nombre || materia.title}
-                            </div>
-                            {notebooks.map(notebook => (
-                              <div 
-                                key={notebook.id}
-                                className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
-                                onClick={() => {
-                                  setSelectedMateria(materia);
-                                  handleSelectNotebook(notebook);
-                                  setShowNotebookDropdown(false);
-                                  const lastMateriaKey = isSchoolStudent ? 
-                                    `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
-                                    'lastStudyMateriaId';
-                                  localStorage.setItem(lastMateriaKey, materia.id);
-                                }}
-                              >
-                                <span>{notebook.title}</span>
-                                {notebook.isFrozen && <FontAwesomeIcon icon={faSnowflake} />}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                    </>
+                <>
+                  {/* Mobile overlay */}
+                  {window.innerWidth <= 768 && (
+                    <div 
+                      className="mobile-dropdown-overlay"
+                      onClick={() => setShowNotebookDropdown(false)}
+                    />
                   )}
-                </div>
+                  <div className="notebook-dropdown">
+                    {Object.keys(allUserNotebooks).length === 0 ? (
+                      <div className="dropdown-empty">No hay cuadernos disponibles</div>
+                    ) : (
+                      <>
+                        {/* Mostrar todas las materias con sus cuadernos */}
+                        {Object.entries(allUserNotebooks)
+                          .sort(([, a], [, b]) => {
+                            // Ordenar materias alfabéticamente
+                            const nombreA = a.materia.nombre || a.materia.title || '';
+                            const nombreB = b.materia.nombre || b.materia.title || '';
+                            return nombreA.localeCompare(nombreB);
+                          })
+                          .map(([materiaId, { materia, notebooks }]) => (
+                            <div key={materiaId} className="materia-group">
+                              <div className="dropdown-section-title">
+                                {materia.nombre || materia.title}
+                              </div>
+                              {notebooks.map(notebook => (
+                                <div 
+                                  key={notebook.id}
+                                  className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
+                                  onClick={() => {
+                                    setSelectedMateria(materia);
+                                    handleSelectNotebook(notebook);
+                                    setShowNotebookDropdown(false);
+                                    const lastMateriaKey = isSchoolStudent ? 
+                                      `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
+                                      'lastStudyMateriaId';
+                                    localStorage.setItem(lastMateriaKey, materia.id);
+                                  }}
+                                >
+                                  <span>{notebook.title}</span>
+                                  {notebook.isFrozen && <FontAwesomeIcon icon={faSnowflake} />}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                      </>
+                    )}
+                  </div>
+                </>
               )}
               
               {/* Error message */}

@@ -1,0 +1,133 @@
+/* Estilos para la sección de funcionalidades */
+#funcionalidades-de-simonkey {
+  padding: 40px 20px !important;
+}
+
+#funcionalidades-de-simonkey h2 {
+  font-size: 2rem !important;
+  margin-bottom: 24px !important;
+}
+
+/* Container principal de funcionalidades */
+#funcionalidades-de-simonkey > div:last-child {
+  padding: 0 20px;
+}
+
+/* Media queries para móviles */
+@media (max-width: 768px) {
+  #funcionalidades-de-simonkey {
+    padding: 24px 16px !important;
+    margin-bottom: 24px !important;
+  }
+  
+  #funcionalidades-de-simonkey h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 20px !important;
+    padding: 0 12px;
+  }
+  
+  /* Cambiar a diseño vertical en móvil */
+  #funcionalidades-de-simonkey > div:last-child {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding: 0 12px !important;
+  }
+  
+  /* Lista de funcionalidades a ancho completo */
+  #funcionalidades-de-simonkey > div:last-child > div:first-child {
+    flex: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  /* Imagen después de la lista en móvil */
+  #funcionalidades-de-simonkey > div:last-child > div:last-child {
+    flex: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 250px !important;
+    min-height: 250px !important;
+  }
+  
+  /* Items de la lista */
+  #funcionalidades-de-simonkey li {
+    padding: 14px 16px !important;
+    margin-bottom: 8px !important;
+  }
+  
+  /* Títulos de los items */
+  #funcionalidades-de-simonkey li > div > div:first-child {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Descripciones de los items */
+  #funcionalidades-de-simonkey li > div > div:last-child {
+    font-size: 0.75rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  /* Barra lateral del primer item */
+  #funcionalidades-de-simonkey li > div:first-child {
+    height: 60% !important;
+    left: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #funcionalidades-de-simonkey {
+    padding: 20px 12px !important;
+  }
+  
+  #funcionalidades-de-simonkey h2 {
+    font-size: 1.3rem !important;
+    padding: 0 8px;
+  }
+  
+  /* Padding más pequeño en móviles muy pequeños */
+  #funcionalidades-de-simonkey > div:last-child {
+    padding: 0 8px !important;
+  }
+  
+  /* Items más compactos */
+  #funcionalidades-de-simonkey li {
+    padding: 12px 14px !important;
+    margin-bottom: 6px !important;
+  }
+  
+  /* Imagen más pequeña */
+  #funcionalidades-de-simonkey > div:last-child > div:last-child {
+    height: 200px !important;
+    min-height: 200px !important;
+  }
+  
+  /* Títulos más pequeños */
+  #funcionalidades-de-simonkey li > div > div:first-child {
+    font-size: 0.85rem !important;
+  }
+  
+  /* Descripciones más pequeñas */
+  #funcionalidades-de-simonkey li > div > div:last-child {
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Mejoras adicionales para móvil */
+@media (max-width: 768px) {
+  /* Hacer los items más táctiles */
+  #funcionalidades-de-simonkey li {
+    min-height: 60px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  #funcionalidades-de-simonkey li:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Imagen con bordes redondeados más suaves en móvil */
+  #funcionalidades-de-simonkey img {
+    border-radius: 8px !important;
+  }
+}

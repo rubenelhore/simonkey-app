@@ -124,6 +124,23 @@ const Header: React.FC = () => {
       )}
       
       <header className="header" style={{ marginLeft: shouldShowSidebar && isSidebarPinned ? '250px' : '0', transition: 'margin-left 0.3s ease' }}>
+      {/* Overlay para cerrar el menú móvil */}
+      {isMenuOpen && (
+        <div 
+          className="menu-overlay"
+          onClick={closeMenu}
+          style={{
+            position: 'fixed',
+            top: '70px',
+            left: 0,
+            width: '100%',
+            height: 'calc(100vh - 70px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 998,
+            display: 'none'
+          }}
+        />
+      )}
       <div className="header-container">
         <nav className={`nav ${isMenuOpen ? 'menu-open' : ''}`}>
           <div className="nav-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -166,6 +183,17 @@ const Header: React.FC = () => {
                 </span>
               </div>
             </div>
+            
+            {/* Botón hamburguesa móvil a la derecha */}
+            <button 
+              className="mobile-hamburger-btn"
+              onClick={toggleMenu}
+              aria-label="Menú móvil"
+            >
+              <span className="mobile-hamburger-line"></span>
+              <span className="mobile-hamburger-line"></span>
+              <span className="mobile-hamburger-line"></span>
+            </button>
           </div>
           {/* Menú de notificaciones */}
           {showNotifications && (

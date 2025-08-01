@@ -452,6 +452,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       </header>
       
+      {/* Overlay para móvil cuando el menú está abierto */}
+      {(isSidebarExpanded || isSidebarPinned) && (
+        <div 
+          className="menu-overlay mobile-only"
+          onClick={toggleSidebarPin}
+        />
+      )}
+      
       {/* Nueva barra lateral fija */}
       <div 
         className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}

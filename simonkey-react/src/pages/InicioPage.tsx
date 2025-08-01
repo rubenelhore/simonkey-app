@@ -80,7 +80,7 @@ const InicioPage: React.FC = () => {
         const kpiService = await import('../services/kpiService');
         const kpisData = await kpiService.getKPIsFromCache(user.uid);
         const globalScore = kpisData?.global?.scoreGlobal || 0;
-        setCurrentScore(globalScore);
+        setCurrentScore(Math.ceil(globalScore));
         
         // Obtener conceptos dominados y calcular división
         const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);

@@ -1,5 +1,6 @@
 import React, { useRef, useLayoutEffect, useState } from 'react';
-import './HowItWorks.css'; // Estilos que crearemos a continuación
+import './HowItWorks.css';
+import './FuncionalidadesSimonkey.css';
 
 const funcionalidades = [
   {

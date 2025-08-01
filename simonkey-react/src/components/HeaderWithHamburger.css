@@ -1509,142 +1509,71 @@
     font-size: 0.8rem;
   }
   
-  /* Sidebar responsive - mantener comportamiento de escritorio */
+  /* Sidebar como overlay en móvil */
   .sidebar-nav {
-    width: 60px;
-    height: calc(100vh - 70px);
-    position: fixed;
-    top: 70px;
-    left: 0;
-    flex-direction: column;
-    padding: 0;
-    z-index: 998;
+    position: fixed !important;
+    top: 0 !important;
+    left: -250px !important;
+    width: 250px !important;
+    height: 100vh !important;
+    z-index: 999 !important;
+    transition: left 0.3s ease !important;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
   }
   
-  .sidebar-nav.sidebar-expanded {
-    width: 200px;
+  /* Mostrar sidebar cuando está expandido */
+  .sidebar-nav.sidebar-expanded,
+  .sidebar-nav.sidebar-pinned {
+    left: 0 !important;
   }
   
-  .sidebar-header {
-    display: flex;
+  /* Overlay de fondo cuando el menú está abierto */
+  .menu-overlay.mobile-only {
+    display: none;
   }
   
-  .sidebar-icons {
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: 1rem 0;
-    gap: 0.5rem;
-    flex: 1;
+  /* Ajuste del header en móvil */
+  .limited-header {
+    left: 0 !important;
   }
   
-  .sidebar-icon-btn {
-    flex-direction: row;
-    gap: 1rem;
-    padding: 0.75rem;
-    margin: 0 0.5rem;
-    min-height: 44px;
-    justify-content: center;
-  }
-
-  .sidebar-expanded .sidebar-icon-btn {
-    justify-content: flex-start;
-  }
-  
-  .sidebar-icon-btn svg {
-    font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
-    min-width: 20px;
-  }
-  
-  .sidebar-icon-btn span {
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 500;
-    white-space: nowrap;
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-    transform: translateX(-10px);
-    transition: all 0.3s ease;
-  }
-
-  .sidebar-expanded .sidebar-icon-btn span {
-    opacity: 1;
-    width: auto;
-    transform: translateX(0);
-  }
-  
-  .sidebar-user-section {
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 249px;
-    height: 42px;
-    box-sizing: border-box;
-  }
-
-  .user-avatar-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    width: 246px !important;
-    height: 54px !important;
-    padding: 0.5rem 0.125rem;
-    border-radius: 4px;
-    box-sizing: border-box;
-  }
-
-  .sidebar-expanded .user-avatar-container {
-    justify-content: flex-start;
-    padding-left: 0.5rem;
-  }
-
-  .user-avatar {
-    width: 18px;
-    height: 18px;
-    font-size: 0.65rem;
-    min-width: 18px;
-  }
-
-  .user-info {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 0;
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-    transform: translateX(-10px);
-    transition: all 0.3s ease;
-  }
-
-  .sidebar-expanded .user-info {
-    opacity: 1;
-    width: auto;
-    transform: translateX(0);
-  }
-
-  .user-menu-popup-external {
-    left: 70px;
-    bottom: 90px;
-    width: 240px;
-  }
-
-  .sidebar-expanded .user-menu-popup-external {
-    left: 260px;
+  .menu-open .limited-header {
+    left: 0 !important;
   }
   
   /* Ajuste del contenido en móvil */
+  .content-wrapper {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  
   .header-with-hamburger-container ~ * {
-    margin-left: 60px;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 0 !important;
   }
   
   .header-with-hamburger-container.menu-open ~ * {
-    margin-left: 200px;
+    margin-left: 0 !important;
+  }
+  
+  /* Popup del menú de usuario oculto en móvil */
+  .user-menu-popup-external {
+    display: none !important;
+  }
+  
+  /* Ocultar botón de pantalla completa en móvil */
+  .fullscreen-btn {
+    display: none !important;
+  }
+  
+  /* Centrar verticalmente el botón hamburguesa y mantenerlo a la izquierda */
+  .hamburger-btn {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    left: 1rem !important;
+    right: auto !important;
+    display: block !important;
   }
   
   /* Estilos responsivos para botones horizontales en móvil */
@@ -1663,6 +1592,18 @@
   .modal-content {
     width: 95%;
     margin: 1rem;
+  }
+  
+  /* Mostrar overlay solo en móvil */
+  .menu-overlay.mobile-only {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 998;
   }
 }
 

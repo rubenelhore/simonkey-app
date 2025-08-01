@@ -461,7 +461,7 @@ const ProgressPage: React.FC = () => {
           setRankingData([{ 
             posicion: 1, 
             nombre: 'Tú', 
-            score: globalScore 
+            score: Math.ceil(globalScore) 
           }]);
         } else {
           // Para una materia específica, mostrar el score de esa materia
@@ -469,7 +469,7 @@ const ProgressPage: React.FC = () => {
           setRankingData([{ 
             posicion: 1, 
             nombre: 'Tú', 
-            score: materiaScore 
+            score: Math.ceil(materiaScore) 
           }]);
         }
         return;
@@ -510,7 +510,7 @@ const ProgressPage: React.FC = () => {
         setRankingData([{ 
           posicion: 1, 
           nombre: 'Tú', 
-          score: userScore 
+          score: Math.ceil(userScore) 
         }]);
         return;
       }
@@ -866,7 +866,7 @@ const ProgressPage: React.FC = () => {
   // Ya no necesitamos datos de ejemplo, usamos cuadernosReales
 
   // Usar datos reales si están disponibles, si no usar valores por defecto
-  const globalScore = kpisData?.global?.scoreGlobal || 0;
+  const globalScore = Math.ceil(kpisData?.global?.scoreGlobal || 0);
   const globalPercentil = kpisData?.global?.percentilPromedioGlobal || 0;
   const globalStudyTime = kpisData?.global?.tiempoEstudioGlobal || 0;
   const globalSmartStudies = kpisData?.global?.estudiosInteligentesGlobal || 0;
@@ -1206,7 +1206,7 @@ const ProgressPage: React.FC = () => {
                           return (
                             <tr key={cuaderno.id}>
                               <td className="notebook-name">{cuaderno.nombre}</td>
-                              <td className="score-cell">{Math.round(cuaderno.score).toLocaleString('es-ES')}</td>
+                              <td className="score-cell">{Math.ceil(cuaderno.score).toLocaleString('es-ES')}</td>
                               <td className="position-cell">
                                 #{cuaderno.posicion} de {cuaderno.totalAlumnos}
                               </td>
