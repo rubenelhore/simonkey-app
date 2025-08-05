@@ -27,6 +27,7 @@ import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
 import SchoolMigrationTool from '../components/SchoolMigrationTool';
 import StudyLogicVerification from '../components/StudyLogicVerification';
 import DashboardVerification from '../components/DashboardVerification';
+import UniversityUsersTab from '../components/UniversityUsersTab';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
@@ -869,6 +870,13 @@ const SuperAdminPage: React.FC = () => {
             <i className="fas fa-chart-pie"></i>
             Verificación de Lógica de Dashboards
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'university' ? 'active' : ''}`}
+            onClick={() => setActiveTab('university')}
+          >
+            <i className="fas fa-graduation-cap"></i>
+            Usuarios Universitarios
+          </button>
         </nav>
 
         <div className="tab-content">
@@ -937,6 +945,7 @@ const SuperAdminPage: React.FC = () => {
                                 if (role === 'tutor') roleText = 'Tutor';
                                 return `🏫 Escolar - ${roleText}`;
                               }
+                              if (sub === 'university') return '🎓 Universidad';
                               // Por defecto es FREE
                               return '🆓 Gratis';
                             })()}
@@ -1024,6 +1033,7 @@ const SuperAdminPage: React.FC = () => {
                             <option value={UserSubscriptionType.FREE}>🆓 Gratis</option>
                             <option value={UserSubscriptionType.PRO}>⭐ Pro</option>
                             <option value={UserSubscriptionType.SCHOOL}>🏫 Escolar</option>
+                            <option value={UserSubscriptionType.UNIVERSITY}>🎓 Universidad</option>
                             <option value={UserSubscriptionType.SUPER_ADMIN}>👑 Súper Admin</option>
                           </select>
                         </div>
@@ -1474,6 +1484,11 @@ const SuperAdminPage: React.FC = () => {
               </div>
               <DashboardVerification />
             </div>
+          )}
+
+          {/* Tab de Usuarios Universitarios */}
+          {activeTab === 'university' && (
+            <UniversityUsersTab />
           )}
 
 

@@ -56,6 +56,17 @@ const SUBSCRIPTION_LIMITS: Record<UserSubscriptionType, SubscriptionLimits> = {
       canManageUsers: false,
     },
   },
+  [UserSubscriptionType.UNIVERSITY]: {
+    maxNotebooks: -1, // Sin límite
+    maxConceptsPerNotebook: -1, // Sin límite
+    canDeleteAndRecreate: true,
+    permissions: {
+      canViewAllData: false,
+      canEditAllData: false,
+      canUseStudySection: false, // Los usuarios universitarios no usan el sistema de estudio
+      canManageUsers: false,
+    },
+  },
 };
 
 /**
@@ -1019,5 +1030,113 @@ export const linkGoogleAccountToExistingUser = async (
   } catch (error) {
     logger.error('❌ Error vinculando cuenta de Google:', error);
     return false;
+  }
+};
+
+/**
+ * Crea un usuario universitario
+ * Esta función debe ser llamada desde el panel de administración
+ */
+export const createUniversityUser = async (
+  userData: {
+    email: string;
+    username: string;
+    nombre: string;
+    displayName: string;
+    birthdate: string;
+    schoolName?: string; // Nombre de la universidad
+    password?: string;
+  }
+): Promise<{ success: boolean; userId?: string; error?: string }> => {
+  try {
+    logger.debug('🎓 Creando usuario universitario:', userData.email);
+    
+    // Verificar si ya existe un usuario con este email
+    const existingUserCheck = await checkUserExistsByEmail(userData.email);
+    if (existingUserCheck.exists) {
+      return { 
+        success: false, 
+        error: 'Ya existe un usuario con este email' 
+      };
+    }
+    
+    // Generar un ID único para el usuario
+    const userId = doc(collection(db, 'users')).id;
+    
+    // Obtener límites para usuarios university
+    const limits = getSubscriptionLimits(UserSubscriptionType.UNIVERSITY);
+    
+    // Crear el perfil del usuario
+    const userProfile: UserProfile = {
+      id: userId,
+      email: userData.email,
+      username: userData.username,
+      nombre: userData.nombre,
+      displayName: userData.displayName,
+      birthdate: userData.birthdate,
+      createdAt: Timestamp.now(),
+      subscription: UserSubscriptionType.UNIVERSITY,
+      notebookCount: 0,
+      maxNotebooks: limits.maxNotebooks,
+      maxConceptsPerNotebook: limits.maxConceptsPerNotebook,
+      schoolName: userData.schoolName,
+      password: userData.password,
+      requiresPasswordChange: !!userData.password, // Requerir cambio si se proporciona contraseña
+      hasCompletedOnboarding: true, // Los usuarios university no necesitan onboarding
+    };
+    
+    // Guardar el perfil en Firestore
+    await setDoc(doc(db, 'users', userId), userProfile);
+    
+    logger.debug('✅ Usuario universitario creado exitosamente:', userId);
+    return { success: true, userId };
+    
+  } catch (error) {
+    logger.error('❌ Error creando usuario universitario:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    };
+  }
+};
+
+/**
+ * Actualiza un usuario existente a tipo university
+ */
+export const updateUserToUniversity = async (
+  userId: string,
+  schoolName?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    logger.debug('🎓 Actualizando usuario a tipo university:', userId);
+    
+    // Verificar que el usuario existe
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+      return { 
+        success: false, 
+        error: 'Usuario no encontrado' 
+      };
+    }
+    
+    // Actualizar el tipo de suscripción
+    await updateUserSubscription(userId, UserSubscriptionType.UNIVERSITY);
+    
+    // Actualizar información adicional si se proporciona
+    if (schoolName) {
+      await updateDoc(doc(db, 'users', userId), {
+        schoolName: schoolName
+      });
+    }
+    
+    logger.debug('✅ Usuario actualizado a university exitosamente');
+    return { success: true };
+    
+  } catch (error) {
+    logger.error('❌ Error actualizando usuario a university:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    };
   }
 }; 

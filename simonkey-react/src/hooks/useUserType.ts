@@ -30,6 +30,7 @@ export const useUserType = () => {
       isSchoolStudent: false,
       isSchoolAdmin: false,
       isSchoolTutor: false,
+      isUniversityUser: false,
       userProfile: null,
       loading: false // Cambiado de true a false
     };
@@ -46,6 +47,7 @@ export const useUserType = () => {
       isSchoolStudent: false,
       isSchoolAdmin: false,
       isSchoolTutor: false,
+      isUniversityUser: false,
       userProfile: null,
       loading: true
     };
@@ -71,6 +73,7 @@ export const useUserType = () => {
   const isSchoolStudent = isSchoolUser && normalizedSchoolRole === SchoolRole.STUDENT;
   const isSchoolAdmin = isSchoolUser && normalizedSchoolRole === SchoolRole.ADMIN;
   const isSchoolTutor = isSchoolUser && normalizedSchoolRole === SchoolRole.TUTOR;
+  const isUniversityUser = normalizedSubscription === UserSubscriptionType.UNIVERSITY;
   
   // Log de los roles calculados - COMENTADO PARA REDUCIR RUIDO
   // console.log('useUserType - Roles calculados:');
@@ -79,6 +82,7 @@ export const useUserType = () => {
   // console.log('  - isSchoolStudent:', isSchoolStudent);
   // console.log('  - isSchoolAdmin:', isSchoolAdmin);
   // console.log('  - isSchoolTutor:', isSchoolTutor);
+  // console.log('  - isUniversityUser:', isUniversityUser);
   // console.log('  - schoolRole:', schoolRole);
 
   return {
@@ -90,6 +94,7 @@ export const useUserType = () => {
     isSchoolStudent,
     isSchoolAdmin,
     isSchoolTutor,
+    isUniversityUser,
     userProfile,
     loading: false
   };

@@ -13,6 +13,7 @@ import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import '../styles/MiniQuiz.css';
+import '../styles/StudySessionPage.css';
 
 interface MiniQuizProps {
   notebookId: string;
@@ -47,11 +48,23 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   
   // Estado del timer y puntuación
+  
+  // Cache para conceptos del cuaderno
+  const [allNotebookConcepts, setAllNotebookConcepts] = useState<Concept[]>([]);
+  const [conceptsCached, setConceptsCached] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [finalScore, setFinalScore] = useState<number>(0);
   const [passed, setPassed] = useState<boolean>(false);
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [sessionStartTime] = useState<Date>(new Date());
+  const [showWarningModal, setShowWarningModal] = useState<boolean>(false);
+  
+  // Estados para rastrear respuestas correctas e incorrectas por separado
+  const [correctAnswers, setCorrectAnswers] = useState<number>(0);
+  const [incorrectAnswers, setIncorrectAnswers] = useState<number>(0);
+  
+  // Estado para mostrar pausa antes de resultados finales
+  const [showResultsPause, setShowResultsPause] = useState<boolean>(false);
 
   // Usar useRef para guardar las preguntas y evitar que se pierdan
   const questionsRef = useRef<QuizQuestion[]>([]);
@@ -136,7 +149,14 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         finalScore
       });
       
-      completeMiniQuiz(finalScore, 0);
+      // Mostrar pausa con resultados temporales antes de continuar
+      setShowResultsPause(true);
+      
+      // Esperar 1 segundo antes de mostrar la pantalla final
+      setTimeout(() => {
+        setShowResultsPause(false);
+        completeMiniQuiz(finalScore, 0);
+      }, 1000);
     } else {
       console.log('[MINI QUIZ] handleTimeUp ignorado - ya completado');
     }
@@ -150,66 +170,14 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       }
 
       let quizConcepts: Concept[] = [];
-      let allNotebookConcepts: Concept[] = [];
 
       // Si se proporcionaron conceptos de la sesión, usarlos para el quiz
       if (sessionConcepts && sessionConcepts.length > 0) {
         console.log('[MINI QUIZ] Usando conceptos de la sesión actual:', sessionConcepts.length);
         quizConcepts = [...sessionConcepts];
-        
-        // Aún necesitamos todos los conceptos del cuaderno para las opciones incorrectas
-        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
-        const conceptsQuery = query(
-          collection(db, collectionName),
-          where('cuadernoId', '==', notebookId)
-        );
-        
-        const conceptDocs = await getDocs(conceptsQuery);
-        for (const doc of conceptDocs.docs) {
-          const conceptosData = doc.data().conceptos || [];
-          conceptosData.forEach((concepto: any, index: number) => {
-            allNotebookConcepts.push({
-              id: concepto.id || `${doc.id}-${index}`,
-              término: concepto.término,
-              definición: concepto.definición,
-              fuente: concepto.fuente,
-              usuarioId: concepto.usuarioId,
-              docId: doc.id,
-              index,
-              notasPersonales: concepto.notasPersonales,
-              reviewId: concepto.reviewId,
-              dominado: concepto.dominado
-            } as Concept);
-          });
-        }
       } else {
-        // Fallback: obtener todos los conceptos del cuaderno
-        console.log('[MINI QUIZ] No hay conceptos de sesión, usando todos los conceptos del cuaderno');
-        
-        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
-        const conceptsQuery = query(
-          collection(db, collectionName),
-          where('cuadernoId', '==', notebookId)
-        );
-        
-        const conceptDocs = await getDocs(conceptsQuery);
-        for (const doc of conceptDocs.docs) {
-          const conceptosData = doc.data().conceptos || [];
-          conceptosData.forEach((concepto: any, index: number) => {
-            allNotebookConcepts.push({
-              id: concepto.id || `${doc.id}-${index}`,
-              término: concepto.término,
-              definición: concepto.definición,
-              fuente: concepto.fuente,
-              usuarioId: concepto.usuarioId,
-              docId: doc.id,
-              index,
-              notasPersonales: concepto.notasPersonales,
-              reviewId: concepto.reviewId,
-              dominado: concepto.dominado
-            } as Concept);
-          });
-        }
+        // Fallback: usar conceptos cacheados del cuaderno
+        console.log('[MINI QUIZ] No hay conceptos de sesión, usando conceptos cacheados del cuaderno');
         quizConcepts = [...allNotebookConcepts];
       }
 
@@ -221,21 +189,56 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       const maxQuestions = Math.min(5, quizConcepts.length);
       const shuffledConcepts = quizConcepts.sort(() => 0.5 - Math.random());
       const selectedConcepts = shuffledConcepts.slice(0, maxQuestions);
+
+      // Crear pool de todos los conceptos disponibles para distractores
+      const conceptsMap = new Map();
       
-      // Si no tenemos todos los conceptos del cuaderno, usar los de la sesión para las opciones
-      if (allNotebookConcepts.length === 0) {
-        allNotebookConcepts = [...quizConcepts];
-      }
+      // Añadir conceptos del quiz
+      quizConcepts.forEach(concept => conceptsMap.set(concept.id, concept));
+      
+      // Añadir conceptos del cuaderno (sin duplicar)
+      allNotebookConcepts.forEach(concept => conceptsMap.set(concept.id, concept));
+      
+      const allAvailableConcepts = Array.from(conceptsMap.values());
+
+      console.log(`[MINI QUIZ] Pool de conceptos para distractores: ${allAvailableConcepts.length} conceptos`);
 
       // Generar preguntas
       const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
-        // Seleccionar 3 distractores aleatorios de todos los conceptos del cuaderno
-        const otherConcepts = allNotebookConcepts.filter(c => c.id !== concept.id);
-        const distractors = otherConcepts
+        // Seleccionar 3 distractores aleatorios de TODOS los conceptos disponibles
+        const otherConcepts = allAvailableConcepts.filter(c => c.id !== concept.id);
+        let distractors = otherConcepts
           .sort(() => 0.5 - Math.random())
           .slice(0, 3);
 
-        // Crear opciones
+        console.log(`[MINI QUIZ] Conceptos disponibles para distractores: ${otherConcepts.length}, distractores seleccionados: ${distractors.length}`);
+
+        // Si aún no hay suficientes distractores, usar los conceptos restantes del quiz
+        if (distractors.length < 3) {
+          const remainingQuizConcepts = selectedConcepts.filter(c => c.id !== concept.id && !distractors.find(d => d.id === c.id));
+          distractors = [...distractors, ...remainingQuizConcepts].slice(0, 3);
+        }
+
+        // Solo como último recurso, crear distractores genéricos
+        while (distractors.length < 3) {
+          const fakeDistractor = {
+            id: `fake-${index}-${distractors.length}`,
+            término: `Término ${Math.floor(Math.random() * 1000)}`,  // Términos más realistas
+            definición: 'Concepto alternativo',
+            fuente: concept.fuente, // Usar la misma fuente
+            usuarioId: auth.currentUser!.uid,
+            docId: 'generated',
+            index: distractors.length,
+            notasPersonales: '',
+            reviewId: '',
+            dominado: false
+          } as Concept;
+          distractors.push(fakeDistractor);
+        }
+
+        console.log(`[MINI QUIZ] Pregunta ${index + 1}: "${concept.término}" con distractores: [${distractors.map(d => d.término).join(', ')}]`);
+
+        // Crear opciones (siempre 4: 1 correcta + 3 distractores)
         const options: QuizOption[] = [
           {
             id: `option-${index}-correct`,
@@ -254,6 +257,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         // Mezclar las opciones aleatoriamente
         const shuffledOptions = options.sort(() => 0.5 - Math.random());
 
+        console.log(`[MINI QUIZ] Opciones para "${concept.término}":`, shuffledOptions.map(o => `${o.term} (${o.isCorrect ? 'correcta' : 'incorrecta'})`));
+
         return {
           id: `question-${index}`,
           definition: concept.definición,
@@ -268,13 +273,72 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       console.error('Error generating mini quiz questions:', error);
       throw error;
     }
-  }, [notebookId, sessionConcepts, isSchoolStudent]);
+  }, [notebookId, sessionConcepts, isSchoolStudent, allNotebookConcepts]);
+
+  // Cargar y cachear conceptos del cuaderno
+  useEffect(() => {
+    const loadNotebookConcepts = async () => {
+      if (!notebookId || conceptsCached) return;
+      
+      try {
+        console.log('[MINI QUIZ] Cargando conceptos del cuaderno para cache...');
+        const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+        const conceptsQuery = query(
+          collection(db, collectionName),
+          where('cuadernoId', '==', notebookId)
+        );
+        
+        const conceptDocs = await getDocs(conceptsQuery);
+        const concepts: Concept[] = [];
+        
+        for (const doc of conceptDocs.docs) {
+          const conceptosData = doc.data().conceptos || [];
+          conceptosData.forEach((concepto: any, index: number) => {
+            concepts.push({
+              id: concepto.id || `${doc.id}-${index}`,
+              término: concepto.término,
+              definición: concepto.definición,
+              fuente: concepto.fuente,
+              usuarioId: concepto.usuarioId,
+              docId: doc.id,
+              index,
+              notasPersonales: concepto.notasPersonales,
+              reviewId: concepto.reviewId,
+              dominado: concepto.dominado
+            } as Concept);
+          });
+        }
+        
+        setAllNotebookConcepts(concepts);
+        setConceptsCached(true);
+        console.log('[MINI QUIZ] Conceptos del cuaderno cacheados:', concepts.length);
+      } catch (error) {
+        console.error('[MINI QUIZ] Error cargando conceptos del cuaderno:', error);
+      }
+    };
+
+    loadNotebookConcepts();
+  }, [notebookId, isSchoolStudent, conceptsCached]);
 
   // Iniciar mini quiz
   const startMiniQuiz = async () => {
     try {
       console.log('[MINI QUIZ] Preparando mini quiz...');
       setLoading(true);
+      
+      // Esperar a que los conceptos estén cacheados si no tenemos conceptos de sesión
+      if ((!sessionConcepts || sessionConcepts.length === 0) && !conceptsCached) {
+        console.log('[MINI QUIZ] Esperando a que se carguen los conceptos del cuaderno...');
+        // Timeout para evitar esperas infinitas
+        let timeout = 0;
+        while (!conceptsCached && timeout < 50) { // 5 segundos máximo
+          await new Promise(resolve => setTimeout(resolve, 100));
+          timeout++;
+        }
+        if (!conceptsCached) {
+          throw new Error('Timeout esperando conceptos del cuaderno');
+        }
+      }
       
       // Generar preguntas
       const quizQuestions = await generateMiniQuizQuestions();
@@ -313,6 +377,21 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     console.log('[MINI QUIZ] Mini quiz iniciado manualmente');
   };
 
+  // Manejar click en botón de atrás
+  const handleBackClick = () => {
+    setShowWarningModal(true);
+  };
+
+  // Confirmar salida sin validar
+  const confirmExit = () => {
+    navigate('/study');
+  };
+
+  // Cancelar salida
+  const cancelExit = () => {
+    setShowWarningModal(false);
+  };
+
   // Manejar respuesta del usuario
   const handleAnswerSelection = (optionId: string) => {
     if (!sessionActive || selectedOption) return;
@@ -340,6 +419,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     setResponses(prev => [...prev, response]);
     
     if (isCorrect) {
+      // Actualizar contadores separados
+      setCorrectAnswers(prev => prev + 1);
+      
       // Calcular puntuación actual incluyendo la respuesta actual
       const correctAnswers = responses.filter(r => r.isCorrect).length + 1; // +1 por la respuesta actual
       const totalQuestions = questionsRef.current.length;
@@ -355,6 +437,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setFeedbackMessage('¡Correcto! 🎉');
       setFeedbackType('success');
     } else {
+      // Actualizar contadores separados
+      setIncorrectAnswers(prev => prev + 1);
+      
       // Calcular puntuación actual incluyendo la respuesta actual
       const correctAnswers = responses.filter(r => r.isCorrect).length; // No +1 porque esta respuesta es incorrecta
       const totalQuestions = questionsRef.current.length;
@@ -375,22 +460,34 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       setShowFeedback(false);
       setSelectedOption(null);
       
-      if (currentQuestionIndex < questions.length - 1) {
+      const totalQuestions = questionsRef.current.length;
+      
+      if (currentQuestionIndex < totalQuestions - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
       } else {
         // Mini quiz completado
         const finalTimeRemaining = timerTimeRemaining;
-        const finalScore = score + (isCorrect ? 1 : 0);
+        const finalScore = currentScoreRef.current; // Usar el score ya calculado
         
         console.log('[MINI QUIZ] Completando normalmente:', {
           currentScore: score,
           isCorrect,
           finalScore,
           responses: responses.length + 1, // +1 porque aún no se ha agregado la respuesta actual
-          totalQuestions: questions.length
+          totalQuestions
         });
         
-        completeMiniQuiz(finalScore, finalTimeRemaining);
+        setSessionComplete(true);
+        setSessionActive(false);
+        
+        // Mostrar pausa con resultados temporales antes de continuar
+        setShowResultsPause(true);
+        
+        // Esperar 1 segundo antes de mostrar la pantalla final
+        setTimeout(() => {
+          setShowResultsPause(false);
+          completeMiniQuiz(finalScore, finalTimeRemaining);
+        }, 1000);
       }
     }, 1500);
   };
@@ -521,8 +618,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         totalQuestions
       });
       
-      // Llamar al callback con el resultado
-      onComplete(currentScoreRef.current >= 8, currentScoreRef.current);
+      // No llamar onComplete automáticamente - solo cuando el usuario haga click en "Continuar"
       
     } catch (error) {
       console.error('[MINI QUIZ] Error completing mini quiz:', error);
@@ -657,21 +753,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
     return (
       <div className="mini-quiz-session-container">
-        {/* Moviendo el contenido del header directamente al contenedor de la pregunta */}
-
         {/* Pregunta */}
         <div className="mini-quiz-question-container">
-          {/* Info del quiz simplificada sin el progreso */}
-          <div className="quiz-info-inline">
-            <div className={`quiz-timer-info ${timerClass}`}>
-              <i className="fas fa-clock"></i>
-              <span>{formattedTime}</span>
-            </div>
-            <div className="quiz-score-info">
-              <span>{score}/10</span>
-            </div>
-          </div>
-          
           <div className="question-definition">
             <h3>Definición:</h3>
             <p>{question.definition}</p>
@@ -711,6 +794,49 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             <span>{feedbackMessage}</span>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Renderizar pausa con resultados temporales
+  const renderResultsPause = () => {
+    const correctAnswers = responses.filter(r => r.isCorrect).length;
+    const questionsAnswered = responses.length;
+    const totalQuestions = questionsRef.current.length;
+    const currentScore = currentScoreRef.current;
+
+    return (
+      <div className="results-pause-screen">
+        <div className="results-pause-card">
+          <div className="results-pause-header">
+            <i className="fas fa-hourglass-half"></i>
+            <h2>Procesando resultados...</h2>
+          </div>
+          
+          <div className="results-pause-summary">
+            <div className="pause-stat">
+              <i className="fas fa-check-circle"></i>
+              <span>Respuestas correctas: {correctAnswers}</span>
+            </div>
+            <div className="pause-stat">
+              <i className="fas fa-question-circle"></i>
+              <span>Preguntas respondidas: {questionsAnswered}</span>
+            </div>
+            <div className="pause-stat">
+              <i className="fas fa-list"></i>
+              <span>Total de preguntas: {totalQuestions}</span>
+            </div>
+            <div className="pause-stat">
+              <i className="fas fa-star"></i>
+              <span>Puntuación actual: {currentScore}/10</span>
+            </div>
+          </div>
+          
+          <div className="results-pause-loading">
+            <div className="loading-spinner"></div>
+            <p>Calculando resultados finales...</p>
+          </div>
+        </div>
       </div>
     );
   };
@@ -799,6 +925,49 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     );
   };
 
+  // Renderizar modal de warning
+  const renderWarningModal = () => {
+    if (!showWarningModal) return null;
+
+    return (
+      <div className="warning-modal-overlay">
+        <div className="warning-modal">
+          <div className="warning-modal-header">
+            <i className="fas fa-exclamation-triangle"></i>
+            <h3>¡Atención!</h3>
+          </div>
+          
+          <div className="warning-modal-content">
+            <p>
+              Si regresas ahora, <strong>no se validará tu estudio inteligente</strong> y 
+              no podrás intentar el mini quiz nuevamente hasta mañana.
+            </p>
+            <p>
+              ¿Estás seguro de que quieres salir sin completar el mini quiz?
+            </p>
+          </div>
+          
+          <div className="warning-modal-actions">
+            <button 
+              className="action-button secondary"
+              onClick={cancelExit}
+            >
+              <i className="fas fa-times"></i>
+              Cancelar
+            </button>
+            <button 
+              className="action-button danger"
+              onClick={confirmExit}
+            >
+              <i className="fas fa-arrow-left"></i>
+              Sí, regresar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Renderizar introducción al mini quiz
   const renderMiniQuizIntro = () => {
     return (
@@ -820,23 +989,29 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           <div className="intro-section">
             <h3>¿Cómo funciona?</h3>
             <ul>
-              <li><i className="fas fa-clock"></i> Tienes <strong>45 segundos</strong> para responder</li>
-              <li><i className="fas fa-star"></i> Necesitas una calificación de <strong>8/10 o mayor</strong></li>
-              <li><i className="fas fa-check-circle"></i> Si apruebas, tu estudio inteligente se valida</li>
-              <li><i className="fas fa-redo"></i> Si no apruebas, puedes intentar mañana</li>
+              <li><i className="fas fa-clock"></i><span>Tienes <strong>45 segundos</strong> para responder</span></li>
+              <li><i className="fas fa-star"></i><span>Necesitas una calificación de <strong>8/10 o mayor</strong></span></li>
+              <li><i className="fas fa-check-circle"></i><span>Si apruebas, tu estudio inteligente se valida</span></li>
+              <li><i className="fas fa-redo"></i><span>Si no apruebas, puedes intentar mañana</span></li>
             </ul>
           </div>
           
           <div className="intro-section">
             <h3>¿Estás listo?</h3>
             <p>
-              El mini quiz comenzará cuando hagas clic en "Iniciar Mini Quiz". 
-              ¡Buena suerte!
+              El mini quiz comenzará cuando hagas click en "Iniciar Mini Quiz". ¡Buena suerte!
             </p>
           </div>
         </div>
         
         <div className="intro-actions">
+          <button
+            className="action-button secondary"
+            onClick={handleBackClick}
+          >
+            <i className="fas fa-arrow-left"></i>
+            Regresar
+          </button>
           <button
             className="action-button primary"
             onClick={beginMiniQuiz}
@@ -859,19 +1034,41 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   }
 
   return (
-    <div className="mini-quiz-container">
-      {/* Barra de progreso superior - Solo mostrar cuando hay sesión activa y no está en intro */}
+    <div className="mini-quiz-integrated">
+      {/* Modal de warning */}
+      {renderWarningModal()}
+      
+      {/* Información de progreso con módulos separados */}
       {sessionActive && !showIntro && questions.length > 0 && (
-        <div className="mini-quiz-top-progress">
-          <span className="progress-text">
-            Pregunta {currentQuestionIndex + 1} de {questions.length}
-          </span>
+        <div className="session-header-minimal">
+          <div className="quiz-question-counter">
+            Pregunta {currentQuestionIndex + 1}/{questions.length}
+          </div>
+          
+          <div className="quiz-stats-modules">
+            <div className={`quiz-timer-module ${timerClass}`}>
+              <i className="fas fa-clock"></i>
+              <span>{formattedTime}</span>
+            </div>
+            
+            <div className="quiz-correct-module">
+              <i className="fas fa-check"></i>
+              <span>{correctAnswers}</span>
+            </div>
+            
+            <div className="quiz-incorrect-module">
+              <i className="fas fa-times"></i>
+              <span>{incorrectAnswers}</span>
+            </div>
+          </div>
         </div>
       )}
       
-      <div className={`mini-quiz-main ${sessionActive && !showIntro ? 'with-top-progress' : ''}`}>
+      <div className="mini-quiz-content">
         {showIntro && renderMiniQuizIntro()}
         {sessionActive && renderCurrentQuestion()}
+        {showResultsPause && renderResultsPause()}
+        {sessionComplete && !showResultsPause && renderMiniQuizResults()}
       </div>
     </div>
   );

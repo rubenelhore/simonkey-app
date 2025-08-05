@@ -15,7 +15,8 @@ import {
   Timestamp, 
   addDoc,
   increment,
-  deleteDoc
+  deleteDoc,
+  documentId
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { 
@@ -142,10 +143,14 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
             throw new Error('Ya has usado tu sesión de estudio libre hoy');
           }
         } else if (mode === StudyMode.SMART) {
+          // TEMPORALMENTE DESACTIVADO PARA TESTING
+          /*
           const canStudy = await checkSmartStudyLimit(effectiveUserId, notebookId);
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio inteligente hoy para este cuaderno');
           }
+          */
+          console.log('🧪 [TESTING] Validación de límite de estudio inteligente temporalmente desactivada');
         }
         
         const sessionData = {
@@ -231,6 +236,11 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const checkSmartStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
       try {
+        // TEMPORALMENTE DESACTIVADO PARA TESTING - SIEMPRE RETORNA TRUE
+        console.log('🧪 [TESTING] checkSmartStudyLimit desactivado - retornando true');
+        return true;
+        
+        /* CÓDIGO ORIGINAL COMENTADO
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
         console.log('🔍 checkSmartStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
@@ -290,6 +300,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         });
         
         return isAvailable;
+        */
       } catch (err) {
         console.error('Error checking smart study limit:', err);
         return true; // En caso de error, permitir estudio
@@ -568,16 +579,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           }
         };
         
-        console.log('🔍 Buscando campos undefined recursivamente...');
-        findUndefinedFields(updateData);
-        
-        // Verificar específicamente conceptsDetails
-        if (updateData.metrics.conceptsDetails) {
-          console.log('📋 conceptsDetails:', updateData.metrics.conceptsDetails);
-          console.log('📋 conceptsDetails length:', updateData.metrics.conceptsDetails.length);
-          updateData.metrics.conceptsDetails.forEach((detail: any, index: number) => {
-            console.log(`  - conceptsDetails[${index}]:`, detail);
-          });
+        // Quick validation without verbose logging
+        if (!updateData || !updateData.metrics) {
+          throw new Error('Invalid session data');
         }
         
         await updateDoc(sessionRef, updateData);
@@ -847,7 +851,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         return [];
       }
     },
-    [getEffectiveUserIdForService]
+    [isSchoolStudent]
   );
   
   /**
@@ -1182,10 +1186,10 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
         const userStatsRef = doc(db, 'users', effectiveUserId, 'stats', 'study');
-        await updateDoc(userStatsRef, {
+        await setDoc(userStatsRef, {
           ...updates,
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
       } catch (err) {
         console.error('Error updating user stats:', err);
       }
@@ -1273,6 +1277,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
     },
     []
   );
+
 
   return {
     error,

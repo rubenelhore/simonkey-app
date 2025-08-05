@@ -45,7 +45,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
-  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent } = useUserType();
+  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent, isUniversityUser } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -469,7 +469,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         {/* Logo */}
         <div className="sidebar-header">
           <div className="sidebar-logo" onClick={() => {
-            if (isSchoolAdmin) {
+            if (isUniversityUser) {
+              navigate('/university');
+            } else if (isSchoolAdmin) {
               navigate('/school/admin');
             } else if (isSchoolTeacher) {
               navigate('/school/teacher');
@@ -495,7 +497,26 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         
         {/* Iconos de navegación */}
         <div className="sidebar-icons">
-          {isSchoolAdmin ? (
+          {isUniversityUser ? (
+            <>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/university/cursos' ? 'active' : ''}`} 
+                onClick={() => navigate('/university/cursos')}
+                title="Mis cursos"
+              >
+                <FontAwesomeIcon icon={faGraduationCap} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Mis cursos</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/university/biblioteca' ? 'active' : ''}`} 
+                onClick={() => navigate('/university/biblioteca')}
+                title="Biblioteca"
+              >
+                <FontAwesomeIcon icon={faBook} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Biblioteca</span>}
+              </button>
+            </>
+          ) : isSchoolAdmin ? (
             <>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/materias' ? 'active' : ''}`} 

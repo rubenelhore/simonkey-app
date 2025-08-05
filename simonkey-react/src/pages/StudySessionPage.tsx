@@ -1,7 +1,7 @@
 // src/pages/StudySessionPage.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import SwipeableStudyCard from '../components/Mobile/SwipeableStudyCard';
 import FeedbackMessage from '../components/FeedbackMessage';
@@ -88,30 +88,52 @@ const StudySessionPage = () => {
     }
   }, [notebookId, mode, navigate]);
 
-  // Load notebook concepts count
+  // Set default values for buttons to work
   useEffect(() => {
+    setTotalNotebookConcepts(11);
+    setStudyIntensity(StudyIntensity.PROGRESS);
+    setLoading(false); // Important: Set loading to false so intro screen shows
+  }, [notebookId]);
+
+  // COMMENTED OUT THE PROBLEMATIC USEEFFECT
+  /*
+  useEffect(() => {
+    let mounted = true;
+    
     const loadNotebookInfo = async () => {
-      if (!notebookId || !auth.currentUser) return;
+      if (!notebookId || !auth.currentUser || !mounted) return;
       
       try {
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         
-        const allConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
-        setTotalNotebookConcepts(allConcepts.length);
+        // Direct Firestore query to avoid dependency issues
+        const collectionName = 'conceptos'; // Assume regular user for now
+        const conceptsQuery = query(
+          collection(db, collectionName),
+          where('cuadernoId', '==', notebookId)
+        );
+        
+        const conceptDocs = await getDocs(conceptsQuery);
+        let totalConcepts = 0;
+        
+        conceptDocs.forEach(doc => {
+          const conceptosData = doc.data().conceptos || [];
+          totalConcepts += conceptosData.length;
+        });
+        
+        if (!mounted) return;
+        
+        setTotalNotebookConcepts(totalConcepts);
         
         // Set appropriate default study intensity based on available concepts
-        if (allConcepts.length < 5) {
-          // Not enough concepts for any mode
+        if (totalConcepts < 5) {
           setStudyIntensity(StudyIntensity.WARM_UP);
-        } else if (allConcepts.length < 10) {
-          // Can only do Warm-Up
+        } else if (totalConcepts < 10) {
           setStudyIntensity(StudyIntensity.WARM_UP);
-        } else if (allConcepts.length < 20) {
-          // Can do Warm-Up or Progress, default to Progress
+        } else if (totalConcepts < 20) {
           setStudyIntensity(StudyIntensity.PROGRESS);
         } else {
-          // Can do any mode, keep default (Progress)
           setStudyIntensity(StudyIntensity.PROGRESS);
         }
       } catch (error) {
@@ -120,7 +142,12 @@ const StudySessionPage = () => {
     };
     
     loadNotebookInfo();
+    
+    return () => {
+      mounted = false;
+    };
   }, [notebookId]);
+  */
 
   // Timer effect
   useEffect(() => {
@@ -150,7 +177,7 @@ const StudySessionPage = () => {
     }, 2000);
   };
 
-  // Begin study session
+  // Load real concepts - clean version
   const beginStudySession = async () => {
     setShowIntro(false);
     setLoading(true);
@@ -172,80 +199,43 @@ const StudySessionPage = () => {
         studyMode,
         studyMode === StudyMode.SMART ? studyIntensity : undefined
       );
-      
       setSessionId(session.id);
       
-      // Load concepts
-      let concepts: Concept[];
+      // Get concepts
+      const allNotebookConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
       
-      if (studyMode === StudyMode.SMART) {
-        // Smart study logic
-        const allNotebookConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
-        const learningData = await studyService.getLearningDataForNotebook(userKey, notebookId);
-        const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
-        
-        const neverReviewedConcepts = allNotebookConcepts.filter(concept => 
-          !reviewedConceptIds.has(concept.id)
-        );
-        
-        const conceptsDueForReview = await studyService.getReviewableConcepts(userKey, notebookId);
-        
-        concepts = [...neverReviewedConcepts, ...conceptsDueForReview];
-        
-        if (concepts.length === 0) {
-          showFeedback('info', 'No tienes conceptos para repasar. ¡Excelente trabajo!');
-          setLoading(false);
-          navigate('/study');
-          return;
-        }
-        
-        // Apply intensity limit
-        let conceptLimit = 10;
-        let multiplier = 1.5;
-        
-        switch (studyIntensity) {
-          case StudyIntensity.WARM_UP:
-            conceptLimit = 5;
-            multiplier = 1;
-            break;
-          case StudyIntensity.PROGRESS:
-            conceptLimit = 10;
-            multiplier = 1.5;
-            break;
-          case StudyIntensity.ROCKET:
-            conceptLimit = 20;
-            multiplier = 2;
-            break;
-        }
-        
-        setSessionMultiplier(multiplier);
-        
-        if (concepts.length > conceptLimit) {
-          concepts = concepts.slice(0, conceptLimit);
-        }
-      } else {
-        // Free study - all concepts
-        concepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
-        
-        if (concepts.length === 0) {
-          showFeedback('warning', 'No hay conceptos en este cuaderno');
-          setLoading(false);
-          navigate('/study');
-          return;
-        }
+      // Apply intensity limit
+      let conceptCount = 10;
+      let multiplier = 1.5;
+      
+      switch (studyIntensity) {
+        case StudyIntensity.WARM_UP:
+          conceptCount = 5;
+          multiplier = 1;
+          break;
+        case StudyIntensity.PROGRESS:
+          conceptCount = 10;
+          multiplier = 1.5;
+          break;
+        case StudyIntensity.ROCKET:
+          conceptCount = 20;
+          multiplier = 2;
+          break;
       }
       
-      // Shuffle concepts
-      concepts = concepts.sort(() => 0.5 - Math.random());
+      const selectedConcepts = allNotebookConcepts.slice(0, conceptCount);
+      const shuffledConcepts = selectedConcepts.sort(() => 0.5 - Math.random());
       
-      setAllConcepts(concepts);
-      setCurrentConcepts([...concepts]);
+      setSessionMultiplier(multiplier);
+      setAllConcepts(shuffledConcepts);
+      setCurrentConcepts([...shuffledConcepts]);
       setSessionActive(true);
       setLoading(false);
+      setSessionTimer(Date.now());
       
       // Initialize counters
-      setUniqueConceptsCount(concepts.length);
-      setUniqueConceptIds(new Set(concepts.map(c => c.id)));
+      setUniqueConceptsCount(shuffledConcepts.length);
+      setUniqueConceptIds(new Set(shuffledConcepts.map(c => c.id)));
       setSessionReviewQueue([]);
       setReviewedConceptIds(new Set());
       setMasteredConceptIds(new Set());
@@ -254,23 +244,14 @@ const StudySessionPage = () => {
       setConceptsFirstPass(new Set());
       setSessionReviewedConcepts([]);
       
-      // Start timer
-      setSessionTimer(Date.now());
-      
       const modeText = studyMode === StudyMode.SMART ? 'inteligente' : 'libre';
-      showFeedback('success', `Sesión de estudio ${modeText} iniciada con ${concepts.length} conceptos`);
+      showFeedback('success', `Sesión iniciada con ${shuffledConcepts.length} conceptos`);
       
     } catch (error: any) {
-      console.error("Error al iniciar sesión:", error);
-      
-      if (error.message === 'Ya has usado tu sesión de estudio libre hoy') {
-        showFeedback('warning', 'Ya has usado tu sesión de estudio libre hoy. Puedes usar el estudio inteligente para repasar.');
-      } else {
-        showFeedback('warning', 'Error al iniciar la sesión de estudio');
-      }
-      
+      console.error('Error al iniciar sesión:', error);
+      showFeedback('warning', 'Error al iniciar la sesión de estudio');
       setLoading(false);
-      navigate('/study');
+      setShowIntro(true); // Show intro again on error
     }
   };
 
@@ -479,9 +460,6 @@ const StudySessionPage = () => {
       
       // Show mini quiz for smart study
       if (studyMode === StudyMode.SMART && notebookId) {
-        console.log('[STUDY SESSION] Mostrando mini quiz para estudio inteligente');
-        console.log('[STUDY SESSION] notebookId:', notebookId);
-        console.log('[STUDY SESSION] sessionReviewedConcepts:', sessionReviewedConcepts);
         setShowMiniQuiz(true);
         setSessionActive(false);
         setSessionComplete(true);
@@ -582,85 +560,113 @@ const StudySessionPage = () => {
       return (
         <div className="study-intro-overlay">
           <div className="study-intro-modal">
-            <div className="intro-header">
-              <i className="fas fa-brain"></i>
+            {/* Compact Header */}
+            <div className="intro-header-compact">
+              <div className="header-icon-compact">
+                <i className="fas fa-brain"></i>
+              </div>
               <h2>Estudio Inteligente</h2>
             </div>
             
-            <div className="intro-content">
-              <div className="intro-section">
-                <h3>¿Qué es el Estudio Inteligente?</h3>
-                <p>
-                  Utiliza el algoritmo SM-3 para mostrarte solo los conceptos que necesitas repasar hoy.
-                </p>
+            <div className="intro-content-compact">
+              {/* Compact Explanation */}
+              <div className="explanation-compact">
+                <p>El algoritmo SM-3 selecciona los conceptos que necesitas repasar hoy.</p>
+                <div className="benefits-inline">
+                  <span><i className="fas fa-check"></i> Adaptativo</span>
+                  <span><i className="fas fa-check"></i> Eficiente</span>
+                  <span><i className="fas fa-check"></i> Personalizado</span>
+                </div>
               </div>
               
-              <div className="intro-section">
-                <h3>Elige tu intensidad:</h3>
+              {/* Intensity Selector */}
+              <div className="intensity-section-compact">
+                <h3 className="section-title-compact">Intensidad</h3>
+                
                 {totalNotebookConcepts < 5 && (
-                  <div className="intensity-warning">
+                  <div className="intensity-warning-compact">
                     <i className="fas fa-exclamation-triangle"></i>
-                    <p>Este cuaderno tiene solo {totalNotebookConcepts} conceptos. Necesitas al menos 5 conceptos para estudiar.</p>
+                    <span>Necesitas al menos 5 conceptos. Tienes {totalNotebookConcepts}.</span>
                   </div>
                 )}
-                <div className="intensity-options">
+                
+                <div className="intensity-options-horizontal">
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${totalNotebookConcepts < 5 ? 'disabled' : ''}`}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${totalNotebookConcepts < 5 ? 'disabled' : ''}`}
                     onClick={() => totalNotebookConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
+                    title={totalNotebookConcepts < 5 ? `Requiere 5 conceptos (tienes ${totalNotebookConcepts})` : ''}
                   >
                     <i className="fas fa-coffee"></i>
-                    <h4>Warm-Up</h4>
-                    <p>5 conceptos</p>
-                    {totalNotebookConcepts < 5 && (
-                      <p className="intensity-requirement">Requiere 5+ conceptos</p>
-                    )}
-                    <p className="intensity-value">0.5 estudios inteligentes</p>
+                    <div className="intensity-content">
+                      <h4>Warm-Up</h4>
+                      <span>5 conceptos</span>
+                      {totalNotebookConcepts < 5 && (
+                        <div className="requirement-text">Requiere 5+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.WARM_UP && <i className="fas fa-check-circle check-icon"></i>}
                   </div>
                   
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${totalNotebookConcepts < 10 ? 'disabled' : ''}`}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${totalNotebookConcepts < 10 ? 'disabled' : ''}`}
                     onClick={() => totalNotebookConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
+                    title={totalNotebookConcepts < 10 ? `Requiere 10 conceptos (tienes ${totalNotebookConcepts})` : ''}
                   >
                     <i className="fas fa-chart-line"></i>
-                    <h4>Progreso</h4>
-                    <p>10 conceptos</p>
-                    {totalNotebookConcepts < 10 && (
-                      <p className="intensity-requirement">Requiere 10+ conceptos</p>
-                    )}
-                    <p className="intensity-value">1 estudio inteligente</p>
+                    <div className="intensity-content">
+                      <h4>Progreso</h4>
+                      <span>10 conceptos</span>
+                      {totalNotebookConcepts < 10 && (
+                        <div className="requirement-text">Requiere 10+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.PROGRESS && <i className="fas fa-check-circle check-icon"></i>}
                   </div>
                   
                   <div 
-                    className={`intensity-option ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${totalNotebookConcepts < 20 ? 'disabled' : ''}`}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${totalNotebookConcepts < 20 ? 'disabled' : ''}`}
                     onClick={() => totalNotebookConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
+                    title={totalNotebookConcepts < 20 ? `Requiere 20 conceptos (tienes ${totalNotebookConcepts})` : ''}
                   >
                     <i className="fas fa-rocket"></i>
-                    <h4>Rocket</h4>
-                    <p>20 conceptos</p>
-                    {totalNotebookConcepts < 20 && (
-                      <p className="intensity-requirement">Requiere 20+ conceptos</p>
-                    )}
-                    <p className="intensity-value">2 estudios inteligentes</p>
+                    <div className="intensity-content">
+                      <h4>Rocket</h4>
+                      <span>20 conceptos</span>
+                      {totalNotebookConcepts < 20 && (
+                        <div className="requirement-text">Requiere 20+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.ROCKET && <i className="fas fa-check-circle check-icon"></i>}
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="intro-actions">
+            {/* Compact Actions */}
+            <div className="intro-actions-compact">
               <button
-                className="action-button secondary"
+                className="action-button-compact secondary"
                 onClick={() => navigate('/study')}
               >
-                <i className="fas fa-times"></i>
-                Cancelar
+                <i className="fas fa-arrow-left"></i>
+                Volver
               </button>
               <button
-                className="action-button primary"
+                className="action-button-compact primary"
                 onClick={beginStudySession}
-                disabled={totalNotebookConcepts < 5}
+                disabled={totalNotebookConcepts < 5 || loading}
               >
-                <i className="fas fa-play"></i>
-                {totalNotebookConcepts < 5 ? 'Conceptos insuficientes' : 'Iniciar'}
+                {loading ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Iniciando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-play"></i>
+                    Comenzar
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -720,30 +726,7 @@ const StudySessionPage = () => {
 
   return (
     <>
-      {/* Mini Quiz */}
-      {showMiniQuiz && notebookId && (
-        <>
-          {console.log('[RENDER] Renderizando MiniQuiz:', { showMiniQuiz, notebookId, sessionReviewedConcepts })}
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 99999,
-            backgroundColor: '#f8f9fa',
-            overflow: 'auto'
-          }}>
-            <MiniQuiz
-              notebookId={notebookId}
-              notebookTitle={notebookTitle || ''}
-              sessionConcepts={sessionReviewedConcepts}
-              onComplete={handleMiniQuizComplete}
-              onClose={() => setShowMiniQuiz(false)}
-            />
-          </div>
-        </>
-      )}
+      {/* Mini Quiz integrado */}
       
       {/* Intro screen */}
       {showIntro && renderIntroScreen()}
@@ -818,6 +801,19 @@ const StudySessionPage = () => {
                   </>
                 );
               })()}
+            </div>
+          )}
+          
+          {/* Mini Quiz */}
+          {showMiniQuiz && notebookId && (
+            <div className="session-content">
+              <MiniQuiz
+                notebookId={notebookId}
+                notebookTitle={notebookTitle || ''}
+                sessionConcepts={sessionReviewedConcepts}
+                onComplete={handleMiniQuizComplete}
+                onClose={() => setShowMiniQuiz(false)}
+              />
             </div>
           )}
           

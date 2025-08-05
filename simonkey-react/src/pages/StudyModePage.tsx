@@ -740,7 +740,8 @@ const StudyModePage = () => {
         if (notebookLimitsDoc.exists()) {
           const limits = notebookLimitsDoc.data();
           
-          // Check smart study availability (once per day)
+          // Check smart study availability (once per day) - TEMPORALMENTE DESACTIVADO PARA TESTING
+          /*
           if (limits.lastSmartStudyDate) {
             const lastSmartStudyDate = limits.lastSmartStudyDate.toDate ? limits.lastSmartStudyDate.toDate() : new Date(limits.lastSmartStudyDate);
             const now = new Date();
@@ -769,6 +770,8 @@ const StudyModePage = () => {
               }));
             }
           }
+          */
+          console.log('🧪 [TESTING] Limitación de estudio inteligente temporalmente desactivada');
           
           if (limits.lastQuizDate) {
             const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);

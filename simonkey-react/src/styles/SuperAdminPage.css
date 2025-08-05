@@ -404,6 +404,11 @@
   color: #333;
 }
 
+.badge.university {
+  background: #f3e5f5;
+  color: #6b46c1;
+}
+
 .user-details {
   display: flex;
   flex-direction: column;

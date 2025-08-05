@@ -307,7 +307,8 @@ export enum UserSubscriptionType {
   SUPER_ADMIN = 'super_admin',
   FREE = 'free',
   PRO = 'pro',
-  SCHOOL = 'school'
+  SCHOOL = 'school',
+  UNIVERSITY = 'university'
 }
 
 /**

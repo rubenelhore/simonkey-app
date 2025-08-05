@@ -25,11 +25,6 @@ export interface SM3Result {
 export const calculateSM3Interval = (params: SM3Params): SM3Result => {
   const { quality, repetitions, easeFactor, interval } = params;
   
-  console.log('🧮🧮🧮 ALGORITMO SM-3 INICIADO 🧮🧮🧮');
-  console.log('Quality recibido:', quality);
-  console.log('Repetitions actuales:', repetitions);
-  console.log('EaseFactor actual:', easeFactor);
-  console.log('Interval actual:', interval);
   
   let newInterval: number;
   let newEaseFactor: number;
@@ -71,12 +66,6 @@ export const calculateSM3Interval = (params: SM3Params): SM3Result => {
     repetitions: newRepetitions
   };
   
-  console.log('🧮🧮🧮 RESULTADO SM-3 🧮🧮🧮');
-  console.log('Nuevo intervalo:', newInterval, 'días');
-  console.log('Nuevo EaseFactor:', newEaseFactor);
-  console.log('Nuevas repeticiones:', newRepetitions);
-  console.log('Próxima fecha de repaso:', nextReviewDate.toLocaleDateString());
-  console.log('🧮🧮🧮 FIN ALGORITMO SM-3 🧮🧮🧮');
 
   return result;
 };
@@ -113,8 +102,6 @@ export const createInitialLearningData = (conceptId: string): LearningData => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Establecer a inicio del día para que coincida con la lógica de comparación
   
-  console.log('🆕 Creando datos de aprendizaje iniciales para concepto:', conceptId);
-  console.log('📅 Fecha inicial de repaso:', today.toLocaleDateString());
   
   return {
     conceptId,
@@ -146,39 +133,15 @@ export const getConceptsReadyForReview = (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  console.log('🔍 DEBUG getConceptsReadyForReview:', {
-    totalConcepts: learningDataArray.length,
-    today: today.toISOString(),
-    todayFormatted: today.toLocaleDateString(),
-    learningData: learningDataArray.map(data => ({
-      conceptId: data.conceptId,
-      nextReviewDate: data.nextReviewDate.toISOString(),
-      nextReviewFormatted: new Date(data.nextReviewDate).toLocaleDateString(),
-      reviewDateNormalized: new Date(data.nextReviewDate).setHours(0, 0, 0, 0),
-      todayNormalized: today.getTime(),
-      isReady: new Date(data.nextReviewDate).setHours(0, 0, 0, 0) <= today.getTime(),
-      daysUntilReview: Math.ceil((new Date(data.nextReviewDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    }))
-  });
-  
   const readyConcepts = learningDataArray.filter(data => {
-    const reviewDate = new Date(data.nextReviewDate);
-    reviewDate.setHours(0, 0, 0, 0);
-    const isReady = reviewDate <= today;
-    
-    if (!isReady) {
-      const daysUntil = Math.ceil((reviewDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      console.log(`⏳ Concepto ${data.conceptId} no está listo. Faltan ${daysUntil} días para su próximo repaso.`);
-    }
-    
+    const isReady = data.nextReviewDate <= today;
     return isReady;
   });
   
-  console.log('✅ Conceptos listos para repaso HOY:', readyConcepts.length);
-  console.log('🚫 Conceptos NO listos para repaso:', learningDataArray.length - readyConcepts.length);
-  
   return readyConcepts;
 };
+
+// Remove the rest of this function since we're simplifying it
 
 /**
  * Calcular estadísticas de aprendizaje
@@ -239,18 +202,13 @@ export const calculateLearningStats = (
 export const getNextSmartStudyDate = (
   learningDataArray: LearningData[]
 ): Date | null => {
-  console.log('🔍 getNextSmartStudyDate llamado con:', learningDataArray.length, 'conceptos');
-  
   if (learningDataArray.length === 0) {
-    console.log('❌ No hay conceptos, retornando null');
     return null;
   }
   
   const readyForReview = getConceptsReadyForReview(learningDataArray);
-  console.log('🔍 Conceptos listos para repaso hoy:', readyForReview.length);
   
   if (readyForReview.length > 0) {
-    console.log('✅ Hay conceptos listos para hoy, retornando fecha actual');
     return new Date(); // Hay conceptos listos para hoy
   }
   
@@ -261,23 +219,9 @@ export const getNextSmartStudyDate = (
     .filter(date => date > now)
     .sort((a, b) => a.getTime() - b.getTime());
   
-  console.log('🔍 Fechas futuras encontradas:', futureDates.length);
-  console.log('🔍 Detalle de fechas futuras:', futureDates.map(date => ({
-    date: date.toISOString(),
-    daysFromNow: Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  })));
-  
   if (futureDates.length > 0) {
-    const nextDate = futureDates[0]; // La primera es la más cercana porque está ordenada
-    const daysFromNow = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    console.log('📅 Próxima fecha de estudio inteligente:', {
-      date: nextDate.toISOString(),
-      daysFromNow: daysFromNow,
-      formatted: `${daysFromNow} días desde hoy`
-    });
-    return nextDate;
+    return futureDates[0]; // La primera es la más cercana porque está ordenada
   } else {
-    console.log('❌ No hay fechas futuras, retornando null');
     return null;
   }
 };
@@ -309,10 +253,7 @@ export const getNextQuizDate = (lastQuizDate?: Date): Date => {
  * Verificar si el quiz está disponible (máximo 1 cada 7 días - GLOBAL)
  */
 export const isQuizAvailable = (lastQuizDate?: Date): boolean => {
-  console.log('🔍 isQuizAvailable llamado con:', lastQuizDate);
-  
   if (!lastQuizDate) {
-    console.log('✅ No hay lastQuizDate, quiz disponible');
     return true;
   }
   
@@ -323,27 +264,14 @@ export const isQuizAvailable = (lastQuizDate?: Date): boolean => {
   const diffTime = today.getTime() - lastQuiz.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   
-  const isAvailable = diffDays >= 7;
-  
-  console.log('🔍 Cálculo de disponibilidad de quiz:', {
-    today: today.toISOString(),
-    lastQuiz: lastQuiz.toISOString(),
-    diffDays: diffDays,
-    isAvailable: isAvailable,
-    requirement: 'Debe pasar al menos 7 días'
-  });
-  
-  return isAvailable;
+  return diffDays >= 7;
 };
 
 /**
  * Verificar si el estudio libre está disponible hoy
  */
 export const isFreeStudyAvailable = (lastFreeStudyDate?: Date): boolean => {
-  console.log('🔍 isFreeStudyAvailable llamado con:', lastFreeStudyDate);
-  
   if (!lastFreeStudyDate) {
-    console.log('✅ No hay lastFreeStudyDate, estudio libre disponible');
     return true;
   }
   
@@ -353,15 +281,5 @@ export const isFreeStudyAvailable = (lastFreeStudyDate?: Date): boolean => {
   today.setHours(0, 0, 0, 0);
   lastStudy.setHours(0, 0, 0, 0);
   
-  const isAvailable = today.getTime() !== lastStudy.getTime();
-  
-  console.log('🔍 Cálculo de disponibilidad:', {
-    today: today.toISOString(),
-    lastStudy: lastStudy.toISOString(),
-    todayTime: today.getTime(),
-    lastStudyTime: lastStudy.getTime(),
-    isAvailable: isAvailable
-  });
-  
-  return isAvailable;
+  return today.getTime() !== lastStudy.getTime();
 }; 

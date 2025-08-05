@@ -30,6 +30,9 @@ import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
+import UniversityDashboard from './pages/UniversityDashboard';
+import UniversityCursos from './pages/UniversityCursos';
+import UniversityBiblioteca from './pages/UniversityBiblioteca';
 // Importar utilidad para corregir tiempos de sesiones
 import './utils/fixStudySessionsTime';
 // Importar utilidad para debug de tiempos
@@ -62,6 +65,12 @@ import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
 import SchoolStudentMateriaPage from './pages/SchoolStudentMateriaPage';
 import SchoolAdminPage from './pages/SchoolAdminPage';
 import SchoolTutorPage from './pages/SchoolTutorPage';
+import TeacherExamsPage from './pages/TeacherExamsPage';
+import CalendarPage from './pages/CalendarPage';
+import StudentExamsPage from './pages/StudentExamsPage';
+import ExamPage from './pages/ExamPage';
+import ExamResultsPage from './pages/ExamResultsPage';
+import ExamDashboardPage from './pages/ExamDashboardPage';
 // Importaciones del sistema de cookies y privacidad
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
@@ -111,18 +120,12 @@ import './utils/fixTeacherProfile';
 import './utils/testGenerateConcepts';
 import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
-import CalendarPage from './pages/CalendarPage';
 import Materias from './pages/Materias';
 import InicioPage from './pages/InicioPage';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
 import HelpWhatsAppButton from './components/HelpWhatsAppButton';
-import ExamPage from './pages/ExamPage';
-import ExamResultsPage from './pages/ExamResultsPage';
-import ExamDashboardPage from './pages/ExamDashboardPage';
-import StudentExamsPage from './pages/StudentExamsPage';
-import TeacherExamsPage from './pages/TeacherExamsPage';
 import StudySessionPage from './pages/StudySessionPage';
 
 // Definir el tipo para el usuario
@@ -333,7 +336,7 @@ const AppWrapper: React.FC = () => {
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { user, userProfile, isAuthenticated, isEmailVerified, loading } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSuperAdmin, loading: userTypeLoading } = useUserType();
+  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor, isSuperAdmin, isUniversityUser, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const { user: currentUser, setUser } = useContext(UserContext);
 
@@ -481,6 +484,8 @@ const AppContent: React.FC = () => {
             path="/" 
             element={(() => {
               if (isAuthenticated) {
+                // Usuarios universitarios van a sus cursos por defecto
+                if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
                 // Usuarios escolares van a sus módulos específicos (sin requerir verificación de email)
                 if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
                 if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
@@ -499,6 +504,30 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-email" element={<EmailVerificationPage />} />
+          
+          {/* Ruta legacy /app - redirige según el tipo de usuario */}
+          <Route 
+            path="/app" 
+            element={(() => {
+              if (isAuthenticated) {
+                // Usuarios universitarios van a sus cursos por defecto
+                if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
+                // Usuarios escolares van a sus módulos específicos
+                if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+                if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
+                if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
+                if (isSchoolStudent) return <Navigate to="/inicio" replace />;
+                // Usuarios regulares van a inicio
+                if (isEmailVerified) {
+                  return <Navigate to="/inicio" replace />;
+                }
+                // Si no está verificado, ir a verificación
+                return <Navigate to="/verify-email" replace />;
+              }
+              // Usuarios no autenticados van al login
+              return <Navigate to="/login" replace />;
+            })()} 
+          />
           
           {/* Rutas legales - disponibles para todos */}
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -526,21 +555,26 @@ const AppContent: React.FC = () => {
             path="/inicio"
             element={
               isAuthenticated ? (
-                <EmailVerificationGuard>
-                  <PasswordChangeGuard>
-                    <>
-                      <InicioPage />
-                      {/* Tutorial deshabilitado temporalmente
-                      {!hasCompletedOnboarding && (
-                        <InteractiveTour onComplete={() => {
-                          setHasCompletedOnboarding(true);
-                          localStorage.setItem('hasCompletedOnboarding', 'true');
-                        }} />
-                      )}
-                      */}
-                    </>
-                  </PasswordChangeGuard>
-                </EmailVerificationGuard>
+                // Redirigir usuarios universitarios a su dashboard
+                isUniversityUser ? (
+                  <Navigate to="/university" replace />
+                ) : (
+                  <EmailVerificationGuard>
+                    <PasswordChangeGuard>
+                      <>
+                        <InicioPage />
+                        {/* Tutorial deshabilitado temporalmente
+                        {!hasCompletedOnboarding && (
+                          <InteractiveTour onComplete={() => {
+                            setHasCompletedOnboarding(true);
+                            localStorage.setItem('hasCompletedOnboarding', 'true');
+                          }} />
+                        )}
+                        */}
+                      </>
+                    </PasswordChangeGuard>
+                  </EmailVerificationGuard>
+                )
               ) : <Navigate to="/login" replace />
             }
           />
@@ -708,6 +742,44 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <GamesPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Rutas para usuarios universitarios */}
+          <Route
+            path="/university"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <UniversityDashboard />
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/university/cursos"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <UniversityCursos />
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          <Route
+            path="/university/biblioteca"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <UniversityBiblioteca />
+                  </PasswordChangeGuard>
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }
