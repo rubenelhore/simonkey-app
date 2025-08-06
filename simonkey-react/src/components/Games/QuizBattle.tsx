@@ -212,7 +212,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         handleAnswer(-1);
       } else {
         // Enemy timeout - they miss their turn
-        handleEnemyAnswer();
+        nextTurn(false);
       }
     }
     return () => {
