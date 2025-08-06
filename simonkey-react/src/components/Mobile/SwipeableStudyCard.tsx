@@ -21,6 +21,31 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   lockState,
   onLockComplete
 }) => {
+  // Crear efecto de estrellas fugaces
+  const createShootingStarsEffect = () => {
+    const starsCount = 30;
+    
+    for (let i = 0; i < starsCount; i++) {
+      setTimeout(() => {
+        const star = document.createElement('div');
+        star.className = 'shooting-star';
+        star.style.top = `${Math.random() * 50}%`;
+        star.style.left = `${-10 + Math.random() * 20}%`;
+        star.style.animationDelay = `${Math.random() * 0.5}s`;
+        star.style.animationDuration = `${Math.random() * 1 + 1.5}s`;
+        
+        // Añadir la estela
+        const trail = document.createElement('div');
+        trail.className = 'star-trail';
+        star.appendChild(trail);
+        
+        document.body.appendChild(star);
+        
+        // Remover después de la animación
+        setTimeout(() => star.remove(), 3000);
+      }, i * 50);
+    }
+  };
   const [flipped, setFlipped] = useState(false);
   const [lockTimer, setLockTimer] = useState<number>(5);
   const [isLocked, setIsLocked] = useState(false);
@@ -140,6 +165,8 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
               setFlipped(false);
               await new Promise(resolve => setTimeout(resolve, 300));
             }
+            // Lanzar efecto de estrellas fugaces
+            createShootingStarsEffect();
             onResponse(ResponseQuality.MASTERED);
           }}
         >

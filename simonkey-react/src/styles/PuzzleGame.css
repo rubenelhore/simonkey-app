@@ -447,25 +447,29 @@
   margin-bottom: 30px;
 }
 
-.final-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.game-completed-modal .final-stats {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   margin-bottom: 30px;
+  width: 100%;
 }
 
-.final-stat {
+.game-completed-modal .final-stat {
   background: #f3f4f6;
   padding: 16px;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: center;
+  text-align: center;
+  width: 100%;
 }
 
-.final-stat.highlight {
+.game-completed-modal .final-stat.highlight {
   background: linear-gradient(135deg, #fef3c7, #fde68a);
-  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .final-stat .label {

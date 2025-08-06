@@ -84,12 +84,28 @@ const Materias: React.FC = () => {
       }
       setLoading(true);
       try {
-        // Query optimizada: solo una lectura para materias
-        const materiasQuery = query(
-          collection(db, 'materias'),
-          where('userId', '==', user.uid)
-        );
-        const materiasSnap = await getDocs(materiasQuery);
+        // Cargar materias y notebooks en paralelo
+        const [materiasSnap, notebooksSnap] = await Promise.all([
+          getDocs(query(
+            collection(db, 'materias'),
+            where('userId', '==', user.uid)
+          )),
+          getDocs(query(
+            collection(db, 'notebooks'),
+            where('userId', '==', user.uid)
+          ))
+        ]);
+
+        // Crear un mapa de conteo de notebooks por materiaId
+        const notebookCountMap: Record<string, number> = {};
+        notebooksSnap.docs.forEach(doc => {
+          const materiaId = doc.data().materiaId;
+          if (materiaId) {
+            notebookCountMap[materiaId] = (notebookCountMap[materiaId] || 0) + 1;
+          }
+        });
+
+        // Construir las materias con su conteo de notebooks
         const materiasData: Materia[] = materiasSnap.docs.map(docSnap => ({
           id: docSnap.id,
           title: docSnap.data().title,
@@ -98,24 +114,8 @@ const Materias: React.FC = () => {
           userId: docSnap.data().userId,
           createdAt: docSnap.data().createdAt?.toDate() || new Date(),
           updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-          notebookCount: 0 // Will be calculated below
+          notebookCount: notebookCountMap[docSnap.id] || 0
         }));
-
-        // Calculate notebook count for each materia
-        for (const materia of materiasData) {
-          try {
-            const notebooksQuery = query(
-              collection(db, 'notebooks'),
-              where('userId', '==', user.uid),
-              where('materiaId', '==', materia.id)
-            );
-            const notebooksSnap = await getDocs(notebooksQuery);
-            materia.notebookCount = notebooksSnap.size;
-          } catch (error) {
-            console.error(`Error counting notebooks for materia ${materia.id}:`, error);
-            materia.notebookCount = 0;
-          }
-        }
 
         setMaterias(materiasData);
         setError(null);
@@ -128,14 +128,11 @@ const Materias: React.FC = () => {
     loadMaterias();
   }, [user, refreshTrigger, isSchoolStudent]);
 
-  // Función para cargar exámenes de estudiante
+  // Función para cargar exámenes de estudiante - OPTIMIZADA
   const loadStudentExams = async () => {
     if (!user || !isSchoolStudent || !schoolSubjects || schoolSubjects.length === 0 || !userProfile) return;
     
     try {
-      const examsData: Record<string, any[]> = {};
-      
-      // Obtener el ID de la escuela del estudiante
       const studentSchoolId = userProfile.idEscuela || userProfile.schoolData?.idEscuela;
       
       if (!studentSchoolId) {
@@ -145,39 +142,43 @@ const Materias: React.FC = () => {
       
       console.log('🏫 Cargando exámenes para escuela:', studentSchoolId);
       
-      // Para cada materia, buscar exámenes activos
-      for (const subject of schoolSubjects) {
-        try {
-          // Hacer la consulta más simple para evitar el error de índices
-          const examsQuery = query(
-            collection(db, 'schoolExams'),
-            where('idMateria', '==', subject.id),
-            where('isActive', '==', true)
-          );
-          
-          const examsSnapshot = await getDocs(examsQuery);
-          
-          // Filtrar manualmente por escuela
-          const materiaExams = examsSnapshot.docs
-            .map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }))
-            .filter((exam: any) => exam.idEscuela === studentSchoolId);
-          
-          if (materiaExams.length > 0) {
-            examsData[subject.id] = materiaExams;
+      // Obtener todos los IDs de materias
+      const subjectIds = schoolSubjects.map(subject => subject.id);
+      
+      // Hacer una sola consulta para todos los exámenes activos
+      const examsQuery = query(
+        collection(db, 'schoolExams'),
+        where('idMateria', 'in', subjectIds),
+        where('isActive', '==', true)
+      );
+      
+      const examsSnapshot = await getDocs(examsQuery);
+      
+      // Agrupar exámenes por materia y filtrar por escuela
+      const examsData: Record<string, any[]> = {};
+      examsSnapshot.docs.forEach(doc => {
+        const examData = {
+          id: doc.id,
+          ...doc.data()
+        };
+        
+        // Filtrar por escuela
+        if (examData.idEscuela === studentSchoolId) {
+          const materiaId = examData.idMateria;
+          if (!examsData[materiaId]) {
+            examsData[materiaId] = [];
           }
-        } catch (queryError) {
-          console.error(`Error consultando exámenes para materia ${subject.id}:`, queryError);
-          // Continuar con la siguiente materia
+          examsData[materiaId].push(examData);
         }
-      }
+      });
       
       setExamsByMateria(examsData);
       console.log('📝 Exámenes cargados para estudiante:', examsData);
     } catch (error) {
       console.error('Error cargando exámenes del estudiante:', error);
+      // Si hay error (por ejemplo, por límite de 'in' con más de 10 items),
+      // no cargar exámenes pero continuar con la página
+      setExamsByMateria({});
     }
   };
 
@@ -261,36 +262,33 @@ const Materias: React.FC = () => {
       try {
         const adminId = userProfile.id || user?.uid;
         
-        // Cargar profesores asignados al admin
-        const teachersQuery = query(
-          collection(db, 'users'),
-          where('subscription', '==', 'school'),
-          where('schoolRole', '==', 'teacher'),
-          where('idAdmin', '==', adminId)
-        );
+        // Cargar profesores y estudiantes en paralelo - OPTIMIZADO
+        const [teachersSnapshot, studentsSnapshot] = await Promise.all([
+          getDocs(query(
+            collection(db, 'users'),
+            where('subscription', '==', 'school'),
+            where('schoolRole', '==', 'teacher'),
+            where('idAdmin', '==', adminId)
+          )),
+          getDocs(query(
+            collection(db, 'users'),
+            where('subscription', '==', 'school'),
+            where('schoolRole', '==', 'student'),
+            where('idAdmin', '==', adminId)
+          ))
+        ]);
         
-        const teachersSnapshot = await getDocs(teachersQuery);
         const teachersData = teachersSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
         
-        setTeachers(teachersData);
-        
-        // Cargar estudiantes asignados al admin
-        const studentsQuery = query(
-          collection(db, 'users'),
-          where('subscription', '==', 'school'),
-          where('schoolRole', '==', 'student'),
-          where('idAdmin', '==', adminId)
-        );
-        
-        const studentsSnapshot = await getDocs(studentsQuery);
         const studentsData = studentsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
         
+        setTeachers(teachersData);
         setStudents(studentsData);
       } catch (error) {
         console.error('Error loading admin data:', error);
@@ -681,20 +679,25 @@ const Materias: React.FC = () => {
     };
   }, [showCreateModal]);
 
-  if (loading || authLoading) {
-    // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
+  if (loading || authLoading || (isSchoolStudent && schoolLoading)) {
+    // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading });
     return (
-      <div className="loading-container" style={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        gap: '1rem'
-      }}>
-        <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
-        <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando materias...</p>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title="Mis Materias"
+        />
+        <div className="loading-container" style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 'calc(100vh - 64px)',
+          gap: '1rem'
+        }}>
+          <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
+          <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando materias...</p>
+        </div>
+      </>
     );
   }
 

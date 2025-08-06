@@ -56,10 +56,6 @@
   height: 48px;
 }
 
-.back-button:hover {
-  background: rgba(59, 130, 246, 0.1);
-  transform: translateY(-2px);
-}
 
 .reset-button {
   background: rgba(255, 255, 255, 0.2);
@@ -377,18 +373,19 @@
   max-width: 500px;
   width: 90%;
   text-align: center;
-  animation: slideIn 0.5s ease;
+  position: relative;
+  margin: 0 auto;
+  animation: fadeInScale 0.3s ease-out;
   transform-origin: center center;
-  will-change: transform, opacity;
 }
 
-@keyframes slideIn {
+@keyframes fadeInScale {
   from {
-    transform: translateY(-30px);
+    transform: scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -490,16 +487,20 @@
 }
 
 .back-to-games-btn {
-  background: #e5e7eb;
-  color: #374151;
+  background: #e5e7eb !important;
+  color: #374151 !important;
   margin: 0 auto;
   display: block;
+  transition: none !important;
+  cursor: pointer;
 }
 
 .back-to-games-btn:hover {
-  background: #d1d5db;
-  transform: translateY(-2px);
+  background: #e5e7eb !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
+
 
 /* Confetti Animation */
 .confetti-particle {

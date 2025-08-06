@@ -1,12 +1,28 @@
 // src/pages/ProfilePage.tsx
 import React, { useState, useEffect } from 'react';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+  }
+}
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import { db } from '../services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { db, auth } from '../services/firebase';
+import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { 
+  updatePassword, 
+  reauthenticateWithCredential, 
+  EmailAuthProvider, 
+  deleteUser,
+  multiFactor,
+  PhoneAuthProvider,
+  PhoneMultiFactorGenerator,
+  RecaptchaVerifier,
+  getMultiFactorResolver
+} from 'firebase/auth';
 import { SchoolRole, UserSubscriptionType } from '../types/interfaces';
 import '../styles/ProfilePage.css';
 
@@ -48,7 +64,6 @@ const ProfilePage: React.FC = () => {
   const { schoolRole, isSchoolUser, isSchoolStudent, isSuperAdmin, subscription } = useUserType();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'personal' | 'preferences' | 'security'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   
@@ -116,7 +131,39 @@ const ProfilePage: React.FC = () => {
     confirmPassword: false
   });
   const [pasteAttempted, setPasteAttempted] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  
+  // 2FA States with Firebase MFA
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [step2FA, setStep2FA] = useState<'phone' | 'verify' | 'success'>('phone');
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [setting2FA, setSetting2FA] = useState(false);
+  const [error2FA, setError2FA] = useState('');
+  const [verificationId, setVerificationId] = useState('');
+  const [resolver, setResolver] = useState<any>(null);
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  
+  // Avatar modal states
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // Limpiar reCAPTCHA al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    };
+  }, []);
+  
   useEffect(() => {
     if (userProfile) {
       setEditedProfile({
@@ -151,6 +198,14 @@ const ProfilePage: React.FC = () => {
       });
     }
   }, [userProfile]);
+  
+  // Check if 2FA is enabled with Firebase MFA
+  useEffect(() => {
+    if (user) {
+      const mfa = multiFactor(user);
+      setIs2FAEnabled(mfa.enrolledFactors.length > 0);
+    }
+  }, [user]);
 
   const handleSaveSection = async (section: string) => {
     if (!user) return;
@@ -276,6 +331,289 @@ const ProfilePage: React.FC = () => {
     setPasteAttempted(false);
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    // Validar que el usuario escribió "ELIMINAR"
+    if (deleteConfirmText !== 'ELIMINAR') {
+      setDeleteError('Debes escribir ELIMINAR para confirmar');
+      return;
+    }
+    
+    setDeleting(true);
+    setDeleteError('');
+    
+    try {
+      // Primero eliminar los datos del usuario de Firestore
+      await deleteDoc(doc(db, 'users', user.uid));
+      
+      // Luego eliminar la cuenta de autenticación
+      await deleteUser(user);
+      
+      // Navegar a la página de inicio
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      
+      if (error.code === 'auth/requires-recent-login') {
+        setDeleteError('Por seguridad, necesitas iniciar sesión nuevamente antes de eliminar tu cuenta');
+      } else {
+        setDeleteError('Error al eliminar la cuenta. Por favor, inténtalo de nuevo más tarde');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmText('');
+    setDeleteError('');
+  };
+
+  // 2FA Functions with Firebase MFA
+  const setupRecaptcha = () => {
+    try {
+      // Limpiar cualquier verificador anterior
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {
+          console.log('Could not clear existing verifier');
+        }
+        window.recaptchaVerifier = null;
+      }
+      
+      // Asegurar que el elemento existe
+      const recaptchaContainer = document.getElementById('recaptcha-container');
+      if (!recaptchaContainer) {
+        console.error('recaptcha-container element not found');
+        return null;
+      }
+      
+      // Crear nuevo verificador
+      window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
+        size: 'invisible',
+        callback: (response: any) => {
+          console.log('reCAPTCHA solved:', response);
+        },
+        'expired-callback': () => {
+          console.log('reCAPTCHA expired');
+          setError2FA('El captcha ha expirado. Por favor, intenta de nuevo.');
+        }
+      }, auth);
+      
+      // Intentar renderizar el widget
+      window.recaptchaVerifier.render().then((widgetId: any) => {
+        console.log('RecaptchaVerifier rendered with widget ID:', widgetId);
+      }).catch((error: any) => {
+        console.error('Error rendering recaptcha:', error);
+      });
+      
+      console.log('RecaptchaVerifier created successfully');
+      return window.recaptchaVerifier;
+    } catch (error) {
+      console.error('Error setting up recaptcha:', error);
+      setError2FA('Error al configurar la verificación. Por favor, recarga la página.');
+      return null;
+    }
+  };
+
+  const handleSendVerificationCode = async () => {
+    if (!user || !phoneNumber) {
+      setError2FA('Por favor ingresa tu número de teléfono');
+      return;
+    }
+
+    setSetting2FA(true);
+    setError2FA('');
+
+    try {
+      console.log('Starting phone verification process...');
+      console.log('Phone number:', phoneNumber);
+      console.log('User:', user.uid);
+      
+      const recaptchaVerifier = setupRecaptcha();
+      if (!recaptchaVerifier) {
+        setError2FA('Error al configurar la verificación. Por favor, recarga la página.');
+        setSetting2FA(false);
+        return;
+      }
+      
+      console.log('Getting MFA session...');
+      const session = await multiFactor(user).getSession();
+      console.log('MFA session obtained');
+      
+      const phoneAuthProvider = new PhoneAuthProvider(auth);
+      
+      const phoneInfoOptions = {
+        phoneNumber: phoneNumber,
+        session: session
+      };
+      
+      console.log('Verifying phone number with options:', phoneInfoOptions);
+      const verificationId = await phoneAuthProvider.verifyPhoneNumber(
+        phoneInfoOptions,
+        recaptchaVerifier
+      );
+      
+      setVerificationId(verificationId);
+      setStep2FA('verify');
+    } catch (error: any) {
+      console.error('Error sending verification:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      if (error.code === 'auth/requires-recent-login') {
+        setError2FA(''); // Clear error message
+        setShowReauthModal(true);
+        setShow2FAModal(false); // Close 2FA modal
+        setSetting2FA(false);
+      } else if (error.code === 'auth/invalid-phone-number') {
+        setError2FA('Número de teléfono inválido. Incluye el código de país (ej: +52 para México)');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError2FA('Demasiados intentos. Por favor espera unos minutos.');
+      } else if (error.code === 'auth/invalid-app-credential') {
+        setError2FA('Error de configuración. Por favor, contacta al soporte.');
+      } else {
+        setError2FA('Error al enviar el código. Verifica tu número e intenta de nuevo.');
+      }
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const handleReauthenticate = async () => {
+    if (!user || !user.email || !reauthPassword) {
+      setError2FA('Por favor ingresa tu contraseña');
+      return;
+    }
+
+    setSetting2FA(true);
+    setError2FA('');
+
+    try {
+      const credential = EmailAuthProvider.credential(user.email, reauthPassword);
+      await reauthenticateWithCredential(user, credential);
+      
+      // Successfully reauthenticated, now retry 2FA setup
+      setShowReauthModal(false);
+      setReauthPassword('');
+      setShow2FAModal(true); // Reopen 2FA modal
+      
+      // Clear any existing recaptcha before retrying
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (error) {
+          console.error('Error clearing recaptcha:', error);
+        }
+        window.recaptchaVerifier = null;
+      }
+      
+      // Small delay to ensure modal is rendered
+      setTimeout(async () => {
+        await handleSendVerificationCode();
+      }, 100);
+    } catch (error: any) {
+      console.error('Error during reauthentication:', error);
+      if (error.code === 'auth/wrong-password') {
+        setError2FA('Contraseña incorrecta. Por favor intenta de nuevo.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError2FA('Demasiados intentos fallidos. Por favor espera unos minutos.');
+      } else {
+        setError2FA('Error al verificar tu contraseña. Por favor intenta de nuevo.');
+      }
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const handleVerifyAndEnroll = async () => {
+    if (!user || !verificationCode || !verificationId) {
+      setError2FA('Por favor ingresa el código de verificación');
+      return;
+    }
+
+    setSetting2FA(true);
+    setError2FA('');
+
+    try {
+      const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
+      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+      
+      await multiFactor(user).enroll(multiFactorAssertion, phoneNumber);
+      
+      setIs2FAEnabled(true);
+      setStep2FA('success');
+      
+      // Update user profile
+      await updateDoc(doc(db, 'users', user.uid), {
+        twoFactorEnabled: true,
+        phoneNumber: phoneNumber,
+        updatedAt: new Date()
+      });
+      
+      setTimeout(() => {
+        handleClose2FAModal();
+      }, 3000);
+    } catch (error: any) {
+      console.error('Error verifying code:', error);
+      if (error.code === 'auth/invalid-verification-code') {
+        setError2FA('Código incorrecto. Por favor verifica e intenta de nuevo.');
+      } else if (error.code === 'auth/code-expired') {
+        setError2FA('El código ha expirado. Por favor solicita uno nuevo.');
+      } else {
+        setError2FA('Error al verificar el código. Intenta de nuevo.');
+      }
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!user) return;
+    
+    setSetting2FA(true);
+    setError2FA('');
+    
+    try {
+      const mfa = multiFactor(user);
+      const factors = mfa.enrolledFactors;
+      
+      if (factors.length > 0) {
+        await mfa.unenroll(factors[0]);
+        
+        await updateDoc(doc(db, 'users', user.uid), {
+          twoFactorEnabled: false,
+          phoneNumber: null,
+          updatedAt: new Date()
+        });
+        
+        setIs2FAEnabled(false);
+        handleClose2FAModal();
+      }
+    } catch (error: any) {
+      console.error('Error disabling 2FA:', error);
+      setError2FA('Error al desactivar 2FA. Por favor intenta de nuevo.');
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const handleClose2FAModal = () => {
+    setShow2FAModal(false);
+    setPhoneNumber('');
+    setVerificationCode('');
+    setVerificationId('');
+    setStep2FA('phone');
+    setError2FA('');
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
+    }
+  };
+
   const handlePasswordChange = async () => {
     if (!user) return;
 
@@ -384,23 +722,15 @@ const ProfilePage: React.FC = () => {
     return { text: 'Free', color: '#6b7280', icon: 'fas fa-user' };
   };
 
-  const subscriptionInfo = getSubscriptionBadge();
 
-  const calculateProgressPercentage = () => {
-    if (stats.weeklyGoal === 0) return 0;
-    const weeklyProgress = (stats.totalStudyTime * 60) % (stats.weeklyGoal * 7); // Convert hours to minutes
-    return Math.min((weeklyProgress / stats.weeklyGoal) * 100, 100);
-  };
 
   if (authLoading) {
     return (
       <div className="profile-page-container">
         <HeaderWithHamburger title="Mi Perfil" />
         <div className="profile-loading">
-          <div className="profile-skeleton">
-            <div className="skeleton-header"></div>
-            <div className="skeleton-content"></div>
-          </div>
+          <div className="loading-spinner"></div>
+          <p>Cargando tu perfil...</p>
         </div>
       </div>
     );
@@ -421,783 +751,254 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  const renderOverviewTab = () => (
-    <div className="profile-overview">
-      {/* Hero Section */}
-      <div className="profile-hero-modern">
-        <div className="profile-hero-background">
-          <div className="hero-pattern"></div>
-        </div>
-        
-        <div className="profile-hero-content">
-          <div className="profile-avatar-section">
-            <div className="profile-avatar-large">
-              {editedProfile.photoURL ? (
-                <img src={editedProfile.photoURL} alt="Avatar" />
-              ) : (
-                <div className="profile-avatar-placeholder">
-                  🐒
-                </div>
-              )}
-              <button className="avatar-edit-btn" onClick={() => setEditingSection('avatar')}>
-                <i className="fas fa-camera"></i>
-              </button>
-            </div>
-            
-            <div className={`profile-subscription-badge ${subscriptionInfo.text.toLowerCase().replace(' ', '-')}`}>
-              <i className={`badge-icon ${subscriptionInfo.icon}`}></i>
-              <span className="badge-text">{subscriptionInfo.text}</span>
-            </div>
-          </div>
-          
-          <div className="profile-info-section">
-            <h1 className="profile-name">{editedProfile.nombre || 'Usuario'}</h1>
-            <p className="profile-username">@{editedProfile.username || user.email?.split('@')[0]}</p>
-            <p className="profile-email">{user.email}</p>
-            {editedProfile.bio && (
-              <p className="profile-bio">{editedProfile.bio}</p>
-            )}
-            {editedProfile.location && (
-              <p className="profile-location">
-                <i className="fas fa-map-marker-alt"></i>
-                {editedProfile.location}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="profile-quick-stats">
-        <div className="quick-stat-item">
-          <div className="stat-value">{stats.studyStreak}</div>
-          <div className="stat-label">Días seguidos</div>
-          <div className="stat-icon streak">
-            <i className="fas fa-fire"></i>
-          </div>
-        </div>
-        
-        <div className="quick-stat-item">
-          <div className="stat-value">{stats.totalStudyTime}h</div>
-          <div className="stat-label">Tiempo total</div>
-          <div className="stat-icon time">
-            <i className="fas fa-clock"></i>
-          </div>
-        </div>
-        
-        <div className="quick-stat-item">
-          <div className="stat-value">{stats.conceptsDominated}</div>
-          <div className="stat-label">Dominados</div>
-          <div className="stat-icon concepts">
-            <i className="fas fa-brain"></i>
-          </div>
-        </div>
-        
-        <div className="quick-stat-item">
-          <div className="stat-value">{stats.achievementsCount}</div>
-          <div className="stat-label">Logros</div>
-          <div className="stat-icon achievements">
-            <i className="fas fa-trophy"></i>
-          </div>
-        </div>
-      </div>
-
-      {/* Weekly Progress */}
-      <div className="weekly-progress-card">
-        <div className="progress-header">
-          <h3>Progreso Semanal</h3>
-          <span className="progress-percentage">{Math.round(calculateProgressPercentage())}%</span>
-        </div>
-        <div className="progress-bar-container">
-          <div 
-            className="progress-bar-fill" 
-            style={{ width: `${calculateProgressPercentage()}%` }}
-          ></div>
-        </div>
-        <div className="progress-details">
-          <span>Meta: {preferences.study.dailyGoalMinutes} min/día</span>
-          <span>{Math.round((stats.totalStudyTime * 60) / 7)} min promedio</span>
-        </div>
-      </div>
-
-      {/* Detailed Stats Grid */}
-      <div className="profile-stats-detailed">
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <i className="fas fa-book"></i>
-            <h4>Cuadernos</h4>
-          </div>
-          <div className="stat-card-value">{stats.totalNotebooks}</div>
-          <div className="stat-card-trend">
-            <i className="fas fa-arrow-up"></i>
-            <span>+2 este mes</span>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <i className="fas fa-lightbulb"></i>
-            <h4>Conceptos</h4>
-          </div>
-          <div className="stat-card-value">{stats.totalConcepts}</div>
-          <div className="stat-card-progress">
-            <div className="mini-progress">
-              <div 
-                className="mini-progress-fill" 
-                style={{ width: `${(stats.conceptsDominated / stats.totalConcepts) * 100}%` }}
-              ></div>
-            </div>
-            <span>{Math.round((stats.conceptsDominated / stats.totalConcepts) * 100)}% dominados</span>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <i className="fas fa-stopwatch"></i>
-            <h4>Sesión promedio</h4>
-          </div>
-          <div className="stat-card-value">{stats.averageSessionTime}min</div>
-          <div className="stat-card-trend positive">
-            <i className="fas fa-arrow-up"></i>
-            <span>+5 min vs mes anterior</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="profile-quick-actions">
-        <Link to="/study" className="quick-action-card study">
-          <div className="action-icon">
-            <i className="fas fa-play"></i>
-          </div>
-          <div className="action-content">
-            <h4>Continuar estudiando</h4>
-            <p>Sigue con tu racha</p>
-          </div>
-        </Link>
-        
-        <Link to="/progress" className="quick-action-card progress">
-          <div className="action-icon">
-            <i className="fas fa-chart-line"></i>
-          </div>
-          <div className="action-content">
-            <h4>Ver progreso</h4>
-            <p>Analiza tu rendimiento</p>
-          </div>
-        </Link>
-        
-        <Link to="/materias" className="quick-action-card materias">
-          <div className="action-icon">
-            <i className="fas fa-book-open"></i>
-          </div>
-          <div className="action-content">
-            <h4>Mis materias</h4>
-            <p>Explora tus cuadernos</p>
-          </div>
-        </Link>
-      </div>
-    </div>
-  );
-
-  const renderPersonalTab = () => (
-    <div className="profile-personal">
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Información Personal</h3>
-          <button 
-            className="edit-section-btn"
-            onClick={() => setEditingSection(editingSection === 'personal' ? null : 'personal')}
-          >
-            <i className={`fas fa-${editingSection === 'personal' ? 'times' : 'edit'}`}></i>
-          </button>
-        </div>
-        
-        <div className="section-content">
-          {editingSection === 'personal' ? (
-            <div className="edit-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Nombre completo</label>
-                  <input
-                    type="text"
-                    value={editedProfile.nombre}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, nombre: e.target.value })}
-                    placeholder="Tu nombre completo"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Nombre de usuario</label>
-                  <input
-                    type="text"
-                    value={editedProfile.username}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, username: e.target.value })}
-                    placeholder="username"
-                  />
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Fecha de nacimiento</label>
-                  <input
-                    type="date"
-                    value={editedProfile.birthdate}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, birthdate: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Ubicación</label>
-                  <input
-                    type="text"
-                    value={editedProfile.location}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, location: e.target.value })}
-                    placeholder="Ciudad, País"
-                  />
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label>Biografía</label>
-                <textarea
-                  value={editedProfile.bio}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, bio: e.target.value })}
-                  placeholder="Cuéntanos sobre ti..."
-                  rows={3}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Meta de aprendizaje</label>
-                <textarea
-                  value={editedProfile.learningGoal}
-                  onChange={(e) => setEditedProfile({ ...editedProfile, learningGoal: e.target.value })}
-                  placeholder="¿Qué quieres lograr con tu aprendizaje?"
-                  rows={2}
-                />
-              </div>
-              
-              <div className="form-actions">
-                <button 
-                  onClick={() => handleSaveSection('personal')}
-                  disabled={saving}
-                  className="btn-primary"
-                >
-                  {saving ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-save"></i>
-                      Guardar cambios
-                    </>
-                  )}
-                </button>
-                <button 
-                  onClick={() => setEditingSection(null)}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="info-display">
-              <div className="info-item">
-                <label>Nombre completo</label>
-                <span>{editedProfile.nombre || 'No especificado'}</span>
-              </div>
-              <div className="info-item">
-                <label>Nombre de usuario</label>
-                <span>@{editedProfile.username || 'No especificado'}</span>
-              </div>
-              <div className="info-item">
-                <label>Email</label>
-                <span>{user.email}</span>
-              </div>
-              <div className="info-item">
-                <label>Fecha de nacimiento</label>
-                <span>{editedProfile.birthdate || 'No especificado'}</span>
-              </div>
-              <div className="info-item">
-                <label>Ubicación</label>
-                <span>{editedProfile.location || 'No especificado'}</span>
-              </div>
-              <div className="info-item">
-                <label>Biografía</label>
-                <span>{editedProfile.bio || 'No especificado'}</span>
-              </div>
-              <div className="info-item">
-                <label>Meta de aprendizaje</label>
-                <span>{editedProfile.learningGoal || 'No especificado'}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Interests Section */}
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Intereses</h3>
-          <button 
-            className="edit-section-btn"
-            onClick={() => setEditingSection(editingSection === 'interests' ? null : 'interests')}
-          >
-            <i className={`fas fa-${editingSection === 'interests' ? 'times' : 'edit'}`}></i>
-          </button>
-        </div>
-        
-        <div className="section-content">
-          {editingSection === 'interests' ? (
-            <div className="interests-edit">
-              <input
-                type="text"
-                placeholder="Agrega un interés y presiona Enter"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    setEditedProfile({
-                      ...editedProfile,
-                      interests: [...editedProfile.interests, e.currentTarget.value.trim()]
-                    });
-                    e.currentTarget.value = '';
-                  }
-                }}
-              />
-              <div className="interests-list">
-                {editedProfile.interests.map((interest, index) => (
-                  <span key={index} className="interest-tag editable">
-                    {interest}
-                    <button
-                      onClick={() => {
-                        setEditedProfile({
-                          ...editedProfile,
-                          interests: editedProfile.interests.filter((_, i) => i !== index)
-                        });
-                      }}
-                      className="remove-interest"
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="form-actions">
-                <button 
-                  onClick={() => handleSaveSection('personal')}
-                  className="btn-primary"
-                >
-                  <i className="fas fa-save"></i>
-                  Guardar intereses
-                </button>
-                <button 
-                  onClick={() => setEditingSection(null)}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="interests-display">
-              {editedProfile.interests.length > 0 ? (
-                <div className="interests-list">
-                  {editedProfile.interests.map((interest, index) => (
-                    <span key={index} className="interest-tag">
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="empty-state">Agrega tus intereses para personalizar tu experiencia</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPreferencesTab = () => (
-    <div className="profile-preferences">
-      {/* Study Preferences */}
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Preferencias de Estudio</h3>
-          <button 
-            className="edit-section-btn"
-            onClick={() => setEditingSection(editingSection === 'study' ? null : 'study')}
-          >
-            <i className={`fas fa-${editingSection === 'study' ? 'times' : 'edit'}`}></i>
-          </button>
-        </div>
-        
-        <div className="section-content">
-          {editingSection === 'study' ? (
-            <div className="preferences-edit">
-              <div className="preferences-grid">
-                <div className="preference-module">
-                  <div className="form-group">
-                    <label>Meta diaria (minutos)</label>
-                    <input
-                      type="number"
-                      value={preferences.study.dailyGoalMinutes}
-                      onChange={(e) => setPreferences({
-                        ...preferences,
-                        study: { ...preferences.study, dailyGoalMinutes: parseInt(e.target.value) || 30 }
-                      })}
-                      min="15"
-                      max="480"
-                    />
-                  </div>
-                </div>
-                
-                <div className="preference-module">
-                  <div className="form-group">
-                    <label>Nivel de dificultad</label>
-                    <select
-                      value={preferences.study.difficultyLevel}
-                      onChange={(e) => setPreferences({
-                        ...preferences,
-                        study: { ...preferences.study, difficultyLevel: e.target.value as any }
-                      })}
-                    >
-                      <option value="beginner">Principiante</option>
-                      <option value="intermediate">Intermedio</option>
-                      <option value="advanced">Avanzado</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="preference-module">
-                  <div className="form-group">
-                    <label>Estilo de aprendizaje</label>
-                    <select
-                      value={preferences.study.learningStyle}
-                      onChange={(e) => setPreferences({
-                        ...preferences,
-                        study: { ...preferences.study, learningStyle: e.target.value as any }
-                      })}
-                    >
-                      <option value="visual">Visual</option>
-                      <option value="auditory">Auditivo</option>
-                      <option value="kinesthetic">Kinestésico</option>
-                      <option value="mixed">Mixto</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="form-actions">
-                <button 
-                  onClick={() => handleSaveSection('preferences')}
-                  className="btn-primary"
-                >
-                  <i className="fas fa-save"></i>
-                  Guardar preferencias
-                </button>
-                <button 
-                  onClick={() => setEditingSection(null)}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="preferences-display">
-              <div className="preferences-grid">
-                <div className="preference-module">
-                  <div className="preference-item">
-                    <label>Meta diaria</label>
-                    <span>{preferences.study.dailyGoalMinutes} minutos</span>
-                  </div>
-                </div>
-                
-                <div className="preference-module">
-                  <div className="preference-item">
-                    <label>Nivel de dificultad</label>
-                    <span>{preferences.study.difficultyLevel === 'beginner' ? 'Principiante' : 
-                          preferences.study.difficultyLevel === 'intermediate' ? 'Intermedio' : 'Avanzado'}</span>
-                  </div>
-                </div>
-                
-                <div className="preference-module">
-                  <div className="preference-item">
-                    <label>Estilo de aprendizaje</label>
-                    <span>{preferences.study.learningStyle === 'visual' ? 'Visual' : 
-                          preferences.study.learningStyle === 'auditory' ? 'Auditivo' : 
-                          preferences.study.learningStyle === 'kinesthetic' ? 'Kinestésico' : 'Mixto'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Notification Preferences */}
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Notificaciones</h3>
-        </div>
-        
-        <div className="section-content">
-          <div className="notifications-settings">
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Notificaciones por email</label>
-                <span>Recibe actualizaciones importantes</span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.notifications.email}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    notifications: { ...preferences.notifications, email: e.target.checked }
-                  })}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </div>
-            
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Recordatorios de estudio</label>
-                <span>Te ayudamos a mantener tu racha</span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.notifications.studyReminders}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    notifications: { ...preferences.notifications, studyReminders: e.target.checked }
-                  })}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </div>
-            
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Notificaciones de logros</label>
-                <span>Celebra tus achievements</span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.notifications.achievements}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    notifications: { ...preferences.notifications, achievements: e.target.checked }
-                  })}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-          
-          <div className="form-actions-centered">
-            <button 
-              onClick={() => handleSaveSection('preferences')}
-              className="btn-primary btn-small"
-            >
-              <i className="fas fa-save"></i>
-              Guardar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Privacy Settings */}
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Privacidad</h3>
-        </div>
-        
-        <div className="section-content">
-          <div className="privacy-settings">
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Perfil público</label>
-                <span>Otros usuarios pueden ver tu perfil</span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.privacy.profilePublic}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    privacy: { ...preferences.privacy, profilePublic: e.target.checked }
-                  })}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </div>
-            
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Mostrar estadísticas</label>
-                <span>Compartir tu progreso con otros</span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={preferences.privacy.showStats}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    privacy: { ...preferences.privacy, showStats: e.target.checked }
-                  })}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-          
-          <div className="form-actions-centered">
-            <button 
-              onClick={() => handleSaveSection('preferences')}
-              className="btn-primary btn-small"
-            >
-              <i className="fas fa-save"></i>
-              Guardar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSecurityTab = () => (
-    <div className="profile-security">
-      <div className="profile-section-card">
-        <div className="section-header">
-          <h3>Seguridad de la cuenta</h3>
-        </div>
-        
-        <div className="section-content">
-          <div className="security-actions">
-            <div className="security-item">
-              <div className="security-info">
-                <i className="fas fa-key"></i>
-                <div>
-                  <h4>Cambiar contraseña</h4>
-                  <p>Actualiza tu contraseña regularmente</p>
-                </div>
-              </div>
-              <button 
-                className="btn-outline"
-                onClick={() => setShowPasswordModal(true)}
-              >
-                Cambiar
-              </button>
-            </div>
-            
-            <div className="security-item">
-              <div className="security-info">
-                <i className="fas fa-shield-alt"></i>
-                <div>
-                  <h4>Autenticación de dos factores</h4>
-                  <p>Añade una capa extra de seguridad</p>
-                </div>
-              </div>
-              <button className="btn-outline">
-                Configurar
-              </button>
-            </div>
-            
-            <div className="security-item">
-              <div className="security-info">
-                <i className="fas fa-mobile-alt"></i>
-                <div>
-                  <h4>Sesiones activas</h4>
-                  <p>Gestiona tus dispositivos conectados</p>
-                </div>
-              </div>
-              <button className="btn-outline">
-                Ver sesiones
-              </button>
-            </div>
-            
-            <div className="security-item">
-              <div className="security-info">
-                <i className="fas fa-download"></i>
-                <div>
-                  <h4>Exportar datos</h4>
-                  <p>Descarga una copia de tu información</p>
-                </div>
-              </div>
-              <button className="btn-outline">
-                Exportar
-              </button>
-            </div>
-            
-            <div className="security-item danger-item">
-              <div className="security-info">
-                <i className="fas fa-exclamation-triangle"></i>
-                <div>
-                  <h4>Eliminar cuenta</h4>
-                  <p>Esta acción no se puede deshacer</p>
-                </div>
-              </div>
-              <button className="btn-danger">
-                Eliminar cuenta
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const subscriptionInfo = getSubscriptionBadge();
 
   return (
-    <div className="profile-page-container modern">
+    <div className="profile-page-container single-module">
       <HeaderWithHamburger title="Mi Perfil" />
       
-      {/* Navigation Tabs */}
-      <div className="profile-navigation">
-        <button 
-          className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          <i className="fas fa-home"></i>
-          <span>Resumen</span>
-        </button>
-        
-        <button 
-          className={`nav-tab ${activeTab === 'personal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('personal')}
-        >
-          <i className="fas fa-user"></i>
-          <span>Personal</span>
-        </button>
-        
-        <button 
-          className={`nav-tab ${activeTab === 'preferences' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preferences')}
-        >
-          <i className="fas fa-cog"></i>
-          <span>Configuración</span>
-        </button>
-        
-        <button 
-          className={`nav-tab ${activeTab === 'security' ? 'active' : ''}`}
-          onClick={() => setActiveTab('security')}
-        >
-          <i className="fas fa-shield-alt"></i>
-          <span>Seguridad</span>
-        </button>
-      </div>
-
-      {/* Tab Content */}
+      {/* Single Module Content */}
       <div className="profile-content">
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'personal' && renderPersonalTab()}
-        {activeTab === 'preferences' && renderPreferencesTab()}
-        {activeTab === 'security' && renderSecurityTab()}
+        {/* Hero Section */}
+        <div className="profile-hero-modern">
+          <div className="profile-hero-background">
+            <div className="hero-pattern"></div>
+          </div>
+          <div className="profile-hero-content">
+            <div className="profile-avatar-section">
+              <div className="profile-avatar-large">
+                {editedProfile.photoURL ? (
+                  editedProfile.photoURL.startsWith('http') ? (
+                    <img src={editedProfile.photoURL} alt="Avatar" />
+                  ) : (
+                    <div className="profile-avatar-emoji">
+                      {editedProfile.photoURL}
+                    </div>
+                  )
+                ) : (
+                  <div className="profile-avatar-placeholder">
+                    🐒
+                  </div>
+                )}
+                <button className="avatar-edit-btn" onClick={() => setShowAvatarModal(true)}>
+                  <i className="fas fa-camera"></i>
+                </button>
+              </div>
+              <div className={`profile-subscription-badge ${subscriptionInfo.text.toLowerCase().replace(' ', '-')}`}>
+                <i className={`badge-icon ${subscriptionInfo.icon}`}></i>
+                <span className="badge-text">{subscriptionInfo.text}</span>
+              </div>
+            </div>
+            <div className="profile-info-section">
+              <h1 className="profile-name">{editedProfile.nombre || 'Usuario'}</h1>
+              <p className="profile-username">@{editedProfile.username || user.email?.split('@')[0]}</p>
+              <p className="profile-email">{user.email}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Personal Information and Security in two columns */}
+        <div className="profile-content-main">
+          <div className="profile-personal">
+            <div className="profile-section-card">
+              <div className="section-header">
+                <h3>Información Personal</h3>
+                <button 
+                  className="edit-section-btn"
+                  onClick={() => setEditingSection(editingSection === 'personal' ? null : 'personal')}
+                >
+                  <i className={`fas fa-${editingSection === 'personal' ? 'times' : 'edit'}`}></i>
+                </button>
+              </div>
+              <div className="section-content">
+                {editingSection === 'personal' ? (
+                  <div className="edit-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Nombre completo</label>
+                        <input
+                          type="text"
+                          value={editedProfile.nombre}
+                          onChange={(e) => setEditedProfile({ ...editedProfile, nombre: e.target.value })}
+                          placeholder="Tu nombre completo"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Fecha de nacimiento</label>
+                        <input
+                          type="date"
+                          value={editedProfile.birthdate}
+                          onChange={(e) => setEditedProfile({ ...editedProfile, birthdate: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Intereses</label>
+                        <input
+                          type="text"
+                          placeholder="Agrega un interés y presiona Enter"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                              e.preventDefault();
+                              setEditedProfile({
+                                ...editedProfile,
+                                interests: [...editedProfile.interests, e.currentTarget.value.trim()]
+                              });
+                              e.currentTarget.value = '';
+                            }
+                          }}
+                        />
+                        {editedProfile.interests.length > 0 && (
+                          <div className="interests-list" style={{ marginTop: '0.5rem' }}>
+                            {editedProfile.interests.map((interest, index) => (
+                              <span key={index} className="interest-tag editable">
+                                {interest}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditedProfile({
+                                      ...editedProfile,
+                                      interests: editedProfile.interests.filter((_, i) => i !== index)
+                                    });
+                                  }}
+                                  className="remove-interest"
+                                >
+                                  <i className="fas fa-times"></i>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button 
+                        onClick={() => handleSaveSection('personal')}
+                        disabled={saving}
+                        className="btn-primary"
+                      >
+                        {saving ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin"></i>
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-save"></i>
+                            Guardar cambios
+                          </>
+                        )}
+                      </button>
+                      <button 
+                        onClick={() => setEditingSection(null)}
+                        className="btn-secondary"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="info-display">
+                    <div className="info-item">
+                      <label>Nombre completo</label>
+                      <span>{editedProfile.nombre || 'No especificado'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Email</label>
+                      <span>{user.email}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Fecha de nacimiento</label>
+                      <span>{editedProfile.birthdate || 'No especificado'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Intereses</label>
+                      <span>
+                        {editedProfile.interests.length > 0 ? (
+                          <div className="interests-list">
+                            {editedProfile.interests.map((interest, index) => (
+                              <span key={index} className="interest-tag">
+                                {interest}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          'No especificado'
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Security Section */}
+          <div className="profile-security">
+            <div className="profile-section-card">
+              <div className="section-header">
+                <h3>Seguridad de la cuenta</h3>
+              </div>
+              <div className="section-content">
+                <div className="security-actions">
+                  <div className="security-item">
+                    <div className="security-info">
+                      <i className="fas fa-key"></i>
+                      <div>
+                        <h4>Cambiar contraseña</h4>
+                        <p>Actualiza tu contraseña regularmente</p>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-outline security-action-btn"
+                      onClick={() => setShowPasswordModal(true)}
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                  
+                  <div className="security-item">
+                    <div className="security-info">
+                      <i className="fas fa-shield-alt"></i>
+                      <div>
+                        <h4>Autenticación de dos factores</h4>
+                        <p>{is2FAEnabled ? 'Protección adicional activada' : 'Añade una capa extra de seguridad'}</p>
+                      </div>
+                    </div>
+                    <button 
+                      className={`btn-outline security-action-btn ${is2FAEnabled ? 'btn-success' : ''}`}
+                      onClick={() => setShow2FAModal(true)}
+                    >
+                      {is2FAEnabled ? 'Gestionar' : 'Configurar'}
+                    </button>
+                  </div>
+                  
+                  <div className="security-item danger-item">
+                    <div className="security-info">
+                      <i className="fas fa-exclamation-triangle"></i>
+                      <div>
+                        <h4>Eliminar cuenta</h4>
+                        <p>Esta acción no se puede deshacer</p>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-danger"
+                      onClick={() => setShowDeleteModal(true)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Logout Button - Always visible */}
@@ -1409,6 +1210,436 @@ const ProfilePage: React.FC = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={handleCloseDeleteModal}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header danger">
+              <h3>
+                <i className="fas fa-exclamation-triangle"></i>
+                ⚠️ Eliminar Cuenta Permanentemente
+              </h3>
+              <button 
+                className="modal-close-btn"
+                onClick={handleCloseDeleteModal}
+                title="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning">
+                <p className="warning-text">
+                  <strong>¡ADVERTENCIA!</strong> Esta acción es irreversible y tendrá las siguientes consecuencias:
+                </p>
+                <ul className="consequences-list">
+                  <li>Se eliminarán todos tus cuadernos y conceptos</li>
+                  <li>Se perderá todo tu progreso de estudio</li>
+                  <li>Se eliminarán tus logros y estadísticas</li>
+                  <li>No podrás recuperar tu cuenta ni tu información</li>
+                  <li>Se cancelará tu suscripción actual</li>
+                </ul>
+              </div>
+              
+              <div className="delete-confirmation">
+                <p>Para confirmar que deseas eliminar tu cuenta permanentemente, escribe <strong>ELIMINAR</strong> en el campo de abajo:</p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Escribe ELIMINAR para confirmar"
+                  className={deleteError ? 'error' : ''}
+                />
+              </div>
+              
+              {deleteError && (
+                <div className="delete-error">
+                  <i className="fas fa-exclamation-circle"></i>
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={handleCloseDeleteModal}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="btn-danger-confirm"
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== 'ELIMINAR'}
+              >
+                {deleting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-trash"></i>
+                    Eliminar mi cuenta
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Configuration Modal */}
+      {/* Reauthentication Modal */}
+      {showReauthModal && (
+        <div className="modal-overlay" onClick={() => setShowReauthModal(false)}>
+          <div className="twofa-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header twofa">
+              <h3>
+                <i className="fas fa-lock"></i>
+                Confirmar Identidad
+              </h3>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowReauthModal(false)}
+                disabled={setting2FA}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-body twofa">
+              <p className="twofa-description">
+                Por seguridad, necesitas confirmar tu contraseña antes de configurar la autenticación de dos factores.
+              </p>
+              
+              <div className="twofa-form">
+                <label htmlFor="reauth-password">Contraseña actual:</label>
+                <input
+                  id="reauth-password"
+                  type="password"
+                  value={reauthPassword}
+                  onChange={(e) => setReauthPassword(e.target.value)}
+                  placeholder="Ingresa tu contraseña"
+                  disabled={setting2FA}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !setting2FA) {
+                      handleReauthenticate();
+                    }
+                  }}
+                />
+                
+                {error2FA && (
+                  <div className="error-message twofa">
+                    <i className="fas fa-exclamation-circle"></i>
+                    {error2FA}
+                  </div>
+                )}
+                
+                <div className="twofa-actions">
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShowReauthModal(false);
+                      setReauthPassword('');
+                      setError2FA('');
+                    }}
+                    disabled={setting2FA}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    className="btn-primary"
+                    onClick={handleReauthenticate}
+                    disabled={setting2FA || !reauthPassword}
+                  >
+                    {setting2FA ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        Verificando...
+                      </>
+                    ) : (
+                      'Confirmar'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Setup Modal */}
+      {show2FAModal && (
+        <div className="modal-overlay" onClick={handleClose2FAModal}>
+          <div className="twofa-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header twofa">
+              <h3>
+                <i className="fas fa-shield-alt"></i>
+                {is2FAEnabled ? 'Gestionar 2FA' : 'Configurar Autenticación de Dos Factores'}
+              </h3>
+              <button 
+                className="modal-close-btn"
+                onClick={handleClose2FAModal}
+                title="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {/* reCAPTCHA container */}
+              <div id="recaptcha-container"></div>
+              
+              {is2FAEnabled ? (
+                <div className="twofa-status">
+                  <div className="status-active">
+                    <i className="fas fa-check-circle"></i>
+                    <h4>2FA Activado</h4>
+                    <p>Tu cuenta está protegida con autenticación de dos factores.</p>
+                  </div>
+                  
+                  <div className="twofa-warning">
+                    <p>Si desactivas 2FA, tu cuenta será menos segura. Solo necesitarás tu contraseña para iniciar sesión.</p>
+                  </div>
+                  
+                  <button 
+                    className="btn-danger"
+                    onClick={handleDisable2FA}
+                    disabled={setting2FA}
+                  >
+                    {setting2FA ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        Desactivando...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-shield-slash"></i>
+                        Desactivar 2FA
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {step2FA === 'phone' && (
+                    <div className="twofa-setup">
+                      <div className="setup-intro">
+                        <i className="fas fa-mobile-alt" style={{ fontSize: '3rem', color: '#10b981', marginBottom: '1rem' }}></i>
+                        <h4>Protege tu cuenta con 2FA</h4>
+                        <p>La autenticación de dos factores añade una capa adicional de seguridad.</p>
+                        <p>Te enviaremos un código SMS cada vez que inicies sesión.</p>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Número de teléfono</label>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="+52 55 1234 5678"
+                          className={error2FA ? 'error' : ''}
+                        />
+                        <small>Incluye el código de país (ej: +52 para México, +1 para USA)</small>
+                      </div>
+                      
+                      {error2FA && (
+                        <div className="twofa-error">
+                          <i className="fas fa-exclamation-circle"></i>
+                          {error2FA}
+                        </div>
+                      )}
+                      
+                      <button 
+                        className="btn-primary"
+                        onClick={handleSendVerificationCode}
+                        disabled={setting2FA || !phoneNumber}
+                      >
+                        {setting2FA ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin"></i>
+                            Enviando SMS...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-sms"></i>
+                            Enviar código SMS
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {step2FA === 'verify' && (
+                    <div className="twofa-verify">
+                      <div className="verify-intro">
+                        <i className="fas fa-comment-dots" style={{ fontSize: '2.5rem', color: '#10b981', marginBottom: '1rem' }}></i>
+                        <h4>Verifica tu número</h4>
+                        <p>Hemos enviado un código SMS a:</p>
+                        <p className="phone-display-verify">{phoneNumber}</p>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Código de verificación</label>
+                        <input
+                          type="text"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="123456"
+                          maxLength={6}
+                          className={`verification-input ${error2FA ? 'error' : ''}`}
+                        />
+                      </div>
+                      
+                      {error2FA && (
+                        <div className="twofa-error">
+                          <i className="fas fa-exclamation-circle"></i>
+                          {error2FA}
+                        </div>
+                      )}
+                      
+                      <div className="verify-actions">
+                        <button 
+                          className="btn-secondary"
+                          onClick={() => {
+                            setStep2FA('phone');
+                            setVerificationCode('');
+                            setError2FA('');
+                          }}
+                        >
+                          Cambiar número
+                        </button>
+                        <button 
+                          className="btn-primary"
+                          onClick={handleVerifyAndEnroll}
+                          disabled={setting2FA || verificationCode.length !== 6}
+                        >
+                          {setting2FA ? (
+                            <>
+                              <i className="fas fa-spinner fa-spin"></i>
+                              Verificando...
+                            </>
+                          ) : (
+                            <>
+                              <i className="fas fa-check"></i>
+                              Verificar y activar
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {step2FA === 'success' && (
+                    <div className="twofa-success">
+                      <i className="fas fa-check-circle"></i>
+                      <h4>¡2FA Activado con éxito!</h4>
+                      <p>Tu cuenta ahora está protegida con autenticación de dos factores.</p>
+                      <p>A partir de ahora, necesitarás tu teléfono para iniciar sesión.</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Avatar Selection Modal */}
+      {showAvatarModal && (
+        <div className="modal-overlay" onClick={() => setShowAvatarModal(false)}>
+          <div className="avatar-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <i className="fas fa-user-circle"></i>
+                Seleccionar Avatar
+              </h3>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowAvatarModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="avatar-grid">
+                {/* Avatares predefinidos */}
+                {[
+                  '🧑‍🎓', '👨‍🏫', '👩‍🏫', '🧑‍💻', '👨‍💻', '👩‍💻',
+                  '🧑‍🔬', '👨‍🔬', '👩‍🔬', '🧑‍🚀', '👨‍🚀', '👩‍🚀',
+                  '🦸', '🦸‍♂️', '🦸‍♀️', '🧙', '🧙‍♂️', '🧙‍♀️',
+                  '🐵', '🐶', '🐱', '🐭', '🐹', '🐰',
+                  '🦊', '🐻', '🐼', '🐨', '🐯', '🦁'
+                ].map((emoji, index) => (
+                  <button
+                    key={index}
+                    className={`avatar-option ${selectedAvatar === emoji ? 'selected' : ''}`}
+                    onClick={() => setSelectedAvatar(emoji)}
+                    style={{ fontSize: '2.5rem' }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="avatar-actions">
+                <button 
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowAvatarModal(false);
+                    setSelectedAvatar('');
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  className="btn-primary"
+                  onClick={async () => {
+                    if (selectedAvatar && user) {
+                      setUploadingAvatar(true);
+                      try {
+                        // Actualizar el avatar en Firestore
+                        await updateDoc(doc(db, 'users', user.uid), {
+                          photoURL: selectedAvatar,
+                          updatedAt: new Date()
+                        });
+                        
+                        // Actualizar el estado local
+                        setEditedProfile(prev => ({ ...prev, photoURL: selectedAvatar }));
+                        setShowAvatarModal(false);
+                        setSelectedAvatar('');
+                        
+                        // Recargar el perfil para mostrar el cambio
+                        window.location.reload();
+                      } catch (error) {
+                        console.error('Error updating avatar:', error);
+                        alert('Error al actualizar el avatar. Por favor intenta de nuevo.');
+                      } finally {
+                        setUploadingAvatar(false);
+                      }
+                    }
+                  }}
+                  disabled={!selectedAvatar || uploadingAvatar}
+                >
+                  {uploadingAvatar ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i>
+                      Guardando...
+                    </>
+                  ) : (
+                    'Guardar'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

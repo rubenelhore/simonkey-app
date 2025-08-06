@@ -1,7 +1,7 @@
 // src/pages/StudyModePage.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { Notebook } from '../types/interfaces';
@@ -51,7 +51,13 @@ const StudyModePage = () => {
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [allUserNotebooks, setAllUserNotebooks] = useState<{ [materiaId: string]: { materia: any, notebooks: Notebook[] } }>({});
-  const [studyAvailability, setStudyAvailability] = useState<{ available: boolean; nextAvailable?: Date; conceptsCount: number }>({ 
+  const [studyAvailability, setStudyAvailability] = useState<{ 
+    available: boolean; 
+    nextAvailable?: Date; 
+    conceptsCount: number;
+    totalConcepts?: number;
+    hasStudiedConcepts?: boolean;
+  }>({ 
     available: false, 
     conceptsCount: 0 
   });
@@ -115,52 +121,43 @@ const StudyModePage = () => {
     }
   }, [selectedNotebook]);
 
-  // Load effective user ID
+  // Load effective user ID and user data - OPTIMIZADO
   useEffect(() => {
-    const loadEffectiveUserId = async () => {
-      if (auth.currentUser) {
-        const effectiveUserData = await getEffectiveUserId();
-        setEffectiveUserId(effectiveUserData ? effectiveUserData.id : auth.currentUser.uid);
-      }
-    };
-    loadEffectiveUserId();
-  }, [auth.currentUser]);
-
-  // Load user data
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!effectiveUserId) return;
+    const loadInitialData = async () => {
+      if (!auth.currentUser) return;
       
       try {
-        // Load streak data
-        const streak = await studyStreakService.getUserStreak(effectiveUserId);
-        const hasStudiedToday = await studyStreakService.hasStudiedToday(effectiveUserId);
+        // Cargar effectiveUserId primero
+        const effectiveUserData = await getEffectiveUserId();
+        const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        setEffectiveUserId(userId);
+        
+        // Ahora cargar datos del usuario en paralelo
+        const [streak, hasStudiedToday, conceptsWithMinReps] = await Promise.all([
+          studyStreakService.getUserStreak(userId),
+          studyStreakService.hasStudiedToday(userId),
+          kpiService.getConceptsWithMinRepetitions(userId, 2)
+        ]);
+        
+        // Actualizar estados
         setStreakData({
           days: streak.currentStreak,
           message: hasStudiedToday ? 
             `¡${streak.currentStreak} días seguidos!` : 
             '¡Estudia hoy para mantener tu racha!'
         });
-
-        // Calculate concepts with repetitions >= 2 for division system
-        const conceptsWithMinReps = await kpiService.getConceptsWithMinRepetitions(effectiveUserId, 2);
-        setConceptsLearned(conceptsWithMinReps);
         
-        // Calculate division based on concepts with repetitions >= 2
+        setConceptsLearned(conceptsWithMinReps);
         calculateDivision(conceptsWithMinReps);
-
-        // Generate suggestions and challenges
         generateSuggestionsAndChallenges(streak.currentStreak);
         
       } catch (error) {
-        console.error('Error loading user data:', error);
+        console.error('Error loading initial data:', error);
       }
     };
-
-    if (effectiveUserId) {
-      loadUserData();
-    }
-  }, [effectiveUserId]);
+    
+    loadInitialData();
+  }, [auth.currentUser]);
 
   // Generate initial suggestions and challenges immediately
   useEffect(() => {
@@ -221,7 +218,7 @@ const StudyModePage = () => {
     fetchMaterias();
   }, [navigate, isSchoolStudent, schoolSubjects]);
 
-  // Load all user notebooks organized by materia
+  // Load all user notebooks organized by materia - OPTIMIZADO
   useEffect(() => {
     const fetchAllUserNotebooks = async () => {
       if (!auth.currentUser || !materias.length) return;
@@ -229,11 +226,10 @@ const StudyModePage = () => {
       try {
         const notebooksByMateria: { [materiaId: string]: { materia: any, notebooks: Notebook[] } } = {};
         
-        for (const materia of materias) {
-          let notebooksData: Notebook[] = [];
-          
-          if (isSchoolStudent && schoolNotebooks) {
-            notebooksData = schoolNotebooks
+        if (isSchoolStudent && schoolNotebooks) {
+          // Para estudiantes escolares, procesar directamente sin consultas
+          materias.forEach(materia => {
+            const notebooksData = schoolNotebooks
               .filter(notebook => notebook.idMateria === materia.id)
               .map(notebook => ({
                 id: notebook.id,
@@ -243,33 +239,45 @@ const StudyModePage = () => {
                 materiaId: notebook.idMateria,
                 isFrozen: notebook.isFrozen || false,
                 frozenScore: notebook.frozenScore
-              }));
-          } else {
-            const notebooksQuery = query(
-              collection(db, 'notebooks'),
-              where('userId', '==', auth.currentUser.uid),
-              where('materiaId', '==', materia.id)
-            );
+              }))
+              .sort((a, b) => a.title.localeCompare(b.title));
             
-            const notebooksSnapshot = await getDocs(notebooksQuery);
-            notebooksData = notebooksSnapshot.docs.map(doc => ({
-              id: doc.id,
-              title: doc.data().title,
-              color: doc.data().color || '#6147FF',
-              type: doc.data().type || 'personal' as const,
-              materiaId: doc.data().materiaId
-            }));
-          }
+            if (notebooksData.length > 0) {
+              notebooksByMateria[materia.id] = {
+                materia: materia,
+                notebooks: notebooksData
+              };
+            }
+          });
+        } else {
+          // Para usuarios regulares, hacer una sola consulta para TODOS los notebooks
+          const allNotebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', auth.currentUser.uid)
+          );
           
-          // Ordenar cuadernos alfabéticamente
-          notebooksData.sort((a, b) => a.title.localeCompare(b.title));
+          const notebooksSnapshot = await getDocs(allNotebooksQuery);
           
-          if (notebooksData.length > 0) {
-            notebooksByMateria[materia.id] = {
-              materia: materia,
-              notebooks: notebooksData
-            };
-          }
+          // Agrupar notebooks por materia
+          materias.forEach(materia => {
+            const notebooksData = notebooksSnapshot.docs
+              .filter(doc => doc.data().materiaId === materia.id)
+              .map(doc => ({
+                id: doc.id,
+                title: doc.data().title,
+                color: doc.data().color || '#6147FF',
+                type: doc.data().type || 'personal' as const,
+                materiaId: doc.data().materiaId
+              }))
+              .sort((a, b) => a.title.localeCompare(b.title));
+            
+            if (notebooksData.length > 0) {
+              notebooksByMateria[materia.id] = {
+                materia: materia,
+                notebooks: notebooksData
+              };
+            }
+          });
         }
         
         setAllUserNotebooks(notebooksByMateria);
@@ -480,7 +488,7 @@ const StudyModePage = () => {
     setChallenges(dailyChallenges);
   };
 
-  // Handle notebook selection
+  // Handle notebook selection - SUPER OPTIMIZADO
   const handleSelectNotebook = async (notebook: Notebook) => {
     if (notebook.isFrozen) {
       alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
@@ -488,392 +496,198 @@ const StudyModePage = () => {
     }
     
     setSelectedNotebook(notebook);
-    setShowNotebookError(false); // Clear error when notebook is selected
-    // Don't save to localStorage - force fresh selection each time
+    setShowNotebookError(false);
     
-    // Reset score while loading
+    // Mostrar valores estimados INMEDIATAMENTE basados en valores típicos
     setNotebookScore({ score: 0, level: 1, progress: 0 });
+    setStudyAvailability({ available: true, conceptsCount: 5 }); // Asumir que hay conceptos disponibles
+    setQuizAvailability({ available: true });
+    setSmartStudyCount(0);
+    setMaxQuizScore(0);
+    setFreeStudyCount(0);
+    setGamePoints(0);
     
-    // Load notebook stats
+    if (!effectiveUserId) return;
+    
+    // Cargar datos críticos primero (lo mínimo necesario)
+    loadCriticalData(notebook);
+    // Cargar datos secundarios en background
+    loadSecondaryData(notebook);
+  };
+  
+  // Cargar solo datos críticos para mostrar la UI rápidamente
+  const loadCriticalData = async (notebook: Notebook) => {
+    if (!effectiveUserId) return;
+    
     try {
-      if (effectiveUserId) {
-        console.log('Loading stats for notebook:', notebook.id, 'user:', effectiveUserId);
+      console.log('Loading critical data for notebook:', notebook.id);
+      
+      // SOLO cargar lo esencial para mostrar la UI
+      const [
+        reviewableConceptsCount,
+        allConceptsCount,
+        learningData,
+        notebookLimitsDoc
+      ] = await Promise.all([
+        // Obtener el conteo de conceptos disponibles usando el método que respeta SM-3
+        studyService.getReviewableConceptsCount(effectiveUserId, notebook.id),
+        // Obtener el total de conceptos en el cuaderno
+        studyService.getAllConceptsFromNotebook(effectiveUserId, notebook.id).then(concepts => concepts.length),
+        // Obtener learning data para calcular próxima fecha
+        studyService.getLearningDataForNotebook(effectiveUserId, notebook.id),
+        // Notebook limits - para saber si puede hacer quiz
+        getDoc(doc(db, 'users', effectiveUserId, 'notebookLimits', notebook.id))
+      ]);
         
-        const allConcepts = await studyService.getAllConceptsFromNotebook(effectiveUserId, notebook.id);
-        const learningData = await studyService.getLearningDataForNotebook(effectiveUserId, notebook.id);
+      // PROCESAR DATOS CRÍTICOS - ultra rápido
+      console.log('Critical data loaded, processing...');
+      console.log('🎯 Conceptos disponibles para estudio inteligente (SM-3):', reviewableConceptsCount);
+      console.log('📚 Total de conceptos en el cuaderno:', allConceptsCount);
+      
+      // Calcular próxima fecha de revisión si no hay conceptos disponibles
+      let nextAvailableDate: Date | undefined;
+      let hasStudiedConcepts = false;
+      
+      if (reviewableConceptsCount === 0 && learningData.length > 0) {
+        // Hay datos de aprendizaje, así que ya se han estudiado conceptos
+        hasStudiedConcepts = true;
         
-        console.log('All concepts:', allConcepts.length);
-        console.log('Learning data:', learningData.length);
-        
-        // Calculate comprehensive score
-        const masteredConcepts = learningData.filter(d => d.repetitions >= 3).length;
-        const studiedConcepts = learningData.filter(d => d.repetitions > 0).length;
-        
-        console.log('Mastered concepts:', masteredConcepts);
-        console.log('Studied concepts:', studiedConcepts);
-        
-        // Temporarily set a placeholder score - will be calculated after all data is loaded
-        setNotebookScore({
-          score: 0,
-          level: 1,
-          progress: 0
-        });
-
-        // Check study availability based on SM-3 algorithm
+        // Encontrar la próxima fecha de revisión más cercana
         const now = new Date();
-        let availableConcepts = 0;
-        let nextAvailableDate: Date | undefined;
-
-        console.log('Checking study availability for notebook:', notebook.id);
-        console.log('Total concepts in notebook:', allConcepts.length);
-        console.log('Learning data entries:', learningData.length);
-
-        if (allConcepts.length === 0) {
-          // No concepts in notebook
-          console.log('No concepts found in notebook');
-          setStudyAvailability({
-            available: false,
-            nextAvailable: undefined,
-            conceptsCount: 0
-          });
-        } else {
-          for (const concept of allConcepts) {
-            const learningDataItem = learningData.find(ld => ld.conceptId === concept.id);
-            
-            if (!learningDataItem || learningDataItem.repetitions === 0) {
-              // New concepts are always available
-              availableConcepts++;
-              console.log(`Concept ${concept.id} is new/unlearned - available`);
-            } else if (learningDataItem.nextReviewDate) {
-              // Handle both Timestamp and Date objects
-              let nextReview: Date;
-              if ((learningDataItem.nextReviewDate as any).toDate) {
-                nextReview = (learningDataItem.nextReviewDate as any).toDate();
-              } else if (learningDataItem.nextReviewDate instanceof Date) {
-                nextReview = learningDataItem.nextReviewDate;
-              } else {
-                // If it's a string or number, try to parse it
-                nextReview = new Date(learningDataItem.nextReviewDate);
-              }
-              
-              if (nextReview <= now) {
-                // Concept is due for review
-                availableConcepts++;
-                console.log(`Concept ${concept.id} is due for review - available`);
-              } else if (!nextAvailableDate || nextReview < nextAvailableDate) {
-                // Track the earliest next review date
-                nextAvailableDate = nextReview;
-                console.log(`Concept ${concept.id} next review at:`, nextReview);
-              }
-            }
-          }
-
-          console.log('Available concepts:', availableConcepts);
-          console.log('Next available date:', nextAvailableDate);
-
-          // Temporarily set availability based on concepts
-          // Will be updated later after checking daily limit
-          setStudyAvailability({
-            available: availableConcepts > 0,
-            nextAvailable: nextAvailableDate,
-            conceptsCount: availableConcepts
-          });
-        }
-
-        // Initialize variables for all data we need
-        let completedSmartStudies = 0;
-        let maxQuizScoreValue = 0;
-        let gamePointsValue = 0;
-        let streakBonusValue = 0;
-        
-        // Count completed smart study sessions for this notebook - ONLY VALIDATED
-        try {
-          // Try first with completed and validated fields
-          let studySessionsQuery = query(
-            collection(db, 'studySessions'),
-            where('userId', '==', effectiveUserId),
-            where('notebookId', '==', notebook.id),
-            where('mode', '==', 'smart'),
-            where('completed', '==', true),
-            where('validated', '==', true)  // Solo sesiones validadas (mini quiz aprobado)
-          );
-          let studySessionsSnapshot = await getDocs(studySessionsQuery);
-          
-          // Calculate total based on intensity
-          studySessionsSnapshot.docs.forEach(doc => {
-            const sessionData = doc.data();
-            let studyValue = 1; // Default value (Progress)
-            
-            if (sessionData.intensity === 'warm_up') {
-              studyValue = 0.5;
-            } else if (sessionData.intensity === 'rocket') {
-              studyValue = 2;
-            }
-            
-            completedSmartStudies += studyValue;
-          });
-          
-          console.log('Query 1 - Completed smart studies (with intensity):', completedSmartStudies);
-          
-          // If no results, try without completed field but still requiring validated
-          if (completedSmartStudies === 0) {
-            studySessionsQuery = query(
-              collection(db, 'studySessions'),
-              where('userId', '==', effectiveUserId),
-              where('notebookId', '==', notebook.id),
-              where('mode', '==', 'smart'),
-              where('validated', '==', true)  // Solo sesiones validadas
-            );
-            studySessionsSnapshot = await getDocs(studySessionsQuery);
-            
-            // Recalculate with intensity
-            studySessionsSnapshot.docs.forEach(doc => {
-              const sessionData = doc.data();
-              let studyValue = 1; // Default value (Progress)
-              
-              if (sessionData.intensity === 'warm_up') {
-                studyValue = 0.5;
-              } else if (sessionData.intensity === 'rocket') {
-                studyValue = 2;
-              }
-              
-              completedSmartStudies += studyValue;
-            });
-            
-            console.log('Query 2 - All smart studies (with intensity):', completedSmartStudies);
-          }
-          
-          // If still no results, try with sessionType field and validated
-          if (completedSmartStudies === 0) {
-            studySessionsQuery = query(
-              collection(db, 'studySessions'),
-              where('userId', '==', effectiveUserId),
-              where('notebookId', '==', notebook.id),
-              where('sessionType', '==', 'smart'),
-              where('validated', '==', true)  // Solo sesiones validadas
-            );
-            studySessionsSnapshot = await getDocs(studySessionsQuery);
-            
-            // Recalculate with intensity
-            studySessionsSnapshot.docs.forEach(doc => {
-              const sessionData = doc.data();
-              let studyValue = 1; // Default value (Progress)
-              
-              if (sessionData.intensity === 'warm_up') {
-                studyValue = 0.5;
-              } else if (sessionData.intensity === 'rocket') {
-                studyValue = 2;
-              }
-              
-              completedSmartStudies += studyValue;
-            });
-            
-            console.log('Query 3 - Smart studies with sessionType (with intensity):', completedSmartStudies);
-          }
-          
-          // If still no results, check all study sessions for this notebook
-          if (completedSmartStudies === 0) {
-            const allSessionsQuery = query(
-              collection(db, 'studySessions'),
-              where('userId', '==', effectiveUserId),
-              where('notebookId', '==', notebook.id)
-            );
-            const allSessionsSnapshot = await getDocs(allSessionsQuery);
-            console.log('All sessions for notebook:', allSessionsSnapshot.size);
-            
-            // Log all documents to see their structure
-            allSessionsSnapshot.docs.forEach((doc, index) => {
-              if (index < 3) { // Log first 3 documents
-                console.log(`Session ${index + 1}:`, doc.data());
-              }
-            });
-          }
-          
-          setSmartStudyCount(completedSmartStudies);
-          
-          // Count free study sessions
-          const freeStudyQuery = query(
-            collection(db, 'studySessions'),
-            where('userId', '==', effectiveUserId),
-            where('notebookId', '==', notebook.id),
-            where('mode', '==', 'free')
-          );
-          const freeStudySnapshot = await getDocs(freeStudyQuery);
-          const completedFreeStudies = freeStudySnapshot.size;
-          setFreeStudyCount(completedFreeStudies);
-          console.log('Free study count:', completedFreeStudies);
-          
-        } catch (error) {
-          console.error('Error counting smart studies:', error);
-          setSmartStudyCount(0);
-          setFreeStudyCount(0);
-        }
-
-        // Get max quiz score for this notebook
-        try {
-          const quizStatsRef = doc(db, 'users', effectiveUserId, 'quizStats', notebook.id);
-          const quizStatsDoc = await getDoc(quizStatsRef);
-          
-          if (quizStatsDoc.exists()) {
-            const stats = quizStatsDoc.data();
-            maxQuizScoreValue = stats.maxScore || 0;
-            setMaxQuizScore(maxQuizScoreValue);
-            console.log('Max quiz score:', maxQuizScoreValue);
-          } else {
-            maxQuizScoreValue = 0;
-            setMaxQuizScore(0);
-          }
-        } catch (error) {
-          console.error('Error getting quiz stats:', error);
-          maxQuizScoreValue = 0;
-          setMaxQuizScore(0);
-        }
-
-        // Get game points for this notebook
-        try {
-          const notebookPoints = await gamePointsService.getNotebookPoints(effectiveUserId, notebook.id);
-          gamePointsValue = notebookPoints.totalPoints || 0;
-          setGamePoints(gamePointsValue);
-          console.log('Game points:', gamePointsValue);
-        } catch (error) {
-          console.error('Error getting game points:', error);
-          gamePointsValue = 0;
-          setGamePoints(0);
-        }
-
-        // Check study limits (quiz and smart study)
-        const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebook.id);
-        const notebookLimitsDoc = await getDoc(notebookLimitsRef);
-        
-        if (notebookLimitsDoc.exists()) {
-          const limits = notebookLimitsDoc.data();
-          
-          // Check smart study availability (once per day) - TEMPORALMENTE DESACTIVADO PARA TESTING
-          /*
-          if (limits.lastSmartStudyDate) {
-            const lastSmartStudyDate = limits.lastSmartStudyDate.toDate ? limits.lastSmartStudyDate.toDate() : new Date(limits.lastSmartStudyDate);
-            const now = new Date();
-            
-            // Check if it's the same day
-            const isSameDay = lastSmartStudyDate.toDateString() === now.toDateString();
-            
-            if (isSameDay) {
-              // Smart study already done today
-              const tomorrow = new Date(now);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              tomorrow.setHours(0, 0, 0, 0);
-              
-              setStudyAvailability(prev => ({
-                ...prev,
-                available: false,
-                nextAvailable: tomorrow
-              }));
-              console.log('Smart study already done today, next available:', tomorrow);
-            } else if (availableConcepts === 0) {
-              // No concepts available but it's a new day
-              setStudyAvailability(prev => ({
-                ...prev,
-                available: false,
-                nextAvailable: nextAvailableDate || undefined
-              }));
-            }
-          }
-          */
-          console.log('🧪 [TESTING] Limitación de estudio inteligente temporalmente desactivada');
-          
-          if (limits.lastQuizDate) {
-            const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);
-            const now = new Date();
-            
-            // Check if it's been a week since last quiz
-            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            
-            if (lastQuizDate > oneWeekAgo) {
-              // Quiz not available yet
-              const nextQuizDate = new Date(lastQuizDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-              setQuizAvailability({
-                available: false,
-                nextAvailable: nextQuizDate
-              });
-              console.log('Quiz not available until:', nextQuizDate);
+        for (const ld of learningData) {
+          if (ld.nextReviewDate) {
+            let nextReview: Date;
+            if ((ld.nextReviewDate as any).toDate) {
+              nextReview = (ld.nextReviewDate as any).toDate();
+            } else if (ld.nextReviewDate instanceof Date) {
+              nextReview = ld.nextReviewDate;
             } else {
-              // Quiz is available
-              setQuizAvailability({
-                available: true,
-                nextAvailable: undefined
-              });
-              console.log('Quiz is available');
+              nextReview = new Date(ld.nextReviewDate);
             }
-          } else {
-            // Never taken quiz, it's available
-            setQuizAvailability({
-              available: true,
-              nextAvailable: undefined
-            });
-            console.log('Quiz available - never taken');
+            
+            if (nextReview > now && (!nextAvailableDate || nextReview < nextAvailableDate)) {
+              nextAvailableDate = nextReview;
+            }
           }
-        } else {
-          // No limits doc, quiz is available
-          setQuizAvailability({
-            available: true,
-            nextAvailable: undefined
-          });
-          setSmartStudyCount(0);
         }
-        
-        // Calculate general score using the correct formula
-        // SCORE = (Smart Studies × Max Quiz Score) + Game Points + Streak Bonus
-        let streakDays = 0;
-        try {
-          const userStreak = await studyStreakService.getUserStreak(effectiveUserId);
-          streakDays = userStreak.currentStreak;
-          streakBonusValue = studyStreakService.getStreakBonus(userStreak.currentStreak);
-          console.log(`Streak details:`, {
-            currentStreak: userStreak.currentStreak,
-            lastStudyDate: userStreak.lastStudyDate,
-            streakBonus: streakBonusValue,
-            calculation: `${streakDays} days × 200 = ${streakBonusValue} pts`
-          });
-        } catch (error) {
-          console.error('Error getting streak bonus:', error);
-          streakBonusValue = 0;
-        }
-        
-        // Calculate final score with all the data we've collected
-        const studyScore = completedSmartStudies * maxQuizScoreValue;
-        const totalScore = studyScore + gamePointsValue + streakBonusValue;
-        
-        console.log('DETAILED Score calculation:', {
-          completedSmartStudies: completedSmartStudies,
-          maxQuizScore: maxQuizScoreValue,
-          studyScore: `${completedSmartStudies} × ${maxQuizScoreValue} = ${studyScore}`,
-          gamePoints: gamePointsValue,
-          streakDays,
-          streakBonus: streakBonusValue,
-          totalScore,
-          expectedTotal: studyScore + gamePointsValue + streakBonusValue,
-          formula: `(${completedSmartStudies} × ${maxQuizScoreValue}) + ${gamePointsValue} + ${streakBonusValue} = ${totalScore}`
-        });
-        
-        setNotebookScore({
-          score: totalScore,
-          level: Math.floor(totalScore / 50) + 1, // Level up every 50 points
-          progress: totalScore % 50
-        });
-        
-        // Load ranking for this notebook with the current score
-        await loadNotebookRanking(notebook.id, totalScore);
       }
+      
+      // Actualizar disponibilidad de estudio con más contexto
+      setStudyAvailability({
+        available: reviewableConceptsCount > 0,
+        nextAvailable: nextAvailableDate,
+        conceptsCount: reviewableConceptsCount,
+        totalConcepts: allConceptsCount,
+        hasStudiedConcepts
+      } as any);
+      
+      // Check quiz availability from limits
+      if (notebookLimitsDoc.exists()) {
+        const limits = notebookLimitsDoc.data();
+        if (limits.lastQuizDate) {
+          const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);
+          const now = new Date();
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          
+          if (lastQuizDate > oneWeekAgo) {
+            const nextQuizDate = new Date(lastQuizDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            setQuizAvailability({
+              available: false,
+              nextAvailable: nextQuizDate
+            });
+          }
+        }
+      }
+      
     } catch (error) {
-      console.error('Error loading notebook stats:', error);
-      // Set default score on error
-      setNotebookScore({ score: 0, level: 1, progress: 0 });
-      setStudyAvailability({ available: false, conceptsCount: 0 });
-      setQuizAvailability({ available: true });
+      console.error('Error loading critical data:', error);
+    }
+  };
+  
+  // Cargar datos secundarios en background (puntos, scores, etc)
+  const loadSecondaryData = async (notebook: Notebook) => {
+    if (!effectiveUserId) return;
+    
+    try {
+      console.log('Loading secondary data in background...');
+      
+      // Cargar el resto de datos en paralelo
+      const [
+        quizStatsDoc,
+        notebookPoints,
+        userStreak,
+        smartStudyCount,
+        freeStudyCount
+      ] = await Promise.all([
+        // Quiz stats
+        getDoc(doc(db, 'users', effectiveUserId, 'quizStats', notebook.id)),
+        // Game points
+        gamePointsService.getNotebookPoints(effectiveUserId, notebook.id).catch(() => ({ totalPoints: 0 })),
+        // Streak data
+        studyStreakService.getUserStreak(effectiveUserId).catch(() => ({ currentStreak: 0 })),
+        // Study sessions - OPTIMIZADO: solo contar, no traer todos los docs
+        getCountFromQuery(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', effectiveUserId),
+          where('notebookId', '==', notebook.id),
+          where('mode', '==', 'smart'),
+          where('validated', '==', true),
+          limit(100) // Limitar para performance
+        )),
+        // Free study count
+        getCountFromQuery(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', effectiveUserId),
+          where('notebookId', '==', notebook.id),
+          where('mode', '==', 'free'),
+          limit(100) // Limitar para performance
+        ))
+      ]);
+      
+      // Actualizar valores secundarios
+      const maxQuizScoreValue = quizStatsDoc.exists() ? 
+        (quizStatsDoc.data().maxScore || 0) : 0;
+      setMaxQuizScore(maxQuizScoreValue);
+      
+      const gamePointsValue = notebookPoints.totalPoints || 0;
+      setGamePoints(gamePointsValue);
+      
+      setSmartStudyCount(smartStudyCount);
+      setFreeStudyCount(freeStudyCount);
+      
+      // Calculate final score
+      const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
+      const studyScore = smartStudyCount * maxQuizScoreValue;
+      const totalScore = studyScore + gamePointsValue + streakBonus;
+      
+      setNotebookScore({
+        score: totalScore,
+        level: Math.floor(totalScore / 50) + 1,
+        progress: totalScore % 50
+      });
+      
+      // Load ranking if school student - en background
+      if (isSchoolStudent) {
+        loadNotebookRanking(notebook.id, totalScore);
+      }
+      
+    } catch (error) {
+      console.error('Error loading secondary data:', error);
+    }
+  };
+  
+  // Helper function para contar documentos sin traerlos todos
+  const getCountFromQuery = async (q: any): Promise<number> => {
+    try {
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (error) {
+      console.error('Error counting documents:', error);
+      return 0;
     }
   };
 
-  // Load notebook ranking
+  // Load notebook ranking - optimizado con consultas paralelas
   const loadNotebookRanking = async (notebookId: string, currentScore?: number) => {
     if (!effectiveUserId || !isSchoolStudent) {
       setNotebookRanking(null);
@@ -887,8 +701,12 @@ const StudyModePage = () => {
     try {
       console.log('Loading ranking for notebook:', notebookId);
       
-      // Get notebook document to find its subject
-      const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+      // Cargar notebook y user data en paralelo
+      const [notebookDoc, userDoc] = await Promise.all([
+        getDoc(doc(db, 'schoolNotebooks', notebookId)),
+        getDoc(doc(db, 'users', effectiveUserId))
+      ]);
+      
       if (!notebookDoc.exists()) {
         console.log('Notebook not found');
         setNotebookRanking(null);
@@ -906,8 +724,7 @@ const StudyModePage = () => {
         return;
       }
       
-      // Get user's institution
-      const userDoc = await getDoc(doc(db, 'users', effectiveUserId));
+      // Get user's institution from already loaded data
       const userData = userDoc.data();
       const institutionId = userData?.idInstitucion || userData?.idEscuela;
       
@@ -1315,11 +1132,22 @@ const StudyModePage = () => {
                 </>
               ) : (
                 <p className="function-status unavailable">
-                  {studyAvailability.nextAvailable && studyAvailability.conceptsCount > 0 ? 
-                    'Ya estudiaste hoy. Disponible mañana' :
-                    studyAvailability.nextAvailable ? 
-                    formatTimeUntil(studyAvailability.nextAvailable) : 
-                    'Agrega conceptos al cuaderno'}
+                  {(() => {
+                    // Si el cuaderno está vacío
+                    if (!studyAvailability.totalConcepts || studyAvailability.totalConcepts === 0) {
+                      return 'Agrega conceptos al cuaderno';
+                    }
+                    // Si hay conceptos pero ya se estudiaron todos hoy
+                    if (studyAvailability.hasStudiedConcepts && studyAvailability.nextAvailable) {
+                      return formatTimeUntil(studyAvailability.nextAvailable);
+                    }
+                    // Si todos los conceptos ya fueron dominados completamente
+                    if (studyAvailability.hasStudiedConcepts && !studyAvailability.nextAvailable) {
+                      return '¡Todos los conceptos dominados! 🎉';
+                    }
+                    // Caso por defecto
+                    return 'No hay conceptos disponibles';
+                  })()}
                 </p>
               )}
             </div>

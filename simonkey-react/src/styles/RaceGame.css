@@ -478,6 +478,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: center;
+  text-align: center;
 }
 
 .final-stat:first-child {
@@ -506,7 +508,7 @@
   background: #6147ff !important;
   border: none;
   color: white !important;
-  padding: 18px 40px;
+  padding: 24px 40px;
   border-radius: 12px;
   font-size: 1.125rem;
   font-weight: 700;

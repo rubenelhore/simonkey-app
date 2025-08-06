@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(npm run dev:*)",
@@ -35,7 +36,13 @@
       "Bash(npm install)",
       "Bash(firebase functions:delete:*)",
       "Bash(git checkout:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "WebFetch(domain:cvmcosta.me)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

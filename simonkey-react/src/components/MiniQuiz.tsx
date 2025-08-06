@@ -157,6 +157,75 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   };
 
   // Generar preguntas del mini quiz
+  // Versi\u00f3n s\u00edncrona para carga inmediata
+  const generateMiniQuizQuestionsSync = (): QuizQuestion[] => {
+    try {
+      if (!sessionConcepts || sessionConcepts.length === 0) {
+        console.log('[MINI QUIZ] No hay conceptos de sesi\u00f3n para generar preguntas');
+        return [];
+      }
+
+      console.log(`[MINI QUIZ] Generando ${QUIZ_CONFIG.QUESTION_COUNT} preguntas de ${sessionConcepts.length} conceptos`);
+      
+      // Seleccionar 5 conceptos aleatorios
+      const shuffled = [...sessionConcepts].sort(() => 0.5 - Math.random());
+      const selectedConcepts = shuffled.slice(0, QUIZ_CONFIG.QUESTION_COUNT);
+      
+      // Generar preguntas con distractores simples
+      const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
+        // Usar otros conceptos de la sesi\u00f3n como distractores
+        const otherConcepts = sessionConcepts.filter(c => c.id !== concept.id);
+        const distractors = otherConcepts
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 3);
+        
+        // Si no hay suficientes, crear distractores gen\u00e9ricos
+        while (distractors.length < 3) {
+          distractors.push({
+            id: `fake-${index}-${distractors.length}`,
+            t\u00e9rmino: `Opci\u00f3n ${distractors.length + 1}`,
+            definici\u00f3n: 'Concepto alternativo',
+            fuente: concept.fuente,
+            usuarioId: auth.currentUser!.uid,
+            docId: 'generated',
+            index: distractors.length,
+            notasPersonales: '',
+            reviewId: '',
+            dominado: false
+          } as Concept);
+        }
+        
+        const options: QuizOption[] = [
+          {
+            id: `option-${index}-correct`,
+            term: concept.t\u00e9rmino,
+            isCorrect: true,
+            conceptId: concept.id
+          },
+          ...distractors.map((d, i) => ({
+            id: `option-${index}-${i}`,
+            term: d.t\u00e9rmino,
+            isCorrect: false,
+            conceptId: d.id
+          }))
+        ];
+        
+        return {
+          id: `question-${index}`,
+          definition: concept.definici\u00f3n,
+          correctAnswer: concept,
+          options: options.sort(() => 0.5 - Math.random()),
+          source: concept.fuente
+        };
+      });
+      
+      return quizQuestions;
+    } catch (error) {
+      console.error('[MINI QUIZ] Error generando preguntas s\u00edncronas:', error);
+      return [];
+    }
+  };
+
   const generateMiniQuizQuestions = useCallback(async (): Promise<QuizQuestion[]> => {
     try {
       if (!auth.currentUser) {
@@ -269,7 +338,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     }
   }, [notebookId, sessionConcepts, isSchoolStudent, allNotebookConcepts]);
 
-  // Cargar y cachear conceptos del cuaderno
+  // Cargar y cachear conceptos del cuaderno - OPTIMIZADO
+  // Este useEffect ya no es necesario porque se carga directamente en startMiniQuiz
+  /*
   useEffect(() => {
     const loadNotebookConcepts = async () => {
       if (!notebookId || conceptsCached) return;
@@ -285,7 +356,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         const conceptDocs = await getDocs(conceptsQuery);
         const concepts: Concept[] = [];
         
-        for (const doc of conceptDocs.docs) {
+        // Procesar conceptos más eficientemente
+        conceptDocs.docs.forEach(doc => {
           const conceptosData = doc.data().conceptos || [];
           conceptosData.forEach((concepto: any, index: number) => {
             concepts.push({
@@ -313,50 +385,109 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
 
     loadNotebookConcepts();
   }, [notebookId, isSchoolStudent, conceptsCached]);
+  */
 
-  // Iniciar mini quiz
+  // Iniciar mini quiz - OPTIMIZADO
   const startMiniQuiz = async () => {
     try {
       console.log('[MINI QUIZ] Preparando mini quiz...');
       setLoading(true);
       
-      // Esperar a que los conceptos estén cacheados si no tenemos conceptos de sesión
-      if ((!sessionConcepts || sessionConcepts.length === 0) && !conceptsCached) {
-        console.log('[MINI QUIZ] Esperando a que se carguen los conceptos del cuaderno...');
-        // Timeout para evitar esperas infinitas
-        let timeout = 0;
-        while (!conceptsCached && timeout < 50) { // 5 segundos máximo
-          await new Promise(resolve => setTimeout(resolve, 100));
-          timeout++;
-        }
+      // Si tenemos conceptos de sesión, usarlos directamente
+      if (sessionConcepts && sessionConcepts.length > 0) {
+        console.log('[MINI QUIZ] Usando conceptos de sesión, generando preguntas inmediatamente...');
+        
+        // Generar preguntas inmediatamente sin esperar
+        const quizQuestions = generateMiniQuizQuestionsSync();
+        setupQuizState(quizQuestions);
+        
+        // Cargar conceptos adicionales en background para distractores
         if (!conceptsCached) {
-          throw new Error('Timeout esperando conceptos del cuaderno');
+          loadConceptsDirectly(); // Sin await - carga en background
         }
+        return;
+      }
+      
+      // Si no hay conceptos de sesión, cargar del cuaderno
+      if (!conceptsCached) {
+        console.log('[MINI QUIZ] Cargando conceptos del cuaderno...');
+        await loadConceptsDirectly();
       }
       
       // Generar preguntas
       const quizQuestions = await generateMiniQuizQuestions();
-      console.log('[MINI QUIZ] Preguntas generadas:', quizQuestions.length);
+      setupQuizState(quizQuestions);
+    } catch (error) {
+      console.error("[MINI QUIZ] Error al preparar mini quiz:", error);
+      setLoading(false);
+    }
+  };
+
+  // Función auxiliar para configurar el estado del quiz
+  const setupQuizState = (quizQuestions: QuizQuestion[]) => {
+    console.log('[MINI QUIZ] Preguntas generadas:', quizQuestions.length);
+    
+    if (quizQuestions.length === 0) {
+      console.error('[MINI QUIZ] No se pudieron generar preguntas');
+      setLoading(false);
+      return;
+    }
+    
+    setQuestions(quizQuestions);
+    setCurrentQuestionIndex(0);
+    setResponses([]);
+    setScore(0);
+    setSessionActive(false);
+    setSessionComplete(false);
+    
+    // Guardar preguntas en ref para evitar que se pierdan
+    questionsRef.current = quizQuestions;
+    
+    console.log('[MINI QUIZ] Mini quiz preparado correctamente');
+    console.log(`[MINI QUIZ] 🎯 Preparado con ${quizQuestions.length} preguntas. Score inicial: 0/10`);
+    setLoading(false);
+  };
+
+  // Función para cargar conceptos directamente sin espera activa
+  const loadConceptsDirectly = async () => {
+    try {
+      const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      const conceptsQuery = query(
+        collection(db, collectionName),
+        where('cuadernoId', '==', notebookId),
+        limit(20) // Solo cargar 20 conceptos para distractores
+      );
       
-      if (quizQuestions.length === 0) {
-        console.error('[MINI QUIZ] No se pudieron generar preguntas');
-        setLoading(false);
-        return;
+      const conceptDocs = await getDocs(conceptsQuery);
+      const concepts: Concept[] = [];
+      
+      // Procesar solo los primeros conceptos para velocidad
+      for (const doc of conceptDocs.docs) {
+        const conceptosData = doc.data().conceptos || [];
+        // Solo tomar los primeros 5 conceptos de cada documento
+        const limitedConcepts = conceptosData.slice(0, 5);
+        
+        limitedConcepts.forEach((concepto: any, index: number) => {
+          concepts.push({
+            id: concepto.id || `${doc.id}-${index}`,
+            término: concepto.término,
+            definición: concepto.definición,
+            notebookId: notebookId,
+            notebookTitle: notebookTitle,
+            collectionPath: collectionName,
+            documentId: doc.id,
+            createdAt: concepto.createdAt || new Date(),
+            updatedAt: concepto.updatedAt || new Date()
+          });
+        });
+        
+        // Si ya tenemos suficientes conceptos, parar
+        if (concepts.length >= 20) break;
       }
       
-      setQuestions(quizQuestions);
-      setCurrentQuestionIndex(0);
-      setResponses([]);
-      setScore(0);
-      setSessionActive(false);
-      setSessionComplete(false);
-      
-      // Guardar preguntas en ref para evitar que se pierdan
-      questionsRef.current = quizQuestions;
-      
-      console.log('[MINI QUIZ] Mini quiz preparado correctamente');
-      console.log(`[MINI QUIZ] 🎯 Preparado con ${quizQuestions.length} preguntas. Score inicial: 0/10`);
-      setLoading(false);
+      console.log(`[MINI QUIZ] ${concepts.length} conceptos cargados (optimizado)`);
+      setAllNotebookConcepts(concepts);
+      setConceptsCached(true);
     } catch (error) {
       console.error("[MINI QUIZ] Error al preparar mini quiz:", error);
       setLoading(false);
@@ -724,9 +855,20 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     }
   };
 
-  // Iniciar mini quiz al montar el componente
+  // Iniciar mini quiz al montar el componente - OPTIMIZADO
   useEffect(() => {
-    startMiniQuiz();
+    // Si tenemos conceptos de sesión, iniciar inmediatamente
+    if (sessionConcepts && sessionConcepts.length > 0) {
+      startMiniQuiz();
+    } else {
+      // Si no, cargar conceptos y luego iniciar
+      // Esto evita la espera activa en startMiniQuiz
+      const initializeQuiz = async () => {
+        await loadConceptsDirectly();
+        startMiniQuiz();
+      };
+      initializeQuiz();
+    }
   }, []);
 
   // Renderizar pregunta actual
@@ -982,13 +1124,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
               <li><i className="fas fa-check-circle"></i><span>Si apruebas, tu estudio inteligente se valida</span></li>
               <li><i className="fas fa-redo"></i><span>Si no apruebas, puedes intentar mañana</span></li>
             </ul>
-          </div>
-          
-          <div className="intro-section">
-            <h3>¿Estás listo?</h3>
-            <p>
-              El mini quiz comenzará cuando hagas click en "Iniciar Mini Quiz". ¡Buena suerte!
-            </p>
           </div>
         </div>
         

@@ -201,8 +201,18 @@ const StudySessionPage = () => {
       );
       setSessionId(session.id);
       
-      // Get concepts
-      const allNotebookConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
+      // Get concepts based on study mode
+      let allNotebookConcepts: Concept[] = [];
+      
+      if (studyMode === StudyMode.SMART) {
+        // For SMART mode, get only concepts that are due for review according to SM-3
+        allNotebookConcepts = await studyService.getReviewableConcepts(userKey, notebookId);
+        console.log('🎯 SMART MODE: Conceptos listos para repaso según SM-3:', allNotebookConcepts.length);
+      } else {
+        // For FREE mode, get all concepts
+        allNotebookConcepts = await studyService.getAllConceptsFromNotebook(userKey, notebookId);
+        console.log('📚 FREE MODE: Todos los conceptos del cuaderno:', allNotebookConcepts.length);
+      }
       
       // Apply intensity limit
       let conceptCount = 10;
@@ -223,6 +233,7 @@ const StudySessionPage = () => {
           break;
       }
       
+      // Limit the number of concepts based on intensity
       const selectedConcepts = allNotebookConcepts.slice(0, conceptCount);
       const shuffledConcepts = selectedConcepts.sort(() => 0.5 - Math.random());
       

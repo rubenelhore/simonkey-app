@@ -586,6 +586,30 @@ const QuizModePage: React.FC = () => {
     }
   };
 
+  // Crear efecto de confeti
+  const createConfettiEffect = () => {
+    const colors = ['#00D4AA', '#6147FF', '#9B88FF', '#FFD700', '#FF6B6B', '#667eea', '#764ba2'];
+    const confettiCount = 50;
+    
+    for (let i = 0; i < confettiCount; i++) {
+      setTimeout(() => {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.width = `${Math.random() * 15 + 8}px`;
+        confetti.style.height = `${Math.random() * 15 + 8}px`;
+        confetti.style.animationDelay = `${Math.random() * 0.3}s`;
+        confetti.style.animationDuration = `${Math.random() * 1.5 + 2.5}s`;
+        
+        document.body.appendChild(confetti);
+        
+        // Remover después de la animación
+        setTimeout(() => confetti.remove(), 4000);
+      }, i * 20);
+    }
+  };
+
   // Manejar respuesta del usuario
   const handleAnswerSelection = (optionId: string) => {
     if (!sessionActive || selectedOption) return;
@@ -612,6 +636,7 @@ const QuizModePage: React.FC = () => {
     
     if (isCorrect) {
       setScore(prev => prev + 1);
+      createConfettiEffect(); // Añadir efecto de confeti
       setFeedbackMessage('¡Correcto! 🎉');
       setFeedbackType('success');
     } else {
@@ -1098,22 +1123,6 @@ const QuizModePage: React.FC = () => {
                 <li><i className="fas fa-calendar"></i> Disponible una vez por semana</li>
               </ul>
             </div>
-            
-            <div className="intro-section">
-              <h3>¿Por qué hacer el Quiz?</h3>
-              <p>
-                Ayuda a identificar la <strong>constancia y eficacia de estudio</strong>. 
-                Es un componente importante del <strong>Score General</strong>.
-              </p>
-            </div>
-            
-            <div className="intro-section">
-              <h3>¿Estás listo?</h3>
-              <p>
-                El quiz comenzará cuando hagas clic en "Iniciar Quiz". 
-                ¡Buena suerte!
-              </p>
-            </div>
           </div>
           
           <div className="intro-actions">
@@ -1149,6 +1158,11 @@ const QuizModePage: React.FC = () => {
         {/* Header con progreso y timer */}
         <div className="quiz-header">
           <div className="quiz-progress">
+            <div className="question-counter">
+              <span className="current-question">{currentQuestionIndex + 1}</span>
+              <span className="separator"> de </span>
+              <span className="total-questions">{questions.length}</span>
+            </div>
             <div className="progress-bar">
               <div 
                 className="progress-fill" 
@@ -1327,11 +1341,6 @@ const QuizModePage: React.FC = () => {
           
           <h1>
             {selectedNotebook ? selectedNotebook.title : 'Quiz'}
-            {sessionActive && (
-              <span className="mode-badge quiz">
-                Quiz
-              </span>
-            )}
           </h1>
           
           <div className="header-spacer"></div>
