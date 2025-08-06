@@ -23,7 +23,7 @@ const UniversityBiblioteca: React.FC = () => {
 
   return (
     <div className="university-page">
-      <HeaderWithHamburger />
+      <HeaderWithHamburger title="Biblioteca" />
       <div className="university-content">
         <div className="page-header">
           <h1>Biblioteca</h1>

@@ -93,11 +93,19 @@ const StudyModePage = () => {
   const [showMedalDetails, setShowMedalDetails] = useState(false);
   const [showNotebookError, setShowNotebookError] = useState(false);
 
-  // Clear notebook selection on page load
+  // Clear notebook selection only on fresh page loads (not when coming back from navigation)
   useEffect(() => {
-    setSelectedNotebook(null);
-    setSelectedMateria(null);
-    setNotebookScore({ score: 0, level: 1, progress: 0 });
+    // Check if we're coming back from games page
+    const comingFromGames = sessionStorage.getItem('returning-from-games');
+    if (comingFromGames) {
+      // Don't reset selections when returning from games
+      sessionStorage.removeItem('returning-from-games');
+    } else {
+      // Reset selections on fresh loads
+      setSelectedNotebook(null);
+      setSelectedMateria(null);
+      setNotebookScore({ score: 0, level: 1, progress: 0 });
+    }
   }, []);
 
   // Reset score when no notebook is selected
@@ -992,6 +1000,33 @@ const StudyModePage = () => {
   const handleStudyMode = (mode: string) => {
     if (!selectedNotebook) {
       setShowNotebookError(true);
+      // Scroll to selector to make error visible
+      const selectorElement = document.querySelector('.notebook-dropdown-container');
+      if (selectorElement) {
+        selectorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
+      // Auto-hide error after 4 seconds
+      setTimeout(() => {
+        setShowNotebookError(false);
+      }, 4000);
+      
+      return;
+    }
+    
+    // Clear any previous errors
+    setShowNotebookError(false);
+    
+    // Additional validations for specific modes
+    if (mode === 'smart' && !studyAvailability.available) {
+      // Smart study not available - don't navigate, just return
+      console.log('Smart study not available - staying on current page');
+      return;
+    }
+    
+    if (mode === 'quiz' && !quizAvailability.available) {
+      // Quiz not available - don't navigate, just return  
+      console.log('Quiz not available - staying on current page');
       return;
     }
     
@@ -1250,7 +1285,7 @@ const StudyModePage = () => {
               {/* Error message */}
               {showNotebookError && (
                 <div className="notebook-error-message">
-                  Debe seleccionar un cuaderno antes
+                  ⚠️ Debes seleccionar un cuaderno antes de continuar
                 </div>
               )}
             </div>
@@ -1260,7 +1295,7 @@ const StudyModePage = () => {
           <div className="study-functions">
             <div 
               className={`study-function-card ${!selectedNotebook || !studyAvailability.available ? 'disabled' : ''}`}
-              onClick={() => studyAvailability.available && handleStudyMode('smart')}
+              onClick={() => handleStudyMode('smart')}
             >
               {selectedNotebook && (
                 <div className="study-count-badge">#{smartStudyCount || 0}</div>
@@ -1291,7 +1326,7 @@ const StudyModePage = () => {
 
             <div 
               className={`study-function-card ${!selectedNotebook || !quizAvailability.available ? 'disabled' : ''}`}
-              onClick={() => quizAvailability.available && handleStudyMode('quiz')}
+              onClick={() => handleStudyMode('quiz')}
             >
               {selectedNotebook && maxQuizScore > 0 && (
                 <div className="quiz-score-badge">Max: {maxQuizScore}</div>
@@ -1318,7 +1353,7 @@ const StudyModePage = () => {
 
             <div 
               className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
-              onClick={() => selectedNotebook && handleStudyMode('free')}
+              onClick={() => handleStudyMode('free')}
             >
               {selectedNotebook && (
                 <div className="free-study-badge">#{freeStudyCount || 0}</div>
@@ -1341,7 +1376,7 @@ const StudyModePage = () => {
 
             <div 
               className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
-              onClick={() => selectedNotebook && handleStudyMode('games')}
+              onClick={() => handleStudyMode('games')}
             >
               {selectedNotebook && (
                 <div className="game-points-badge">Pts: {gamePoints || 0}</div>

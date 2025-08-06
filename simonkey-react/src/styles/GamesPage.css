@@ -7,6 +7,33 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
+}
+
+/* Back button */
+.games-back-button {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.games-back-button:hover {
+  background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.games-back-button svg {
+  color: #6c757d;
+  font-size: 18px;
 }
 
 /* Botón de volver movido al header */
@@ -29,6 +56,10 @@
 
 .games-header-section.left {
   justify-self: start;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 15px;
 }
 
 .games-header-section.center {
@@ -387,8 +418,6 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 0.2s ease;
-  will-change: opacity;
 }
 
 .ticket-modal {
@@ -398,23 +427,10 @@
   max-width: 450px !important;
   width: 90%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease;
-  transform-origin: center center;
-  will-change: transform, opacity;
   position: relative;
   margin: 0 auto;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateY(-10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
 
 .ticket-modal h3 {
   margin: 0 0 16px 0;

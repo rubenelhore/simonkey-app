@@ -462,7 +462,7 @@ const StudySessionPage = () => {
       if (studyMode === StudyMode.SMART && notebookId) {
         setShowMiniQuiz(true);
         setSessionActive(false);
-        setSessionComplete(true);
+        // No establecer sessionComplete aquí para evitar mostrar la pantalla de completado
         return;
       }
       
@@ -520,13 +520,13 @@ const StudySessionPage = () => {
         await studyService.updateSmartStudyUsage(userKey, notebookId, false);
       }
       
-      setSessionComplete(true);
-      setSessionActive(false);
+      // Redirigir directamente al estudio sin mostrar pantalla de completado
+      navigate('/study');
       
     } catch (error) {
       console.error("Error processing mini quiz result:", error);
       showFeedback('warning', 'Error al procesar el resultado');
-      setSessionComplete(true);
+      navigate('/study');
       setSessionActive(false);
     }
   };

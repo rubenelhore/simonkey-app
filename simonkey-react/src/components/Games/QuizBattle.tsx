@@ -29,6 +29,65 @@ interface Power {
   active: boolean;
 }
 
+interface Character {
+  id: string;
+  emoji: string;
+  name: string;
+  description: string;
+  powerName: string;
+  powerDescription: string;
+  powerCondition: string;
+}
+
+// Character definitions
+const CHARACTERS: Character[] = [
+  {
+    id: 'warrior',
+    emoji: '👽',
+    name: 'Alienígena',
+    description: 'Ser extraterrestre con tecnología avanzada',
+    powerName: 'Rayo Energético',
+    powerDescription: 'Duplica tu daño de ataque por 3 turnos consecutivos',
+    powerCondition: 'Se activa automáticamente después de 3 respuestas correctas seguidas'
+  },
+  {
+    id: 'wizard',
+    emoji: '🧙‍♂️',
+    name: 'Mago',
+    description: 'Maestro de las artes arcanas',
+    powerName: 'Escudo Mágico',
+    powerDescription: 'Te vuelve inmune a todo daño por 2 turnos completos',
+    powerCondition: 'Se activa automáticamente cuando recibes 25+ puntos de daño'
+  },
+  {
+    id: 'ninja',
+    emoji: '🥷',
+    name: 'Ninja',
+    description: 'Sigiloso y letal en combate',
+    powerName: 'Ataque Crítico',
+    powerDescription: 'Tu próximo ataque hace 3 veces más daño (una sola vez)',
+    powerCondition: 'Se activa automáticamente cuando tu HP baja de 20 puntos'
+  },
+  {
+    id: 'robot',
+    emoji: '🤖',
+    name: 'Cyborg',
+    description: 'Inteligencia artificial avanzada',
+    powerName: 'Regeneración',
+    powerDescription: 'Restaura 30 puntos de vida al instante (SOLO UNA VEZ por partida)',
+    powerCondition: 'Se activa automáticamente cuando tu HP llega a 15 o menos (uso único)'
+  },
+  {
+    id: 'dragon',
+    emoji: '🐉',
+    name: 'Dragón',
+    description: 'Criatura legendaria de poder inmenso',
+    powerName: 'Aliento de Fuego',
+    powerDescription: 'Quema al enemigo causando 10 de daño instantáneo',
+    powerCondition: 'Se activa automáticamente al inicio de cada ronda (una vez por ronda)'
+  }
+];
+
 interface QuizBattleProps {
   notebookId: string;
   notebookTitle: string;
@@ -57,6 +116,66 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   const [playerShield, setPlayerShield] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
+  const [showRoundVictory, setShowRoundVictory] = useState(false);
+  const [defeatedRound, setDefeatedRound] = useState(0);
+  const [showCharacterSelection, setShowCharacterSelection] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [characterPowerActive, setCharacterPowerActive] = useState(false);
+  const [powerDuration, setPowerDuration] = useState(0);
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  const [dragonPowerUsedThisRound, setDragonPowerUsedThisRound] = useState(false);
+  const [dragonPowerUsesRemaining, setDragonPowerUsesRemaining] = useState(3);
+  const [robotPowerUsed, setRobotPowerUsed] = useState(false);
+  const [showPowerNotification, setShowPowerNotification] = useState(false);
+  const [powerNotificationText, setPowerNotificationText] = useState('');
+  const [powerUsesRemaining, setPowerUsesRemaining] = useState(0);
+  const [showLightningEffect, setShowLightningEffect] = useState(false);
+  const [showShieldEffect, setShowShieldEffect] = useState(false);
+  const [showHealEffect, setShowHealEffect] = useState(false);
+  const [showFireEffect, setShowFireEffect] = useState(false);
+  const [showCriticalEffect, setShowCriticalEffect] = useState(false);
+  const [isPowerEffectActive, setIsPowerEffectActive] = useState(false);
+  
+  // Power condition progress tracking
+  const getPowerProgress = (): { current: number; max: number; label: string } => {
+    if (!selectedCharacter) return { current: 0, max: 1, label: '' };
+    
+    switch (selectedCharacter.id) {
+      case 'warrior':
+        return {
+          current: consecutiveCorrect,
+          max: 3,
+          label: `Respuestas correctas: ${consecutiveCorrect}/3`
+        };
+      case 'wizard':
+        return {
+          current: characterPowerActive ? powerDuration : 0,
+          max: 2,
+          label: characterPowerActive ? `Escudo activo: ${powerDuration} turnos` : 'Esperando daño crítico (25+ HP)'
+        };
+      case 'ninja':
+        const hpProgress = Math.max(0, Math.min(20, playerHP));
+        return {
+          current: 20 - hpProgress,
+          max: 20,
+          label: playerHP >= 20 ? `HP: ${playerHP}/60` : characterPowerActive ? 'Crítico listo!' : `HP crítico: ${playerHP}`
+        };
+      case 'robot':
+        return {
+          current: 0,
+          max: 0, // Hide progress bar
+          label: robotPowerUsed ? 'Regeneración ya utilizada (1/1)' : 'Disponible cuando tu HP<15 (0/1)'
+        };
+      case 'dragon':
+        return {
+          current: 3 - dragonPowerUsesRemaining,
+          max: 3,
+          label: `Disparos usados: ${3 - dragonPowerUsesRemaining}/3${dragonPowerUsesRemaining > 0 ? ' - Listo para disparar' : ' - Sin disparos'}`
+        };
+      default:
+        return { current: 0, max: 1, label: '' };
+    }
+  };
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -80,20 +199,42 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     loadConcepts();
   }, [notebookId]);
 
-  // Timer effect - only for player turns
+  // Timer effect - runs for both player and enemy turns but pauses during power effects
   useEffect(() => {
-    if (gameStarted && !gameOver && isPlayerTurn && timeLeft > 0 && !selectedAnswer) {
+    if (gameStarted && !gameOver && timeLeft > 0 && !selectedAnswer && !isPowerEffectActive) {
       timerRef.current = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
       }, 1000);
-    } else if (timeLeft === 0 && isPlayerTurn && !selectedAnswer) {
-      // Time's up - automatic wrong answer
-      handleAnswer(-1);
+    } else if (timeLeft === 0 && !selectedAnswer && !isPowerEffectActive) {
+      // Time's up
+      if (isPlayerTurn) {
+        // Player timeout - automatic wrong answer
+        handleAnswer(-1);
+      } else {
+        // Enemy timeout - they miss their turn
+        handleEnemyAnswer();
+      }
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeLeft, gameStarted, gameOver, isPlayerTurn, selectedAnswer]);
+  }, [timeLeft, gameStarted, gameOver, isPlayerTurn, selectedAnswer, isPowerEffectActive]);
+
+  // Robot regeneration effect - triggers automatically when HP <= 15
+  useEffect(() => {
+    if (selectedCharacter?.id === 'robot' && playerHP <= 15 && !robotPowerUsed && gameStarted && !gameOver && !isPowerEffectActive) {
+      setRobotPowerUsed(true);
+      setPlayerHP(prev => Math.min(60, prev + 30));
+      showPowerActivation(`${selectedCharacter.emoji} ¡Regeneración activada! +30 HP`);
+      // Show heal effect and pause timer
+      setIsPowerEffectActive(true);
+      setShowHealEffect(true);
+      setTimeout(() => {
+        setShowHealEffect(false);
+        setIsPowerEffectActive(false);
+      }, 2000);
+    }
+  }, [playerHP, selectedCharacter, robotPowerUsed, gameStarted, gameOver, isPowerEffectActive]);
 
   const loadConcepts = async () => {
     if (!auth.currentUser) return;
@@ -164,6 +305,12 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const startGame = () => {
+    setShowCharacterSelection(true);
+  };
+
+  const selectCharacter = (character: Character) => {
+    setSelectedCharacter(character);
+    setShowCharacterSelection(false);
     setGameStarted(true);
     setPlayerHP(60);
     setEnemyHP(60);
@@ -173,8 +320,54 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setIsPlayerTurn(true);
     setEnemyThinking(false);
     setPointsAwarded(false);
+    setCharacterPowerActive(false);
+    setPowerDuration(0);
+    setConsecutiveCorrect(0);
+    setDragonPowerUsedThisRound(false);
+    setDragonPowerUsesRemaining(3);
+    setRobotPowerUsed(false);
     setGameOver(false);
-    setTimeout(() => nextTurn(true), 500); // Start with player turn
+    
+    // If dragon is selected, activate fire breath at the very start
+    if (character.id === 'dragon') {
+      setTimeout(() => {
+        setDragonPowerUsedThisRound(true);
+        setDragonPowerUsesRemaining(prev => prev - 1);
+        showPowerActivation(`${character.emoji} ¡Aliento de Fuego! -10 HP al enemigo`);
+        
+        // Show fire effect and pause timer
+        setIsPowerEffectActive(true);
+        setShowFireEffect(true);
+        
+        // Apply damage immediately
+        setEnemyHP(prev => Math.max(0, prev - 10));
+        
+        setTimeout(() => {
+          setShowFireEffect(false);
+          setIsPowerEffectActive(false);
+          
+          // Check if enemy died from dragon fire
+          if (60 - 10 <= 0) {
+            if (1 < 3) {
+              setDefeatedRound(1);
+              setShowRoundVictory(true);
+              setTimeout(() => {
+                setShowRoundVictory(false);
+                nextRound();
+              }, 3000);
+            } else {
+              endGame(true);
+            }
+            return;
+          }
+          
+          // Continue with normal first turn
+          setTimeout(() => nextTurn(true), 500);
+        }, 2000);
+      }, 500);
+    } else {
+      setTimeout(() => nextTurn(true), 500); // Start with player turn for other characters
+    }
   };
 
   const nextTurn = (forPlayer: boolean = isPlayerTurn) => {
@@ -198,17 +391,107 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     }
   };
 
+  // Show power notification
+  const showPowerActivation = (message: string) => {
+    setPowerNotificationText(message);
+    setShowPowerNotification(true);
+    setTimeout(() => {
+      setShowPowerNotification(false);
+    }, 3000);
+  };
+
+  // Check and activate character powers
+  const checkCharacterPowers = () => {
+    if (!selectedCharacter) return;
+
+    switch (selectedCharacter.id) {
+      case 'warrior':
+        // Furia de Combate: Al responder 3 preguntas correctas seguidas
+        if (consecutiveCorrect >= 3 && !characterPowerActive) {
+          setCharacterPowerActive(true);
+          setPowerDuration(3);
+          setPowerUsesRemaining(3);
+          showPowerActivation(`${selectedCharacter.emoji} ¡${selectedCharacter.name} activa Rayo Energético! Daño x2 por 3 turnos`);
+        }
+        break;
+      
+      case 'ninja':
+        // Ataque Crítico: Al tener menos de 20 HP
+        if (playerHP < 20 && !characterPowerActive) {
+          setCharacterPowerActive(true);
+          setPowerDuration(1);
+          setPowerUsesRemaining(1);
+          showPowerActivation(`${selectedCharacter.emoji} ¡${selectedCharacter.name} activa Ataque Crítico! Siguiente ataque x3`);
+        }
+        break;
+      
+      case 'robot':
+        // Regeneración: Al llegar a 15 HP o menos
+        if (playerHP <= 15 && !characterPowerActive) {
+          setPlayerHP(prev => Math.min(60, prev + 30));
+          showPowerActivation(`${selectedCharacter.emoji} ¡${selectedCharacter.name} se regenera! +30 HP`);
+        }
+        break;
+    }
+  };
+
   const calculateDamage = (isCorrect: boolean, comboCount: number): number => {
     if (!isCorrect) return 0;
     
     const baseDamage = 15;
     const comboDamage = Math.min(comboCount * 2, 10); // Max 10 combo damage
-    const totalDamage = baseDamage + comboDamage;
+    let totalDamage = baseDamage + comboDamage;
     
     // Check for critical hit power
     if (playerPower?.type === 'critical' && isPlayerTurn) {
       setPlayerPower(null);
-      return totalDamage * 2;
+      totalDamage = totalDamage * 2;
+    }
+    
+    // Apply character power modifiers
+    if (selectedCharacter && characterPowerActive && isPlayerTurn) {
+      switch (selectedCharacter.id) {
+        case 'warrior':
+          // Alien: Double damage with lightning ray effect
+          totalDamage = totalDamage * 2;
+          showPowerActivation(`${selectedCharacter.emoji} ¡Rayo Energético activa! Daño x2`);
+          // Show lightning effect and pause timer
+          setIsPowerEffectActive(true);
+          setShowLightningEffect(true);
+          setTimeout(() => {
+            setShowLightningEffect(false);
+            setIsPowerEffectActive(false);
+          }, 2000);
+          break;
+        case 'ninja':
+          // Ninja: Triple damage for critical attack
+          totalDamage = totalDamage * 3;
+          showPowerActivation(`${selectedCharacter.emoji} ¡Ataque Crítico! Daño x3`);
+          // Show critical strike effect and pause timer
+          setIsPowerEffectActive(true);
+          setShowCriticalEffect(true);
+          setTimeout(() => {
+            setShowCriticalEffect(false);
+            setIsPowerEffectActive(false);
+          }, 2000);
+          setCharacterPowerActive(false);
+          setPowerDuration(0);
+          setPowerUsesRemaining(0);
+          break;
+      }
+      
+      // Decrease power duration for warrior
+      if (selectedCharacter.id === 'warrior') {
+        const newDuration = powerDuration - 1;
+        const newUses = powerUsesRemaining - 1;
+        setPowerDuration(newDuration);
+        setPowerUsesRemaining(newUses);
+        
+        if (newDuration <= 0) {
+          setCharacterPowerActive(false);
+          showPowerActivation(`${selectedCharacter.emoji} Furia de Combate se desvanece`);
+        }
+      }
     }
     
     return totalDamage;
@@ -222,7 +505,13 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     
     if (isPlayerTurn) {
       if (isCorrect) {
-        setCombo(combo + 1);
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+        setConsecutiveCorrect(consecutiveCorrect + 1);
+        
+        // Check for character power activation before calculating damage
+        checkCharacterPowers();
+        
         const damage = calculateDamage(true, combo);
         
         // Check for shield
@@ -243,11 +532,12 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         setScore(score + 5 + combo);
         
         // Check for power activation (every 3 correct answers)
-        if ((combo + 1) % 3 === 0) {
+        if (newCombo % 3 === 0) {
           activateRandomPower();
         }
       } else {
         setCombo(0);
+        setConsecutiveCorrect(0);
       }
     }
     
@@ -258,9 +548,15 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       if (isPlayerTurn && isCorrect && !enemyShield) {
         const damage = calculateDamage(true, combo);
         if (enemyHP - damage <= 0) {
-          // Round won
+          // Round won - show victory message first
           if (round < 3) {
-            nextRound();
+            setDefeatedRound(round);
+            setShowRoundVictory(true);
+            // Continue to next round after 3 seconds
+            setTimeout(() => {
+              setShowRoundVictory(false);
+              nextRound();
+            }, 3000);
           } else {
             endGame(true);
           }
@@ -299,16 +595,51 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setSelectedAnswer(answerIndex);
     
     let playerDied = false;
+    let damageToPlayer = 0;
     
     if (shouldAnswerCorrect) {
-      const damage = 15 + Math.floor(Math.random() * 5); // Enemy damage varies
+      damageToPlayer = 15 + Math.floor(Math.random() * 5); // Enemy damage varies
+      
+      // Dragon power no longer applies burn damage over time
+      
+      // Check for Wizard's shield activation and protection
+      if (selectedCharacter?.id === 'wizard' && damageToPlayer >= 25) {
+        if (!characterPowerActive) {
+          // Activate shield when taking critical damage
+          setCharacterPowerActive(true);
+          setPowerDuration(2);
+          setPowerUsesRemaining(2);
+          showPowerActivation(`${selectedCharacter.emoji} ¡Escudo Mágico activado! Inmunidad por 2 turnos`);
+        }
+        
+        if (characterPowerActive) {
+          showPowerActivation(`${selectedCharacter.emoji} ¡Escudo Mágico te protege!`);
+          // Show shield effect and pause timer
+          setIsPowerEffectActive(true);
+          setShowShieldEffect(true);
+          setTimeout(() => {
+            setShowShieldEffect(false);
+            setIsPowerEffectActive(false);
+          }, 2000);
+          
+          const newDuration = powerDuration - 1;
+          setPowerDuration(newDuration);
+          setPowerUsesRemaining(newDuration);
+          
+          if (newDuration <= 0) {
+            setCharacterPowerActive(false);
+            showPowerActivation(`${selectedCharacter.emoji} Escudo Mágico se desvanece`);
+          }
+          return; // No damage taken
+        }
+      }
       
       if (!playerShield) {
         setEnemyAttacking(true);
         setTimeout(() => {
           setPlayerHit(true);
           setPlayerHP(prev => {
-            const newHP = Math.max(0, prev - damage);
+            const newHP = Math.max(0, prev - damageToPlayer);
             if (newHP <= 0) {
               playerDied = true;
             }
@@ -331,6 +662,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       if (playerDied) {
         await endGame(false);
       } else if (!gameOver) {
+        // Robot regeneration is now handled by useEffect
+        
         setIsPlayerTurn(true);
         setTimeout(() => nextTurn(true), 500); // Pass true for player turn
       }
@@ -356,14 +689,61 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const nextRound = () => {
-    setRound(prev => prev + 1);
+    const newRound = round + 1;
+    setRound(newRound);
     setEnemyHP(60);
     setPlayerHP(60); // Full heal between rounds
     setIsPlayerTurn(true);
     setEnemyThinking(false);
     setSelectedAnswer(null);
     setShowResult(null);
-    setTimeout(() => nextTurn(true), 1000); // Player starts new round
+    
+    // Reset character powers for new round but keep the selected character
+    setCharacterPowerActive(false);
+    setPowerDuration(0);
+    setConsecutiveCorrect(0);
+    setDragonPowerUsedThisRound(false); // Reset dragon power for new round
+    
+    // If dragon, activate fire breath at the start of new round (if has remaining uses)
+    if (selectedCharacter?.id === 'dragon' && dragonPowerUsesRemaining > 0) {
+      setTimeout(() => {
+        setDragonPowerUsedThisRound(true);
+        setDragonPowerUsesRemaining(prev => prev - 1);
+        showPowerActivation(`${selectedCharacter.emoji} ¡Aliento de Fuego! -10 HP al enemigo`);
+        
+        // Show fire effect and pause timer
+        setIsPowerEffectActive(true);
+        setShowFireEffect(true);
+        
+        // Apply damage immediately
+        setEnemyHP(prev => Math.max(0, prev - 10));
+        
+        setTimeout(() => {
+          setShowFireEffect(false);
+          setIsPowerEffectActive(false);
+          
+          // Check if enemy died from dragon fire
+          if (60 - 10 <= 0) {
+            if (newRound < 3) {
+              setDefeatedRound(newRound);
+              setShowRoundVictory(true);
+              setTimeout(() => {
+                setShowRoundVictory(false);
+                nextRound();
+              }, 3000);
+            } else {
+              endGame(true);
+            }
+            return;
+          }
+          
+          // Continue with normal first turn of new round
+          setTimeout(() => nextTurn(true), 500);
+        }, 2000);
+      }, 1000);
+    } else {
+      setTimeout(() => nextTurn(true), 1000); // Player starts new round for other characters
+    }
   };
 
   const endGame = async (won: boolean) => {
@@ -470,9 +850,14 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
 
         {/* Player Side */}
         <div className="fighter-section player-section">
-          <div className={`fighter player ${playerAttacking ? 'attacking' : ''} ${playerHit ? 'hit' : ''}`}>
-            <span className="fighter-avatar">🦸‍♂️</span>
+          <div className={`fighter player ${playerAttacking ? 'attacking' : ''} ${playerHit ? 'hit' : ''} character-${selectedCharacter?.id || 'default'}`}>
+            <span className="fighter-avatar">{selectedCharacter?.emoji || '🦸‍♂️'}</span>
             {playerShield && <FontAwesomeIcon icon={faShield} className="shield-icon" />}
+            {characterPowerActive && (
+              <div className={`character-power-effect power-effect-${selectedCharacter?.id}`}>
+                ⚡
+              </div>
+            )}
           </div>
           <div className="hp-bar">
             <div className="hp-fill player-hp" style={{ width: `${(playerHP / 60) * 100}%` }}></div>
@@ -498,7 +883,9 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
               <button
                 key={index}
                 className={`option-button ${
-                  selectedAnswer === index ? (showResult === 'correct' ? 'correct' : 'wrong') : ''
+                  selectedAnswer === index 
+                    ? (showResult === 'correct' ? 'correct' : 'wrong') 
+                    : (showResult === 'wrong' && option === currentQuestion.correctAnswer ? 'correct-answer' : '')
                 } ${!isPlayerTurn || selectedAnswer !== null ? 'disabled' : ''}`}
                 onClick={() => isPlayerTurn && handleAnswer(index)}
                 disabled={!isPlayerTurn || selectedAnswer !== null}
@@ -508,7 +895,11 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
             ))}
           </div>
 
-          {!isPlayerTurn && <p className="turn-indicator">Turno del oponente</p>}
+          {isPlayerTurn ? (
+            <p className="turn-indicator player-turn">¡Tu Turno! Selecciona una respuesta</p>
+          ) : (
+            <p className="turn-indicator enemy-turn">Turno del oponente</p>
+          )}
         </div>
       )}
 
@@ -519,35 +910,216 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
           <span>{playerPower.name} Activo</span>
         </div>
       )}
+      
+      {/* Character Power Progress Tracker */}
+      {selectedCharacter && gameStarted && !gameOver && (
+        <div className="power-progress-tracker">
+          <div className="power-tracker-header">
+            <span className="power-tracker-emoji">{selectedCharacter.emoji}</span>
+            <span className="power-tracker-name">{selectedCharacter.powerName}</span>
+          </div>
+          
+          <div className="power-progress-container">
+            <div className="power-progress-label">
+              {getPowerProgress().label}
+            </div>
+            {getPowerProgress().max > 0 && (
+              <>
+                <div className="power-progress-bar">
+                  <div 
+                    className={`power-progress-fill ${selectedCharacter.id}-power`}
+                    style={{ 
+                      width: `${(getPowerProgress().current / getPowerProgress().max) * 100}%` 
+                    }}
+                  ></div>
+                </div>
+                <div className="power-progress-text">
+                  {getPowerProgress().current}/{getPowerProgress().max}
+                </div>
+              </>
+            )}
+          </div>
+          
+          {characterPowerActive && (
+            <div className="power-active-indicator">
+              <span className="power-active-icon">⚡</span>
+              <span className="power-active-text">¡PODER ACTIVO!</span>
+              {powerUsesRemaining > 0 && (
+                <span className="power-uses-text">({powerUsesRemaining} usos)</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Power Activation Notification */}
+      {showPowerNotification && (
+        <div className="power-notification">
+          <div className="power-notification-content">
+            {powerNotificationText}
+          </div>
+        </div>
+      )}
+
+      {/* Visual Power Effects */}
+      {showLightningEffect && (
+        <div className="lightning-effect">
+          <div className="lightning-bolt lightning-bolt-1"></div>
+          <div className="lightning-bolt lightning-bolt-2"></div>
+          <div className="lightning-bolt lightning-bolt-3"></div>
+        </div>
+      )}
+
+      {showShieldEffect && (
+        <div className="shield-effect">
+          <div className="shield-circle"></div>
+        </div>
+      )}
+
+      {showHealEffect && (
+        <div className="heal-effect">
+          <div className="heal-plus">+</div>
+          <div className="heal-sparkles">
+            <span>✨</span>
+            <span>✨</span>
+            <span>✨</span>
+          </div>
+        </div>
+      )}
+
+      {showFireEffect && (
+        <div className="fire-effect">
+          <div className="fire-flame">🔥</div>
+          <div className="fire-flame">🔥</div>
+          <div className="fire-flame">🔥</div>
+        </div>
+      )}
+
+      {showCriticalEffect && (
+        <div className="critical-effect">
+          <div className="critical-slash">⚡</div>
+          <div className="critical-text">CRÍTICO</div>
+        </div>
+      )}
 
       {/* Game Start Modal */}
-      {!gameStarted && !gameOver && (
+      {!gameStarted && !gameOver && !showCharacterSelection && (
         <div className="game-modal">
           <h2>¡Quiz Battle!</h2>
           <p>Derrota a 3 oponentes respondiendo correctamente</p>
           <ul>
             <li>Cada respuesta correcta hace daño</li>
             <li>Los combos aumentan el daño</li>
-            <li>Cada 3 aciertos obtienes un poder</li>
+            <li>Cada personaje tiene un poder único</li>
             <li>¡Batallas rápidas de 60 HP!</li>
           </ul>
           <button className="start-button" onClick={startGame}>
-            ¡Comenzar Batalla!
+            ¡Elegir Personaje!
           </button>
+        </div>
+      )}
+
+      {/* Character Selection Modal */}
+      {showCharacterSelection && (
+        <div className="character-selection-modal">
+          <div className="character-selection-content">
+            <h2>Elige tu Personaje</h2>
+            <p className="selection-subtitle">Cada uno tiene un poder único</p>
+            
+            <div className="characters-grid">
+              {CHARACTERS.map((character) => (
+                <div
+                  key={character.id}
+                  className="character-card"
+                  onClick={() => selectCharacter(character)}
+                >
+                  <div className="character-emoji">{character.emoji}</div>
+                  <h3 className="character-name">{character.name}</h3>
+                  <p className="character-description">{character.description}</p>
+                  
+                  <div className="character-power">
+                    <div className="power-name">⚡ {character.powerName}</div>
+                    <div className="power-description">{character.powerDescription}</div>
+                    <div className="power-condition">
+                      <span className="condition-label">Condición:</span>
+                      {character.powerCondition}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Round Victory Modal */}
+      {showRoundVictory && (
+        <div className="round-victory-modal">
+          <div className="round-victory-content">
+            <div className="victory-enemy-icon">💀</div>
+            <h2>¡Enemigo Derrotado!</h2>
+            <p className="enemy-defeated-text">
+              Has derrotado al {defeatedRound === 1 ? 'primer' : defeatedRound === 2 ? 'segundo' : 'tercer'} oponente
+            </p>
+            {defeatedRound < 3 && (
+              <div className="next-enemy-warning">
+                <div className="warning-icon">⚠️</div>
+                <p className="warning-text">
+                  ¡Cuidado con el siguiente! Es más inteligente y podrá derrotarte
+                </p>
+              </div>
+            )}
+            <div className="progress-indicator">
+              {defeatedRound}/3 oponentes derrotados
+            </div>
+          </div>
         </div>
       )}
 
       {/* Game Over Modal */}
       {gameOver && (
-        <div className="game-modal">
-          <h2>{playerHP > 0 ? '¡Victoria!' : 'Derrota'}</h2>
-          <div className="final-stats">
-            <p>Puntuación Final: {score}</p>
-            <p>Rondas Completadas: {playerHP > 0 ? 3 : round - 1}/3</p>
+        <div className="victory-modal">
+          <div className="victory-backdrop"></div>
+          <div className="victory-content">
+            {/* Victory/Defeat Icon */}
+            <div className="victory-icon">
+              {playerHP > 0 ? '👑' : '💀'}
+            </div>
+            
+            {/* Title */}
+            <h1 className="victory-title">
+              {playerHP > 0 ? '¡VICTORIA ÉPICA!' : '¡DERROTA!'}
+            </h1>
+            
+            {/* Subtitle */}
+            <p className="victory-subtitle">
+              {playerHP > 0 
+                ? '¡Has derrotado a todos los oponentes!' 
+                : 'Mejor suerte la próxima vez'}
+            </p>
+            
+            {/* Stats Grid */}
+            <div className="victory-stats-grid">
+              <div className="victory-stat">
+                <div className="stat-number">{score}</div>
+                <div className="stat-label">Puntuación Final</div>
+              </div>
+              <div className="victory-stat">
+                <div className="stat-number">{playerHP > 0 ? 3 : round - 1}/3</div>
+                <div className="stat-label">Rondas Completadas</div>
+              </div>
+              <div className="victory-stat">
+                <div className="stat-number">{combo}</div>
+                <div className="stat-label">Combo Máximo</div>
+              </div>
+            </div>
+            
+            
+            {/* Action Button */}
+            <button className="victory-back-button" onClick={onBack}>
+              Volver a Juegos
+            </button>
           </div>
-          <button className="back-button" onClick={onBack}>
-            Volver a Juegos
-          </button>
         </div>
       )}
     </div>

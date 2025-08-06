@@ -149,14 +149,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         finalScore
       });
       
-      // Mostrar pausa con resultados temporales antes de continuar
-      setShowResultsPause(true);
-      
-      // Esperar 1 segundo antes de mostrar la pantalla final
-      setTimeout(() => {
-        setShowResultsPause(false);
-        completeMiniQuiz(finalScore, 0);
-      }, 1000);
+      // Mostrar resultados inmediatamente sin pantalla de carga
+      completeMiniQuiz(finalScore, 0);
     } else {
       console.log('[MINI QUIZ] handleTimeUp ignorado - ya completado');
     }
@@ -480,14 +474,8 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         setSessionComplete(true);
         setSessionActive(false);
         
-        // Mostrar pausa con resultados temporales antes de continuar
-        setShowResultsPause(true);
-        
-        // Esperar 1 segundo antes de mostrar la pantalla final
-        setTimeout(() => {
-          setShowResultsPause(false);
-          completeMiniQuiz(finalScore, finalTimeRemaining);
-        }, 1000);
+        // Mostrar resultados inmediatamente sin pantalla de carga
+        completeMiniQuiz(finalScore, finalTimeRemaining);
       }
     }, 1500);
   };
@@ -907,7 +895,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           ) : (
             <div className="failure-message">
               <p>Tu calificación fue de {finalScore}/10. Necesitas al menos 8/10 para aprobar.</p>
-              <p>Tu estudio inteligente no será contabilizado, pero no podrás repetirlo hoy.</p>
+              <p>Tu estudio inteligente no será contabilizado. Vuelve a intentarlo mañana.</p>
             </div>
           )}
         </div>
@@ -918,7 +906,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             onClick={() => onComplete(passed, finalScore)}
           >
             <i className="fas fa-check"></i>
-            Continuar
+            Finalizar
           </button>
         </div>
       </div>

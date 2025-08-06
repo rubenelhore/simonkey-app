@@ -33,7 +33,7 @@ const UniversityDashboard: React.FC = () => {
 
   return (
     <div className="university-dashboard">
-      <HeaderWithHamburger />
+      <HeaderWithHamburger title="Dashboard" />
       <div className="university-content">
         <div className="welcome-section">
           <h1>Bienvenido, {userProfile?.displayName || 'Usuario Universidad'}</h1>

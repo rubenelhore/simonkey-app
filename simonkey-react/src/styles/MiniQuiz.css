@@ -688,16 +688,54 @@
   }
 }
 
-/* Resultados del mini quiz */
+/* Resultados del mini quiz - Diseño Profesional Mejorado */
 .mini-quiz-results {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 
+    0 20px 60px rgba(102, 126, 234, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
   text-align: center;
-  margin: 1rem 0;
-  animation: resultsFadeIn 0.8s ease;
-  border: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+  animation: resultsFadeIn 0.6s ease;
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-quiz-results::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  animation: rotate 30s linear infinite;
+  pointer-events: none;
+}
+
+.mini-quiz-results::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: shimmer 3s infinite;
+  pointer-events: none;
+}
+
+@keyframes rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 @keyframes resultsFadeIn {
@@ -712,60 +750,133 @@
 }
 
 .results-header {
-  margin-bottom: 45px;
+  background: rgba(128, 128, 128, 0.2);
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .results-header i {
-  font-size: 64px;
-  margin-bottom: 25px;
-  display: block;
-  animation: trophyBounce 1s ease;
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  animation: iconFloat 3s ease-in-out infinite;
+  position: relative;
 }
 
-@keyframes trophyBounce {
-  0% { transform: scale(0) rotate(0deg); }
-  50% { transform: scale(1.2) rotate(180deg); }
-  100% { transform: scale(1) rotate(360deg); }
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 .results-header i.fa-trophy {
-  background: linear-gradient(135deg, #FFD700, #FFA000);
+  background: linear-gradient(135deg, #FFD700, #FFC107, #FF9800);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 5px 15px rgba(255, 215, 0, 0.5));
+  text-shadow: none;
+}
+
+.results-header i.fa-trophy::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.3) 0%, transparent 70%);
+  animation: glow 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 .results-header i.fa-times-circle {
-  color: var(--mini-quiz-error);
-  filter: drop-shadow(0 5px 15px rgba(255, 87, 87, 0.3));
+  background: linear-gradient(135deg, #FF6B6B, #FF5252, #FF1744);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.results-header i.fa-clock {
+  background: linear-gradient(135deg, #FFA726, #FF9800, #FB8C00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .results-header h2 {
   margin: 0;
-  font-size: 32px;
+  font-size: 2.2rem;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--mini-quiz-primary), var(--mini-quiz-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #000000;
+  text-shadow: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: 'Poppins', sans-serif;
 }
 
-/* Estadísticas de resultados */
+@keyframes titleShine {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+/* Estadísticas de resultados - Diseño Profesional */
 .results-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 25px;
-  margin-bottom: 45px;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-item {
-  background: linear-gradient(135deg, #FFFFFF 0%, #F8F9FF 100%);
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--mini-quiz-border);
-  transition: all 0.3s ease;
-  cursor: default;
+  border-radius: 16px;
+  padding: 1.8rem 1.2rem;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
   position: relative;
+  overflow: hidden;
+}
+
+/* Colores específicos por stat-item - Fondos sencillos y claros */
+.stat-item:nth-child(1) {
+  background: #E8EAF6;
+}
+
+.stat-item:nth-child(2) {
+  background: #E8F5E8;
+}
+
+.stat-item:nth-child(3) {
+  background: #FFF3E0;
+}
+
+.stat-item::before {
+  display: none;
+}
+
+/* Sin efectos hover para los stat items */
+.stat-item:hover {
+  transform: none;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Elementos decorativos eliminados */
+.stat-item:nth-child(1)::before,
+.stat-item:nth-child(2)::before,
+.stat-item:nth-child(3)::before {
+  display: none;
 }
 
 .stat-item::before {
@@ -786,12 +897,22 @@
 }
 
 .stat-item:hover::before {
-  opacity: 1;
+  display: none;
 }
 
 .stat-item:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 15px 40px rgba(97, 71, 255, 0.2);
+  transform: none !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.stat-item:hover .stat-value {
+  color: #667eea !important;
+}
+
+.stat-item:hover .stat-label {
+  color: #667eea !important;
 }
 
 .stat-item:nth-child(1) .stat-icon { background: var(--mini-quiz-gradient-1); }
@@ -799,110 +920,198 @@
 .stat-item:nth-child(3) .stat-icon { background: var(--mini-quiz-gradient-3); }
 
 .stat-icon {
-  font-size: 32px;
-  margin-bottom: 15px;
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
   display: inline-block;
-  width: 60px;
-  height: 60px;
-  line-height: 60px;
-  background: linear-gradient(135deg, var(--mini-quiz-primary), var(--mini-quiz-secondary));
-  color: white;
-  border-radius: 50%;
-  animation: statIconPulse 2s ease-in-out infinite;
+  position: relative;
 }
 
-@keyframes statIconPulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(97, 71, 255, 0.4); }
-  50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(97, 71, 255, 0); }
+.stat-item:nth-child(1) .stat-icon {
+  background: linear-gradient(135deg, #4CAF50, #8BC34A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(76, 175, 80, 0.3));
+}
+
+.stat-item:nth-child(2) .stat-icon {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+}
+
+.stat-item:nth-child(3) .stat-icon {
+  background: linear-gradient(135deg, #FF6B35, #FF8E53);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(255, 107, 53, 0.3));
+}
+
+@keyframes iconBounce {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.1) rotate(5deg); }
+  75% { transform: scale(1.1) rotate(-5deg); }
+}
+
+.stat-item:nth-child(1) .stat-icon {
+  background: linear-gradient(135deg, #FFD700, #FFC107);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-item:nth-child(2) .stat-icon {
+  background: linear-gradient(135deg, #4CAF50, #8BC34A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-item:nth-child(3) .stat-icon {
+  background: linear-gradient(135deg, #00BCD4, #03A9F4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stat-value {
-  font-size: 36px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--mini-quiz-primary), var(--mini-quiz-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 10px;
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #000000;
+  margin-bottom: 0.5rem;
+  font-family: 'Poppins', sans-serif;
+  line-height: 1;
+  text-shadow: none;
 }
 
 .stat-label {
-  font-size: 15px;
-  color: var(--mini-quiz-text-medium);
+  font-size: 0.95rem;
+  color: #000000;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
+  font-family: 'Poppins', sans-serif;
 }
 
-/* Mensaje de resultados */
+/* Mensaje de resultados - Diseño Profesional */
 .results-message {
-  margin-bottom: 45px;
-}
-
-.success-message,
-.failure-message,
-.time-up-message {
-  border-radius: 20px;
-  padding: 30px;
-  font-weight: 500;
+  margin-bottom: 2rem;
   position: relative;
-  overflow: hidden;
+  z-index: 1;
 }
 
 .success-message {
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(0, 212, 170, 0.05));
-  border: 2px solid var(--mini-quiz-success);
-  color: #00A383;
+  background: transparent;
+  border: 2px solid #667eea;
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #000000;
+  position: relative;
+}
+
+.success-message::before {
+  content: '✨';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  font-size: 4rem;
+  opacity: 0.1;
+  transform: rotate(-15deg);
 }
 
 .failure-message {
-  background: linear-gradient(135deg, rgba(255, 87, 87, 0.15), rgba(255, 87, 87, 0.05));
-  border: 2px solid var(--mini-quiz-error);
-  color: #E04444;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(229, 115, 115, 0.1) 100%);
+  border: 2px solid rgba(244, 67, 54, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #000000;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .time-up-message {
-  background: linear-gradient(135deg, rgba(255, 167, 38, 0.15), rgba(255, 167, 38, 0.05));
-  border: 2px solid var(--mini-quiz-warning);
-  color: #E67E22;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 183, 77, 0.1) 100%);
+  border: 2px solid rgba(255, 152, 0, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #000000;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .results-message p {
-  margin: 0 0 12px 0;
-  font-size: 18px;
+  margin: 0 0 0.6rem 0;
+  font-size: 0.95rem;
+  font-weight: 400;
   line-height: 1.6;
+  color: #000000;
+  text-shadow: none;
+  font-family: 'Poppins', sans-serif;
+}
+
+.results-message p:first-child {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #000000;
+  font-family: 'Poppins', sans-serif;
 }
 
 .results-message p:last-child {
   margin-bottom: 0;
-  font-weight: 600;
+  font-size: 0.9rem;
+  color: #000000;
+  opacity: 1;
+  font-family: 'Poppins', sans-serif;
 }
 
-/* Acciones de resultados */
+/* Acciones de resultados - Diseño Profesional */
 .results-actions {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  position: relative;
+  z-index: 1;
+  margin-top: 2rem;
 }
 
 .action-button {
-  padding: 18px 40px;
+  padding: 1.2rem 3rem;
   border-radius: 16px;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
+  transition: none;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 0.8rem;
   border: none;
   text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   position: relative;
   overflow: hidden;
+  min-width: 200px;
+  font-family: 'Poppins', sans-serif;
 }
 
-.action-button::before {
+.action-button.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 
+    0 10px 30px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Sin efectos hover para el botón */
+.action-button.primary:hover {
+  transform: none;
+  box-shadow: 
+    0 10px 30px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.action-button.primary:active {
+  transform: none;
+}
+
+.action-button.primary::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -910,22 +1119,37 @@
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.3);
   transform: translate(-50%, -50%);
-  transition: all 0.5s ease;
+  transition: width 0.6s, height 0.6s;
 }
 
-.action-button:hover::before {
-  width: 400px;
-  height: 400px;
+.action-button.primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 15px 40px rgba(66, 165, 245, 0.5),
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.action-button.primary {
-  background: var(--mini-quiz-gradient-1);
-  color: white;
-  box-shadow: 0 8px 25px rgba(97, 71, 255, 0.3);
-  position: relative;
-  z-index: 1;
+.action-button.primary:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.action-button.primary:active {
+  transform: translateY(-1px);
+}
+
+.action-button.primary i {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: iconSlide 1s ease-in-out infinite;
+}
+
+@keyframes iconSlide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
 }
 
 .action-button.primary::after {
@@ -1635,20 +1859,23 @@
   margin-bottom: 1rem;
 }
 
-/* Contador de preguntas sin esquinas - centrado */
+/* Contador de preguntas - centrado con mejor diseño */
 .quiz-question-counter {
-  background: linear-gradient(135deg, #6147FF, #9333EA);
-  color: white;
-  padding: 1rem 2rem;
-  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #374151;
+  padding: 0.8rem 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
   text-align: center;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  letter-spacing: 0.3px;
   margin: 0 auto 1.5rem auto;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.3);
   display: block;
   width: fit-content;
+  transition: all 0.3s ease;
 }
 
 /* Container para los módulos de estadísticas */

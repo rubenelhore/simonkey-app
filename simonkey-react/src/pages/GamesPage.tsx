@@ -167,6 +167,8 @@ const GamesPage: React.FC = () => {
       return;
     }
     
+    // TEMPORALMENTE DESACTIVADO PARA PRUEBAS - No verificar tickets
+    /*
     // Si no hay tickets disponibles, mostrar mensaje
     if (!tickets || tickets.availableTickets === 0) {
       setShowTicketModal(true);
@@ -176,6 +178,10 @@ const GamesPage: React.FC = () => {
     // Mostrar modal de confirmación
     setPendingGame(gameId);
     setShowTicketModal(true);
+    */
+    
+    // Ir directamente al juego para pruebas
+    setSelectedGame(gameId);
   };
 
   const confirmUseTicket = async () => {
@@ -247,6 +253,16 @@ const GamesPage: React.FC = () => {
 
         <div className="games-header">
           <div className="games-header-section left">
+            <button 
+              className="games-back-button" 
+              onClick={() => {
+                sessionStorage.setItem('returning-from-games', 'true');
+                navigate(-1);
+              }}
+              title="Regresar al estudio"
+            >
+              <FontAwesomeIcon icon={faArrowLeft} />
+            </button>
             {!pointsLoading && (
               <div className="header-points-display">
                 <div className="header-points-icon">
