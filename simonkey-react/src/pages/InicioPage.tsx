@@ -375,11 +375,11 @@ const InicioPage: React.FC = () => {
         // Actualizar datos del módulo de Progreso
         if (kpisData) {
           // Calcular tiempo total en horas
-          const totalMinutes = kpisData.global?.tiempoTotal || 0;
+          const totalMinutes = kpisData.global?.tiempoEstudioGlobal || 0;
           const totalHours = Math.round(totalMinutes / 60);
           
-          // Calcular tasa de éxito
-          const successRate = kpisData.global?.tasaExito || 0;
+          // Calcular tasa de éxito (usar percentil como indicador de éxito)
+          const successRate = kpisData.global?.percentilPromedioGlobal || 0;
           
           // Contar cuadernos activos
           const notebooksQuery = await import('../services/firebase').then(m => 
