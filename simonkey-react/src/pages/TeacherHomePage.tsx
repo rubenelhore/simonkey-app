@@ -27,6 +27,15 @@ const TeacherHomePage: React.FC = () => {
   
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  
+  // Estados para datos de exámenes
+  const [examStats, setExamStats] = useState({
+    totalExams: 0,
+    activeExams: 0,
+    scheduledExams: 0,
+    finishedExams: 0
+  });
+  const [examsLoading, setExamsLoading] = useState(false);
 
   // Función para cargar eventos del día actual
   const fetchTodayEvents = async () => {
@@ -101,11 +110,104 @@ const TeacherHomePage: React.FC = () => {
     }
   };
 
+  // Función para cargar estadísticas de exámenes
+  const fetchExamStats = async () => {
+    if (!user?.uid) return;
+
+    try {
+      setExamsLoading(true);
+      
+      // Obtener exámenes del profesor
+      const examsQuery = query(
+        collection(db, 'schoolExams'),
+        where('idProfesor', '==', userProfile?.id || user.uid)
+      );
+      const examsSnap = await getDocs(examsQuery);
+      
+      let totalExams = 0;
+      let activeExams = 0;
+      let scheduledExams = 0;
+      let finishedExams = 0;
+      
+      const now = new Date();
+      
+      examsSnap.forEach(doc => {
+        const examData = doc.data();
+        totalExams++;
+        
+        // Determinar el estado del examen
+        const status = determineExamStatus(examData);
+        
+        switch (status) {
+          case 'active':
+            activeExams++;
+            break;
+          case 'scheduled':
+            scheduledExams++;
+            break;
+          case 'finished':
+            finishedExams++;
+            break;
+        }
+      });
+      
+      console.log('📊 [TeacherHome] Estadísticas de exámenes:', { totalExams, activeExams, scheduledExams, finishedExams });
+      
+      setExamStats({
+        totalExams,
+        activeExams,
+        scheduledExams,
+        finishedExams
+      });
+      
+    } catch (error) {
+      console.error('Error fetching exam stats:', error);
+      setExamStats({
+        totalExams: 0,
+        activeExams: 0,
+        scheduledExams: 0,
+        finishedExams: 0
+      });
+    } finally {
+      setExamsLoading(false);
+    }
+  };
+
+  // Función para determinar el estado del examen
+  const determineExamStatus = (exam: any): 'draft' | 'scheduled' | 'active' | 'finished' => {
+    const now = new Date();
+    
+    // Si no está activo en el sistema, es borrador
+    if (!exam.isActive) {
+      return 'draft';
+    }
+    
+    // Si tiene fecha de finalización y ya pasó, está finalizado
+    if (exam.endDate) {
+      const endDate = exam.endDate.toDate ? exam.endDate.toDate() : new Date(exam.endDate);
+      if (now > endDate) {
+        return 'finished';
+      }
+    }
+    
+    // Si tiene fecha programada y aún no llega, está programado
+    if (exam.scheduledDate) {
+      const scheduledDate = exam.scheduledDate.toDate ? exam.scheduledDate.toDate() : new Date(exam.scheduledDate);
+      if (now < scheduledDate) {
+        return 'scheduled';
+      }
+    }
+    
+    // Si está activo y no tiene restricciones de fecha, está activo
+    return 'active';
+  };
+
   useEffect(() => {
     if (user?.uid) {
       fetchTodayEvents();
+      fetchExamStats();
     }
-  }, [user?.uid]);
+  }, [user?.uid, userProfile?.id]);
 
   // Función para navegar al calendario con fecha específica
   const handleEventClick = (event: CalendarEvent) => {
@@ -171,40 +273,64 @@ const TeacherHomePage: React.FC = () => {
               </div>
             </div>
             
-            {/* Módulo de Modos de Estudio */}
+            {/* Módulo de Exámenes */}
             <div className="horizontal-module study-modes-module">
               <div className="module-content">
                 <div className="module-header">
-                  <h3>Estudiantes</h3>
-                  <span className="current-date">Seguimiento</span>
+                  <h3>Mis Exámenes</h3>
+                  <span className="current-date">Gestión</span>
                 </div>
                 <div className="study-modes-grid">
-                  <div className="study-mode-card intelligent-mode">
+                  <div 
+                    className="study-mode-card intelligent-mode clickable" 
+                    onClick={() => navigate('/school/teacher/exams', { state: { filter: 'all' } })}
+                    title="Ver todos los exámenes"
+                  >
                     <div className="mode-icon-wrapper">
-                      <i className="fas fa-user-graduate"></i>
+                      <i className="fas fa-file-alt"></i>
                     </div>
-                    <span className="mode-title">Progreso</span>
+                    <span className="mode-title">
+                      Total: {examsLoading ? '...' : examStats.totalExams}
+                    </span>
                   </div>
                   
-                  <div className="study-mode-card quiz-mode">
+                  <div 
+                    className="study-mode-card quiz-mode clickable"
+                    onClick={() => navigate('/school/teacher/exams', { state: { filter: 'active' } })}
+                    title="Ver exámenes activos"
+                  >
                     <div className="mode-icon-wrapper">
-                      <i className="fas fa-chart-line"></i>
+                      <i className="fas fa-play-circle"></i>
                     </div>
-                    <span className="mode-title">Métricas</span>
+                    <span className="mode-title">
+                      Activos: {examsLoading ? '...' : examStats.activeExams}
+                    </span>
                   </div>
                   
-                  <div className="study-mode-card free-mode">
+                  <div 
+                    className="study-mode-card free-mode clickable"
+                    onClick={() => navigate('/school/teacher/exams', { state: { filter: 'scheduled' } })}
+                    title="Ver exámenes programados"
+                  >
                     <div className="mode-icon-wrapper">
-                      <i className="fas fa-tasks"></i>
+                      <i className="fas fa-clock"></i>
                     </div>
-                    <span className="mode-title">Tareas</span>
+                    <span className="mode-title">
+                      Programados: {examsLoading ? '...' : examStats.scheduledExams}
+                    </span>
                   </div>
                   
-                  <div className="study-mode-card games-mode">
+                  <div 
+                    className="study-mode-card games-mode clickable"
+                    onClick={() => navigate('/school/teacher/exams', { state: { filter: 'finished' } })}
+                    title="Ver exámenes finalizados"
+                  >
                     <div className="mode-icon-wrapper">
-                      <i className="fas fa-clipboard-list"></i>
+                      <i className="fas fa-check-circle"></i>
                     </div>
-                    <span className="mode-title">Evaluaciones</span>
+                    <span className="mode-title">
+                      Finalizados: {examsLoading ? '...' : examStats.finishedExams}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -35,6 +35,7 @@ interface Materia {
 
 const TeacherExamsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, userProfile } = useAuth();
   const { isSchoolTeacher } = useUserType();
   
@@ -42,7 +43,9 @@ const TeacherExamsPage: React.FC = () => {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'draft' | 'scheduled' | 'active' | 'finished'>('all');
+  // Obtener filtro inicial desde navegación o usar 'all' por defecto
+  const initialFilter = (location.state as any)?.filter || 'all';
+  const [filter, setFilter] = useState<'all' | 'draft' | 'scheduled' | 'active' | 'finished'>(initialFilter);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'materia'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -60,6 +63,15 @@ const TeacherExamsPage: React.FC = () => {
     }
     loadTeacherData();
   }, [user, isSchoolTeacher, userProfile]);
+
+  // Efecto para actualizar el filtro cuando llega desde navegación
+  useEffect(() => {
+    const navigationFilter = (location.state as any)?.filter;
+    if (navigationFilter && navigationFilter !== filter) {
+      console.log('🔍 [TeacherExams] Aplicando filtro desde navegación:', navigationFilter);
+      setFilter(navigationFilter);
+    }
+  }, [location.state]);
 
   const determineExamStatus = (exam: any): 'draft' | 'scheduled' | 'active' | 'finished' => {
     const now = new Date();
