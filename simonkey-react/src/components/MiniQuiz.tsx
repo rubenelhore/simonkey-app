@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, Timestamp, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { 
   Concept, 
@@ -14,6 +14,10 @@ import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import '../styles/MiniQuiz.css';
 import '../styles/StudySessionPage.css';
+
+const QUIZ_CONFIG = {
+  QUESTION_COUNT: 5
+};
 
 interface MiniQuizProps {
   notebookId: string;
@@ -472,12 +476,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             id: concepto.id || `${doc.id}-${index}`,
             término: concepto.término,
             definición: concepto.definición,
-            notebookId: notebookId,
-            notebookTitle: notebookTitle,
-            collectionPath: collectionName,
-            documentId: doc.id,
-            createdAt: concepto.createdAt || new Date(),
-            updatedAt: concepto.updatedAt || new Date()
+            fuente: notebookTitle || 'Cuaderno'
           });
         });
         

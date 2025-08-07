@@ -160,7 +160,7 @@ const Materias: React.FC = () => {
         const examData = {
           id: doc.id,
           ...doc.data()
-        };
+        } as any;
         
         // Filtrar por escuela
         if (examData.idEscuela === studentSchoolId) {
