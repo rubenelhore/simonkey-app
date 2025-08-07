@@ -47,7 +47,7 @@ const NotebookDetail = () => {
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
-  const [loadingConceptos, setLoadingConceptos] = useState<boolean>(true);
+  const [loadingConceptos, setLoadingConceptos] = useState<boolean>(false);
   const [cargando, setCargando] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>("Cargando...");
   const [nuevoConcepto, setNuevoConcepto] = useState<Concept>({
@@ -74,6 +74,7 @@ const NotebookDetail = () => {
   // Estado para los materiales del notebook
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [loadingMaterials, setLoadingMaterials] = useState<boolean>(true);
   const [showMaterialsList, setShowMaterialsList] = useState<boolean>(false);
   
@@ -88,6 +89,18 @@ const NotebookDetail = () => {
   
   // Log para debug - comentado para evitar spam en consola
   // console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId && !(event.target as HTMLElement).closest('.material-card-actions')) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openDropdownId]);
   
   // Effect to find notebookId by notebookName
   useEffect(() => {
@@ -164,7 +177,6 @@ const NotebookDetail = () => {
       }
       
       try {
-        setLoadingConceptos(true);
         // Fetch notebook using unified service
         const notebook = await UnifiedNotebookService.getNotebook(notebookId);
         
@@ -196,7 +208,6 @@ const NotebookDetail = () => {
           })) as ConceptDoc[];
           
           setConceptosDocs(conceptosData);
-          setLoadingConceptos(false);
           // console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
           
           // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
@@ -240,7 +251,6 @@ const NotebookDetail = () => {
           console.warn('⚠️ Error cargando conceptos (continuando sin conceptos):', conceptsError.message);
           // No fallar completamente, solo mostrar un warning
           setConceptosDocs([]);
-          setLoadingConceptos(false);
         }
         
         // Cargar materiales del notebook con timeout
@@ -263,7 +273,6 @@ const NotebookDetail = () => {
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setLoadingConceptos(false);
       }
     };
     
@@ -850,6 +859,18 @@ const NotebookDetail = () => {
     }
   };
 
+  // Función para ver material
+  const handleViewMaterial = (materialId: string) => {
+    const selectedMaterial = materials.find(m => m.id === materialId);
+    if (selectedMaterial) {
+      if (selectedMaterial.url.startsWith('placeholder://')) {
+        alert('Este material aún está siendo procesado. Por favor, intenta más tarde.');
+        return;
+      }
+      window.open(selectedMaterial.url, '_blank');
+    }
+  };
+
   // Función para eliminar material y sus conceptos relacionados
   const handleDeleteMaterial = async (materialId: string) => {
     if (!confirm('¿Estás seguro de que quieres eliminar este material? También se eliminarán todos los conceptos relacionados con este material.')) {
@@ -1155,65 +1176,6 @@ const NotebookDetail = () => {
                 </button>
               ) : null}
             </div>
-            {selectedMaterialId && showMaterialsList && (
-                <div className="material-actions">
-                  <button
-                    className="view-material-btn"
-                    onClick={() => {
-                      const selectedMaterial = materials.find(m => m.id === selectedMaterialId);
-                      if (selectedMaterial) {
-                        if (selectedMaterial.url.startsWith('placeholder://')) {
-                          alert('Este material aún está siendo procesado. Por favor, intenta más tarde.');
-                          return;
-                        }
-                        window.open(selectedMaterial.url, '_blank');
-                      }
-                    }}
-                    title="Ver material"
-                  >
-                    <i className="fas fa-eye"></i>
-                  </button>
-                  {materials.find(m => m.id === selectedMaterialId)?.url.startsWith('placeholder://') ? (
-                    <button
-                      className="download-material-btn pending"
-                      disabled
-                      title="Material siendo procesado"
-                    >
-                      <i className="fas fa-spinner fa-spin"></i>
-                    </button>
-                  ) : (
-                    <a
-                      href={materials.find(m => m.id === selectedMaterialId)?.url || '#'}
-                      download={materials.find(m => m.id === selectedMaterialId)?.name}
-                      className="download-material-btn"
-                      title="Descargar"
-                    >
-                      <i className="fas fa-download"></i>
-                    </a>
-                  )}
-                  {/* Delete button - only show for users with permission */}
-                  {(!isSchoolStudent && !isSchoolAdmin) && (
-                    <button
-                      className="delete-material-btn"
-                      onClick={() => handleDeleteMaterial(selectedMaterialId)}
-                      title="Eliminar material y conceptos relacionados"
-                      style={{
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        marginLeft: '8px'
-                      }}
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  )}
-                </div>
-              )}
-            
             {showMaterialsList && (
               <div className="materials-list">
                 {loadingMaterials ? (
@@ -1245,6 +1207,45 @@ const NotebookDetail = () => {
                     <span className="material-size">
                       {(material.size / 1024 / 1024).toFixed(2)} MB
                     </span>
+                  </div>
+                  <div className="material-card-actions">
+                    <button 
+                      className="material-menu-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdownId(openDropdownId === material.id ? null : material.id);
+                      }}
+                    >
+                      <i className="fas fa-ellipsis-v"></i>
+                    </button>
+                    {openDropdownId === material.id && (
+                      <div className="material-dropdown-menu">
+                        <button 
+                          className="dropdown-item"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewMaterial(material.id);
+                            setOpenDropdownId(null);
+                          }}
+                        >
+                          <i className="fas fa-eye"></i>
+                          Ver
+                        </button>
+                        {(!isSchoolStudent && !isSchoolAdmin) && (
+                          <button 
+                            className="dropdown-item delete"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMaterial(material.id);
+                              setOpenDropdownId(null);
+                            }}
+                          >
+                            <i className="fas fa-trash"></i>
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                   ))
@@ -1361,12 +1362,7 @@ const NotebookDetail = () => {
                   </div>
                 )}
               </div>
-            ) : loadingConceptos ? (
-              <div className="loading-concepts-container">
-                <div className="loading-spinner"></div>
-                <p>Cargando conceptos...</p>
-              </div>
-            ) : conceptosDocs.length === 0 ? (
+            ) : conceptosDocs.length === 0 && !loadingConceptos ? (
               <div className="empty-state-concepts-new">
                 <div className="empty-concepts-icon">
                   <i className="fas fa-file-alt" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
@@ -1402,6 +1398,27 @@ const NotebookDetail = () => {
             ) : (
               <>
                 <div className="concept-cards">
+                  {/* Add Concepts Card - Always first */}
+                  {!isSchoolStudent && (
+                    <div 
+                      className="concept-card add-concept-card"
+                      onClick={() => openModalWithTab('upload')}
+                      style={{ 
+                        background: '#EEF2FF',
+                        color: '#6366f1',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        border: '2px dashed #6366f1'
+                      }}
+                    >
+                      <i className="fas fa-plus" style={{ fontSize: '1.2rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}></i>
+                      <h4 style={{ margin: 0, background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Agregar Conceptos</h4>
+                    </div>
+                  )}
+                  
                   {conceptosDocs.flatMap((doc) => 
                     doc.conceptos.map((concepto, conceptIndex) => {
                       const trafficLightColor = getTrafficLightColor(concepto.id);

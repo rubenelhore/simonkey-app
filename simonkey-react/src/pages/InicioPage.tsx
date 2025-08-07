@@ -63,6 +63,15 @@ const InicioPage: React.FC = () => {
   const [eventsLoaded, setEventsLoaded] = useState(false);
   const [materiasByDominio, setMateriasByDominio] = useState<MateriaWithDominio[]>([]);
   const [materiasLoading, setMateriasLoading] = useState(false);
+  const materiasLoadedRef = React.useRef(false);
+  
+  // Estados para el módulo de Progreso
+  const [progressData, setProgressData] = useState({
+    conceptsDominated: 0,
+    totalTime: 0,
+    successRate: 0,
+    activeNotebooks: 0
+  });
   
   // Global cache using localStorage
   const getCachedData = (key: string) => {
@@ -145,23 +154,26 @@ const InicioPage: React.FC = () => {
   const fetchMateriasByDominio = async (forceRefresh = false) => {
     if (!user?.uid) return;
     
-    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, materiasLoading: ${materiasLoading}, current data length: ${materiasByDominio.length}`);
+    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, materiasLoading: ${materiasLoading}, loaded: ${materiasLoadedRef.current}`);
+    
+    // If already loaded and not forcing refresh, skip
+    if (!forceRefresh && materiasLoadedRef.current && materiasByDominio.length > 0) {
+      console.log('✅ Materias ya cargadas, no recargando');
+      setMateriasLoading(false);
+      return;
+    }
     
     // Check localStorage cache first
     const cachedMaterias = getCachedData(`materias_${user.uid}`);
     const cacheValid = cachedMaterias && isCacheValid(cachedMaterias.timestamp);
     
-    console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}, timestamp: ${cachedMaterias?.timestamp}, age: ${cachedMaterias ? Date.now() - cachedMaterias.timestamp : 'N/A'}ms`);
+    console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}`);
     
     if (!forceRefresh && cacheValid) {
       console.log('📦 Usando materias desde cache localStorage');
-      // Only update state if we don't have data or if data is different
-      if (materiasByDominio.length === 0 || JSON.stringify(materiasByDominio) !== JSON.stringify(cachedMaterias.data)) {
-        console.log('🔄 Actualizando estado con datos del cache');
-        setMateriasByDominio(cachedMaterias.data);
-      } else {
-        console.log('✅ Estado ya tiene los datos del cache, no actualizando');
-      }
+      setMateriasByDominio(cachedMaterias.data);
+      setMateriasLoading(false);
+      materiasLoadedRef.current = true;
       return;
     }
     
@@ -237,6 +249,7 @@ const InicioPage: React.FC = () => {
       // Update localStorage cache
       setCachedData(`materias_${user.uid}`, topMaterias, Date.now());
       console.log('💾 Materias guardadas en cache localStorage');
+      materiasLoadedRef.current = true;
     } catch (error) {
       console.error('Error fetching materias by dominio:', error);
       setMateriasByDominio([]);
@@ -357,30 +370,30 @@ const InicioPage: React.FC = () => {
         
         // Obtener conceptos dominados y calcular división
         const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
+        calculateDivision(conceptStats.conceptosDominados);
         
-        // Calculate division locally to get the data immediately
-        let divisionKey = 'WOOD';
-        const concepts = conceptStats.conceptosDominados;
-        
-        // Find current division based on concepts
-        for (const [key, data] of Object.entries(DIVISION_LEVELS)) {
-          const maxInDivision = Math.max(...data.ranges);
-          if (concepts >= maxInDivision) {
-            continue;
-          } else {
-            divisionKey = key;
-            break;
-          }
+        // Actualizar datos del módulo de Progreso
+        if (kpisData) {
+          // Calcular tiempo total en horas
+          const totalMinutes = kpisData.global?.tiempoTotal || 0;
+          const totalHours = Math.round(totalMinutes / 60);
+          
+          // Calcular tasa de éxito
+          const successRate = kpisData.global?.tasaExito || 0;
+          
+          // Contar cuadernos activos
+          const notebooksQuery = await import('../services/firebase').then(m => 
+            m.getDocs(m.query(m.collection(m.db, 'notebooks'), m.where('userId', '==', user.uid)))
+          );
+          const activeNotebooks = notebooksQuery.size;
+          
+          setProgressData({
+            conceptsDominated: conceptStats.conceptosDominados || 0,
+            totalTime: totalHours,
+            successRate: successRate,
+            activeNotebooks: activeNotebooks
+          });
         }
-        
-        // If beyond the highest division, stay at legend
-        if (concepts >= 50000) {
-          divisionKey = 'LEGEND';
-        }
-        
-        const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
-        const divisionData = { name: division.name, icon: division.icon };
-        setCurrentDivision(divisionData);
 
         // Obtener historial de posiciones para calcular progreso
         const { getPositionHistory } = await import('../utils/createPositionHistory');
@@ -412,7 +425,7 @@ const InicioPage: React.FC = () => {
           hasStudiedToday: studiedToday,
           currentScore: scoreValue,
           weeklyProgress: weeklyProgressValue,
-          currentDivision: divisionData
+          currentDivision: { name: currentDivision.name, icon: currentDivision.icon }
         };
         setCachedData(`main_data_${user.uid}`, mainData, Date.now());
         console.log('💾 Datos principales guardados en cache localStorage');
@@ -427,6 +440,9 @@ const InicioPage: React.FC = () => {
   useEffect(() => {
     if (user?.uid) {
       console.log('🚀 Inicializando página de inicio para usuario:', user.uid);
+      
+      // Reset loaded ref when user changes
+      materiasLoadedRef.current = false;
       
       // Initialize with cached data IMMEDIATELY
       const cachedMaterias = getCachedData(`materias_${user.uid}`);
@@ -448,6 +464,7 @@ const InicioPage: React.FC = () => {
       if (cachedMaterias && isCacheValid(cachedMaterias.timestamp)) {
         console.log('⚡ Cargando materias desde cache localStorage');
         setMateriasByDominio(cachedMaterias.data);
+        materiasLoadedRef.current = true;
       }
       
       if (cachedEvents && isCacheValid(cachedEvents.timestamp)) {
@@ -465,6 +482,7 @@ const InicioPage: React.FC = () => {
       setEventsLoading(false);
       setEventsLoaded(false);
       setMateriasLoading(false);
+      materiasLoadedRef.current = false;
     }
   }, [user?.uid]);
 
@@ -500,8 +518,9 @@ const InicioPage: React.FC = () => {
           console.log('🔄 Cache de eventos expirado, refrescando...');
           fetchTodayEvents(false);
         }
-        if (!cachedMaterias || !isCacheValid(cachedMaterias.timestamp)) {
-          console.log('🔄 Cache de materias expirado, refrescando...');
+        // Only check materias if not already loaded or cache is invalid
+        if (!materiasLoadedRef.current || !cachedMaterias || !isCacheValid(cachedMaterias.timestamp)) {
+          console.log('🔄 Cache de materias expirado o no cargado, refrescando...');
           fetchMateriasByDominio(false);
         } else {
           console.log('✅ Cache de materias válido, no recargando');
@@ -543,6 +562,9 @@ const InicioPage: React.FC = () => {
           
           <div className="daily-metrics">
             <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Días consecutivos de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <FontAwesomeIcon icon={faFire} className="metric-icon fire" />
               <div className="metric-content">
                 <span className="metric-label">Racha</span>
@@ -551,6 +573,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Puntos bonus acumulados por tu racha de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <FontAwesomeIcon icon={faGift} className="metric-icon bonus" />
               <div className="metric-content">
                 <span className="metric-label">Bonus</span>
@@ -559,6 +584,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Estado de tu sesión de estudio del día de hoy">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <FontAwesomeIcon icon={faChartLine} className="metric-icon progress" />
               <div className="metric-content">
                 <span className="metric-label">Estudio Hoy</span>
@@ -572,6 +600,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Tu división actual basada en conceptos dominados">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <FontAwesomeIcon icon={faMedal} className="metric-icon division" />
               <div className="metric-content">
                 <span className="metric-label">División</span>
@@ -583,6 +614,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Tu puntuación global acumulada de todos tus estudios">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <FontAwesomeIcon icon={faTrophy} className="metric-icon score" />
               <div className="metric-content">
                 <span className="metric-label">Score Global</span>
@@ -598,8 +632,8 @@ const InicioPage: React.FC = () => {
             <div className="horizontal-module materias-dominio-module">
               <div className="module-content">
                 <div className="module-header">
-                  <h3>Materias - Menor Dominio</h3>
-                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                  <h3>Materias</h3>
+                  <span className="current-date">Menor Dominio</span>
                 </div>
                 <div className="materias-container">
                   {materiasLoading ? (
@@ -648,26 +682,94 @@ const InicioPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="horizontal-module">
+            <div className="horizontal-module study-modes-module">
               <div className="module-content">
                 <div className="module-header">
-                  <h3>Módulo 2</h3>
-                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                  <h3>Modos de Estudio</h3>
+                  <span className="current-date">Elige tu modo</span>
                 </div>
-                <div className="events-container">
-                  <p>Contenido del segundo módulo</p>
+                <div className="study-modes-grid">
+                  <div 
+                    className="study-mode-card intelligent-mode"
+                    onClick={() => navigate('/study')}
+                  >
+                    <div className="mode-icon-wrapper">
+                      <i className="fas fa-brain"></i>
+                    </div>
+                    <span className="mode-title">Estudio Inteligente</span>
+                  </div>
+                  
+                  <div 
+                    className="study-mode-card quiz-mode"
+                    onClick={() => navigate('/study')}
+                  >
+                    <div className="mode-icon-wrapper">
+                      <i className="fas fa-trophy"></i>
+                    </div>
+                    <span className="mode-title">Mini Quiz</span>
+                  </div>
+                  
+                  <div 
+                    className="study-mode-card free-mode"
+                    onClick={() => navigate('/study')}
+                  >
+                    <div className="mode-icon-wrapper">
+                      <i className="fas fa-book-open"></i>
+                    </div>
+                    <span className="mode-title">Estudio Libre</span>
+                  </div>
+                  
+                  <div 
+                    className="study-mode-card games-mode"
+                    onClick={() => navigate('/study')}
+                  >
+                    <div className="mode-icon-wrapper">
+                      <i className="fas fa-gamepad"></i>
+                    </div>
+                    <span className="mode-title">Juegos</span>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div className="horizontal-module">
+            <div className="horizontal-module progress-module">
               <div className="module-content">
                 <div className="module-header">
-                  <h3>Módulo 3</h3>
-                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                  <h3>Progreso</h3>
+                  <span className="current-date">Tu resumen</span>
                 </div>
-                <div className="events-container">
-                  <p>Contenido del tercer módulo</p>
+                <div className="progress-insights-container">
+                  <div className="progress-metric">
+                    <div className="progress-metric-value">
+                      <i className="fas fa-brain"></i>
+                      <span>{loading ? '...' : progressData.conceptsDominated}</span>
+                    </div>
+                    <span className="progress-metric-label">Conceptos Dominados</span>
+                  </div>
+                  
+                  <div className="progress-metric">
+                    <div className="progress-metric-value">
+                      <i className="fas fa-clock"></i>
+                      <span>{loading ? '...' : `${progressData.totalTime}h`}</span>
+                    </div>
+                    <span className="progress-metric-label">Tiempo Total</span>
+                  </div>
+                  
+                  <div className="progress-metric">
+                    <div className="progress-metric-value">
+                      <i className="fas fa-percentage"></i>
+                      <span>{loading ? '...' : `${progressData.successRate}%`}</span>
+                    </div>
+                    <span className="progress-metric-label">Tasa de Éxito</span>
+                  </div>
+                  
+                  <div className="progress-metric">
+                    <div className="progress-metric-value">
+                      <i className="fas fa-book"></i>
+                      <span>{loading ? '...' : progressData.activeNotebooks}</span>
+                    </div>
+                    <span className="progress-metric-label">Cuadernos Activos</span>
+                  </div>
                 </div>
               </div>
             </div>

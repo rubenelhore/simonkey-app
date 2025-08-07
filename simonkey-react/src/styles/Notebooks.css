@@ -1905,10 +1905,7 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .notebook-list-header .create-notebook-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(79,70,229,0.13);
-  filter: none;
-  outline: none !important;
+  /* Hover effect removed */
 }
 
 .notebook-list-header .create-notebook-button:focus {
@@ -4093,9 +4090,7 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .create-notebook-button:hover {
-  background: #4d35e0;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  /* Hover effect removed */
 }
 
 /* Notebook cards styles */
