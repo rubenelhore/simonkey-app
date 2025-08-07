@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import CustomCalendar from '../components/CustomCalendar';
 import { db, collection, addDoc, query, where, getDocs, doc, updateDoc, deleteDoc, Timestamp } from '../services/firebase';
@@ -20,11 +21,16 @@ interface CalendarEvent {
 
 const CalendarPage: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const userTypeData = useUserType();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   
   const effectiveUserId = user?.uid;
+  
+  // Get initial date and view from navigation state
+  const initialDate = location.state?.selectedDate || null;
+  const initialView = location.state?.view || 'month';
 
   // Cargar eventos desde Firebase
   useEffect(() => {
@@ -180,6 +186,8 @@ const CalendarPage: React.FC = () => {
           onEventEdit={handleEventEdit}
           onEventDelete={handleEventDelete}
           onDateSelect={handleDateSelect}
+          initialDate={initialDate}
+          initialView={initialView}
         />
       </div>
     </div>

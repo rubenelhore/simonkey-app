@@ -19,6 +19,8 @@ interface CustomCalendarProps {
   onEventEdit?: (event: CalendarEvent) => void;
   onEventDelete?: (eventId: string) => void;
   onDateSelect?: (date: string) => void;
+  initialDate?: string | null;
+  initialView?: 'day' | 'week' | 'month';
 }
 
 const CustomCalendar: React.FC<CustomCalendarProps> = ({
@@ -26,13 +28,17 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
   onEventAdd,
   onEventEdit,
   onEventDelete,
-  onDateSelect
+  onDateSelect,
+  initialDate,
+  initialView = 'month'
 }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState(
+    initialDate ? new Date(initialDate) : new Date()
+  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(initialDate || null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>(initialView);
   const [newEvent, setNewEvent] = useState<{
     title: string;
     time: string;
@@ -68,23 +74,25 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     // Días del mes anterior (grises)
     for (let i = startDay - 1; i >= 0; i--) {
       const prevDate = new Date(year, month, -i);
+      const dateString = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
       days.push({
         date: prevDate.getDate(),
-        dateString: prevDate.toISOString().split('T')[0],
+        dateString,
         isCurrentMonth: false,
         isToday: false
       });
     }
     
     // Días del mes actual
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateString = new Date(year, month, day).toISOString().split('T')[0];
+      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       days.push({
         date: day,
         dateString,
         isCurrentMonth: true,
-        isToday: dateString === today
+        isToday: dateString === todayString
       });
     }
     
@@ -92,9 +100,10 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
       const nextDate = new Date(year, month + 1, day);
+      const dateString = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
       days.push({
         date: day,
-        dateString: nextDate.toISOString().split('T')[0],
+        dateString,
         isCurrentMonth: false,
         isToday: false
       });
@@ -113,12 +122,16 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     for (let i = 0; i < 7; i++) {
       const currentDate = new Date(startOfWeek);
       currentDate.setDate(startOfWeek.getDate() + i);
-      const dateString = currentDate.toISOString().split('T')[0];
+      const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       days.push({
         date: currentDate.getDate(),
         dateString,
         isCurrentMonth: true,
-        isToday: dateString === new Date().toISOString().split('T')[0],
+        isToday: (() => {
+          const today = new Date();
+          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          return dateString === todayString;
+        })(),
         fullDate: currentDate
       });
     }
@@ -134,8 +147,15 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
       hours.push({
         hour,
         hourString: `${hour.toString().padStart(2, '0')}:00`,
-        dateString: currentDate.toISOString().split('T')[0],
-        isToday: currentDate.toISOString().split('T')[0] === new Date().toISOString().split('T')[0]
+        dateString: (() => {
+          return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+        })(),
+        isToday: (() => {
+          const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+          const today = new Date();
+          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          return dateString === todayString;
+        })()
       });
     }
     return hours;
@@ -318,7 +338,9 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
   };
 
   const isCurrentDay = (dateString: string) => {
-    return dateString === new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return dateString === todayString;
   };
 
   const isOffHours = (hour: number) => {

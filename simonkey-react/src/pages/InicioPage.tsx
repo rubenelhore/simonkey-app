@@ -5,10 +5,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faFire, faClock, faChartLine, faGift, faMedal, faTrophy,
-  faBook, faGraduationCap, faChartBar, faCalendarAlt
+  faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar
 } from '@fortawesome/free-solid-svg-icons';
 import { StudyStreakService } from '../services/studyStreakService';
+import { db, collection, query, where, getDocs, Timestamp } from '../services/firebase';
 import '../styles/InicioPage.css';
+
+// Interface for calendar events
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  type: 'study' | 'quiz' | 'custom';
+  time?: string;
+  description?: string;
+}
 
 // División levels configuration
 const DIVISION_LEVELS = {
@@ -35,6 +46,8 @@ const InicioPage: React.FC = () => {
   const [currentScore, setCurrentScore] = useState(0);
   const [hasStudiedToday, setHasStudiedToday] = useState(false);
   const [currentDivision, setCurrentDivision] = useState<{ name: string; icon: string }>({ name: 'Madera', icon: '🪵' });
+  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
 
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
@@ -58,6 +71,63 @@ const InicioPage: React.FC = () => {
     
     const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
     setCurrentDivision({ name: division.name, icon: division.icon });
+  };
+
+  // Fetch today's calendar events
+  const fetchTodayEvents = async () => {
+    if (!user?.uid) {
+      setEventsLoading(false);
+      return;
+    }
+
+    try {
+      setEventsLoading(true);
+      const today = new Date();
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      const eventsQuery = query(
+        collection(db, 'calendarEvents'),
+        where('userId', '==', user.uid)
+      );
+      
+      const snapshot = await getDocs(eventsQuery);
+      const events: CalendarEvent[] = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        // Filter for today's events
+        let eventDate = data.date;
+        if (data.date instanceof Timestamp) {
+          const date = data.date.toDate();
+          eventDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+        
+        if (eventDate === todayString) {
+          events.push({
+            id: doc.id,
+            title: data.title,
+            date: eventDate,
+            type: data.type || 'custom',
+            time: data.time || '',
+            description: data.description || ''
+          });
+        }
+      });
+      
+      // Sort events by time
+      events.sort((a, b) => {
+        if (!a.time) return 1;
+        if (!b.time) return -1;
+        return a.time.localeCompare(b.time);
+      });
+      
+      setTodayEvents(events);
+    } catch (error) {
+      console.error('Error fetching today events:', error);
+      setTodayEvents([]);
+    } finally {
+      setEventsLoading(false);
+    }
   };
 
   const fetchData = async () => {
@@ -115,7 +185,13 @@ const InicioPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    if (user?.uid) {
+      fetchData();
+      fetchTodayEvents();
+    } else {
+      setLoading(false);
+      setEventsLoading(false);
+    }
   }, [user]);
 
   // Refrescar datos cuando la página recibe el foco (usuario regresa después de estudiar)
@@ -124,6 +200,7 @@ const InicioPage: React.FC = () => {
       if (user?.uid) {
         console.log('Página recibió foco, actualizando datos...');
         fetchData();
+        fetchTodayEvents();
       }
     };
 
@@ -208,28 +285,76 @@ const InicioPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 🟦 FILA 2: Módulo principal de acceso rápido */}
+        {/* 🟦 FILA 2: Módulos horizontales */}
         <section className="row-2">
-          <div className="quick-access-grid">
-            <button className="quick-access-btn" onClick={() => navigate('/materias')}>
-              <FontAwesomeIcon icon={faBook} className="quick-btn-icon" />
-              <span className="quick-btn-label">Mis materias</span>
-            </button>
+          <div className="horizontal-modules-container">
+            <div className="horizontal-module">
+              <div className="module-content">
+                <h3>Módulo 1</h3>
+                <p>Contenido del primer módulo</p>
+              </div>
+            </div>
             
-            <button className="quick-access-btn" onClick={() => navigate('/study')}>
-              <FontAwesomeIcon icon={faGraduationCap} className="quick-btn-icon" />
-              <span className="quick-btn-label">Estudiar</span>
-            </button>
+            <div className="horizontal-module">
+              <div className="module-content">
+                <h3>Módulo 2</h3>
+                <p>Contenido del segundo módulo</p>
+              </div>
+            </div>
             
-            <button className="quick-access-btn" onClick={() => navigate('/progress')}>
-              <FontAwesomeIcon icon={faChartBar} className="quick-btn-icon" />
-              <span className="quick-btn-label">Mi progreso</span>
-            </button>
+            <div className="horizontal-module">
+              <div className="module-content">
+                <h3>Módulo 3</h3>
+                <p>Contenido del tercer módulo</p>
+              </div>
+            </div>
             
-            <button className="quick-access-btn" onClick={() => navigate('/calendar')}>
-              <FontAwesomeIcon icon={faCalendarAlt} className="quick-btn-icon" />
-              <span className="quick-btn-label">Calendario</span>
-            </button>
+            <div className="horizontal-module calendar-module">
+              <div className="module-content">
+                <div className="module-header">
+                  <h3>Calendario</h3>
+                  <span className="current-date">
+                    {(() => {
+                      const today = new Date();
+                      const weekday = today.toLocaleDateString('es-ES', { weekday: 'short' });
+                      const day = today.getDate().toString().padStart(2, '0');
+                      return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}. ${day}`;
+                    })()}
+                  </span>
+                </div>
+                <div className="events-container">
+                  {eventsLoading ? (
+                    <p className="loading-text">Cargando eventos...</p>
+                  ) : todayEvents.length > 0 ? (
+                    <div className="events-list">
+                      {todayEvents.map(event => (
+                        <div 
+                          key={event.id} 
+                          className="event-item clickable-event"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/calendar', { 
+                              state: { 
+                                selectedDate: event.date,
+                                view: 'day'
+                              } 
+                            });
+                          }}
+                        >
+                          <div className="event-time">{event.time || 'Todo el día'}</div>
+                          <div className="event-title">{event.title}</div>
+                          {event.description && (
+                            <div className="event-description">{event.description}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-events">No tienes eventos hoy</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
         
