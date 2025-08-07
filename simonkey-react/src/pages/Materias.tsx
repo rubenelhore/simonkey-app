@@ -36,7 +36,7 @@ interface Materia {
 const Materias: React.FC = () => {
   const { user, userProfile, loading: authLoading } = useAuth();
   const [materias, setMaterias] = useState<Materia[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -68,10 +68,7 @@ const Materias: React.FC = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<string>('');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [adminMaterias, setAdminMaterias] = useState<any[]>([]);
-  const [teacherLoading, setTeacherLoading] = useState(false);
-  const [teacherDataLoaded, setTeacherDataLoaded] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const loadingRef = useRef(false);
   const [examsByMateria, setExamsByMateria] = useState<Record<string, any[]>>({});
   const [newMateriaTitle, setNewMateriaTitle] = useState('');
   const [newMateriaColor, setNewMateriaColor] = useState('#6147FF');
@@ -88,13 +85,8 @@ const Materias: React.FC = () => {
   useEffect(() => {
     const loadMaterias = async () => {
       if (!user) return;
-      // No cargar materias regulares para usuarios escolares (estudiantes, profesores, admins)
-      if (isSchoolStudent || isSchoolTeacher || isSchoolAdmin) {
-        // Solo hacer log y actualizar loading una vez
-        if (loading) {
-          console.log('👨‍🏫 Usuario escolar detectado, no cargando materias regulares');
-          setLoading(false);
-        }
+      if (isSchoolStudent) {
+        // Para estudiantes escolares, no cargar materias regulares
         return;
       }
       setLoading(true);
@@ -153,46 +145,18 @@ const Materias: React.FC = () => {
         setLoading(false);
       }
     };
-    
-    // Solo ejecutar si el usuario existe y no es escolar
-    if (user && !isSchoolStudent && !isSchoolTeacher && !isSchoolAdmin) {
-      loadMaterias();
-    }
-  }, [user, refreshTrigger, isSchoolStudent, isSchoolTeacher, isSchoolAdmin]);
+    loadMaterias();
+  }, [user, refreshTrigger, isSchoolStudent]);
 
   // Función para cargar exámenes de estudiante - OPTIMIZADA
   const loadStudentExams = async () => {
     if (!user || !isSchoolStudent || !schoolSubjects || schoolSubjects.length === 0 || !userProfile) return;
     
     try {
-      console.log('🎯 loadStudentExams - Inicio');
-      console.log('🎯 userProfile.idEscuela:', userProfile.idEscuela);
-      console.log('🎯 userProfile.schoolData?.idEscuela:', userProfile.schoolData?.idEscuela);
-      console.log('🎯 userProfile.idAdmin:', userProfile.idAdmin);
-      
-      let studentSchoolId = userProfile.idEscuela || userProfile.schoolData?.idEscuela;
-      
-      // Si no tiene idEscuela directamente, obtenerlo del admin asignado
-      if (!studentSchoolId && userProfile.idAdmin) {
-        console.log('🔍 SchoolUse: Obteniendo idEscuela desde el admin:', userProfile.idAdmin);
-        const adminDoc = await getDoc(doc(db, 'users', userProfile.idAdmin));
-        
-        if (adminDoc.exists()) {
-          const adminData = adminDoc.data();
-          console.log('📋 Admin data:', adminData);
-          console.log('📋 adminData.idInstitucion:', adminData.idInstitucion);
-          console.log('📋 adminData.schoolData?.idEscuela:', adminData.schoolData?.idEscuela);
-          console.log('📋 adminData.idEscuela:', adminData.idEscuela);
-          studentSchoolId = adminData.idInstitucion || adminData.schoolData?.idEscuela || adminData.idEscuela;
-          console.log('🏫 ID Escuela obtenido del admin:', studentSchoolId);
-        } else {
-          console.error('❌ Admin document no existe:', userProfile.idAdmin);
-        }
-      }
+      const studentSchoolId = userProfile.idEscuela || userProfile.schoolData?.idEscuela;
       
       if (!studentSchoolId) {
-        console.warn('⚠️ Estudiante sin escuela asignada (ni en perfil ni en admin), no se pueden cargar exámenes');
-        console.log('⚠️ Estado final - studentSchoolId:', studentSchoolId);
+        console.warn('⚠️ Estudiante sin escuela asignada, no se pueden cargar exámenes');
         return;
       }
       
@@ -447,27 +411,7 @@ const Materias: React.FC = () => {
     if (!user) return;
     
     try {
-      if (isSchoolTeacher) {
-        // Para profesor: crear materia escolar asignada a sí mismo
-        const teacherId = user.uid;
-        const adminId = userProfile?.idAdmin || '';
-        
-        // Crear la materia escolar
-        const materiaRef = await addDoc(collection(db, 'schoolSubjects'), {
-          nombre: title,
-          color,
-          idProfesor: teacherId,
-          idAdmin: adminId,
-          idEscuela: userProfile?.idEscuela || userProfile?.schoolData?.idEscuela || '',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        
-        console.log('📚 Materia creada por profesor:', materiaRef.id);
-        
-        // Recargar datos del profesor
-        setRefreshTrigger(prev => prev + 1);
-      } else if (isSchoolAdmin) {
+      if (isSchoolAdmin) {
         // Para admin: crear materia escolar y asignar a profesor/estudiantes
         if (!selectedTeacher) {
           alert('Por favor selecciona un profesor para la materia');
@@ -666,34 +610,24 @@ const Materias: React.FC = () => {
   };
 
   const handleView = (materiaId: string) => {
-    console.log('🚀 handleView llamado - VERSION 4.0 TOTALMENTE UNIFICADA');
-    console.log('  - materiaId:', materiaId);
-    console.log('  - isSchoolAdmin:', isSchoolAdmin);
-    console.log('  - isSchoolTeacher:', isSchoolTeacher);
-    console.log('  - isSchoolStudent:', isSchoolStudent);
-    
     // Find the materia to get its name
-    // Si es admin o profesor, buscar en adminMaterias, si no en materias
-    const materiasList = (isSchoolAdmin || isSchoolTeacher) ? adminMaterias : materias;
+    // Si es admin, buscar en adminMaterias, si no en materias
+    const materiasList = isSchoolAdmin ? adminMaterias : materias;
     const materia = materiasList.find(m => m.id === materiaId);
-    if (!materia) {
-      console.error('❌ Materia no encontrada:', materiaId);
-      return;
+    if (!materia) return;
+    
+    // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
+    if (isSchoolStudent) {
+      const encodedName = encodeURIComponent(materia.title);
+      navigate(`/school/student/materia/${encodedName}`);
+    } else if (isSchoolAdmin) {
+      // Los admin navegan a la vista de notebooks del profesor
+      navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+    } else {
+      // Los demás usuarios navegan a la ruta normal usando el nombre de la materia
+      const encodedName = encodeURIComponent(materia.title || materia.nombre);
+      navigate(`/materias/${encodedName}/notebooks`);
     }
-    
-    console.log('  - materia encontrada:', materia.title || materia.nombre);
-    
-    // TOTALMENTE UNIFICADO: TODOS los usuarios usan la misma ruta /materias/
-    const encodedName = encodeURIComponent(materia.title || materia.nombre);
-    const route = `/materias/${encodedName}/notebooks`;
-    console.log('  - Navegando a (TODOS los usuarios):', route);
-    console.log('  - Tipo de usuario: ', {
-      admin: isSchoolAdmin,
-      teacher: isSchoolTeacher,
-      student: isSchoolStudent,
-      regular: !isSchoolAdmin && !isSchoolTeacher && !isSchoolStudent
-    });
-    navigate(route);
   };
 
   const handleCategorySelect = (category: string | null) => {
@@ -765,153 +699,8 @@ const Materias: React.FC = () => {
     };
   }, [showCreateModal]);
 
-  // Cargar materias para profesores escolares
-  useEffect(() => {
-    // Solo ejecutar si es profesor
-    if (!isSchoolTeacher || !user) {
-      return;
-    }
-    
-    // Si ya estamos cargando, no volver a ejecutar
-    if (loadingRef.current) {
-      return;
-    }
-    
-    // Si ya cargamos los datos y no hay refresh trigger, no volver a cargar
-    if (teacherDataLoaded && refreshTrigger === 0) {
-      return;
-    }
-    
-    // Crear un AbortController para cancelar peticiones pendientes
-    const abortController = new AbortController();
-    let isSubscribed = true;
-    
-    const loadTeacherMaterias = async () => {
-      // Marcar que estamos cargando
-      loadingRef.current = true;
-      
-      // Solo log la primera vez o cuando hay refresh forzado
-      if (!teacherDataLoaded || refreshTrigger > 0) {
-        console.log('🎓 loadTeacherMaterias - cargando materias para profesor:', user.uid);
-      }
-      
-      setTeacherLoading(true);
-      try {
-        // Verificar si fue abortado antes de continuar
-        if (abortController.signal.aborted || !isSubscribed) {
-          return;
-        }
-        
-        // Cargar materias asignadas al profesor
-        const teacherSubjectsQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idProfesor', '==', user.uid)
-        );
-        
-        const [subjectsSnapshot, notebooksSnapshot] = await Promise.all([
-          getDocs(teacherSubjectsQuery),
-          getDocs(query(
-            collection(db, 'schoolNotebooks'),
-            where('userId', '==', user.uid)
-          ))
-        ]);
-        
-        // Verificar nuevamente si fue abortado
-        if (abortController.signal.aborted || !isSubscribed) {
-          return;
-        }
-        
-        // Contar notebooks por materia
-        const notebookCountMap: Record<string, number> = {};
-        notebooksSnapshot.docs.forEach(doc => {
-          const idMateria = doc.data().idMateria;
-          if (idMateria) {
-            notebookCountMap[idMateria] = (notebookCountMap[idMateria] || 0) + 1;
-          }
-        });
-        
-        // Construir las materias del profesor
-        const teacherMateriasData: Materia[] = subjectsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            title: data.nombre,
-            nombre: data.nombre,
-            color: data.color || '#6147FF',
-            category: '',
-            userId: user.uid,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            notebookCount: notebookCountMap[doc.id] || 0
-          };
-        });
-        
-        // Solo actualizar estado si no fue abortado y seguimos suscritos
-        if (!abortController.signal.aborted && isSubscribed) {
-          console.log('🎓 Materias del profesor cargadas:', teacherMateriasData);
-          setAdminMaterias(teacherMateriasData);
-          setTeacherLoading(false);
-          setTeacherDataLoaded(true);
-          
-          // Resetear el refresh trigger después de cargar exitosamente
-          // Solo si refreshTrigger > 0 para evitar loops
-          if (refreshTrigger > 0) {
-            // Usar setTimeout para evitar actualización durante el render
-            setTimeout(() => {
-              if (isSubscribed) {
-                setRefreshTrigger(0);
-              }
-            }, 0);
-          }
-        }
-      } catch (error: any) {
-        // Ignorar errores de abort
-        if (error?.name !== 'AbortError' && !abortController.signal.aborted && isSubscribed) {
-          console.error('Error loading teacher materias:', error);
-          setTeacherLoading(false);
-          setTeacherDataLoaded(true); // Marcar como cargado incluso con error para evitar reintentos infinitos
-        }
-      } finally {
-        // Liberar el lock de carga solo si no fue abortado y seguimos suscritos
-        if (!abortController.signal.aborted && isSubscribed) {
-          loadingRef.current = false;
-        }
-      }
-    };
-    
-    // Solo cargar si no está ya cargado o hay refresh trigger
-    if (!teacherDataLoaded || refreshTrigger > 0) {
-      loadTeacherMaterias();
-    }
-    
-    // Cleanup: abortar peticiones pendientes al desmontar o cuando cambien las dependencias
-    return () => {
-      isSubscribed = false;
-      abortController.abort();
-      // Solo resetear el loading ref si este efecto fue el que lo estableció
-      if (loadingRef.current) {
-        loadingRef.current = false;
-      }
-    };
-  }, [isSchoolTeacher, user, refreshTrigger, teacherDataLoaded]);
-
-  // Solo mostrar loading si realmente estamos cargando datos relevantes
-  const shouldShowLoading = authLoading || 
-    (!isSchoolStudent && !isSchoolTeacher && !isSchoolAdmin && loading) || 
-    (isSchoolStudent && schoolLoading) || 
-    ((isSchoolTeacher || isSchoolAdmin) && teacherLoading && !teacherDataLoaded);
-    
-  if (shouldShowLoading) {
-    console.log('🔄 Materias - Mostrando loading:', { 
-      loading, 
-      authLoading, 
-      schoolLoading, 
-      teacherLoading, 
-      teacherDataLoaded,
-      isSchoolTeacher,
-      isSchoolStudent,
-      isSchoolAdmin 
-    });
+  if (loading || authLoading || (isSchoolStudent && schoolLoading)) {
+    // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading });
     return (
       <>
         <HeaderWithHamburger
@@ -942,20 +731,18 @@ const Materias: React.FC = () => {
     );
   }
 
-  // Vista para admin y profesores escolares
-  if (isSchoolAdmin || isSchoolTeacher) {
-    console.log('🎯 Renderizando vista admin/profesor con adminMaterias:', adminMaterias.length, adminMaterias);
-    const viewTitle = isSchoolAdmin ? "Gestión de Mis Materias" : "Mis Materias";
+  if (isSchoolAdmin) {
+    // console.log('🎯 Renderizando vista admin con adminMaterias:', adminMaterias.length);
+    // Vista especial para admin
     return (
       <>
         <HeaderWithHamburger
-          title={viewTitle}
+          title="Gestión de Mis Materias"
         />
         <main className="materias-main admin-view">
-          {isSchoolAdmin && (
-            <div className="admin-controls-section">
-              {/* Selector de profesor */}
-              <div className="admin-control-group">
+          <div className="admin-controls-section">
+            {/* Selector de profesor */}
+            <div className="admin-control-group">
               <label className="admin-control-label">Seleccionar Profesor</label>
               <select 
                 className="admin-select"
@@ -1024,7 +811,6 @@ const Materias: React.FC = () => {
               )}
             </div>
           </div>
-          )}
 
           {/* Lista de materias */}
           <div className="materias-list-section">
@@ -1035,7 +821,7 @@ const Materias: React.FC = () => {
               onColorChange={handleColorChange}
               onCreateMateria={handleCreate}
               onViewMateria={handleView}
-              showCreateButton={isSchoolTeacher || (isSchoolAdmin && !!selectedTeacher && selectedStudents.length > 0)}
+              showCreateButton={!!selectedTeacher && selectedStudents.length > 0}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
