@@ -47,7 +47,8 @@ const InicioPage: React.FC = () => {
   const [hasStudiedToday, setHasStudiedToday] = useState(false);
   const [currentDivision, setCurrentDivision] = useState<{ name: string; icon: string }>({ name: 'Madera', icon: '🪵' });
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
 
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
@@ -75,8 +76,7 @@ const InicioPage: React.FC = () => {
 
   // Fetch today's calendar events
   const fetchTodayEvents = async () => {
-    if (!user?.uid) {
-      setEventsLoading(false);
+    if (!user?.uid || eventsLoaded) {
       return;
     }
 
@@ -122,6 +122,7 @@ const InicioPage: React.FC = () => {
       });
       
       setTodayEvents(events);
+      setEventsLoaded(true);
     } catch (error) {
       console.error('Error fetching today events:', error);
       setTodayEvents([]);
@@ -191,8 +192,9 @@ const InicioPage: React.FC = () => {
     } else {
       setLoading(false);
       setEventsLoading(false);
+      setEventsLoaded(false);
     }
-  }, [user]);
+  }, [user?.uid]);
 
   // Refrescar datos cuando la página recibe el foco (usuario regresa después de estudiar)
   useEffect(() => {
@@ -200,6 +202,8 @@ const InicioPage: React.FC = () => {
       if (user?.uid) {
         console.log('Página recibió foco, actualizando datos...');
         fetchData();
+        // Reset events loaded flag to allow refresh
+        setEventsLoaded(false);
         fetchTodayEvents();
       }
     };
@@ -290,22 +294,37 @@ const InicioPage: React.FC = () => {
           <div className="horizontal-modules-container">
             <div className="horizontal-module">
               <div className="module-content">
-                <h3>Módulo 1</h3>
-                <p>Contenido del primer módulo</p>
+                <div className="module-header">
+                  <h3>Módulo 1</h3>
+                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                </div>
+                <div className="events-container">
+                  <p>Contenido del primer módulo</p>
+                </div>
               </div>
             </div>
             
             <div className="horizontal-module">
               <div className="module-content">
-                <h3>Módulo 2</h3>
-                <p>Contenido del segundo módulo</p>
+                <div className="module-header">
+                  <h3>Módulo 2</h3>
+                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                </div>
+                <div className="events-container">
+                  <p>Contenido del segundo módulo</p>
+                </div>
               </div>
             </div>
             
             <div className="horizontal-module">
               <div className="module-content">
-                <h3>Módulo 3</h3>
-                <p>Contenido del tercer módulo</p>
+                <div className="module-header">
+                  <h3>Módulo 3</h3>
+                  <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
+                </div>
+                <div className="events-container">
+                  <p>Contenido del tercer módulo</p>
+                </div>
               </div>
             </div>
             
@@ -323,7 +342,7 @@ const InicioPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="events-container">
-                  {eventsLoading ? (
+                  {eventsLoading && todayEvents.length === 0 ? (
                     <p className="loading-text">Cargando eventos...</p>
                   ) : todayEvents.length > 0 ? (
                     <div className="events-list">
