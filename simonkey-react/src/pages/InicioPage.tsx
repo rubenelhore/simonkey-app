@@ -9,6 +9,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { StudyStreakService } from '../services/studyStreakService';
 import { db, collection, query, where, getDocs, Timestamp } from '../services/firebase';
+import { getDomainProgressForMateria } from '../utils/domainProgress';
+import { CacheManager } from '../utils/cacheManager';
 import '../styles/InicioPage.css';
 
 // Interface for calendar events
@@ -19,6 +21,16 @@ interface CalendarEvent {
   type: 'study' | 'quiz' | 'custom';
   time?: string;
   description?: string;
+}
+
+// Interface for materias with dominio
+interface MateriaWithDominio {
+  id: string;
+  title: string;
+  color: string;
+  dominioPercentage: number;
+  totalConcepts: number;
+  dominatedConcepts: number;
 }
 
 // División levels configuration
@@ -49,6 +61,56 @@ const InicioPage: React.FC = () => {
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [materiasByDominio, setMateriasByDominio] = useState<MateriaWithDominio[]>([]);
+  const [materiasLoading, setMateriasLoading] = useState(false);
+  
+  // Global cache using localStorage
+  const getCachedData = (key: string) => {
+    try {
+      const cached = localStorage.getItem(`inicio_cache_${key}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error reading cache:', error);
+    }
+    return null;
+  };
+
+  const setCachedData = (key: string, data: any, timestamp: number) => {
+    try {
+      localStorage.setItem(`inicio_cache_${key}`, JSON.stringify({ data, timestamp }));
+    } catch (error) {
+      console.error('Error setting cache:', error);
+    }
+  };
+
+  const clearCache = (userId: string) => {
+    try {
+      localStorage.removeItem(`inicio_cache_materias_${userId}`);
+      localStorage.removeItem(`inicio_cache_events_${userId}`);
+      console.log('🗑️ Cache de inicio limpiado');
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
+  };
+
+  // Listen for cache invalidation events
+  React.useEffect(() => {
+    const handleCacheInvalidation = (event: CustomEvent) => {
+      if (event.detail.userId === user?.uid) {
+        console.log('🔄 Cache invalidado, recargando materias...');
+        fetchMateriasByDominio(true); // Force refresh
+      }
+    };
+
+    window.addEventListener('invalidate-materias-cache', handleCacheInvalidation as EventListener);
+
+    return () => {
+      window.removeEventListener('invalidate-materias-cache', handleCacheInvalidation as EventListener);
+    };
+  }, [user?.uid]);
 
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
@@ -74,9 +136,127 @@ const InicioPage: React.FC = () => {
     setCurrentDivision({ name: division.name, icon: division.icon });
   };
 
+  // Check if cache is valid (5 minutes)
+  const isCacheValid = (timestamp: number) => {
+    return Date.now() - timestamp < 5 * 60 * 1000; // 5 minutes
+  };
+
+  // Fetch materias with lowest dominio for module 1
+  const fetchMateriasByDominio = async (forceRefresh = false) => {
+    if (!user?.uid) return;
+    
+    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, materiasLoading: ${materiasLoading}, current data length: ${materiasByDominio.length}`);
+    
+    // Check localStorage cache first
+    const cachedMaterias = getCachedData(`materias_${user.uid}`);
+    const cacheValid = cachedMaterias && isCacheValid(cachedMaterias.timestamp);
+    
+    console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}, timestamp: ${cachedMaterias?.timestamp}, age: ${cachedMaterias ? Date.now() - cachedMaterias.timestamp : 'N/A'}ms`);
+    
+    if (!forceRefresh && cacheValid) {
+      console.log('📦 Usando materias desde cache localStorage');
+      // Only update state if we don't have data or if data is different
+      if (materiasByDominio.length === 0 || JSON.stringify(materiasByDominio) !== JSON.stringify(cachedMaterias.data)) {
+        console.log('🔄 Actualizando estado con datos del cache');
+        setMateriasByDominio(cachedMaterias.data);
+      } else {
+        console.log('✅ Estado ya tiene los datos del cache, no actualizando');
+      }
+      return;
+    }
+    
+    // Prevent multiple simultaneous requests
+    if (materiasLoading) {
+      console.log('⚠️ Materias loading in progress, skipping...');
+      return;
+    }
+    
+    try {
+      console.log('🚀 Iniciando carga de materias desde servidor...');
+      setMateriasLoading(true);
+      
+      // Get user's materias
+      const materiasQuery = query(
+        collection(db, 'materias'),
+        where('userId', '==', user.uid)
+      );
+      const materiasSnapshot = await getDocs(materiasQuery);
+      
+      if (materiasSnapshot.empty) {
+        const emptyResult: MateriaWithDominio[] = [];
+        setMateriasByDominio(emptyResult);
+        setCachedData(`materias_${user.uid}`, emptyResult, Date.now());
+        return;
+      }
+      
+      // Calculate dominio for each materia
+      const materiasWithDominio: MateriaWithDominio[] = [];
+      
+      for (const materiaDoc of materiasSnapshot.docs) {
+        const materiaData = materiaDoc.data();
+        try {
+          const domainProgress = await getDomainProgressForMateria(materiaDoc.id);
+          const dominioPercentage = domainProgress.total > 0 
+            ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
+            : 0;
+          
+          materiasWithDominio.push({
+            id: materiaDoc.id,
+            title: materiaData.title,
+            color: materiaData.color || '#6147FF',
+            dominioPercentage,
+            totalConcepts: domainProgress.total,
+            dominatedConcepts: domainProgress.dominated
+          });
+        } catch (error) {
+          console.error(`Error calculating dominio for materia ${materiaDoc.id}:`, error);
+          // Include materia with 0% dominio if error
+          materiasWithDominio.push({
+            id: materiaDoc.id,
+            title: materiaData.title,
+            color: materiaData.color || '#6147FF',
+            dominioPercentage: 0,
+            totalConcepts: 0,
+            dominatedConcepts: 0
+          });
+        }
+      }
+      
+      // Sort by lowest dominio first, then by title alphabetically
+      materiasWithDominio.sort((a, b) => {
+        if (a.dominioPercentage === b.dominioPercentage) {
+          return a.title.localeCompare(b.title);
+        }
+        return a.dominioPercentage - b.dominioPercentage;
+      });
+      
+      // Take only top 5
+      const topMaterias = materiasWithDominio.slice(0, 5);
+      setMateriasByDominio(topMaterias);
+      
+      // Update localStorage cache
+      setCachedData(`materias_${user.uid}`, topMaterias, Date.now());
+      console.log('💾 Materias guardadas en cache localStorage');
+    } catch (error) {
+      console.error('Error fetching materias by dominio:', error);
+      setMateriasByDominio([]);
+    } finally {
+      setMateriasLoading(false);
+    }
+  };
+
   // Fetch today's calendar events
-  const fetchTodayEvents = async () => {
-    if (!user?.uid || eventsLoaded) {
+  const fetchTodayEvents = async (forceRefresh = false) => {
+    if (!user?.uid || (!forceRefresh && eventsLoaded)) {
+      return;
+    }
+
+    // Check localStorage cache first
+    const cachedEvents = getCachedData(`events_${user.uid}`);
+    if (!forceRefresh && cachedEvents && isCacheValid(cachedEvents.timestamp)) {
+      console.log('📦 Usando eventos desde cache localStorage');
+      setTodayEvents(cachedEvents.data);
+      setEventsLoaded(true);
       return;
     }
 
@@ -123,6 +303,10 @@ const InicioPage: React.FC = () => {
       
       setTodayEvents(events);
       setEventsLoaded(true);
+      
+      // Update localStorage cache
+      setCachedData(`events_${user.uid}`, events, Date.now());
+      console.log('💾 Eventos guardados en cache localStorage');
     } catch (error) {
       console.error('Error fetching today events:', error);
       setTodayEvents([]);
@@ -131,13 +315,30 @@ const InicioPage: React.FC = () => {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     if (!user?.uid) {
       setLoading(false);
       return;
     }
     
+    // Check localStorage cache first
+    const cachedMainData = getCachedData(`main_data_${user.uid}`);
+    if (!forceRefresh && cachedMainData && isCacheValid(cachedMainData.timestamp)) {
+      console.log('📦 Usando datos principales desde cache localStorage');
+      const data = cachedMainData.data;
+      setCurrentStreak(data.currentStreak);
+      setHasStudiedToday(data.hasStudiedToday);
+      setCurrentScore(data.currentScore);
+      setWeeklyProgress(data.weeklyProgress);
+      setCurrentDivision(data.currentDivision);
+      setLoading(false);
+      return;
+    }
+    
     try {
+        console.log('🔄 Obteniendo datos principales del servidor...');
+        setLoading(true);
+        
         // Obtener racha
         const streakService = StudyStreakService.getInstance();
         const streakData = await streakService.getUserStreak(user.uid);
@@ -151,16 +352,41 @@ const InicioPage: React.FC = () => {
         const kpiService = await import('../services/kpiService');
         const kpisData = await kpiService.getKPIsFromCache(user.uid);
         const globalScore = kpisData?.global?.scoreGlobal || 0;
-        setCurrentScore(Math.ceil(globalScore));
+        const scoreValue = Math.ceil(globalScore);
+        setCurrentScore(scoreValue);
         
         // Obtener conceptos dominados y calcular división
         const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
-        calculateDivision(conceptStats.conceptosDominados);
+        
+        // Calculate division locally to get the data immediately
+        let divisionKey = 'WOOD';
+        const concepts = conceptStats.conceptosDominados;
+        
+        // Find current division based on concepts
+        for (const [key, data] of Object.entries(DIVISION_LEVELS)) {
+          const maxInDivision = Math.max(...data.ranges);
+          if (concepts >= maxInDivision) {
+            continue;
+          } else {
+            divisionKey = key;
+            break;
+          }
+        }
+        
+        // If beyond the highest division, stay at legend
+        if (concepts >= 50000) {
+          divisionKey = 'LEGEND';
+        }
+        
+        const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
+        const divisionData = { name: division.name, icon: division.icon };
+        setCurrentDivision(divisionData);
 
         // Obtener historial de posiciones para calcular progreso
         const { getPositionHistory } = await import('../utils/createPositionHistory');
         const history = await getPositionHistory(user.uid, 'general', 2); // Obtener últimas 2 semanas
         
+        let weeklyProgressValue = '0%';
         if (history.length >= 2) {
           // Comparar score actual con el de la semana pasada
           const currentWeekScore = history[0].score;
@@ -169,15 +395,28 @@ const InicioPage: React.FC = () => {
           if (lastWeekScore > 0) {
             const percentageChange = ((currentWeekScore - lastWeekScore) / lastWeekScore) * 100;
             const sign = percentageChange >= 0 ? '+' : '';
-            setWeeklyProgress(`${sign}${Math.round(percentageChange)}%`);
+            weeklyProgressValue = `${sign}${Math.round(percentageChange)}%`;
           } else if (currentWeekScore > 0) {
-            setWeeklyProgress('+100%');
+            weeklyProgressValue = '+100%';
           } else {
-            setWeeklyProgress('0%');
+            weeklyProgressValue = '0%';
           }
         } else {
-          setWeeklyProgress('N/A');
+          weeklyProgressValue = 'N/A';
         }
+        setWeeklyProgress(weeklyProgressValue);
+        
+        // Cache the main data
+        const mainData = {
+          currentStreak: streakData.currentStreak,
+          hasStudiedToday: studiedToday,
+          currentScore: scoreValue,
+          weeklyProgress: weeklyProgressValue,
+          currentDivision: divisionData
+        };
+        setCachedData(`main_data_${user.uid}`, mainData, Date.now());
+        console.log('💾 Datos principales guardados en cache localStorage');
+        
       } catch (error) {
         console.error('Error obteniendo datos:', error);
       } finally {
@@ -187,12 +426,45 @@ const InicioPage: React.FC = () => {
 
   useEffect(() => {
     if (user?.uid) {
+      console.log('🚀 Inicializando página de inicio para usuario:', user.uid);
+      
+      // Initialize with cached data IMMEDIATELY
+      const cachedMaterias = getCachedData(`materias_${user.uid}`);
+      const cachedEvents = getCachedData(`events_${user.uid}`);
+      const cachedMainData = getCachedData(`main_data_${user.uid}`);
+      
+      // Load main data from cache
+      if (cachedMainData && isCacheValid(cachedMainData.timestamp)) {
+        console.log('⚡ Cargando datos principales desde cache localStorage');
+        const data = cachedMainData.data;
+        setCurrentStreak(data.currentStreak);
+        setHasStudiedToday(data.hasStudiedToday);
+        setCurrentScore(data.currentScore);
+        setWeeklyProgress(data.weeklyProgress);
+        setCurrentDivision(data.currentDivision);
+        setLoading(false);
+      }
+      
+      if (cachedMaterias && isCacheValid(cachedMaterias.timestamp)) {
+        console.log('⚡ Cargando materias desde cache localStorage');
+        setMateriasByDominio(cachedMaterias.data);
+      }
+      
+      if (cachedEvents && isCacheValid(cachedEvents.timestamp)) {
+        console.log('⚡ Cargando eventos desde cache localStorage');
+        setTodayEvents(cachedEvents.data);
+        setEventsLoaded(true);
+      }
+      
+      // Then fetch fresh data in background
       fetchData();
       fetchTodayEvents();
+      fetchMateriasByDominio();
     } else {
       setLoading(false);
       setEventsLoading(false);
       setEventsLoaded(false);
+      setMateriasLoading(false);
     }
   }, [user?.uid]);
 
@@ -200,20 +472,51 @@ const InicioPage: React.FC = () => {
   useEffect(() => {
     const handleFocus = () => {
       if (user?.uid) {
-        console.log('Página recibió foco, actualizando datos...');
+        console.log('Página recibió foco, refrescando datos...');
+        // Force refresh main data
         fetchData();
-        // Reset events loaded flag to allow refresh
+        // Force refresh cached data
         setEventsLoaded(false);
-        fetchTodayEvents();
+        fetchTodayEvents(true);
+        fetchMateriasByDominio(true);
+      }
+    };
+
+    // Also listen for visibility change (tab switching)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user?.uid) {
+        console.log('👁️ Pestaña visible, verificando cache...');
+        
+        const cachedMaterias = getCachedData(`materias_${user.uid}`);
+        const cachedEvents = getCachedData(`events_${user.uid}`);
+        const cachedMainData = getCachedData(`main_data_${user.uid}`);
+        
+        // Only refresh if cache is old
+        if (!cachedMainData || !isCacheValid(cachedMainData.timestamp)) {
+          console.log('🔄 Cache de datos principales expirado, refrescando...');
+          fetchData(false);
+        }
+        if (!cachedEvents || !isCacheValid(cachedEvents.timestamp)) {
+          console.log('🔄 Cache de eventos expirado, refrescando...');
+          fetchTodayEvents(false);
+        }
+        if (!cachedMaterias || !isCacheValid(cachedMaterias.timestamp)) {
+          console.log('🔄 Cache de materias expirado, refrescando...');
+          fetchMateriasByDominio(false);
+        } else {
+          console.log('✅ Cache de materias válido, no recargando');
+        }
       }
     };
 
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user]);
+  }, [user?.uid]); // Remove dataCache from dependencies to prevent re-renders
 
   // Datos del dashboard
   const dailyStats = {
@@ -292,14 +595,55 @@ const InicioPage: React.FC = () => {
         {/* 🟦 FILA 2: Módulos horizontales */}
         <section className="row-2">
           <div className="horizontal-modules-container">
-            <div className="horizontal-module">
+            <div className="horizontal-module materias-dominio-module">
               <div className="module-content">
                 <div className="module-header">
-                  <h3>Módulo 1</h3>
+                  <h3>Materias - Menor Dominio</h3>
                   <span className="current-date" style={{ opacity: 0 }}>Mié. 06</span>
                 </div>
-                <div className="events-container">
-                  <p>Contenido del primer módulo</p>
+                <div className="materias-container">
+                  {materiasLoading ? (
+                    <p className="loading-text">Cargando materias...</p>
+                  ) : materiasByDominio.length > 0 ? (
+                    <div className="materias-list">
+                      {materiasByDominio.map((materia, index) => {
+                        // Determine dominio level for styling
+                        const getDominioLevel = (percentage: number) => {
+                          if (percentage < 30) return 'low';
+                          if (percentage < 70) return 'medium';
+                          return 'high';
+                        };
+                        
+                        return (
+                          <div 
+                            key={materia.id} 
+                            className="materia-item"
+                            style={{ '--materia-color': materia.color } as React.CSSProperties}
+                            onClick={() => {
+                              const encodedName = encodeURIComponent(materia.title);
+                              navigate(`/materias/${encodedName}/notebooks`);
+                            }}
+                          >
+                            <div className="materia-rank">#{index + 1}</div>
+                            <div className="materia-info">
+                              <div className="materia-details">
+                                <div className="materia-title">{materia.title}</div>
+                              </div>
+                            </div>
+                            <div className={`dominio-percentage ${getDominioLevel(materia.dominioPercentage)}`}>
+                              {materia.dominioPercentage}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="no-materias">
+                      <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
+                      <p style={{ margin: 0, fontWeight: 600 }}>No tienes materias creadas</p>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>Crea tu primera materia para empezar</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

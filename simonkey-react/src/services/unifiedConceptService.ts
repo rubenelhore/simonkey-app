@@ -16,6 +16,7 @@ import {
 import { db } from './firebase';
 import { Concept } from '../types/interfaces';
 import { UnifiedNotebookService } from './unifiedNotebookService';
+import { CacheManager } from '../utils/cacheManager';
 
 interface ConceptDoc {
   id: string;
@@ -83,6 +84,10 @@ export class UnifiedConceptService {
         creadoEn: serverTimestamp()
       });
     }
+    
+    // Invalidar caché de materias cuando se agrega un concepto
+    console.log('➕ Concepto agregado, invalidando cache de materias...');
+    CacheManager.invalidateMateriasCache(userId);
   }
   
   /**
@@ -110,6 +115,10 @@ export class UnifiedConceptService {
         creadoEn: serverTimestamp()
       });
     }
+    
+    // Invalidar caché de materias cuando se agregan conceptos
+    console.log('➕ Conceptos agregados, invalidando cache de materias...');
+    CacheManager.invalidateMateriasCache(userId);
   }
   
   /**
@@ -133,6 +142,14 @@ export class UnifiedConceptService {
         await updateDoc(docRef, {
           conceptos: updatedConcepts
         });
+        
+        // Invalidar caché de materias cuando se actualiza un concepto (podría cambiar dominio)
+        console.log('✏️ Concepto actualizado, invalidando cache de materias...');
+        const userId = conceptDoc.usuarioId;
+        if (userId) {
+          CacheManager.invalidateMateriasCache(userId);
+        }
+        
         break;
       }
     }
@@ -159,6 +176,14 @@ export class UnifiedConceptService {
             conceptos: filteredConcepts
           });
         }
+        
+        // Invalidar caché de materias cuando se elimina un concepto
+        console.log('🗑️ Concepto eliminado, invalidando cache de materias...');
+        const userId = conceptDoc.usuarioId;
+        if (userId) {
+          CacheManager.invalidateMateriasCache(userId);
+        }
+        
         break;
       }
     }

@@ -189,18 +189,25 @@ export class StudyStreakService {
       }
 
       // Verificar sesiones de juego
+      // Use a simpler query to avoid index requirement
       const gameSessionsQuery = query(
         collection(db, 'gameSessions'),
-        where('userId', '==', userId),
-        where('timestamp', '>=', Timestamp.fromDate(startOfDay)),
-        where('timestamp', '<', Timestamp.fromDate(endOfDay))
+        where('userId', '==', userId)
       );
 
       const gameSessionsSnap = await getDocs(gameSessionsQuery);
-      console.log('[StudyStreakService] Sesiones de juego encontradas:', gameSessionsSnap.size);
+      
+      // Filter results manually to avoid needing composite index
+      const todayGameSessions = gameSessionsSnap.docs.filter(doc => {
+        const data = doc.data();
+        if (!data.timestamp) return false;
+        const sessionDate = data.timestamp.toDate();
+        return sessionDate >= startOfDay && sessionDate < endOfDay;
+      });
+      console.log('[StudyStreakService] Sesiones de juego encontradas:', todayGameSessions.length);
       
       // Verificar si hay al menos una sesión de juego con duración > 0
-      for (const doc of gameSessionsSnap.docs) {
+      for (const doc of todayGameSessions) {
         const session = doc.data();
         console.log('[StudyStreakService] Datos de sesión de juego:', session);
         const duration = session.duration || 0;
@@ -425,18 +432,25 @@ export class StudyStreakService {
       });
 
       // 4. Obtener sesiones de juego de la semana
+      // Use a simpler query to avoid index requirement
       const gameSessionsQuery = query(
         collection(db, 'gameSessions'),
-        where('userId', '==', userId),
-        where('timestamp', '>=', startOfWeek),
-        where('timestamp', '<', endOfWeek)
+        where('userId', '==', userId)
       );
 
       const gameSessionsSnap = await getDocs(gameSessionsQuery);
-      console.log('[StudyStreakService] Sesiones de juego encontradas:', gameSessionsSnap.size);
+      
+      // Filter results manually to avoid needing composite index
+      const weekGameSessions = gameSessionsSnap.docs.filter(doc => {
+        const data = doc.data();
+        if (!data.timestamp) return false;
+        const sessionDate = data.timestamp.toDate();
+        return sessionDate >= startOfWeek && sessionDate < endOfWeek;
+      });
+      console.log('[StudyStreakService] Sesiones de juego encontradas:', weekGameSessions.length);
 
       // Marcar días con sesiones de juego
-      gameSessionsSnap.forEach(doc => {
+      weekGameSessions.forEach(doc => {
         const session = doc.data();
         const duration = session.duration || 0;
         if (duration > 0 && session.timestamp) {

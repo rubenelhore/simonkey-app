@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { deleteNotebook } from '../services/notebookService';
 import { useState, useEffect } from 'react';
 import { decodeMateriaName, encodeNotebookName } from '../utils/urlUtils';
+import { CacheManager } from '../utils/cacheManager';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NotebookItemProps {
   id: string;
@@ -30,6 +32,7 @@ interface NotebookItemProps {
 }
 
 const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
+  const { user } = useAuth();
   console.log('📝 NotebookItem recibió props:', {
     id,
     title,
@@ -66,6 +69,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     e.stopPropagation();
     if (window.confirm("¿Estás seguro de que deseas eliminar este cuaderno?")) {
       await deleteNotebook(id);
+      
+      // Invalidar caché de materias en la página de inicio
+      if (user?.uid) {
+        console.log('🗑️ Cuaderno eliminado, invalidando cache de materias...');
+        CacheManager.invalidateMateriasCache(user.uid);
+      }
+      
       if (onDelete) {
         onDelete(id);
       }

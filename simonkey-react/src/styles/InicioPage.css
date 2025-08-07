@@ -187,25 +187,26 @@
 
 .horizontal-module {
   flex: 1;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: stretch;
   transition: all 0.3s ease;
   cursor: pointer;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .horizontal-module:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: #d1d5db;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border-color: #cbd5e1;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
 }
 
 .module-content {
@@ -242,8 +243,8 @@
 }
 
 .module-header {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #e5e7eb;
   text-align: center;
   display: flex;
@@ -251,19 +252,26 @@
   align-items: center;
 }
 
+.module-header::after {
+  display: none !important;
+}
+
 .module-header h3 {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   font-family: 'Poppins', sans-serif;
   text-align: center;
+  color: #1e293b;
+  letter-spacing: -0.025em;
 }
 
 .current-date {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.3rem;
   font-family: 'Poppins', sans-serif;
+  font-weight: 500;
 }
 
 .events-container {
@@ -344,23 +352,174 @@
   width: 100%;
 }
 
-/* Scrollbar styles for events */
-.events-container::-webkit-scrollbar {
+/* Materias Module Styles */
+.materias-dominio-module .materias-container {
+  width: 100%;
+  height: 100%;
+}
+
+.materias-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  height: 100%;
+  overflow-y: auto;
+  padding: 0.2rem;
+}
+
+.materia-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.materia-item:hover {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  transform: translateY(-2px) translateX(4px);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Removed the color indicator line */
+
+.materia-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.materia-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.materia-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* Removed materia-stats since we moved everything to separate elements */
+
+.dominio-percentage {
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dominio-percentage.low {
+  color: #dc2626;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+}
+
+.dominio-percentage.medium {
+  color: #d97706;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fed7aa;
+}
+
+.dominio-percentage.high {
+  color: #059669;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #a7f3d0;
+}
+
+/* Removed concepts-count since we're not showing it anymore */
+
+.materia-rank {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  order: -1;
+}
+
+.no-materias {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px dashed #cbd5e1;
+}
+
+/* Scrollbar styles for events and materias */
+.events-container::-webkit-scrollbar,
+.materias-list::-webkit-scrollbar {
   width: 4px;
 }
 
-.events-container::-webkit-scrollbar-track {
+.events-container::-webkit-scrollbar-track,
+.materias-list::-webkit-scrollbar-track {
   background: #f3f4f6;
   border-radius: 2px;
 }
 
-.events-container::-webkit-scrollbar-thumb {
+.events-container::-webkit-scrollbar-thumb,
+.materias-list::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 2px;
 }
 
-.events-container::-webkit-scrollbar-thumb:hover {
+.events-container::-webkit-scrollbar-thumb:hover,
+.materias-list::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Loading animation for materias module */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.materias-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.2rem;
+}
+
+.materia-skeleton {
+  height: 60px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
 }
 
 /* Keep old styles for backward compatibility */
