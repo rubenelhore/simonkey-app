@@ -37,6 +37,14 @@ const TeacherMobileNavigation = () => {
   return (
     <nav className={`mobile-navigation ${isVisible ? 'visible' : 'hidden'}`}>
       <NavLink 
+        to="/teacher/home" 
+        className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}
+      >
+        <i className="fas fa-home"></i>
+        <span>Inicio</span>
+      </NavLink>
+      
+      <NavLink 
         to="/school/teacher" 
         className={({ isActive }) => {
           // Considera activo solo si estamos en /school/teacher o en subrutas de materias
@@ -55,6 +63,14 @@ const TeacherMobileNavigation = () => {
       >
         <i className="fas fa-chart-line"></i>
         <span>Analítica</span>
+      </NavLink>
+      
+      <NavLink 
+        to="/calendar" 
+        className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}
+      >
+        <i className="fas fa-calendar-alt"></i>
+        <span>Calendario</span>
       </NavLink>
     </nav>
   );

@@ -474,7 +474,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             } else if (isSchoolAdmin) {
               navigate('/school/admin');
             } else if (isSchoolTeacher) {
-              navigate('/school/teacher');
+              navigate('/teacher/home');
             } else if (isSchoolTutor) {
               navigate('/school/tutor');
             } else {
@@ -538,6 +538,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           ) : isSchoolTeacher ? (
             <>
               <button 
+                className={`sidebar-icon-btn ${location.pathname === '/teacher/home' ? 'active' : ''}`} 
+                onClick={() => navigate('/teacher/home')}
+                title="Inicio"
+              >
+                <FontAwesomeIcon icon={faHome} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Inicio</span>}
+              </button>
+              <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher' || location.pathname.includes('/school/teacher/materias/') ? 'active' : ''}`} 
                 onClick={() => navigate('/school/teacher')}
                 title="Materias"
@@ -560,6 +568,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               >
                 <FontAwesomeIcon icon={faChartLine} />
                 {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/calendar' ? 'active' : ''}`} 
+                onClick={() => navigate('/calendar')}
+                title="Calendario"
+              >
+                <FontAwesomeIcon icon={faCalendarAlt} />
+                {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
               </button>
             </>
           ) : isSchoolTutor ? (
