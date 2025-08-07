@@ -538,8 +538,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           ) : isSchoolTeacher ? (
             <>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/school/teacher' || location.pathname.includes('/school/teacher/materias/') ? 'active' : ''}`} 
-                onClick={() => navigate('/school/teacher')}
+                className={`sidebar-icon-btn ${location.pathname === '/materias' || location.pathname.includes('/materias/') ? 'active' : ''}`} 
+                onClick={() => navigate('/materias')}
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />

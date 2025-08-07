@@ -350,11 +350,13 @@ const SchoolNotebookConcepts: React.FC = () => {
         });
       }
       
-      // Navegar a la lista de notebooks de la materia si existe, sino al notebook
-      if (materiaId) {
-        navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+      // Navegar de vuelta usando la materia en la URL
+      const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+      if (materiaMatch) {
+        const urlMateriaId = materiaMatch[1];
+        navigate(`/materias/${urlMateriaId}/notebooks`);
       } else {
-        navigate(`/school/notebooks/${notebookId}`);
+        navigate('/notebooks');
       }
       
     } catch (error) {
@@ -562,7 +564,15 @@ const SchoolNotebookConcepts: React.FC = () => {
         <h2>Error</h2>
         <p>{error || "No se pudo cargar el concepto"}</p>
         <button 
-          onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate(`/school/notebooks/${notebookId}`)}
+          onClick={() => {
+            const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+            if (materiaMatch) {
+              const urlMateriaId = materiaMatch[1];
+              navigate(`/materias/${urlMateriaId}/notebooks`);
+            } else {
+              navigate('/notebooks');
+            }
+          }}
           className="back-button"
         >
           <i className="fas fa-arrow-left"></i>
@@ -577,7 +587,15 @@ const SchoolNotebookConcepts: React.FC = () => {
         <div className="header-content">
           <div className="breadcrumb">
             <button 
-              onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate(`/school/notebooks/${notebookId}`)}
+              onClick={() => {
+            const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+            if (materiaMatch) {
+              const urlMateriaId = materiaMatch[1];
+              navigate(`/materias/${urlMateriaId}/notebooks`);
+            } else {
+              navigate('/notebooks');
+            }
+          }}
               className="back-button"
             >
               <i className="fas fa-arrow-left"></i>

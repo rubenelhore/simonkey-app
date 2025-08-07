@@ -96,14 +96,8 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     const encodedNotebookName = encodeNotebookName(title);
     
     if (isSchoolNotebook) {
-      // Si estamos en una ruta de profesor escolar, mantener esa ruta
-      const isSchoolTeacherRoute = window.location.pathname.includes('/school/teacher/materias/');
-      if (isSchoolTeacherRoute) {
-        // Navegar a la vista del cuaderno escolar usando el ID
-        navigate(`/school/notebooks/${id}`);
-      } else {
-        navigate(`/school/notebooks/${encodedNotebookName}`);
-      }
+      // Navegar a la vista del cuaderno escolar
+      navigate(`/school/notebooks/${encodedNotebookName}`);
     } else if (materiaName) {
       // Keep the encoded materia name as it appears in the URL
       navigate(`/materias/${materiaName}/notebooks/${encodedNotebookName}`);

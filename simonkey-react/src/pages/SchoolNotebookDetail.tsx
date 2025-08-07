@@ -341,7 +341,16 @@ const SchoolNotebookDetail = () => {
       <header className="notebook-detail-header">
         <div className="header-content">
           <button 
-            onClick={() => materiaId ? navigate(`/school/teacher/materias/${materiaId}/notebooks`) : navigate('/school/teacher')} 
+            onClick={() => {
+              // Navegar de vuelta a la lista de notebooks
+              const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+              if (materiaMatch) {
+                const urlMateriaId = materiaMatch[1];
+                navigate(`/materias/${urlMateriaId}/notebooks`);
+              } else {
+                navigate('/materias');
+              }
+            }}
             className="back-button"
           >
             <i className="fas fa-arrow-left"></i>

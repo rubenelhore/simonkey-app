@@ -88,36 +88,104 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
           setSchoolSubjects([]);
         }
 
-        // 2. Cargar los cuadernos asignados
-        if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
-          // console.log('📖 Cargando cuadernos desde idCuadernos:', userProfile.idCuadernos);
+        // 2. Cargar TODOS los cuadernos de las materias asignadas al estudiante
+        // Cambio importante: Ya no solo cargamos idCuadernos, sino todos los cuadernos de las materias
+        if (userProfile.subjectIds && userProfile.subjectIds.length > 0) {
+          console.log('📖 Cargando cuadernos de las materias asignadas:', userProfile.subjectIds);
           
-          // Cargar cada cuaderno individualmente por ID
-          const notebookPromises = userProfile.idCuadernos.map(async (notebookId: string) => {
-            const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-            if (notebookDoc.exists()) {
-              return {
-                id: notebookDoc.id,
-                ...notebookDoc.data(),
-                color: notebookDoc.data().color || '#6147FF',
-                type: 'school' as const
-              } as Notebook;
+          // Cargar todos los cuadernos que pertenecen a las materias del estudiante
+          const notebooksQuery = query(
+            collection(db, 'schoolNotebooks'),
+            where('idMateria', 'in', userProfile.subjectIds)
+          );
+          
+          const notebooksSnapshot = await getDocs(notebooksQuery);
+          const notebooksList: Notebook[] = [];
+          
+          // Procesar cada notebook y contar sus conceptos
+          for (const doc of notebooksSnapshot.docs) {
+            const data = doc.data();
+            
+            // Contar conceptos del notebook
+            let conceptCount = 0;
+            try {
+              const conceptsSnapshot = await getDocs(
+                query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', doc.id))
+              );
+              conceptCount = conceptsSnapshot.size;
+              console.log(`📊 Notebook ${doc.id} tiene ${conceptCount} conceptos`);
+            } catch (error) {
+              console.error(`Error contando conceptos para notebook ${doc.id}:`, error);
+              conceptCount = data.conceptCount || 0; // Usar el valor existente si hay error
             }
-            return null;
+            
+            notebooksList.push({
+              id: doc.id,
+              ...data,
+              title: data.title || data.titulo || 'Sin título',
+              color: data.color || '#6147FF',
+              type: 'school' as const,
+              conceptCount: conceptCount // Asegurar que siempre tenga conceptCount
+            } as Notebook);
+          }
+          
+          console.log('📚 Cuadernos escolares cargados:', notebooksList.length);
+          notebooksList.forEach(notebook => {
+            console.log('   -', notebook.id, ':', notebook.title);
           });
-          
-          const notebooksResults = await Promise.all(notebookPromises);
-          const notebooksList = notebooksResults.filter((notebook): notebook is Notebook => notebook !== null);
-          
-          // console.log('📚 Cuadernos escolares cargados:', notebooksList.length);
-          // notebooksList.forEach(notebook => {
-          //   console.log('   -', notebook.id, ':', notebook.title);
-          // });
           
           setSchoolNotebooks(notebooksList);
           setLoading(false);
+          
+          // También cargar los cuadernos específicos en idCuadernos si existen y no están ya incluidos
+          if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
+            console.log('📖 También verificando cuadernos específicos en idCuadernos:', userProfile.idCuadernos);
+            
+            const additionalNotebooks = userProfile.idCuadernos.filter(
+              notebookId => !notebooksList.find(nb => nb.id === notebookId)
+            );
+            
+            if (additionalNotebooks.length > 0) {
+              const additionalPromises = additionalNotebooks.map(async (notebookId: string) => {
+                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+                if (notebookDoc.exists()) {
+                  const data = notebookDoc.data();
+                  
+                  // Contar conceptos del notebook
+                  let conceptCount = 0;
+                  try {
+                    const conceptsSnapshot = await getDocs(
+                      query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', notebookId))
+                    );
+                    conceptCount = conceptsSnapshot.size;
+                  } catch (error) {
+                    console.error(`Error contando conceptos para notebook ${notebookId}:`, error);
+                    conceptCount = data.conceptCount || 0;
+                  }
+                  
+                  return {
+                    id: notebookDoc.id,
+                    ...data,
+                    title: data.title || data.titulo || 'Sin título',
+                    color: data.color || '#6147FF',
+                    type: 'school' as const,
+                    conceptCount: conceptCount
+                  } as Notebook;
+                }
+                return null;
+              });
+              
+              const additionalResults = await Promise.all(additionalPromises);
+              const validAdditional = additionalResults.filter((nb): nb is Notebook => nb !== null);
+              
+              if (validAdditional.length > 0) {
+                console.log('📚 Cuadernos adicionales encontrados:', validAdditional.length);
+                setSchoolNotebooks([...notebooksList, ...validAdditional]);
+              }
+            }
+          }
         } else {
-          // console.log('⚠️ El estudiante no tiene cuadernos asignados (idCuadernos vacío)');
+          console.log('⚠️ El estudiante no tiene materias asignadas');
           setSchoolNotebooks([]);
           setLoading(false);
         }

@@ -1098,21 +1098,7 @@ const NotebookDetail = () => {
         subtitle="Conceptos del cuaderno"
         showBackButton={true}
         onBackClick={() => {
-          // Si es profesor escolar, ir a su página de notebooks
-          if (isSchoolTeacher) {
-            // Verificar si estamos en una ruta de profesor
-            const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
-            if (teacherMateriaMatch) {
-              const materiaId = teacherMateriaMatch[1];
-              navigate(`/school/teacher/materias/${materiaId}/notebooks`);
-            } else {
-              // Si no hay materiaId, ir a la página principal del profesor
-              navigate('/school/teacher');
-            }
-            return;
-          }
-          
-          // Para usuarios regulares, verificar si vienen de una materia
+          // Para TODOS los usuarios (incluyendo profesores), verificar si vienen de una materia
           const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
           if (materiaMatch) {
             const urlMateriaId = materiaMatch[1];

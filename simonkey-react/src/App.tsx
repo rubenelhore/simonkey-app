@@ -60,6 +60,7 @@ import AboutSimonkeyInline from './components/AboutSimonkeyInline';
 import SchoolTeacherNotebooksPage from './pages/SchoolTeacherNotebooksPage';
 import SchoolTeacherMateriasPage from './pages/SchoolTeacherMateriasPage';
 import SchoolTeacherMateriaNotebooksPage from './pages/SchoolTeacherMateriaNotebooksPage';
+import TeacherMateriaRedirect from './components/TeacherMateriaRedirect';
 import SchoolTeacherAnalyticsPage from './pages/SchoolTeacherAnalyticsPage';
 import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
 import SchoolStudentMateriaPage from './pages/SchoolStudentMateriaPage';
@@ -788,17 +789,7 @@ const AppContent: React.FC = () => {
           {/* Rutas para el sistema escolar */}
           <Route
             path="/school/teacher"
-            element={
-              isAuthenticated ? (
-                <EmailVerificationGuard>
-                  <PasswordChangeGuard>
-                    <SchoolUserGuard>
-                      <SchoolTeacherMateriasPage />
-                    </SchoolUserGuard>
-                  </PasswordChangeGuard>
-                </EmailVerificationGuard>
-              ) : <Navigate to="/login" replace />
-            }
+            element={<Navigate to="/materias" replace />}
           />
           <Route
             path="/school/teacher/exams"
@@ -830,17 +821,7 @@ const AppContent: React.FC = () => {
           />
           <Route
             path="/school/teacher/materias/:materiaId/notebooks"
-            element={
-              isAuthenticated ? (
-                <EmailVerificationGuard>
-                  <PasswordChangeGuard>
-                    <SchoolUserGuard>
-                      <SchoolTeacherMateriaNotebooksPage />
-                    </SchoolUserGuard>
-                  </PasswordChangeGuard>
-                </EmailVerificationGuard>
-              ) : <Navigate to="/login" replace />
-            }
+            element={<TeacherMateriaRedirect />}
           />
           <Route
             path="/school/student/materia/:materiaName"
