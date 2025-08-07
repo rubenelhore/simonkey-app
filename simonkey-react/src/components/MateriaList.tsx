@@ -16,6 +16,12 @@ interface Materia {
   notebookCount?: number;
   teacherName?: string;
   studentCount?: number;
+  domainProgress?: {
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
 }
 
 interface MateriaListProps {
@@ -428,6 +434,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 isAdminView={isAdminView}
                 exams={examsByMateria[materia.id] || []}
                 isSchoolStudent={isSchoolStudent}
+                domainProgress={materia.domainProgress}
               />
             ))}
           </div>

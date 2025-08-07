@@ -230,8 +230,46 @@
 .materia-info-container {
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Separar elementos a los extremos */
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%; /* Asegurar que use todo el ancho disponible */
+}
+
+/* Badge de dominio alineado a la derecha */
+.materia-exams-badge {
+  margin-left: auto !important; /* Forzar que se vaya a la derecha */
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+/* Efecto hover para el badge de dominio */
+.materia-exams-badge:hover {
+  transform: scale(1.1);
+}
+
+/* Tooltip personalizado con CSS */
+.materia-exams-badge::after {
+  content: "dominio";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #374151;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.materia-exams-badge:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 /* Acciones de la tarjeta */

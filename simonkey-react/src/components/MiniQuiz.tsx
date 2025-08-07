@@ -169,11 +169,12 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         return [];
       }
 
-      console.log(`[MINI QUIZ] Generando ${QUIZ_CONFIG.QUESTION_COUNT} preguntas de ${sessionConcepts.length} conceptos`);
+      const QUESTION_COUNT = 5; // Número de preguntas del mini quiz
+      console.log(`[MINI QUIZ] Generando ${QUESTION_COUNT} preguntas de ${sessionConcepts.length} conceptos`);
       
       // Seleccionar 5 conceptos aleatorios
       const shuffled = [...sessionConcepts].sort(() => 0.5 - Math.random());
-      const selectedConcepts = shuffled.slice(0, QUIZ_CONFIG.QUESTION_COUNT);
+      const selectedConcepts = shuffled.slice(0, QUESTION_COUNT);
       
       // Generar preguntas con distractores simples
       const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
@@ -458,8 +459,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
       const conceptsQuery = query(
         collection(db, collectionName),
-        where('cuadernoId', '==', notebookId),
-        limit(20) // Solo cargar 20 conceptos para distractores
+        where('cuadernoId', '==', notebookId)
       );
       
       const conceptDocs = await getDocs(conceptsQuery);
@@ -476,7 +476,12 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             id: concepto.id || `${doc.id}-${index}`,
             término: concepto.término,
             definición: concepto.definición,
-            fuente: notebookTitle || 'Cuaderno'
+            fuente: notebookTitle || concepto.fuente || 'Cuaderno',
+            usuarioId: concepto.usuarioId,
+            docId: doc.id,
+            index,
+            notasPersonales: concepto.notasPersonales,
+            reviewId: concepto.reviewId
           });
         });
         
@@ -1001,7 +1006,17 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             </div>
             <div className="stat-value">
               {correctAnswers}/{questionsAnswered}
-              {wasTimeUp && <span className="time-up-indicator"> (de {totalQuestions})</span>}
+              {wasTimeUp && <span style={{
+                fontSize: '0.75em',
+                color: '#fb923c',
+                fontWeight: 600,
+                display: 'inline-block',
+                marginLeft: '0.25rem',
+                padding: '0.1rem 0.4rem',
+                background: 'rgba(251, 146, 60, 0.1)',
+                borderRadius: '4px',
+                border: '1px solid rgba(251, 146, 60, 0.2)'
+              }}> (de {totalQuestions})</span>}
             </div>
             <div className="stat-label">Respuestas correctas</div>
           </div>

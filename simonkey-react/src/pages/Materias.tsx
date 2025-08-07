@@ -14,6 +14,7 @@ import CategoryDropdown from '../components/CategoryDropdown';
 import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+import { getDomainProgressForMateria } from '../utils/domainProgress';
 
 interface Materia {
   id: string;
@@ -24,6 +25,12 @@ interface Materia {
   createdAt: Date;
   updatedAt: Date;
   notebookCount?: number;
+  domainProgress?: {
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
 }
 
 const Materias: React.FC = () => {
@@ -117,7 +124,20 @@ const Materias: React.FC = () => {
           notebookCount: notebookCountMap[docSnap.id] || 0
         }));
 
-        setMaterias(materiasData);
+        // Calcular el dominio para cada materia en paralelo
+        const materiasWithProgress = await Promise.all(
+          materiasData.map(async (materia) => {
+            try {
+              const domainProgress = await getDomainProgressForMateria(materia.id);
+              return { ...materia, domainProgress };
+            } catch (error) {
+              console.error(`Error calculating domain for materia ${materia.id}:`, error);
+              return materia;
+            }
+          })
+        );
+
+        setMaterias(materiasWithProgress);
         setError(null);
       } catch (err) {
         setError(err as Error);

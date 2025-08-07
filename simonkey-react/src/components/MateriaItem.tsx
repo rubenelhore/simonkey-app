@@ -18,6 +18,12 @@ interface MateriaItemProps {
   isAdminView?: boolean;
   exams?: any[];
   isSchoolStudent?: boolean;
+  domainProgress?: {
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  };
 }
 
 const MateriaItem: React.FC<MateriaItemProps> = ({ 
@@ -36,7 +42,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   studentCount,
   isAdminView = false,
   exams = [],
-  isSchoolStudent = false
+  isSchoolStudent = false,
+  domainProgress
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);
@@ -287,6 +294,33 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                 <span className="materia-info">
                   {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
                 </span>
+                {domainProgress && domainProgress.total > 0 && (() => {
+                  const percentage = Math.round((domainProgress.dominated / domainProgress.total) * 100);
+                  let badgeColor = '#FF6B35'; // Naranja (0-30%)
+                  if (percentage > 30 && percentage <= 70) {
+                    badgeColor = '#FFD700'; // Amarillo (31-70%)
+                  } else if (percentage > 70) {
+                    badgeColor = '#10B981'; // Verde (71-100%)
+                  }
+                  
+                  return (
+                    <span 
+                      className="materia-exams-badge" 
+                      title={`${percentage}% dominio`}
+                      style={{ 
+                        backgroundColor: badgeColor,
+                        color: 'white',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        marginLeft: '8px',
+                        cursor: 'help'
+                      }}>
+                      {percentage}%
+                    </span>
+                  );
+                })()}
                 {isSchoolStudent && exams.length > 0 && (
                   <span className="materia-exams-badge" style={{ 
                     backgroundColor: materiaColor,

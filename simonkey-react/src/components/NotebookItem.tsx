@@ -373,19 +373,33 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               <span className="materia-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}
               </span>
-              {domainProgress && domainProgress.total > 0 && (
-                <span className="materia-exams-badge" style={{ 
-                  backgroundColor: notebookColor,
-                  color: 'white',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  marginLeft: '8px'
-                }}>
-                  {Math.round((domainProgress.dominated / domainProgress.total) * 100)}% dominio
-                </span>
-              )}
+              {domainProgress && domainProgress.total > 0 && (() => {
+                const percentage = Math.round((domainProgress.dominated / domainProgress.total) * 100);
+                let badgeColor = '#FF6B35'; // Naranja (0-30%)
+                if (percentage > 30 && percentage <= 70) {
+                  badgeColor = '#FFD700'; // Amarillo (31-70%)
+                } else if (percentage > 70) {
+                  badgeColor = '#10B981'; // Verde (71-100%)
+                }
+                
+                return (
+                  <span 
+                    className="materia-exams-badge"
+                    title={`${percentage}% dominio`}
+                    style={{ 
+                      backgroundColor: badgeColor,
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      marginLeft: '8px',
+                      cursor: 'help'
+                    }}>
+                    {percentage}%
+                  </span>
+                );
+              })()}
             </div>
             {isFrozen && (
               <div className="frozen-indicator-subtle">
