@@ -43,6 +43,7 @@
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(cat:*)",
+      "Bash(git fetch:*)",
       "Bash(git fetch:*)"
     ],
     "deny": []

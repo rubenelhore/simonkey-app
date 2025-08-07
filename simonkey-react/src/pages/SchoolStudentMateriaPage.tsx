@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import NotebookList from '../components/NotebookList';
 import { db } from '../services/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getDomainProgressForNotebook } from '../utils/domainProgress';
@@ -144,6 +145,21 @@ const SchoolStudentMateriaPage: React.FC = () => {
                     const domainProgress = await getDomainProgressForNotebook(notebookDoc.id);
                     console.log('📊 Progreso de dominio calculado para', data.title, ':', domainProgress);
                     
+                    // Cargar el conteo real de conceptos desde la colección schoolConcepts
+                    let actualConceptCount = 0;
+                    try {
+                      const conceptsQuery = query(
+                        collection(db, 'schoolConcepts'),
+                        where('notebookId', '==', notebookDoc.id)
+                      );
+                      const conceptsSnapshot = await getDocs(conceptsQuery);
+                      actualConceptCount = conceptsSnapshot.size;
+                      console.log(`📝 Conteo real de conceptos para ${data.title}: ${actualConceptCount}`);
+                    } catch (error) {
+                      console.error('Error contando conceptos:', error);
+                      actualConceptCount = data.conceptCount || 0;
+                    }
+                    
                     // Por ahora mostrar todos los cuadernos sin prefijo
                     // Solo agregar log si no pertenece a esta materia
                     const belongsToThisMateria = data.idMateria === currentMateriaId;
@@ -160,7 +176,7 @@ const SchoolStudentMateriaPage: React.FC = () => {
                       userId: data.userId,
                       createdAt: data.createdAt,
                       updatedAt: data.updatedAt,
-                      conceptCount: data.conceptCount || 0,
+                      conceptCount: actualConceptCount, // Usar el conteo real
                       isFrozen: data.isFrozen,
                       frozenScore: data.frozenScore,
                       frozenAt: data.frozenAt,
@@ -196,6 +212,17 @@ const SchoolStudentMateriaPage: React.FC = () => {
   }, [user, materiaName, isSchoolStudent, userProfile]);
 
   const handleNotebookClick = (notebookId: string) => {
+    // Guardar información de la materia para poder volver
+    if (materiaName && materia) {
+      const materiaInfo = {
+        materiaName: materiaName,
+        materiaDisplayName: materia.nombre,
+        materiaId: materiaId,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem('schoolStudent_previousMateria', JSON.stringify(materiaInfo));
+      console.log('💾 Guardando información de materia para navegación:', materiaInfo);
+    }
     navigate(`/school/notebooks/${notebookId}`);
   };
 
@@ -220,6 +247,23 @@ const SchoolStudentMateriaPage: React.FC = () => {
     );
   }
 
+  // Convertir notebooks a formato compatible con NotebookList
+  const formattedNotebooks = notebooks.map(notebook => ({
+    id: notebook.id,
+    title: notebook.title,
+    color: notebook.color,
+    category: '', // Los estudiantes no manejan categorías
+    userId: user?.uid || '',
+    createdAt: notebook.createdAt?.toDate ? notebook.createdAt.toDate() : new Date(notebook.createdAt),
+    updatedAt: notebook.updatedAt?.toDate ? notebook.updatedAt.toDate() : new Date(notebook.updatedAt),
+    conceptCount: notebook.conceptCount || 0,
+    domainProgress: notebook.domainProgress,
+    isStudent: true,
+    isFrozen: notebook.isFrozen,
+    frozenScore: notebook.frozenScore,
+    frozenAt: notebook.frozenAt?.toDate ? notebook.frozenAt.toDate() : notebook.frozenAt
+  }));
+
   return (
     <>
       <HeaderWithHamburger
@@ -227,79 +271,29 @@ const SchoolStudentMateriaPage: React.FC = () => {
         subtitle={`Cuadernos disponibles`}
         showBackButton={true}
         onBackClick={() => navigate('/materias')}
-        themeColor="#FF6B6B"
+        themeColor={materia.color || "#6147FF"}
       />
-      <div className="school-teacher-materia-page">
-        {/* Cuadernos de la materia */}
-        <div className="notebooks-section">
-          {notebooks.length > 0 ? (
-            <div className="notebooks-grid">
-              {notebooks.map(notebook => {
-                console.log('🎨 ID del notebook a renderizar:', notebook.id);
-                console.log('🎨 Título a renderizar:', notebook.title);
-                console.log('🎨 Tiene título:', !!notebook.title);
-                console.log('🎨 Longitud del título:', notebook.title?.length || 0);
-                return (
-                <div 
-                  key={notebook.id} 
-                  className="notebook-card"
-                >
-                  <div 
-                    className="notebook-card-content"
-                    onClick={() => handleNotebookClick(notebook.id)}
-                    style={{ 
-                      '--notebook-color': notebook.color,
-                      cursor: 'pointer'
-                    } as React.CSSProperties}
-                  >
-                    <h3 style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: '0.5rem',
-                      width: '100%',
-                      color: '#1f2937'
-                    }}>
-                      <span style={{
-                        flex: '1',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        color: '#1f2937'
-                      }}>
-                        {(() => {
-                          const displayTitle = notebook.title || 'Sin título';
-                          console.log('🖼️ Título que se va a mostrar:', displayTitle);
-                          return displayTitle;
-                        })()}
-                      </span>
-                      {notebook.domainProgress && notebook.domainProgress.total > 0 && (() => {
-                        const percentage = Math.round((notebook.domainProgress.dominated / notebook.domainProgress.total) * 100);
-                        console.log('📊 Mostrando porcentaje para', notebook.title, ':', percentage + '%', 'dominados:', notebook.domainProgress.dominated, 'total:', notebook.domainProgress.total);
-                        return (
-                          <span style={{ 
-                            color: '#10b981', 
-                            fontSize: '1.1rem', 
-                            fontWeight: 'bold',
-                            flexShrink: 0
-                          }}>
-                            {percentage}%
-                          </span>
-                        );
-                      })()}
-                    </h3>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <i className="fas fa-book" style={{ fontSize: '3rem', color: '#9ca3af' }}></i>
-              <p>No hay cuadernos disponibles en esta materia</p>
-            </div>
-          )}
+      
+      {/* Usar el mismo layout que usuarios free/pro */}
+      <main className="notebooks-main notebooks-main-no-sidebar">
+        <div className="notebooks-list-section notebooks-list-section-full">
+          <NotebookList 
+            notebooks={formattedNotebooks}
+            onDeleteNotebook={undefined} // Estudiantes no pueden eliminar
+            onEditNotebook={undefined}   // Estudiantes no pueden editar
+            onColorChange={undefined}    // Estudiantes no pueden cambiar color
+            onCreateNotebook={undefined} // Estudiantes no pueden crear
+            onAddConcept={undefined}     // Estudiantes no pueden añadir conceptos
+            showCreateButton={false}     // No mostrar botón de crear
+            isSchoolTeacher={false}
+            isSchoolNotebook={true}      // Usar navegación de cuaderno escolar
+            selectedCategory={null}
+            showCategoryModal={false}
+            materiaColor={materia.color || "#6147FF"}
+            materiaId={materiaId || undefined}
+          />
         </div>
-      </div>
+      </main>
     </>
   );
 };

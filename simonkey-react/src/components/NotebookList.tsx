@@ -686,8 +686,47 @@ const NotebookList: React.FC<NotebookListProps> = ({
           {materiaId && (
             <button 
               className="back-button-notebooks"
-              onClick={() => navigate('/materias')}
-              title="Volver a materias"
+              onClick={() => {
+                // Si es un cuaderno escolar, volver a la materia específica
+                if (isSchoolNotebook) {
+                  console.log('🔄 NotebookList - Estudiante escolar intentando volver...');
+                  
+                  // Intentar usar la información guardada en sessionStorage
+                  try {
+                    const previousMateriaStr = sessionStorage.getItem('schoolStudent_previousMateria');
+                    console.log('📦 NotebookList - Información guardada:', previousMateriaStr);
+                    
+                    if (previousMateriaStr) {
+                      const previousMateria = JSON.parse(previousMateriaStr);
+                      const isRecent = (Date.now() - previousMateria.timestamp) < 30 * 60 * 1000;
+                      
+                      if (isRecent && previousMateria.materiaName) {
+                        const targetUrl = `/school/student/materia/${previousMateria.materiaName}`;
+                        console.log('🎯 NotebookList - Navegando de vuelta a:', targetUrl);
+                        navigate(targetUrl);
+                        return;
+                      }
+                    }
+                  } catch (error) {
+                    console.error('❌ NotebookList - Error recuperando materia:', error);
+                  }
+                  
+                  // Fallback: intentar obtener del URL actual si estamos en una ruta de materia
+                  const currentPath = window.location.pathname;
+                  const schoolMateriaMatch = currentPath.match(/\/school\/student\/materia\/([^\/]+)/);
+                  if (schoolMateriaMatch) {
+                    const materiaName = schoolMateriaMatch[1];
+                    console.log('🎯 NotebookList - Usando materia del URL actual:', materiaName);
+                    navigate(`/school/student/materia/${materiaName}`);
+                  } else {
+                    console.log('🏠 NotebookList - Navegando a materias como fallback final');
+                    navigate('/materias');
+                  }
+                } else {
+                  navigate('/materias');
+                }
+              }}
+              title={isSchoolNotebook ? "Volver a la materia" : "Volver a materias"}
             >
               <i className="fas fa-arrow-left"></i>
             </button>

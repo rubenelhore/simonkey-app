@@ -1133,6 +1133,44 @@ const NotebookDetail = () => {
                       }
                       return;
                     }
+
+                    // Si es estudiante escolar, verificar si viene de una materia escolar
+                    if (isSchoolStudent) {
+                      console.log('🔄 Estudiante escolar intentando volver...');
+                      
+                      // Buscar información guardada de la materia anterior
+                      try {
+                        const previousMateriaStr = sessionStorage.getItem('schoolStudent_previousMateria');
+                        console.log('📦 Información guardada en sessionStorage:', previousMateriaStr);
+                        
+                        if (previousMateriaStr) {
+                          const previousMateria = JSON.parse(previousMateriaStr);
+                          console.log('📋 Datos parseados de materia anterior:', previousMateria);
+                          
+                          // Verificar que la información no sea muy antigua (30 minutos)
+                          const isRecent = (Date.now() - previousMateria.timestamp) < 30 * 60 * 1000;
+                          console.log('⏰ ¿Información reciente?', isRecent, 'Edad:', Math.round((Date.now() - previousMateria.timestamp) / 1000 / 60), 'minutos');
+                          
+                          if (isRecent && previousMateria.materiaName) {
+                            const targetUrl = `/school/student/materia/${previousMateria.materiaName}`;
+                            console.log('🎯 Navegando de vuelta a:', targetUrl, 'Materia:', previousMateria.materiaDisplayName);
+                            navigate(targetUrl);
+                            return;
+                          } else {
+                            console.warn('⚠️ Información de materia expirada o incompleta');
+                          }
+                        } else {
+                          console.warn('⚠️ No hay información de materia guardada en sessionStorage');
+                        }
+                      } catch (error) {
+                        console.error('❌ Error recuperando materia anterior:', error);
+                      }
+                      
+                      // Si no hay información guardada o es muy antigua, ir a materias generales
+                      console.log('🏠 Navegando a materias generales como fallback');
+                      navigate('/materias');
+                      return;
+                    }
                     
                     // Para usuarios regulares, verificar si vienen de una materia
                     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
