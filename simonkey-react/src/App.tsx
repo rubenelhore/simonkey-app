@@ -123,6 +123,7 @@ import './utils/debugSchoolStudentStudy';
 import './utils/debugSchoolQuiz';
 import Materias from './pages/Materias';
 import InicioPage from './pages/InicioPage';
+import TeacherHomePage from './pages/TeacherHomePage';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
@@ -412,8 +413,8 @@ const AppContent: React.FC = () => {
         // Redireccionar desde login/signup o cuando accedan a rutas no apropiadas
         if (['/login', '/signup', '/inicio', '/'].includes(currentPath)) {
           if (isSchoolTeacher) {
-            console.log('🏫 App - Redirigiendo profesor escolar a /school/teacher');
-            navigate('/school/teacher', { replace: true });
+            console.log('🏫 App - Redirigiendo profesor escolar a /teacher/home');
+            navigate('/teacher/home', { replace: true });
             return;
           }
           if (isSchoolAdmin) {
@@ -488,7 +489,7 @@ const AppContent: React.FC = () => {
                 // Usuarios universitarios van a sus cursos por defecto
                 if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
                 // Usuarios escolares van a sus módulos específicos (sin requerir verificación de email)
-                if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+                if (isSchoolTeacher) return <Navigate to="/teacher/home" replace />;
                 if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
                 if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
                 if (isSchoolStudent) return <Navigate to="/inicio" replace />;
@@ -514,7 +515,7 @@ const AppContent: React.FC = () => {
                 // Usuarios universitarios van a sus cursos por defecto
                 if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
                 // Usuarios escolares van a sus módulos específicos
-                if (isSchoolTeacher) return <Navigate to="/school/teacher" replace />;
+                if (isSchoolTeacher) return <Navigate to="/teacher/home" replace />;
                 if (isSchoolAdmin) return <Navigate to="/school/admin" replace />;
                 if (isSchoolTutor) return <Navigate to="/school/tutor" replace />;
                 if (isSchoolStudent) return <Navigate to="/inicio" replace />;
@@ -787,6 +788,20 @@ const AppContent: React.FC = () => {
           />
           
           {/* Rutas para el sistema escolar */}
+          <Route
+            path="/teacher/home"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <TeacherHomePage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
           <Route
             path="/school/teacher"
             element={<Navigate to="/materias" replace />}

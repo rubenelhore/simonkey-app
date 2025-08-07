@@ -47,7 +47,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent, isUniversityUser } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -97,10 +96,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
 
   // Asegurar que el sidebar siempre esté colapsado al cargar la página
   useEffect(() => {
-    // Limpiar cualquier estado guardado al montar el componente
-    localStorage.removeItem('headerSidebarPinned');
     setSidebarExpanded(false);
-    setIsSidebarPinned(false);
   }, []);
 
   // Obtener el nombre completo del usuario
@@ -266,27 +262,11 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // }, [user, userProfile, isSuperAdmin, subscription]);
 
   const handleSidebarMouseEnter = () => {
-    if (!isSidebarPinned) {
-      setSidebarExpanded(true);
-    }
+    setSidebarExpanded(true);
   };
 
   const handleSidebarMouseLeave = () => {
-    if (!isSidebarPinned) {
-      setSidebarExpanded(false);
-    }
-  };
-
-  const toggleSidebarPin = () => {
-    const newPinnedState = !isSidebarPinned;
-    setIsSidebarPinned(newPinnedState);
-    setSidebarExpanded(newPinnedState);
-    // Solo guardar en localStorage si se está fijando (true), nunca cuando se desfija
-    if (newPinnedState) {
-      localStorage.setItem('headerSidebarPinned', newPinnedState.toString());
-    } else {
-      localStorage.removeItem('headerSidebarPinned');
-    }
+    setSidebarExpanded(false);
   };
 
   const handleLogout = async () => {
@@ -389,7 +369,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     // Pequeño delay para asegurar que las transiciones terminen
     const timeoutId = setTimeout(forceResize, 100);
     return () => clearTimeout(timeoutId);
-  }, [isSidebarExpanded, isSidebarPinned]);
+  }, [isSidebarExpanded]);
 
   // Detectar cambios en el estado de pantalla completa
   useEffect(() => {
@@ -404,25 +384,13 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // El cierre del popup ahora se maneja con el overlay onClick
 
   return (
-    <div className={`header-with-hamburger-container ${(isSidebarExpanded || isSidebarPinned) ? 'menu-open' : ''} ${isFullscreen ? 'fullscreen-mode' : ''}`}>
+    <div className={`header-with-hamburger-container ${isSidebarExpanded ? 'menu-open' : ''} ${isFullscreen ? 'fullscreen-mode' : ''}`}>
       
       {/* Header limitado */}
       <header className="limited-header">
         <div className="header-content-limited">
-          {/* Sección izquierda: Botón hamburguesa y logo */}
+          {/* Sección izquierda: Solo botón de pantalla completa */}
           <div className="header-left-section">
-            <button 
-              className="hamburger-btn"
-              onClick={toggleSidebarPin}
-              title={isSidebarPinned ? "Cerrar menú" : "Abrir menú"}
-            >
-              <div className="hamburger-icon">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </button>
-            
             <button 
               className="fullscreen-btn"
               onClick={toggleFullscreen}
@@ -452,19 +420,13 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       </header>
       
-      {/* Overlay para móvil cuando el menú está abierto */}
-      {(isSidebarExpanded || isSidebarPinned) && (
-        <div 
-          className="menu-overlay mobile-only"
-          onClick={toggleSidebarPin}
-        />
-      )}
+      {/* Overlay para móvil removido - sidebar siempre visible */}
       
       {/* Nueva barra lateral fija */}
       <div 
-        className={`sidebar-nav ${(isSidebarExpanded || isSidebarPinned) ? 'sidebar-expanded' : ''} ${isSidebarPinned ? 'sidebar-pinned' : ''}`}
-        onMouseEnter={!isSidebarPinned ? handleSidebarMouseEnter : undefined}
-        onMouseLeave={!isSidebarPinned ? handleSidebarMouseLeave : undefined}
+        className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
       >
         {/* Logo */}
         <div className="sidebar-header">
@@ -474,7 +436,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             } else if (isSchoolAdmin) {
               navigate('/school/admin');
             } else if (isSchoolTeacher) {
-              navigate('/school/teacher');
+              navigate('/teacher/home');
             } else if (isSchoolTutor) {
               navigate('/school/tutor');
             } else {
@@ -487,7 +449,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               width="32"
               height="32"
             />
-            {(isSidebarExpanded || isSidebarPinned) && (
+            {isSidebarExpanded && (
               <div className="sidebar-logo-text">
                 <span>Simon</span><span>key</span>
               </div>
@@ -505,7 +467,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis cursos"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis cursos</span>}
+                {isSidebarExpanded && <span>Mis cursos</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/university/biblioteca' ? 'active' : ''}`} 
@@ -513,7 +475,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Biblioteca"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Biblioteca</span>}
+                {isSidebarExpanded && <span>Biblioteca</span>}
               </button>
             </>
           ) : isSchoolAdmin ? (
@@ -524,7 +486,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Materias</span>}
+                {isSidebarExpanded && <span>Materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/admin' ? 'active' : ''}`} 
@@ -532,18 +494,26 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+                {isSidebarExpanded && <span>Analítica</span>}
               </button>
             </>
           ) : isSchoolTeacher ? (
             <>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/teacher/home' ? 'active' : ''}`} 
+                onClick={() => navigate('/teacher/home')}
+                title="Inicio"
+              >
+                <FontAwesomeIcon icon={faHome} />
+                {isSidebarExpanded && <span>Inicio</span>}
+              </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/materias' || location.pathname.includes('/materias/') ? 'active' : ''}`} 
                 onClick={() => navigate('/materias')}
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Materias</span>}
+                {isSidebarExpanded && <span>Materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher/exams' ? 'active' : ''}`} 
@@ -551,7 +521,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis exámenes"
               >
                 <FontAwesomeIcon icon={faFileAlt} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
+                {isSidebarExpanded && <span>Mis exámenes</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher/analytics' ? 'active' : ''}`} 
@@ -559,7 +529,15 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+                {isSidebarExpanded && <span>Analítica</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/calendar' ? 'active' : ''}`} 
+                onClick={() => navigate('/calendar')}
+                title="Calendario"
+              >
+                <FontAwesomeIcon icon={faCalendarAlt} />
+                {isSidebarExpanded && <span>Calendario</span>}
               </button>
             </>
           ) : isSchoolTutor ? (
@@ -570,7 +548,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Analítica</span>}
+                {isSidebarExpanded && <span>Analítica</span>}
               </button>
             </>
           ) : isSchoolStudent ? (
@@ -581,7 +559,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Inicio</span>}
+                {isSidebarExpanded && <span>Inicio</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
@@ -589,7 +567,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
+                {isSidebarExpanded && <span>Mis materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
@@ -597,7 +575,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Estudiar"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
+                {isSidebarExpanded && <span>Estudiar</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
@@ -605,7 +583,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis exámenes"
               >
                 <FontAwesomeIcon icon={faFileAlt} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis exámenes</span>}
+                {isSidebarExpanded && <span>Mis exámenes</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
@@ -613,7 +591,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mi progreso"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
+                {isSidebarExpanded && <span>Mi progreso</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
@@ -621,7 +599,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Calendario"
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
+                {isSidebarExpanded && <span>Calendario</span>}
               </button>
             </>
           ) : (
@@ -632,7 +610,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Inicio</span>}
+                {isSidebarExpanded && <span>Inicio</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
@@ -640,7 +618,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mis materias</span>}
+                {isSidebarExpanded && <span>Mis materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
@@ -648,7 +626,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Estudiar"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Estudiar</span>}
+                {isSidebarExpanded && <span>Estudiar</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
@@ -656,7 +634,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mi progreso"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Mi progreso</span>}
+                {isSidebarExpanded && <span>Mi progreso</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
@@ -664,7 +642,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Calendario"
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
-                {(isSidebarExpanded || isSidebarPinned) && <span>Calendario</span>}
+                {isSidebarExpanded && <span>Calendario</span>}
               </button>
             </>
           )}
@@ -675,7 +653,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               title="Súper Admin"
             >
               <FontAwesomeIcon icon={faCrown} />
-              {(isSidebarExpanded || isSidebarPinned) && <span>Súper Admin</span>}
+              {isSidebarExpanded && <span>Súper Admin</span>}
             </button>
           )}
         </div>
@@ -949,10 +927,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       <div 
         className="content-wrapper"
         style={{ 
-          marginLeft: (isSidebarExpanded || isSidebarPinned) ? '250px' : '60px', 
+          marginLeft: isSidebarExpanded ? '250px' : '60px', 
           paddingTop: '64px',
-          width: (isSidebarExpanded || isSidebarPinned) ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
-          maxWidth: (isSidebarExpanded || isSidebarPinned) ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          width: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
+          maxWidth: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxSizing: 'border-box',
           overflow: 'hidden'

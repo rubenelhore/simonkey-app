@@ -32,9 +32,14 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
   initialDate,
   initialView = 'month'
 }) => {
-  const [currentDate, setCurrentDate] = useState(
-    initialDate ? new Date(initialDate) : new Date()
-  );
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (initialDate) {
+      // Parsear la fecha manualmente para evitar problemas de timezone
+      const [year, month, day] = initialDate.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return new Date();
+  });
   const [selectedDate, setSelectedDate] = useState<string | null>(initialDate || null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -400,7 +405,9 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
           <button 
             className={`view-btn ${viewMode === 'day' ? 'active' : ''}`}
             onClick={() => {
-              setCurrentDate(new Date());
+              // Usar fecha local para evitar problemas de timezone
+              const today = new Date();
+              setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
               setViewMode('day');
             }}
           >

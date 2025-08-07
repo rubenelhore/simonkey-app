@@ -35,11 +35,13 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       // USUARIOS ESCOLARES: Solo profesores tienen rutas restringidas
       if (isSchoolTeacher && !hasNavigated.current) {
         const validTeacherRoutes = [
+          '/teacher/home',
           '/school/teacher',
           '/school/notebooks',
           '/school/notebooks/',
           '/school/student',
           '/school/students',
+          '/calendar',
           '/exam'
         ];
         
@@ -49,7 +51,7 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
         
         if (!isValidRoute) {
           hasNavigated.current = true;
-          navigate('/school/teacher', { replace: true });
+          navigate('/teacher/home', { replace: true });
           return;
         }
       }
