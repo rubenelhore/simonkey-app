@@ -22,6 +22,227 @@
   padding-bottom: 80px; /* Espacio para mobile nav */
 }
 
+/* Módulo de Herramientas del Profesor */
+.teacher-tools-module {
+  width: 100%;
+  margin-top: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.tools-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.tools-header h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.tools-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.tool-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border-color: #6147ff;
+}
+
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6147ff, #9333ea);
+}
+
+.tool-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #6147ff, #9333ea);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.export-card .tool-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.settings-card .tool-icon {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.resources-card .tool-icon {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.stats-card .tool-icon {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.tool-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.tool-content p {
+  margin: 0 0 1rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.tool-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tool-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.tool-btn.primary {
+  background: #6147ff;
+  color: white;
+}
+
+.tool-btn.primary:hover {
+  background: #5a3df0;
+  transform: translateY(-1px);
+}
+
+.tool-btn.secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.tool-btn.secondary:hover {
+  background: #e2e8f0;
+  color: #334155;
+  transform: translateY(-1px);
+}
+
+.tool-btn.full-width {
+  width: 100%;
+  justify-content: center;
+  background: #6147ff;
+  color: white;
+  margin-top: 1rem;
+}
+
+.tool-btn.full-width:hover {
+  background: #5a3df0;
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-around;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-item {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #6147ff;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .teacher-tools-module {
+    margin-top: 2rem;
+    padding: 1.5rem;
+  }
+  
+  .tools-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .tool-card {
+    padding: 1.25rem;
+  }
+  
+  .tool-actions {
+    flex-direction: column;
+  }
+  
+  .tool-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .stats-summary {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
 /* Columna izquierda - ELIMINADA */
 /* .left-column {
   width: 280px;
