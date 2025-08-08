@@ -383,7 +383,13 @@ const StudentExamsPage: React.FC = () => {
             <div className="empty-state-tips">
               <div className="tip-card">
                 <i className="fas fa-lightbulb"></i>
-                <span>Tip: Revisa regularmente esta sección para no perderte ningún examen (No te preocupes nosotros te avisaremos)</span>
+                <span>
+                  {filter === 'all' 
+                    ? 'Tip: Revisa regularmente esta sección para no perderte ningún examen (No te preocupes nosotros te avisaremos)'
+                    : filter === 'available'
+                    ? 'Tip: Los exámenes aparecerán aquí cuando tu profesor los active (Te notificaremos inmediatamente)'
+                    : 'Tip: Practica en la zona de estudio para mejorar tus resultados en futuros exámenes (¡La práctica hace al maestro!)'}
+                </span>
               </div>
             </div>
           </div>
