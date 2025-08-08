@@ -351,10 +351,18 @@ const StudentExamsPage: React.FC = () => {
                 ? 'Cuando tu profesor asigne nuevos exámenes, aparecerán aquí. Mientras tanto, puedes seguir estudiando en tus cuadernos.'
                 : filter === 'available'
                 ? 'Todos los exámenes disponibles han sido completados o aún no han sido asignados.'
-                : 'Aún no has completado ningún examen. ¡Comienza con los exámenes disponibles!'}
+                : 'Prepara tus exámenes en la zona de estudio para obtener mejores resultados.'}
             </p>
             <div className="empty-state-actions">
-              {filter !== 'all' ? (
+              {filter === 'completed' ? (
+                <button 
+                  className="btn-primary-gradient"
+                  onClick={() => navigate('/study')}
+                >
+                  <i className="fas fa-graduation-cap"></i>
+                  Ir a zona de estudio
+                </button>
+              ) : filter !== 'all' ? (
                 <button 
                   className="btn-primary-outline"
                   onClick={() => setFilter('all')}
