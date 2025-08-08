@@ -6,7 +6,7 @@ import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import { decodeMateriaName } from '../utils/urlUtils';
 import StreakTracker from '../components/StreakTracker';
@@ -479,10 +479,47 @@ const Notebooks: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    console.log(`Notebook with id ${id} deleted successfully`);
-    // Forzar actualización de categorías
-    setRefreshTrigger(prev => prev + 1);
+  const handleDelete = async (id: string) => {
+    console.log(`🗑️ Intentando eliminar notebook con id ${id}`);
+    
+    try {
+      // Si es profesor o admin escolar, eliminar de schoolNotebooks
+      if (isSchoolAdmin || isSchoolTeacher) {
+        // Verificar que el notebook pertenece al profesor actual
+        const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', id));
+        
+        if (notebookDoc.exists()) {
+          const notebookData = notebookDoc.data();
+          
+          // Solo permitir eliminar si es el profesor dueño del notebook
+          if (notebookData.idProfesor === user?.uid || isSchoolAdmin) {
+            await deleteDoc(doc(db, 'schoolNotebooks', id));
+            console.log(`✅ Notebook escolar ${id} eliminado exitosamente`);
+            
+            // Recargar notebooks
+            const teacherId = isSchoolTeacher ? user?.uid : undefined;
+            const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId!], teacherId);
+            setAdminNotebooks(notebooksData);
+          } else {
+            console.error('❌ No tienes permisos para eliminar este notebook');
+            alert('No tienes permisos para eliminar este notebook');
+          }
+        } else {
+          console.error('❌ Notebook no encontrado');
+        }
+      } else {
+        // Para usuarios regulares, usar UnifiedNotebookService
+        await UnifiedNotebookService.deleteNotebook(id);
+        console.log(`✅ Notebook ${id} eliminado exitosamente`);
+      }
+      
+      // Forzar actualización de categorías y notebooks
+      setRefreshTrigger(prev => prev + 1);
+      setNotebookRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('❌ Error eliminando notebook:', error);
+      alert('Error al eliminar el cuaderno');
+    }
   };
 
   const handleEdit = async (id: string, newTitle: string) => {

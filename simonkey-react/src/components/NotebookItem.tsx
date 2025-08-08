@@ -68,16 +68,18 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("¿Estás seguro de que deseas eliminar este cuaderno?")) {
-      await deleteNotebook(id);
+      // Si hay un callback personalizado, usarlo (para profesores/admin escolar)
+      if (onDelete) {
+        await onDelete(id);
+      } else {
+        // Si no, usar el servicio regular
+        await deleteNotebook(id);
+      }
       
       // Invalidar caché de materias en la página de inicio
       if (user?.uid) {
         console.log('🗑️ Cuaderno eliminado, invalidando cache de materias...');
         CacheManager.invalidateMateriasCache(user.uid);
-      }
-      
-      if (onDelete) {
-        onDelete(id);
       }
     }
   };
