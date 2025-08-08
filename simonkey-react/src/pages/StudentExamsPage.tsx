@@ -328,25 +328,56 @@ const StudentExamsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="empty-state">
-            <i className="fas fa-file-alt" style={{ fontSize: '4rem', color: '#9ca3af', marginBottom: '1rem' }}></i>
-            <h3>No hay exámenes {filter === 'all' ? '' : filter === 'available' ? 'disponibles' : 'completados'}</h3>
-            <p>
+          <div className="empty-state-enhanced">
+            <div className="empty-state-illustration">
+              <div className="illustration-circle">
+                <i className="fas fa-clipboard-list"></i>
+              </div>
+              <div className="decoration-dots">
+                <span className="dot dot-1"></span>
+                <span className="dot dot-2"></span>
+                <span className="dot dot-3"></span>
+              </div>
+            </div>
+            <h2 className="empty-state-title">
               {filter === 'all' 
-                ? 'No tienes exámenes asignados en este momento.'
+                ? '¡Tu espacio de exámenes está listo!'
+                : filter === 'available' 
+                ? 'No hay exámenes disponibles' 
+                : 'No hay exámenes completados'}
+            </h2>
+            <p className="empty-state-description">
+              {filter === 'all' 
+                ? 'Cuando tu profesor asigne nuevos exámenes, aparecerán aquí. Mientras tanto, puedes seguir estudiando en tus cuadernos.'
                 : filter === 'available'
-                ? 'No hay exámenes disponibles para realizar.'
-                : 'No has completado ningún examen todavía.'
-              }
+                ? 'Todos los exámenes disponibles han sido completados o aún no han sido asignados.'
+                : 'Aún no has completado ningún examen. ¡Comienza con los exámenes disponibles!'}
             </p>
-            {filter !== 'all' && (
-              <button 
-                className="btn-secondary"
-                onClick={() => setFilter('all')}
-              >
-                Ver todos los exámenes
-              </button>
-            )}
+            <div className="empty-state-actions">
+              {filter !== 'all' ? (
+                <button 
+                  className="btn-primary-outline"
+                  onClick={() => setFilter('all')}
+                >
+                  <i className="fas fa-arrow-left"></i>
+                  Ver todos los exámenes
+                </button>
+              ) : (
+                <button 
+                  className="btn-primary-gradient"
+                  onClick={() => navigate('/materias')}
+                >
+                  <i className="fas fa-book"></i>
+                  Ir a mis materias
+                </button>
+              )}
+            </div>
+            <div className="empty-state-tips">
+              <div className="tip-card">
+                <i className="fas fa-lightbulb"></i>
+                <span>Tip: Revisa regularmente esta sección para no perderte ningún examen</span>
+              </div>
+            </div>
           </div>
         )}
           </div>
