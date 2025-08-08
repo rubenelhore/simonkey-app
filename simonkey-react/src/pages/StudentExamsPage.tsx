@@ -354,23 +354,7 @@ const StudentExamsPage: React.FC = () => {
                 : 'Aún no tienes exámenes completados. Una vez que realices tu primer examen, aparecerá aquí con tu calificación y podrás revisar tus resultados.'}
             </p>
             <div className="empty-state-actions">
-              {filter === 'completed' ? (
-                <button 
-                  className="btn-primary-gradient"
-                  onClick={() => navigate('/study')}
-                >
-                  <i className="fas fa-graduation-cap"></i>
-                  Ir a zona de estudio
-                </button>
-              ) : filter !== 'all' ? (
-                <button 
-                  className="btn-primary-outline"
-                  onClick={() => setFilter('all')}
-                >
-                  <i className="fas fa-arrow-left"></i>
-                  Ver todos los exámenes
-                </button>
-              ) : (
+              {filter === 'all' && (
                 <button 
                   className="btn-primary-gradient"
                   onClick={() => navigate('/materias')}
