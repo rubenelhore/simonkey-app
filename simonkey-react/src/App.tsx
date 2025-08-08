@@ -129,6 +129,7 @@ import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
 import HelpWhatsAppButton from './components/HelpWhatsAppButton';
 import StudySessionPage from './pages/StudySessionPage';
+import ExamTestPage from './pages/ExamTestPage';
 
 // Definir el tipo para el usuario
 interface User {
@@ -696,6 +697,17 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <StudySessionPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+
+          <Route
+            path="/exam-test"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ExamTestPage />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

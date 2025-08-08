@@ -4,6 +4,7 @@ import { db, auth } from '../services/firebase';
 import { Concept, Notebook, Material } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
+import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import { decodeNotebookName } from '../utils/urlUtils';
 
@@ -86,6 +87,9 @@ const NotebookDetail = () => {
   
   // Usar el hook para detectar el tipo de usuario
   const { isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
+  
+  // Usar el hook para obtener datos del estudiante escolar
+  const { schoolSubjects } = useSchoolStudentData();
   
   // Log para debug - comentado para evitar spam en consola
   // console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
@@ -1156,6 +1160,7 @@ const NotebookDetail = () => {
                     if (isSchoolStudent) {
                       console.log('🎓 Estudiante escolar - intentando volver a materia...');
                       
+                      // Primero intentar obtener de sessionStorage
                       try {
                         const previousMateriaStr = sessionStorage.getItem('schoolStudent_previousMateria');
                         console.log('📦 SessionStorage data:', previousMateriaStr);
@@ -1181,6 +1186,33 @@ const NotebookDetail = () => {
                         }
                       } catch (error) {
                         console.error('❌ Error retrieving materia:', error);
+                      }
+                      
+                      // Si no se encontró en sessionStorage, intentar con el materiaId del cuaderno actual
+                      console.log('🔍 DEBUG: materiaId:', materiaId);
+                      console.log('🔍 DEBUG: schoolSubjects:', schoolSubjects);
+                      console.log('🔍 DEBUG: schoolSubjects.length:', schoolSubjects?.length);
+                      
+                      if (materiaId && schoolSubjects && schoolSubjects.length > 0) {
+                        console.log('🔍 Intentando encontrar materia por ID:', materiaId);
+                        console.log('🔍 DEBUG: Todas las materias disponibles:', schoolSubjects.map(s => ({id: s.id, nombre: s.nombre})));
+                        
+                        const materia = schoolSubjects.find(subject => subject.id === materiaId);
+                        console.log('🔍 DEBUG: Materia encontrada:', materia);
+                        
+                        if (materia) {
+                          const targetUrl = `/school/student/materia/${materia.nombre}`;
+                          console.log('✅ Found materia, navigating to:', targetUrl);
+                          navigate(targetUrl);
+                          return;
+                        } else {
+                          console.log('⚠️ Materia no encontrada en schoolSubjects');
+                        }
+                      } else {
+                        console.log('⚠️ No hay materiaId o schoolSubjects no cargadas');
+                        console.log('   - materiaId:', materiaId);
+                        console.log('   - schoolSubjects existe:', !!schoolSubjects);
+                        console.log('   - schoolSubjects length:', schoolSubjects?.length);
                       }
                       
                       console.log('🏠 Fallback: navigating to /materias');
