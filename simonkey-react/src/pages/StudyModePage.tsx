@@ -883,6 +883,14 @@ const StudyModePage = () => {
           }
         });
         break;
+      case 'exam':
+        navigate('/exam-test', { 
+          state: { 
+            notebookId: selectedNotebook.id,
+            notebookTitle: selectedNotebook.title
+          }
+        });
+        break;
     }
   };
 
@@ -1213,6 +1221,26 @@ const StudyModePage = () => {
                 <FontAwesomeIcon icon={faGamepad} />
               </div>
               <h3>Juegos</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => handleStudyMode('exam')}
+            >
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faMedal} />
+              </div>
+              <h3>Prueba de examen</h3>
               {!selectedNotebook ? (
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
