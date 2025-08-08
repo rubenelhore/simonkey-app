@@ -1043,46 +1043,67 @@ const Materias: React.FC = () => {
                       </button>
                     )}
                     
-                    <div className="quick-suggestions enhanced">
-                      <span className="suggestions-label">
-                        <i className="fas fa-lightbulb"></i>
-                        Sugerencias de Mis Materias
-                      </span>
-                      <div className="suggestion-cards">
-                        <button className="suggestion-card" onClick={() => {
-                          setShowCreateModal(true);
-                        }}>
-                          <div className="card-bg" style={{background: 'linear-gradient(135deg, #6147FF, #8B5DFF)'}}></div>
-                          <div className="card-content">
-                            <span className="card-emoji">📐</span>
-                            <span className="card-title">Cálculo Diferencial</span>
-                            <span className="card-subtitle">Derivadas y límites</span>
-                          </div>
-                        </button>
-                        
-                        <button className="suggestion-card" onClick={() => {
-                          setShowCreateModal(true);
-                        }}>
-                          <div className="card-bg" style={{background: 'linear-gradient(135deg, #4CAF50, #66BB6A)'}}></div>
-                          <div className="card-content">
-                            <span className="card-emoji">⚗️</span>
-                            <span className="card-title">Química Orgánica</span>
-                            <span className="card-subtitle">Compuestos y reacciones</span>
-                          </div>
-                        </button>
-                        
-                        <button className="suggestion-card" onClick={() => {
-                          setShowCreateModal(true);
-                        }}>
-                          <div className="card-bg" style={{background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)'}}></div>
-                          <div className="card-content">
-                            <span className="card-emoji">🏛️</span>
-                            <span className="card-title">Historia Universal</span>
-                            <span className="card-subtitle">Civilizaciones y guerras</span>
-                          </div>
-                        </button>
+                    {isSchoolTeacher && (
+                      <div className="teacher-welcome-message">
+                        <div className="message-icon">
+                          <i className="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div className="message-content">
+                          <p className="message-quote">
+                            "La educación es el arma más poderosa que puedes usar para cambiar el mundo"
+                          </p>
+                          <p className="message-author">- Nelson Mandela</p>
+                          <div className="message-divider"></div>
+                          <p className="message-text">
+                            Mientras esperas la asignación de tus materias, prepárate para transformar vidas. 
+                            Cada concepto que enseñes será una semilla de conocimiento que florecerá en tus estudiantes.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {!isSchoolTeacher && (
+                      <div className="quick-suggestions enhanced">
+                        <span className="suggestions-label">
+                          <i className="fas fa-lightbulb"></i>
+                          Sugerencias de Mis Materias
+                        </span>
+                        <div className="suggestion-cards">
+                          <button className="suggestion-card" onClick={() => {
+                            setShowCreateModal(true);
+                          }}>
+                            <div className="card-bg" style={{background: 'linear-gradient(135deg, #6147FF, #8B5DFF)'}}></div>
+                            <div className="card-content">
+                              <span className="card-emoji">📐</span>
+                              <span className="card-title">Cálculo Diferencial</span>
+                              <span className="card-subtitle">Derivadas y límites</span>
+                            </div>
+                          </button>
+                          
+                          <button className="suggestion-card" onClick={() => {
+                            setShowCreateModal(true);
+                          }}>
+                            <div className="card-bg" style={{background: 'linear-gradient(135deg, #4CAF50, #66BB6A)'}}></div>
+                            <div className="card-content">
+                              <span className="card-emoji">⚗️</span>
+                              <span className="card-title">Química Orgánica</span>
+                              <span className="card-subtitle">Compuestos y reacciones</span>
+                            </div>
+                          </button>
+                          
+                          <button className="suggestion-card" onClick={() => {
+                            setShowCreateModal(true);
+                          }}>
+                            <div className="card-bg" style={{background: 'linear-gradient(135deg, #FF6B6B, #FF8E53)'}}></div>
+                            <div className="card-content">
+                              <span className="card-emoji">🏛️</span>
+                              <span className="card-title">Historia Universal</span>
+                              <span className="card-subtitle">Civilizaciones y guerras</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

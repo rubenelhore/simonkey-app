@@ -2788,6 +2788,76 @@ body:has(.modal-overlay) .alert {
   font-size: 1rem;
 }
 
+/* Teacher Welcome Message Styles */
+.teacher-welcome-message {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2.5rem;
+  background: linear-gradient(145deg, rgba(97, 71, 255, 0.03) 0%, rgba(139, 93, 255, 0.06) 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(97, 71, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(97, 71, 255, 0.08);
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-icon {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.message-icon i {
+  font-size: 3rem;
+  background: linear-gradient(135deg, #6147FF 0%, #8B5DFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.message-content {
+  text-align: center;
+}
+
+.message-quote {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: #2d3748;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.message-author {
+  font-size: 0.9rem;
+  color: #718096;
+  margin-bottom: 1.5rem;
+}
+
+.message-divider {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #6147FF, #8B5DFF);
+  margin: 1.5rem auto;
+  border-radius: 3px;
+}
+
+.message-text {
+  font-size: 1rem;
+  color: #4a5568;
+  line-height: 1.7;
+  margin-bottom: 0;
+}
+
 /* Responsive design for enhanced empty state */
 @media (max-width: 768px) {
   .empty-state-container {
@@ -2816,6 +2886,24 @@ body:has(.modal-overlay) .alert {
   
   .empty-state-title {
     font-size: 1.8rem;
+  }
+  
+  /* Teacher welcome message mobile styles */
+  .teacher-welcome-message {
+    padding: 1.5rem;
+    margin: 1rem auto;
+  }
+  
+  .message-icon i {
+    font-size: 2.5rem;
+  }
+  
+  .message-quote {
+    font-size: 1.1rem;
+  }
+  
+  .message-text {
+    font-size: 0.95rem;
   }
   
   .empty-state-title .highlight {
