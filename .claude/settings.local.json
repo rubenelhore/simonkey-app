@@ -44,7 +44,7 @@
       "Bash(npm uninstall:*)",
       "Bash(cat:*)",
       "Bash(git fetch:*)",
-      "Bash(git fetch:*)"
+      "Bash(firebase functions:secrets:set:*)"
     ],
     "deny": []
   }

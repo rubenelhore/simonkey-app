@@ -37,6 +37,7 @@ const StudySessionPage = () => {
   const [sessionMultiplier, setSessionMultiplier] = useState<number>(1.5);
   const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.PROGRESS);
   const [totalNotebookConcepts, setTotalNotebookConcepts] = useState<number>(0);
+  const [availableSmartConcepts, setAvailableSmartConcepts] = useState<number>(0);
   
   // State for metrics
   const [metrics, setMetrics] = useState<StudySessionMetrics>({
@@ -127,14 +128,18 @@ const StudySessionPage = () => {
         setTotalNotebookConcepts(totalConcepts);
         
         // Set appropriate default study intensity based on available concepts
-        if (totalConcepts < 5) {
-          setStudyIntensity(StudyIntensity.WARM_UP);
-        } else if (totalConcepts < 10) {
-          setStudyIntensity(StudyIntensity.WARM_UP);
-        } else if (totalConcepts < 20) {
+        if (totalConcepts >= 20) {
+          // Si tiene 20+ conceptos, puede usar cualquier modo, defaultear a Progress
           setStudyIntensity(StudyIntensity.PROGRESS);
+        } else if (totalConcepts >= 10) {
+          // Si tiene 10-19 conceptos, puede usar Warm-Up o Progress, defaultear a Progress
+          setStudyIntensity(StudyIntensity.PROGRESS);
+        } else if (totalConcepts >= 1) {
+          // Si tiene 1-9 conceptos, solo puede usar Warm-Up
+          setStudyIntensity(StudyIntensity.WARM_UP);
         } else {
-          setStudyIntensity(StudyIntensity.PROGRESS);
+          // Si tiene 0 conceptos, no puede estudiar
+          setStudyIntensity(StudyIntensity.WARM_UP);
         }
       } catch (error) {
         console.error('Error loading notebook info:', error);
@@ -148,6 +153,80 @@ const StudySessionPage = () => {
     };
   }, [notebookId]);
   */
+
+  // Load available concepts for SMART mode
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadAvailableConceptsForMode = async () => {
+      if (!notebookId || !auth.currentUser || !mounted) return;
+      
+      try {
+        const effectiveUserData = await getEffectiveUserId();
+        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        if (studyMode === StudyMode.SMART) {
+          // For SMART mode, get concepts available for review
+          const reviewableConcepts = await studyService.getReviewableConcepts(userKey, notebookId);
+          const reviewableCount = reviewableConcepts.length;
+          
+          if (!mounted) return;
+          
+          setAvailableSmartConcepts(reviewableCount);
+          console.log(`🎯 SMART MODE: ${reviewableCount} conceptos disponibles para repaso`);
+          
+          // Set appropriate default study intensity based on available concepts for SMART mode
+          if (reviewableCount >= 20) {
+            setStudyIntensity(StudyIntensity.PROGRESS);
+          } else if (reviewableCount >= 10) {
+            setStudyIntensity(StudyIntensity.PROGRESS);
+          } else if (reviewableCount >= 1) {
+            setStudyIntensity(StudyIntensity.WARM_UP);
+          } else {
+            setStudyIntensity(StudyIntensity.WARM_UP);
+          }
+        } else {
+          // For FREE mode, count all concepts in notebook
+          const collectionName = 'conceptos';
+          const conceptsQuery = query(
+            collection(db, collectionName),
+            where('cuadernoId', '==', notebookId)
+          );
+          
+          const conceptDocs = await getDocs(conceptsQuery);
+          let totalConcepts = 0;
+          
+          conceptDocs.forEach(doc => {
+            const conceptosData = doc.data().conceptos || [];
+            totalConcepts += conceptosData.length;
+          });
+          
+          if (!mounted) return;
+          
+          setTotalNotebookConcepts(totalConcepts);
+          
+          // Set appropriate default study intensity for FREE mode
+          if (totalConcepts >= 20) {
+            setStudyIntensity(StudyIntensity.PROGRESS);
+          } else if (totalConcepts >= 10) {
+            setStudyIntensity(StudyIntensity.PROGRESS);
+          } else if (totalConcepts >= 1) {
+            setStudyIntensity(StudyIntensity.WARM_UP);
+          } else {
+            setStudyIntensity(StudyIntensity.WARM_UP);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading available concepts:', error);
+      }
+    };
+    
+    loadAvailableConceptsForMode();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [notebookId, studyMode]);
 
   // Timer effect
   useEffect(() => {
@@ -220,7 +299,8 @@ const StudySessionPage = () => {
       
       switch (studyIntensity) {
         case StudyIntensity.WARM_UP:
-          conceptCount = 5;
+          // Warm-Up usa 5 conceptos o todos los disponibles si hay menos de 5
+          conceptCount = Math.min(5, allNotebookConcepts.length);
           multiplier = 1;
           break;
         case StudyIntensity.PROGRESS:
@@ -594,40 +674,40 @@ const StudySessionPage = () => {
               <div className="intensity-section-compact">
                 <h3 className="section-title-compact">Intensidad</h3>
                 
-                {totalNotebookConcepts < 5 && (
+                {availableSmartConcepts < 1 && (
                   <div className="intensity-warning-compact">
                     <i className="fas fa-exclamation-triangle"></i>
-                    <span>Necesitas al menos 5 conceptos. Tienes {totalNotebookConcepts}.</span>
+                    <span>No tienes conceptos disponibles para repasar hoy.</span>
                   </div>
                 )}
                 
                 <div className="intensity-options-horizontal">
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${totalNotebookConcepts < 5 ? 'disabled' : ''}`}
-                    onClick={() => totalNotebookConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
-                    title={totalNotebookConcepts < 5 ? `Requiere 5 conceptos (tienes ${totalNotebookConcepts})` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${availableSmartConcepts < 1 ? 'disabled' : ''}`}
+                    onClick={() => availableSmartConcepts >= 1 && setStudyIntensity(StudyIntensity.WARM_UP)}
+                    title={availableSmartConcepts < 1 ? `No hay conceptos para repasar` : ''}
                   >
                     <i className="fas fa-coffee"></i>
                     <div className="intensity-content">
                       <h4>Warm-Up</h4>
                       <span>5 conceptos</span>
-                      {totalNotebookConcepts < 5 && (
-                        <div className="requirement-text">Requiere 5+ conceptos</div>
+                      {availableSmartConcepts < 1 && (
+                        <div className="requirement-text">Sin conceptos disponibles</div>
                       )}
                     </div>
                     {studyIntensity === StudyIntensity.WARM_UP && <i className="fas fa-check-circle check-icon"></i>}
                   </div>
                   
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${totalNotebookConcepts < 10 ? 'disabled' : ''}`}
-                    onClick={() => totalNotebookConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
-                    title={totalNotebookConcepts < 10 ? `Requiere 10 conceptos (tienes ${totalNotebookConcepts})` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${availableSmartConcepts < 10 ? 'disabled' : ''}`}
+                    onClick={() => availableSmartConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
+                    title={availableSmartConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
                   >
                     <i className="fas fa-chart-line"></i>
                     <div className="intensity-content">
                       <h4>Progreso</h4>
                       <span>10 conceptos</span>
-                      {totalNotebookConcepts < 10 && (
+                      {availableSmartConcepts < 10 && (
                         <div className="requirement-text">Requiere 10+ conceptos</div>
                       )}
                     </div>
@@ -635,15 +715,15 @@ const StudySessionPage = () => {
                   </div>
                   
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${totalNotebookConcepts < 20 ? 'disabled' : ''}`}
-                    onClick={() => totalNotebookConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
-                    title={totalNotebookConcepts < 20 ? `Requiere 20 conceptos (tienes ${totalNotebookConcepts})` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${availableSmartConcepts < 20 ? 'disabled' : ''}`}
+                    onClick={() => availableSmartConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
+                    title={availableSmartConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
                   >
                     <i className="fas fa-rocket"></i>
                     <div className="intensity-content">
                       <h4>Rocket</h4>
                       <span>20 conceptos</span>
-                      {totalNotebookConcepts < 20 && (
+                      {availableSmartConcepts < 20 && (
                         <div className="requirement-text">Requiere 20+ conceptos</div>
                       )}
                     </div>
@@ -665,7 +745,7 @@ const StudySessionPage = () => {
               <button
                 className="action-button-compact primary"
                 onClick={beginStudySession}
-                disabled={totalNotebookConcepts < 5 || loading}
+                disabled={availableSmartConcepts < 1 || loading}
               >
                 {loading ? (
                   <>

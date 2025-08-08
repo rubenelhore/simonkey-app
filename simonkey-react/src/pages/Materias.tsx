@@ -34,6 +34,8 @@ interface Materia {
 }
 
 const Materias: React.FC = () => {
+  console.log('🎯 MATERIAS COMPONENT MOUNTED - TEACHER VERSION');
+  
   const { user, userProfile, loading: authLoading } = useAuth();
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,8 +48,10 @@ const Materias: React.FC = () => {
   const { migrationStatus, migrationMessage } = useAutoMigration();
   const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
-  // Logs comentados para reducir ruido
-  // console.log('📚 Materias.tsx - Estado actual:');
+  console.log('📚 Materias.tsx - Estado actual:');
+  console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  console.log('  - isSchoolStudent:', isSchoolStudent);
+  console.log('  - user:', user?.uid);
   // console.log('📚 user:', user);
   // console.log('📚 userProfile:', userProfile);
   // console.log('📚 isSchoolStudent:', isSchoolStudent);
@@ -84,11 +88,22 @@ const Materias: React.FC = () => {
   // Cargar materias del usuario
   useEffect(() => {
     const loadMaterias = async () => {
-      if (!user) return;
+      console.log('📂 useEffect loadMaterias - Iniciando');
+      console.log('  - user:', user?.uid);
+      console.log('  - isSchoolTeacher:', isSchoolTeacher);
+      console.log('  - isSchoolStudent:', isSchoolStudent);
+      
+      if (!user) {
+        console.log('  ❌ No hay usuario, saliendo');
+        return;
+      }
       if (isSchoolStudent) {
+        console.log('  ❌ Es estudiante escolar, saliendo');
         // Para estudiantes escolares, no cargar materias regulares
         return;
       }
+      
+      console.log('  ✅ Cargando materias para profesor/usuario regular');
       setLoading(true);
       try {
         // Cargar materias y notebooks en paralelo
@@ -142,11 +157,23 @@ const Materias: React.FC = () => {
       } catch (err) {
         setError(err as Error);
       } finally {
+        console.log('  ✅ Finalizando carga de materias, setLoading(false)');
         setLoading(false);
       }
     };
     loadMaterias();
   }, [user, refreshTrigger, isSchoolStudent]);
+
+  // Log para debugging
+  console.log('🔍 Materias - Estado actual del componente:', {
+    loading,
+    authLoading,
+    schoolLoading,
+    isSchoolTeacher,
+    materiasLength: materias.length,
+    isSchoolStudent,
+    isSchoolAdmin
+  });
 
   // Función para cargar exámenes de estudiante - OPTIMIZADA
   const loadStudentExams = async () => {
@@ -700,7 +727,7 @@ const Materias: React.FC = () => {
   }, [showCreateModal]);
 
   if (loading || authLoading || (isSchoolStudent && schoolLoading)) {
-    // console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading });
+    console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading, isSchoolTeacher });
     return (
       <>
         <HeaderWithHamburger
@@ -845,11 +872,11 @@ const Materias: React.FC = () => {
   }
 
   // Vista normal para usuarios regulares y estudiantes
-  // console.log('🎨 Materias - Renderizando vista normal');
-  // console.log('  - materias:', materias.length);
-  // console.log('  - userData:', userData);
-  // console.log('  - isSchoolStudent:', isSchoolStudent);
-  // console.log('  - userProfile:', userProfile);
+  console.log('🎨 Materias - Renderizando vista para profesor escolar');
+  console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  console.log('  - materias:', materias.length);
+  console.log('  - loading:', loading);
+  console.log('  - authLoading:', authLoading);
   
   return (
     <>

@@ -32,6 +32,7 @@ import {
   updateLearningData, 
   createInitialLearningData,
   getConceptsReadyForReview,
+  getAvailableConceptsForStudy,
   getNextSmartStudyDate,
   getNextQuizDate,
   isFreeStudyAvailable,
@@ -969,22 +970,31 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         console.log('🆕 Conceptos nuevos sin datos de aprendizaje:', newConcepts.length);
         console.log('🆕 IDs de conceptos nuevos:', newConcepts.map(c => ({ id: c.id, término: c.término })));
         
-        // 5. Obtener conceptos con datos de aprendizaje listos para repaso HOY
+        // 5. Obtener conceptos con datos de aprendizaje listos para repaso
         const readyForReview = getConceptsReadyForReview(learningData);
         console.log('✅ Conceptos con datos de aprendizaje listos para repaso HOY:', readyForReview.length);
-        console.log('✅ IDs de conceptos listos para HOY:', readyForReview.map(d => d.conceptId));
+        
+        // Si no hay suficientes conceptos disponibles, incluir los próximos
+        let availableForStudy = readyForReview;
+        const minConceptsNeeded = 1; // Mínimo 1 concepto para poder estudiar
+        
+        if (readyForReview.length + newConcepts.length < minConceptsNeeded && learningData.length > 0) {
+          console.log('⚠️ Pocos conceptos disponibles, incluyendo próximos...');
+          availableForStudy = getAvailableConceptsForStudy(learningData, minConceptsNeeded - newConcepts.length);
+          console.log(`📚 Incluyendo ${availableForStudy.length} conceptos (algunos próximos)`);
+        }
+        
+        console.log('✅ IDs de conceptos disponibles:', availableForStudy.map(d => d.conceptId));
         
         // 6. Si hay conceptos listos para repaso, obtenerlos
         let conceptsForReview: Concept[] = [];
-        if (readyForReview.length > 0) {
-          const conceptIds = readyForReview.map(data => data.conceptId);
+        if (availableForStudy.length > 0) {
+          const conceptIds = availableForStudy.map(data => data.conceptId);
           conceptsForReview = await getConceptsByIds(conceptIds, userId, notebookId);
           conceptsForReview = conceptsForReview.filter(concept => concept.id && concept.término);
         }
         
-        // 7. IMPORTANTE: Para estudio inteligente, solo mostrar conceptos que:
-        //    - Son nuevos (sin datos de aprendizaje) O
-        //    - Tienen nextReviewDate <= HOY
+        // 7. Combinar conceptos nuevos y conceptos para repaso
         const allReviewableConcepts = [...newConcepts, ...conceptsForReview];
         
         console.log('🎯 🚨 ESTUDIO INTELIGENTE - Conceptos disponibles para HOY:', allReviewableConcepts.length);
@@ -1131,12 +1141,19 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         
         // 5. Obtener conceptos con datos de aprendizaje listos para repaso
         const readyForReview = getConceptsReadyForReview(learningData);
-        console.log('✅ Conceptos con datos de aprendizaje listos para repaso:', readyForReview.length);
+        console.log('✅ Conceptos con datos de aprendizaje listos para repaso HOY:', readyForReview.length);
         
-        // 6. El total de conceptos disponibles para estudio inteligente es:
-        // - Conceptos nuevos (disponibles inmediatamente)
-        // - Conceptos con nextReviewDate <= hoy
-        const totalReviewable = newConceptIds.length + readyForReview.length;
+        // Si no hay suficientes, incluir próximos
+        let availableForStudy = readyForReview;
+        const minConceptsNeeded = 1;
+        
+        if (readyForReview.length + newConceptIds.length < minConceptsNeeded && learningData.length > 0) {
+          console.log('⚠️ Pocos conceptos disponibles para contador, incluyendo próximos...');
+          availableForStudy = getAvailableConceptsForStudy(learningData, minConceptsNeeded - newConceptIds.length);
+        }
+        
+        // 6. El total de conceptos disponibles para estudio inteligente
+        const totalReviewable = newConceptIds.length + availableForStudy.length;
         
         console.log('🎯 Total de conceptos disponibles para estudio inteligente:', totalReviewable);
         console.log('📋 Desglose:', {

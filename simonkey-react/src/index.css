@@ -29,3 +29,30 @@ body {
   background-color: #FFFFFF;
   line-height: 1.6;
 }
+
+/* Hacer la barra de progreso de dominio más delgada */
+.dominio-progress-bar {
+  height: 6px !important; /* Reducir altura de 10-12px a 6px */
+  border-radius: 3px !important;
+  overflow: hidden;
+  background-color: #f3f4f6;
+  display: flex;
+  width: 100%;
+}
+
+.dominio-progress-segment {
+  height: 100% !important;
+  transition: width 0.3s ease;
+}
+
+.dominio-progress-segment.green {
+  background-color: #10B981 !important;
+}
+
+.dominio-progress-segment.yellow {
+  background-color: #F59E0B !important;
+}
+
+.dominio-progress-segment.red {
+  background-color: #EF4444 !important;
+}

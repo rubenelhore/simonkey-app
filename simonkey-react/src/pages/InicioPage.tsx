@@ -64,6 +64,7 @@ const InicioPage: React.FC = () => {
   const [materiasByDominio, setMateriasByDominio] = useState<MateriaWithDominio[]>([]);
   const [materiasLoading, setMateriasLoading] = useState(false);
   const materiasLoadedRef = React.useRef(false);
+  const lastMateriasFetchRef = React.useRef(0);
   
   // Estados para el módulo de Progreso
   const [progressData, setProgressData] = useState({
@@ -154,12 +155,25 @@ const InicioPage: React.FC = () => {
   const fetchMateriasByDominio = async (forceRefresh = false) => {
     if (!user?.uid) return;
     
-    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, materiasLoading: ${materiasLoading}, loaded: ${materiasLoadedRef.current}`);
+    // PRIMERA VERIFICACIÓN: Prevenir llamadas simultáneas
+    if (materiasLoading) {
+      console.log('⏳ Ya se están cargando las materias, ignorando llamada duplicada');
+      return;
+    }
+    
+    // Debounce: no llamar si se llamó hace menos de 2 segundos
+    const now = Date.now();
+    if (!forceRefresh && (now - lastMateriasFetchRef.current) < 2000) {
+      console.log('⏱️ Llamada muy reciente, ignorando (debounce 2s)');
+      return;
+    }
+    lastMateriasFetchRef.current = now;
+    
+    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, loaded: ${materiasLoadedRef.current}`);
     
     // If already loaded and not forcing refresh, skip
     if (!forceRefresh && materiasLoadedRef.current && materiasByDominio.length > 0) {
-      console.log('✅ Materias ya cargadas, no recargando');
-      setMateriasLoading(false);
+      console.log('✅ Materias ya cargadas en memoria, no recargando');
       return;
     }
     
@@ -169,17 +183,10 @@ const InicioPage: React.FC = () => {
     
     console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}`);
     
-    if (!forceRefresh && cacheValid) {
+    if (!forceRefresh && cacheValid && cachedMaterias.data) {
       console.log('📦 Usando materias desde cache localStorage');
       setMateriasByDominio(cachedMaterias.data);
-      setMateriasLoading(false);
       materiasLoadedRef.current = true;
-      return;
-    }
-    
-    // Prevent multiple simultaneous requests
-    if (materiasLoading) {
-      console.log('⚠️ Materias loading in progress, skipping...');
       return;
     }
     
@@ -344,6 +351,11 @@ const InicioPage: React.FC = () => {
       setCurrentScore(data.currentScore);
       setWeeklyProgress(data.weeklyProgress);
       setCurrentDivision(data.currentDivision);
+      // Cargar datos de progreso desde el caché si existen
+      if (data.progressData) {
+        console.log('📊 Usando datos de progreso desde cache:', data.progressData);
+        setProgressData(data.progressData);
+      }
       setLoading(false);
       return;
     }
@@ -373,13 +385,17 @@ const InicioPage: React.FC = () => {
         calculateDivision(conceptStats.conceptosDominados);
         
         // Actualizar datos del módulo de Progreso
+        console.log('📊 Actualizando datos del módulo de Progreso...');
+        console.log('KPIs Data:', kpisData);
+        console.log('Concept Stats:', conceptStats);
+        
         if (kpisData) {
           // Calcular tiempo total en horas
           const totalMinutes = kpisData.global?.tiempoEstudioGlobal || 0;
           const totalHours = Math.round(totalMinutes / 60);
           
           // Calcular tasa de éxito (usar percentil como indicador de éxito)
-          const successRate = kpisData.global?.percentilPromedioGlobal || 0;
+          const successRate = Math.round(kpisData.global?.percentilPromedioGlobal || 0);
           
           // Contar cuadernos activos
           const notebooksQuery = await import('../services/firebase').then(m => 
@@ -387,48 +403,97 @@ const InicioPage: React.FC = () => {
           );
           const activeNotebooks = notebooksQuery.size;
           
-          setProgressData({
+          const newProgressData = {
             conceptsDominated: conceptStats.conceptosDominados || 0,
             totalTime: totalHours,
             successRate: successRate,
             activeNotebooks: activeNotebooks
-          });
-        }
-
-        // Obtener historial de posiciones para calcular progreso
-        const { getPositionHistory } = await import('../utils/createPositionHistory');
-        const history = await getPositionHistory(user.uid, 'general', 2); // Obtener últimas 2 semanas
-        
-        let weeklyProgressValue = '0%';
-        if (history.length >= 2) {
-          // Comparar score actual con el de la semana pasada
-          const currentWeekScore = history[0].score;
-          const lastWeekScore = history[1].score;
+          };
           
-          if (lastWeekScore > 0) {
-            const percentageChange = ((currentWeekScore - lastWeekScore) / lastWeekScore) * 100;
-            const sign = percentageChange >= 0 ? '+' : '';
-            weeklyProgressValue = `${sign}${Math.round(percentageChange)}%`;
-          } else if (currentWeekScore > 0) {
-            weeklyProgressValue = '+100%';
+          console.log('📊 Nuevos datos de progreso:', newProgressData);
+          setProgressData(newProgressData);
+          
+          // Obtener historial de posiciones para calcular progreso
+          const { getPositionHistory } = await import('../utils/createPositionHistory');
+          const history = await getPositionHistory(user.uid, 'general', 2); // Obtener últimas 2 semanas
+          
+          let weeklyProgressValue = '0%';
+          if (history.length >= 2) {
+            // Comparar score actual con el de la semana pasada
+            const currentWeekScore = history[0].score;
+            const lastWeekScore = history[1].score;
+            
+            if (lastWeekScore > 0) {
+              const percentageChange = ((currentWeekScore - lastWeekScore) / lastWeekScore) * 100;
+              const sign = percentageChange >= 0 ? '+' : '';
+              weeklyProgressValue = `${sign}${Math.round(percentageChange)}%`;
+            } else if (currentWeekScore > 0) {
+              weeklyProgressValue = '+100%';
+            } else {
+              weeklyProgressValue = '0%';
+            }
           } else {
-            weeklyProgressValue = '0%';
+            weeklyProgressValue = 'N/A';
           }
+          setWeeklyProgress(weeklyProgressValue);
+          
+          // Cache the main data including progress data (con los datos actualizados)
+          const mainData = {
+            currentStreak: streakData.currentStreak,
+            hasStudiedToday: studiedToday,
+            currentScore: scoreValue,
+            weeklyProgress: weeklyProgressValue,
+            currentDivision: { name: currentDivision.name, icon: currentDivision.icon },
+            progressData: newProgressData // Usar los nuevos datos de progreso
+          };
+          setCachedData(`main_data_${user.uid}`, mainData, Date.now());
+          console.log('💾 Datos principales y de progreso guardados en cache localStorage');
         } else {
-          weeklyProgressValue = 'N/A';
+          console.log('⚠️ No se encontraron KPIs data, estableciendo valores por defecto');
+          const defaultProgressData = {
+            conceptsDominated: conceptStats?.conceptosDominados || 0,
+            totalTime: 0,
+            successRate: 0,
+            activeNotebooks: 0
+          };
+          setProgressData(defaultProgressData);
+          
+          // Obtener historial de posiciones para calcular progreso
+          const { getPositionHistory } = await import('../utils/createPositionHistory');
+          const history = await getPositionHistory(user.uid, 'general', 2); // Obtener últimas 2 semanas
+          
+          let weeklyProgressValue = '0%';
+          if (history.length >= 2) {
+            // Comparar score actual con el de la semana pasada
+            const currentWeekScore = history[0].score;
+            const lastWeekScore = history[1].score;
+            
+            if (lastWeekScore > 0) {
+              const percentageChange = ((currentWeekScore - lastWeekScore) / lastWeekScore) * 100;
+              const sign = percentageChange >= 0 ? '+' : '';
+              weeklyProgressValue = `${sign}${Math.round(percentageChange)}%`;
+            } else if (currentWeekScore > 0) {
+              weeklyProgressValue = '+100%';
+            } else {
+              weeklyProgressValue = '0%';
+            }
+          } else {
+            weeklyProgressValue = 'N/A';
+          }
+          setWeeklyProgress(weeklyProgressValue);
+          
+          // Cache the main data including progress data (con valores por defecto)
+          const mainData = {
+            currentStreak: streakData.currentStreak,
+            hasStudiedToday: studiedToday,
+            currentScore: scoreValue,
+            weeklyProgress: weeklyProgressValue,
+            currentDivision: { name: currentDivision.name, icon: currentDivision.icon },
+            progressData: defaultProgressData // Usar los datos por defecto
+          };
+          setCachedData(`main_data_${user.uid}`, mainData, Date.now());
+          console.log('💾 Datos principales guardados con valores por defecto en cache localStorage');
         }
-        setWeeklyProgress(weeklyProgressValue);
-        
-        // Cache the main data
-        const mainData = {
-          currentStreak: streakData.currentStreak,
-          hasStudiedToday: studiedToday,
-          currentScore: scoreValue,
-          weeklyProgress: weeklyProgressValue,
-          currentDivision: { name: currentDivision.name, icon: currentDivision.icon }
-        };
-        setCachedData(`main_data_${user.uid}`, mainData, Date.now());
-        console.log('💾 Datos principales guardados en cache localStorage');
         
       } catch (error) {
         console.error('Error obteniendo datos:', error);
@@ -458,6 +523,11 @@ const InicioPage: React.FC = () => {
         setCurrentScore(data.currentScore);
         setWeeklyProgress(data.weeklyProgress);
         setCurrentDivision(data.currentDivision);
+        // Cargar datos de progreso desde el caché si existen
+        if (data.progressData) {
+          console.log('📊 Cargando datos de progreso desde cache:', data.progressData);
+          setProgressData(data.progressData);
+        }
         setLoading(false);
       }
       
@@ -476,7 +546,10 @@ const InicioPage: React.FC = () => {
       // Then fetch fresh data in background
       fetchData();
       fetchTodayEvents();
-      fetchMateriasByDominio();
+      // Solo cargar materias si no están en cache
+      if (!cachedMaterias || !isCacheValid(cachedMaterias.timestamp)) {
+        fetchMateriasByDominio();
+      }
     } else {
       setLoading(false);
       setEventsLoading(false);
@@ -815,7 +888,22 @@ const InicioPage: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="no-events">No tienes eventos hoy</p>
+                    <div className="events-list">
+                      <div 
+                        className="event-item"
+                        style={{ opacity: 0.6, cursor: 'pointer' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/calendar');
+                        }}
+                      >
+                        <div className="event-time">Todo el día</div>
+                        <div className="event-title">No tienes eventos hoy</div>
+                        <div className="event-description" style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                          Click para agregar un evento
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

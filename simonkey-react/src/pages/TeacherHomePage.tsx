@@ -257,7 +257,14 @@ const TeacherHomePage: React.FC = () => {
           <div className="horizontal-modules-container">
             
             {/* Módulo de Materias */}
-            <div className="horizontal-module materias-dominio-module">
+            <div 
+              className="horizontal-module materias-dominio-module"
+              onClick={() => {
+                console.log('🚀 Click en módulo Materias - Navegando a /materias');
+                navigate('/materias');
+              }}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="module-content">
                 <div className="module-header">
                   <h3>Materias</h3>
@@ -434,17 +441,26 @@ const TeacherHomePage: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="no-events">
-                      <FontAwesomeIcon icon={faCalendarAlt} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>Sin eventos para hoy</p>
-                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>
-                        <span 
-                          onClick={() => navigate('/calendar')}
-                          style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                        >
-                          Agregar evento
-                        </span>
-                      </p>
+                    <div className="events-list">
+                      <div className="event-item" style={{ opacity: 0.6, cursor: 'default' }}>
+                        <div className="event-time">
+                          Todo el día
+                        </div>
+                        <div className="event-details">
+                          <div className="event-title">No tienes eventos hoy</div>
+                          <div className="event-description">
+                            <span 
+                              onClick={() => navigate('/calendar')}
+                              style={{ cursor: 'pointer', textDecoration: 'underline', fontSize: '0.85rem' }}
+                            >
+                              Agregar evento al calendario
+                            </span>
+                          </div>
+                        </div>
+                        <div className="event-type custom" style={{ opacity: 0.5 }}>
+                          <i className="fas fa-calendar-alt"></i>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

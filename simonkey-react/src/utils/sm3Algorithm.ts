@@ -131,17 +131,90 @@ export const getConceptsReadyForReview = (
   learningDataArray: LearningData[]
 ): LearningData[] => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(23, 59, 59, 999); // Incluir todo el día de hoy
   
   const readyConcepts = learningDataArray.filter(data => {
-    const isReady = data.nextReviewDate <= today;
+    // Convertir nextReviewDate a Date si es necesario
+    let reviewDate: Date;
+    
+    if (data.nextReviewDate instanceof Date) {
+      reviewDate = data.nextReviewDate;
+    } else if (data.nextReviewDate && typeof data.nextReviewDate === 'object' && 'toDate' in data.nextReviewDate) {
+      // Es un Timestamp de Firebase
+      reviewDate = data.nextReviewDate.toDate();
+    } else if (typeof data.nextReviewDate === 'string') {
+      reviewDate = new Date(data.nextReviewDate);
+    } else {
+      // Si no hay fecha válida, considerar disponible
+      console.warn('⚠️ Concepto sin nextReviewDate válido:', data.conceptId);
+      return true;
+    }
+    
+    // Comparar las fechas
+    const isReady = reviewDate <= today;
+    
+    if (!isReady) {
+      // Calcular días hasta próximo repaso
+      const daysUntilReview = Math.ceil((reviewDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`📅 Concepto ${data.conceptId} disponible en ${daysUntilReview} días`);
+    }
+    
     return isReady;
   });
+  
+  console.log(`✅ ${readyConcepts.length} conceptos listos para repaso hoy de ${learningDataArray.length} totales con datos`);
   
   return readyConcepts;
 };
 
-// Remove the rest of this function since we're simplifying it
+/**
+ * Obtener conceptos disponibles para estudio (incluye próximos si no hay suficientes)
+ */
+export const getAvailableConceptsForStudy = (
+  learningDataArray: LearningData[],
+  minConcepts: number = 5
+): LearningData[] => {
+  // Primero obtener los que están listos hoy
+  const readyToday = getConceptsReadyForReview(learningDataArray);
+  
+  if (readyToday.length >= minConcepts) {
+    return readyToday;
+  }
+  
+  // Si no hay suficientes, incluir los próximos a vencer
+  const now = new Date();
+  const conceptsWithDates = learningDataArray.map(data => {
+    let reviewDate: Date;
+    
+    if (data.nextReviewDate instanceof Date) {
+      reviewDate = data.nextReviewDate;
+    } else if (data.nextReviewDate && typeof data.nextReviewDate === 'object' && 'toDate' in data.nextReviewDate) {
+      reviewDate = data.nextReviewDate.toDate();
+    } else if (typeof data.nextReviewDate === 'string') {
+      reviewDate = new Date(data.nextReviewDate);
+    } else {
+      reviewDate = now; // Si no hay fecha, considerar disponible ahora
+    }
+    
+    return {
+      ...data,
+      reviewDateObj: reviewDate,
+      daysUntilReview: Math.max(0, Math.ceil((reviewDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    };
+  });
+  
+  // Ordenar por proximidad de fecha de repaso
+  conceptsWithDates.sort((a, b) => a.daysUntilReview - b.daysUntilReview);
+  
+  // Tomar al menos minConcepts o todos los disponibles
+  const availableConcepts = conceptsWithDates.slice(0, Math.max(minConcepts, readyToday.length));
+  
+  console.log(`📚 Conceptos disponibles para estudio: ${availableConcepts.length}`);
+  console.log(`   - Listos hoy: ${readyToday.length}`);
+  console.log(`   - Próximos incluidos: ${availableConcepts.length - readyToday.length}`);
+  
+  return availableConcepts;
+};
 
 /**
  * Calcular estadísticas de aprendizaje
