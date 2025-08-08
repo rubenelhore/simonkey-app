@@ -42,39 +42,101 @@ const SchoolTeacherMateriasPage: React.FC = () => {
       
       setLoading(true);
       try {
-        // Usar el ID del documento del profesor
-        const teacherId = userProfile.id || user.uid;
-        console.log('📚 Cargando materias para:', isSchoolAdmin ? 'admin' : 'profesor', teacherId);
+        // Usar ambos IDs posibles del profesor
+        const teacherDocId = userProfile.id;
+        const teacherUid = user.uid;
+        console.log('📚 Cargando materias para:', isSchoolAdmin ? 'admin' : 'profesor');
+        console.log('  - ID del documento:', teacherDocId);
+        console.log('  - UID de Firebase:', teacherUid);
 
         // Query para obtener las materias
-        // Si es admin, mostrar todas las materias de la escuela
-        let materiasQuery;
+        let allMaterias: any[] = [];
+        
         if (isSchoolAdmin && userProfile.schoolData?.idEscuela) {
-          materiasQuery = query(
+          // Si es admin, mostrar todas las materias de la escuela
+          const materiasQuery = query(
             collection(db, 'schoolSubjects'),
             where('idEscuela', '==', userProfile.schoolData.idEscuela)
           );
+          const snapshot = await getDocs(materiasQuery);
+          allMaterias = snapshot.docs;
         } else {
-          // Si es profesor, solo las materias asignadas
-          materiasQuery = query(
-            collection(db, 'schoolSubjects'),
-            where('idProfesor', '==', teacherId)
-          );
+          // Si es profesor, buscar materias con AMBOS posibles IDs
+          const materiasSet = new Set<string>();
+          
+          // Buscar con el ID del documento
+          if (teacherDocId) {
+            const query1 = query(
+              collection(db, 'schoolSubjects'),
+              where('idProfesor', '==', teacherDocId)
+            );
+            const snapshot1 = await getDocs(query1);
+            snapshot1.docs.forEach(doc => {
+              materiasSet.add(doc.id);
+              allMaterias.push(doc);
+            });
+          }
+          
+          // Buscar con el UID de Firebase
+          if (teacherUid && teacherUid !== teacherDocId) {
+            const query2 = query(
+              collection(db, 'schoolSubjects'),
+              where('idProfesor', '==', teacherUid)
+            );
+            const snapshot2 = await getDocs(query2);
+            snapshot2.docs.forEach(doc => {
+              // Solo agregar si no está duplicado
+              if (!materiasSet.has(doc.id)) {
+                materiasSet.add(doc.id);
+                allMaterias.push(doc);
+              }
+            });
+          }
+          
+          console.log(`✅ Encontradas ${allMaterias.length} materias en total`);
         }
-        
-        const snapshot = await getDocs(materiasQuery);
         const materiasData: SchoolSubject[] = [];
         
         // Para cada materia, contar los cuadernos
-        for (const docSnap of snapshot.docs) {
+        for (const docSnap of allMaterias) {
           const data = docSnap.data();
           
-          // Contar notebooks de cada materia
-          const notebooksQuery = query(
-            collection(db, 'schoolNotebooks'),
-            where('idMateria', '==', docSnap.id)
-          );
-          const notebooksSnapshot = await getDocs(notebooksQuery);
+          // Contar notebooks de cada materia que pertenecen al profesor/admin
+          // Buscar notebooks con idAdmin O idProfesor que coincidan
+          let notebookCount = 0;
+          
+          // Primero buscar por idAdmin si existe
+          if (data.idAdmin) {
+            const query1 = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', '==', docSnap.id),
+              where('idAdmin', '==', data.idAdmin)
+            );
+            const snapshot1 = await getDocs(query1);
+            notebookCount += snapshot1.size;
+          }
+          
+          // También buscar por idProfesor si es diferente de idAdmin
+          if (data.idProfesor && data.idProfesor !== data.idAdmin) {
+            const query2 = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', '==', docSnap.id),
+              where('idProfesor', '==', data.idProfesor)
+            );
+            const snapshot2 = await getDocs(query2);
+            notebookCount += snapshot2.size;
+          }
+          
+          // Si no se encontraron notebooks con los criterios anteriores,
+          // buscar todos los notebooks de la materia
+          if (notebookCount === 0) {
+            const query3 = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', '==', docSnap.id)
+            );
+            const snapshot3 = await getDocs(query3);
+            notebookCount = snapshot3.size;
+          }
           
           materiasData.push({
             id: docSnap.id,
@@ -83,7 +145,7 @@ const SchoolTeacherMateriasPage: React.FC = () => {
             color: data.color || '#6147FF',
             idProfesor: data.idProfesor,
             idAdmin: data.idAdmin,
-            notebookCount: notebooksSnapshot.size,
+            notebookCount: notebookCount,
             createdAt: data.createdAt
           });
         }

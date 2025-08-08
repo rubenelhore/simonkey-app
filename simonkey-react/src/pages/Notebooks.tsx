@@ -112,16 +112,60 @@ const Notebooks: React.FC = () => {
 
         if (isSchoolAdmin || isSchoolTeacher) {
           // For school admins and teachers, search in schoolSubjects
-          const schoolSubjectsQuery = query(
-            collection(db, 'schoolSubjects'),
-            where('nombre', '==', decodedName)
-          );
-          const querySnapshot = await getDocs(schoolSubjectsQuery);
+          // Get ALL subjects with this name that belong to the teacher
+          let allMateriaIds: string[] = [];
           
-          if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
-            setMateriaId(doc.id);
-            console.log('Materia escolar encontrada:', doc.id);
+          if (isSchoolTeacher && userProfile?.id) {
+            // For teachers, find all subjects with this name where they are the teacher
+            const teacherDocId = userProfile.id;
+            const teacherUid = user?.uid;
+            
+            // Query by teacher document ID
+            if (teacherDocId) {
+              const query1 = query(
+                collection(db, 'schoolSubjects'),
+                where('nombre', '==', decodedName),
+                where('idProfesor', '==', teacherDocId)
+              );
+              const snapshot1 = await getDocs(query1);
+              snapshot1.docs.forEach(doc => {
+                if (!allMateriaIds.includes(doc.id)) {
+                  allMateriaIds.push(doc.id);
+                }
+              });
+            }
+            
+            // Query by teacher UID
+            if (teacherUid && teacherUid !== teacherDocId) {
+              const query2 = query(
+                collection(db, 'schoolSubjects'),
+                where('nombre', '==', decodedName),
+                where('idProfesor', '==', teacherUid)
+              );
+              const snapshot2 = await getDocs(query2);
+              snapshot2.docs.forEach(doc => {
+                if (!allMateriaIds.includes(doc.id)) {
+                  allMateriaIds.push(doc.id);
+                }
+              });
+            }
+            
+            console.log(`Encontradas ${allMateriaIds.length} materias con nombre "${decodedName}" para el profesor`);
+            console.log('IDs de materias:', allMateriaIds);
+          } else {
+            // For admins, get all subjects with this name in their school
+            const schoolSubjectsQuery = query(
+              collection(db, 'schoolSubjects'),
+              where('nombre', '==', decodedName)
+            );
+            const querySnapshot = await getDocs(schoolSubjectsQuery);
+            allMateriaIds = querySnapshot.docs.map(doc => doc.id);
+          }
+          
+          if (allMateriaIds.length > 0) {
+            // Store all materia IDs for teachers to load notebooks from all of them
+            setMateriaId(allMateriaIds.join(','));
+            console.log('Materias escolares encontradas:', allMateriaIds);
           } else {
             console.error('No se encontró la materia escolar:', decodedName);
           }
@@ -170,7 +214,15 @@ const Notebooks: React.FC = () => {
       try {
         // Si es admin escolar o profesor, buscar en schoolSubjects
         if (isSchoolAdmin || isSchoolTeacher) {
-          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          // Check if materiaId contains multiple IDs (comma-separated)
+          const materiaIds = materiaId.split(',');
+          if (materiaIds.length > 1) {
+            // Multiple materias with same name - just use the first one for display
+            console.log('Multiple materias detected, using first for display:', materiaIds[0]);
+          }
+          
+          const firstMateriaId = materiaIds[0];
+          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', firstMateriaId));
           if (materiaDoc.exists()) {
             const data = materiaDoc.data();
             setMateriaData({ 
@@ -210,7 +262,12 @@ const Notebooks: React.FC = () => {
         // Usar el servicio unificado para obtener notebooks del profesor/materia
         // Para profesores, pasar su ID para filtrar solo sus notebooks
         const teacherId = isSchoolTeacher ? user?.uid : undefined;
-        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId], teacherId);
+        
+        // Check if materiaId contains multiple IDs (comma-separated)
+        const materiaIds = materiaId.split(',').filter(id => id.trim());
+        console.log('  - Processing materia IDs:', materiaIds);
+        
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks(materiaIds, teacherId);
         console.log('📚 Notebooks recibidos del servicio:', notebooksData.length);
         console.log('  - Notebooks detalle:', notebooksData);
         

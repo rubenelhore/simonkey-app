@@ -117,85 +117,91 @@ const SchoolStudentMateriaPage: React.FC = () => {
             idEscuela: materiaData.idEscuela
           });
 
-          // Cargar cuadernos del estudiante (dentro del bloque where currentMateriaId está definido)
-          if (userProfile?.idCuadernos && userProfile.idCuadernos.length > 0) {
-            const notebooksData: SchoolNotebook[] = [];
-            
-            for (const notebookId of userProfile.idCuadernos) {
-              try {
-                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-                if (notebookDoc.exists()) {
-                  const data = notebookDoc.data();
-                  console.log('📚 === NOTEBOOK ENCONTRADO ===');
-                  console.log('  - ID del notebook:', notebookDoc.id);
-                  console.log('  - Título:', data.title);
-                  console.log('  - idMateria del notebook:', data.idMateria);
-                  console.log('  - ID de materia actual (buscado):', currentMateriaId);
-                  console.log('  - ¿Coinciden los IDs?:', data.idMateria === currentMateriaId);
-                  console.log('  - Tipo de idMateria:', typeof data.idMateria);
-                  console.log('  - Tipo de currentMateriaId:', typeof currentMateriaId);
-                  
-                  // TEMPORAL: Por ahora mostrar TODOS los cuadernos del estudiante
-                  // ya que parece haber un problema con la asociación materia-cuaderno
-                  // TODO: Investigar por qué no coinciden los IDs
-                  const shouldInclude = true; // En el futuro: data.idMateria === currentMateriaId
-                  
-                  if (shouldInclude) {
-                    // Calcular el progreso de dominio para cada notebook
-                    const domainProgress = await getDomainProgressForNotebook(notebookDoc.id);
-                    console.log('📊 Progreso de dominio calculado para', data.title, ':', domainProgress);
-                    
-                    // Cargar el conteo real de conceptos desde la colección schoolConcepts
-                    let actualConceptCount = 0;
-                    try {
-                      const conceptsQuery = query(
-                        collection(db, 'schoolConcepts'),
-                        where('notebookId', '==', notebookDoc.id)
-                      );
-                      const conceptsSnapshot = await getDocs(conceptsQuery);
-                      actualConceptCount = conceptsSnapshot.size;
-                      console.log(`📝 Conteo real de conceptos para ${data.title}: ${actualConceptCount}`);
-                    } catch (error) {
-                      console.error('Error contando conceptos:', error);
-                      actualConceptCount = data.conceptCount || 0;
-                    }
-                    
-                    // Por ahora mostrar todos los cuadernos sin prefijo
-                    // Solo agregar log si no pertenece a esta materia
-                    const belongsToThisMateria = data.idMateria === currentMateriaId;
-                    if (!belongsToThisMateria) {
-                      console.warn('⚠️ NOTA: Este cuaderno tiene idMateria diferente pero se mostrará igual');
-                    }
-                    
-                    notebooksData.push({
-                      id: notebookDoc.id,
-                      title: data.title || data.titulo || 'Sin título', // Sin prefijo
-                      descripcion: data.descripcion,
-                      color: data.color || '#6147FF',
-                      idMateria: data.idMateria,
-                      userId: data.userId,
-                      createdAt: data.createdAt,
-                      updatedAt: data.updatedAt,
-                      conceptCount: actualConceptCount, // Usar el conteo real
-                      isFrozen: data.isFrozen,
-                      frozenScore: data.frozenScore,
-                      frozenAt: data.frozenAt,
-                      domainProgress: domainProgress
-                    });
-                  }
-              } else {
-                console.log('❌ Notebook no encontrado en schoolNotebooks:', notebookId);
-              }
-            } catch (error) {
-              console.error('Error loading notebook:', notebookId, error);
-            }
+          // Cargar cuadernos del PROFESOR para esta materia
+          // Los estudiantes deben ver los cuadernos creados por el profesor, no sus cuadernos asignados
+          console.log('🔍 Buscando cuadernos del profesor para la materia:', currentMateriaId);
+          console.log('  - idAdmin de la materia:', materiaData.idAdmin);
+          console.log('  - idProfesor de la materia:', materiaData.idProfesor);
+          
+          // Primero intentar buscar por idAdmin (preferido)
+          let notebooksQuery = query(
+            collection(db, 'schoolNotebooks'),
+            where('idMateria', '==', currentMateriaId),
+            where('idAdmin', '==', materiaData.idAdmin)
+          );
+          
+          let notebooksSnapshot = await getDocs(notebooksQuery);
+          
+          // Si no encuentra cuadernos con idAdmin, buscar por idProfesor
+          if (notebooksSnapshot.empty && materiaData.idProfesor) {
+            console.log('⚠️ No se encontraron cuadernos con idAdmin, buscando por idProfesor...');
+            notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', '==', currentMateriaId),
+              where('idProfesor', '==', materiaData.idProfesor)
+            );
+            notebooksSnapshot = await getDocs(notebooksQuery);
           }
           
-          console.log('📋 Notebooks finales cargados:', notebooksData);
-          setNotebooks(notebooksData);
-          } else {
-            console.log('❌ No hay idCuadernos en userProfile:', userProfile);
+          // Si aún no encuentra, buscar solo por idMateria (última opción)
+          if (notebooksSnapshot.empty) {
+            console.log('⚠️ No se encontraron cuadernos con idAdmin o idProfesor, buscando solo por idMateria...');
+            notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('idMateria', '==', currentMateriaId)
+            );
+            notebooksSnapshot = await getDocs(notebooksQuery);
           }
+          const notebooksData: SchoolNotebook[] = [];
+          
+          console.log(`📚 Encontrados ${notebooksSnapshot.size} cuadernos del profesor`);
+          
+          for (const notebookDoc of notebooksSnapshot.docs) {
+            const data = notebookDoc.data();
+            console.log('📚 === NOTEBOOK DEL PROFESOR ===');
+            console.log('  - ID del notebook:', notebookDoc.id);
+            console.log('  - Título:', data.title);
+            console.log('  - idMateria:', data.idMateria);
+            console.log('  - idAdmin:', data.idAdmin);
+            
+            // Calcular el progreso de dominio para cada notebook
+            const domainProgress = await getDomainProgressForNotebook(notebookDoc.id);
+            console.log('📊 Progreso de dominio calculado para', data.title, ':', domainProgress);
+            
+            // Cargar el conteo real de conceptos desde la colección schoolConcepts
+            let actualConceptCount = 0;
+            try {
+              const conceptsQuery = query(
+                collection(db, 'schoolConcepts'),
+                where('notebookId', '==', notebookDoc.id)
+              );
+              const conceptsSnapshot = await getDocs(conceptsQuery);
+              actualConceptCount = conceptsSnapshot.size;
+              console.log(`📝 Conteo real de conceptos para ${data.title}: ${actualConceptCount}`);
+            } catch (error) {
+              console.error('Error contando conceptos:', error);
+              actualConceptCount = data.conceptCount || 0;
+            }
+            
+            notebooksData.push({
+              id: notebookDoc.id,
+              title: data.title || data.titulo || 'Sin título',
+              descripcion: data.descripcion,
+              color: data.color || '#6147FF',
+              idMateria: data.idMateria,
+              userId: data.userId,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+              conceptCount: actualConceptCount,
+              isFrozen: data.isFrozen,
+              frozenScore: data.frozenScore,
+              frozenAt: data.frozenAt,
+              domainProgress: domainProgress
+            });
+          }
+          
+          console.log('📋 Notebooks del profesor cargados:', notebooksData);
+          setNotebooks(notebooksData);
         } else {
           console.error('Materia no encontrada:', decodedMateriaName);
           return;
