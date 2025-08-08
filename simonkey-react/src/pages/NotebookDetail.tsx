@@ -1142,67 +1142,62 @@ const NotebookDetail = () => {
                   onClick={() => {
                     // Si es profesor escolar, ir a su página de notebooks
                     if (isSchoolTeacher) {
-                      // Verificar si estamos en una ruta de profesor
                       const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
                       if (teacherMateriaMatch) {
                         const materiaId = teacherMateriaMatch[1];
                         navigate(`/school/teacher/materias/${materiaId}/notebooks`);
                       } else {
-                        // Si no hay materiaId, ir a la página principal del profesor
                         navigate('/school/teacher');
                       }
                       return;
                     }
 
-                    // Si es estudiante escolar, verificar si viene de una materia escolar
+                    // Si es estudiante escolar
                     if (isSchoolStudent) {
-                      console.log('🔄 Estudiante escolar intentando volver...');
+                      console.log('🎓 Estudiante escolar - intentando volver a materia...');
                       
-                      // Buscar información guardada de la materia anterior
                       try {
                         const previousMateriaStr = sessionStorage.getItem('schoolStudent_previousMateria');
-                        console.log('📦 Información guardada en sessionStorage:', previousMateriaStr);
+                        console.log('📦 SessionStorage data:', previousMateriaStr);
                         
                         if (previousMateriaStr) {
                           const previousMateria = JSON.parse(previousMateriaStr);
-                          console.log('📋 Datos parseados de materia anterior:', previousMateria);
+                          console.log('📋 Parsed materia data:', previousMateria);
                           
-                          // Verificar que la información no sea muy antigua (30 minutos)
                           const isRecent = (Date.now() - previousMateria.timestamp) < 30 * 60 * 1000;
-                          console.log('⏰ ¿Información reciente?', isRecent, 'Edad:', Math.round((Date.now() - previousMateria.timestamp) / 1000 / 60), 'minutos');
+                          const ageMinutes = Math.round((Date.now() - previousMateria.timestamp) / 1000 / 60);
+                          console.log(`⏰ Data age: ${ageMinutes} minutes, isRecent: ${isRecent}`);
                           
                           if (isRecent && previousMateria.materiaName) {
                             const targetUrl = `/school/student/materia/${previousMateria.materiaName}`;
-                            console.log('🎯 Navegando de vuelta a:', targetUrl, 'Materia:', previousMateria.materiaDisplayName);
+                            console.log('✅ Navigating back to:', targetUrl);
                             navigate(targetUrl);
                             return;
                           } else {
-                            console.warn('⚠️ Información de materia expirada o incompleta');
+                            console.log('⚠️ Data expired or incomplete');
                           }
                         } else {
-                          console.warn('⚠️ No hay información de materia guardada en sessionStorage');
+                          console.log('⚠️ No saved materia data found');
                         }
                       } catch (error) {
-                        console.error('❌ Error recuperando materia anterior:', error);
+                        console.error('❌ Error retrieving materia:', error);
                       }
                       
-                      // Si no hay información guardada o es muy antigua, ir a materias generales
-                      console.log('🏠 Navegando a materias generales como fallback');
+                      console.log('🏠 Fallback: navigating to /materias');
                       navigate('/materias');
                       return;
                     }
                     
-                    // Para usuarios regulares, verificar si vienen de una materia
+                    // Para usuarios regulares
                     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
                     if (materiaMatch) {
                       const urlMateriaId = materiaMatch[1];
                       navigate(`/materias/${urlMateriaId}/notebooks`);
                     } else {
-                      // Si no hay materiaId en la URL, ir a /notebooks
                       navigate('/notebooks');
                     }
                   }}
-                  title="Volver a cuadernos"
+                  title={isSchoolStudent ? "Volver a la materia" : "Volver a cuadernos"}
                 >
                   <i className="fas fa-arrow-left"></i>
                 </button>

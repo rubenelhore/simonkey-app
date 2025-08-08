@@ -221,7 +221,18 @@ const SchoolStudentMateriaPage: React.FC = () => {
         timestamp: Date.now()
       };
       sessionStorage.setItem('schoolStudent_previousMateria', JSON.stringify(materiaInfo));
-      console.log('💾 Guardando información de materia para navegación:', materiaInfo);
+      console.log('💾 GUARDANDO información de materia para navegación:');
+      console.log('  - materiaName:', materiaName);
+      console.log('  - materiaDisplayName:', materia.nombre);
+      console.log('  - materiaId:', materiaId);
+      console.log('  - timestamp:', new Date(Date.now()).toLocaleString());
+      console.log('  - Datos completos:', materiaInfo);
+      
+      // Verificar que se guardó correctamente
+      const saved = sessionStorage.getItem('schoolStudent_previousMateria');
+      console.log('✅ VERIFICACIÓN - Datos guardados en sessionStorage:', saved);
+    } else {
+      console.error('❌ ERROR: No se puede guardar - materiaName:', materiaName, 'materia:', materia);
     }
     navigate(`/school/notebooks/${notebookId}`);
   };
