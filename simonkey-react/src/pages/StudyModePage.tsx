@@ -572,13 +572,39 @@ const StudyModePage = () => {
         }
       }
       
+      // Verificar límite de estudio inteligente además de conceptos disponibles
+      let canStudyToday = true;
+      let studyLimitReason = '';
+      
+      if (notebookLimitsDoc.exists()) {
+        const limits = notebookLimitsDoc.data();
+        if (limits.lastSmartStudyDate) {
+          const lastSmartStudyDate = limits.lastSmartStudyDate.toDate ? 
+            limits.lastSmartStudyDate.toDate() : 
+            new Date(limits.lastSmartStudyDate);
+          
+          const today = new Date();
+          const lastStudy = new Date(lastSmartStudyDate);
+          
+          today.setHours(0, 0, 0, 0);
+          lastStudy.setHours(0, 0, 0, 0);
+          
+          if (today.getTime() === lastStudy.getTime()) {
+            canStudyToday = false;
+            studyLimitReason = 'Ya usado hoy';
+            console.log('❌ Estudio inteligente ya usado hoy para este cuaderno');
+          }
+        }
+      }
+      
       // Actualizar disponibilidad de estudio con más contexto
       setStudyAvailability({
-        available: reviewableConceptsCount > 0,
-        nextAvailable: nextAvailableDate,
+        available: reviewableConceptsCount > 0 && canStudyToday,
+        nextAvailable: canStudyToday ? nextAvailableDate : new Date(new Date().setDate(new Date().getDate() + 1)),
         conceptsCount: reviewableConceptsCount,
         totalConcepts: allConceptsCount,
-        hasStudiedConcepts
+        hasStudiedConcepts,
+        limitReason: studyLimitReason
       } as any);
       
       // Check quiz availability from limits
@@ -616,7 +642,7 @@ const StudyModePage = () => {
         quizStatsDoc,
         notebookPoints,
         userStreak,
-        smartStudyCount,
+        smartStudySessions,
         freeStudyCount
       ] = await Promise.all([
         // Quiz stats
@@ -625,8 +651,8 @@ const StudyModePage = () => {
         gamePointsService.getNotebookPoints(effectiveUserId, notebook.id).catch(() => ({ totalPoints: 0 })),
         // Streak data
         studyStreakService.getUserStreak(effectiveUserId).catch(() => ({ currentStreak: 0 })),
-        // Study sessions - OPTIMIZADO: solo contar, no traer todos los docs
-        getCountFromQuery(query(
+        // Study sessions - Obtener para calcular puntos por intensidad
+        getDocs(query(
           collection(db, 'studySessions'),
           where('userId', '==', effectiveUserId),
           where('notebookId', '==', notebook.id),
@@ -652,12 +678,34 @@ const StudyModePage = () => {
       const gamePointsValue = notebookPoints.totalPoints || 0;
       setGamePoints(gamePointsValue);
       
-      setSmartStudyCount(smartStudyCount);
+      // Calcular puntos de estudio inteligente basados en intensidad
+      // warm_up = 0.5, progress = 1.0, rocket = 2.0
+      let smartStudyPoints = 0;
+      smartStudySessions.forEach((doc) => {
+        const sessionData = doc.data();
+        const intensity = sessionData.intensity || 'warm_up';
+        
+        switch(intensity) {
+          case 'warm_up':
+            smartStudyPoints += 0.5;
+            break;
+          case 'progress':
+            smartStudyPoints += 1.0;
+            break;
+          case 'rocket':
+            smartStudyPoints += 2.0;
+            break;
+          default:
+            smartStudyPoints += 0.5; // Por defecto warm_up
+        }
+      });
+      
+      setSmartStudyCount(smartStudyPoints);
       setFreeStudyCount(freeStudyCount);
       
       // Calculate final score
       const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
-      const studyScore = smartStudyCount * maxQuizScoreValue;
+      const studyScore = smartStudyPoints * maxQuizScoreValue;
       const totalScore = studyScore + gamePointsValue + streakBonus;
       
       setNotebookScore({
@@ -1141,6 +1189,10 @@ const StudyModePage = () => {
               ) : (
                 <p className="function-status unavailable">
                   {(() => {
+                    // Si se alcanzó el límite diario
+                    if ((studyAvailability as any).limitReason === 'Ya usado hoy') {
+                      return 'Disponible mañana';
+                    }
                     // Si el cuaderno está vacío
                     if (!studyAvailability.totalConcepts || studyAvailability.totalConcepts === 0) {
                       return 'Agrega conceptos al cuaderno';

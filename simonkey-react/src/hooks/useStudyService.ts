@@ -144,14 +144,12 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
             throw new Error('Ya has usado tu sesión de estudio libre hoy');
           }
         } else if (mode === StudyMode.SMART) {
-          // TEMPORALMENTE DESACTIVADO PARA TESTING
-          /*
+          // Verificar límite de estudio inteligente (1 por día)
           const canStudy = await checkSmartStudyLimit(effectiveUserId, notebookId);
           if (!canStudy) {
             throw new Error('Ya has usado tu sesión de estudio inteligente hoy para este cuaderno');
           }
-          */
-          console.log('🧪 [TESTING] Validación de límite de estudio inteligente temporalmente desactivada');
+          console.log('✅ Límite de estudio inteligente verificado - disponible');
         }
         
         const sessionData = {
@@ -237,11 +235,6 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   const checkSmartStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
       try {
-        // TEMPORALMENTE DESACTIVADO PARA TESTING - SIEMPRE RETORNA TRUE
-        console.log('🧪 [TESTING] checkSmartStudyLimit desactivado - retornando true');
-        return true;
-        
-        /* CÓDIGO ORIGINAL COMENTADO
         // Obtener el ID efectivo del usuario
         const effectiveUserId = await getEffectiveUserIdForService(userId);
         console.log('🔍 checkSmartStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
@@ -301,7 +294,6 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         });
         
         return isAvailable;
-        */
       } catch (err) {
         console.error('Error checking smart study limit:', err);
         return true; // En caso de error, permitir estudio
