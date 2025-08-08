@@ -47,7 +47,7 @@ const NotebookDetail = () => {
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
-  const [loadingConceptos, setLoadingConceptos] = useState<boolean>(false);
+  const [loadingConceptos, setLoadingConceptos] = useState<boolean>(true);
   const [cargando, setCargando] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>("Cargando...");
   const [nuevoConcepto, setNuevoConcepto] = useState<Concept>({
@@ -112,25 +112,21 @@ const NotebookDetail = () => {
 
       try {
         const decodedName = decodeNotebookName(notebookName);
-        // console.log('Buscando cuaderno con nombre o ID:', decodedName);
 
         // Use the correct collection for school users
         const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isSchoolTeacher) ? 'schoolNotebooks' : 'notebooks';
         
         // Primero intentar buscar por ID si parece ser un ID de Firebase (20 caracteres alfanuméricos)
         if (decodedName.match(/^[a-zA-Z0-9]{20}$/)) {
-          console.log('Buscando cuaderno por ID:', decodedName);
           const notebookDoc = await getDoc(doc(db, notebooksCollection, decodedName));
           
           if (notebookDoc.exists()) {
             setNotebookId(decodedName);
-            console.log('Cuaderno encontrado por ID:', decodedName);
             return;
           }
         }
         
         // Si no se encontró por ID o no parece ser un ID, buscar por título
-        console.log('Buscando cuaderno por título:', decodedName);
         const notebooksQuery = query(
           collection(db, notebooksCollection),
           where('title', '==', decodedName)
@@ -140,7 +136,6 @@ const NotebookDetail = () => {
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
           setNotebookId(doc.id);
-          console.log('Cuaderno encontrado por título:', doc.id);
         } else {
           console.error('No se encontró el cuaderno:', decodedName);
         }
@@ -166,19 +161,32 @@ const NotebookDetail = () => {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+    
     const fetchData = async () => {
-      if (!notebookId) return;
+      if (!notebookId) {
+        if (!isCancelled) setLoadingConceptos(false);
+        return;
+      }
       
       // Check authentication
       if (!auth.currentUser) {
         console.error("User not authenticated");
-        navigate('/login');
+        if (!isCancelled) {
+          setLoadingConceptos(false);
+          navigate('/login');
+        }
         return;
       }
+      
+      // Set loading state at the beginning
+      if (!isCancelled) setLoadingConceptos(true);
       
       try {
         // Fetch notebook using unified service
         const notebook = await UnifiedNotebookService.getNotebook(notebookId);
+        
+        if (isCancelled) return;
         
         if (notebook) {
           setCuaderno(notebook);
@@ -188,12 +196,14 @@ const NotebookDetail = () => {
           }
         } else {
           console.error("No such notebook!");
-          navigate('/notebooks');
+          if (!isCancelled) {
+            setLoadingConceptos(false);
+            navigate('/notebooks');
+          }
           return;
         }
         
         // Fetch concept documents for this notebook
-        // Determine concepts collection based on notebook type
         const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
         const q = query(
           collection(db, conceptsCollection),
@@ -202,16 +212,18 @@ const NotebookDetail = () => {
         
         try {
           const querySnapshot = await getDocs(q);
+          
+          if (isCancelled) return;
+          
           const conceptosData = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           })) as ConceptDoc[];
           
           setConceptosDocs(conceptosData);
-          // console.log('✅ Conceptos cargados exitosamente:', conceptosData.length);
           
           // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
-          if (auth.currentUser && conceptosData.length > 0) {
+          if (auth.currentUser && conceptosData.length > 0 && !isCancelled) {
             // No bloquear la carga de conceptos, hacer esto en background
             (async () => {
               const learningMap = new Map<string, number>();
@@ -236,12 +248,14 @@ const NotebookDetail = () => {
                 });
                 
                 const learningResults = await Promise.all(learningPromises);
-                learningResults.forEach(({ conceptId, repetitions }) => {
-                  learningMap.set(conceptId, repetitions);
-                });
                 
-                setLearningDataMap(learningMap);
-                // console.log('🚦 Datos de aprendizaje cargados para semáforo');
+                if (!isCancelled) {
+                  learningResults.forEach(({ conceptId, repetitions }) => {
+                    learningMap.set(conceptId, repetitions);
+                  });
+                  
+                  setLearningDataMap(learningMap);
+                }
               } catch (error) {
                 console.warn('⚠️ Error cargando datos de aprendizaje:', error);
               }
@@ -249,34 +263,40 @@ const NotebookDetail = () => {
           }
         } catch (conceptsError: any) {
           console.warn('⚠️ Error cargando conceptos (continuando sin conceptos):', conceptsError.message);
-          // No fallar completamente, solo mostrar un warning
-          setConceptosDocs([]);
+          if (!isCancelled) setConceptosDocs([]);
         }
         
         // Cargar materiales del notebook con timeout
         try {
-          setLoadingMaterials(true);
-          // Timeout para evitar loading infinito
+          if (!isCancelled) setLoadingMaterials(true);
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('Timeout')), 3000);
           });
           
           const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
           const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
-          setMaterials(notebookMaterials as Material[]);
-          // console.log('📚 Materiales cargados:', (notebookMaterials as Material[]).length);
+          
+          if (!isCancelled) setMaterials(notebookMaterials as Material[]);
         } catch (materialsError) {
           console.warn('⚠️ Error cargando materiales:', materialsError);
-          setMaterials([]);
+          if (!isCancelled) setMaterials([]);
         } finally {
-          setLoadingMaterials(false);
+          if (!isCancelled) setLoadingMaterials(false);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
+      } finally {
+        // Always set loading to false at the end
+        if (!isCancelled) setLoadingConceptos(false);
       }
     };
     
     fetchData();
+    
+    // Cleanup function to cancel async operations
+    return () => {
+      isCancelled = true;
+    };
   }, [notebookId, navigate, isSchoolStudent, isSchoolAdmin]);
 
   useEffect(() => {
@@ -1386,7 +1406,23 @@ const NotebookDetail = () => {
                   </div>
                 )}
               </div>
-            ) : conceptosDocs.length === 0 && !loadingConceptos ? (
+            ) : loadingConceptos ? (
+              <div className="loading-concepts-spinner" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '3rem',
+                color: '#6b7280'
+              }}>
+                <i className="fas fa-spinner fa-spin" style={{ 
+                  fontSize: '2rem', 
+                  color: '#6147FF',
+                  marginBottom: '1rem'
+                }}></i>
+                <p>Cargando conceptos...</p>
+              </div>
+            ) : conceptosDocs.length === 0 ? (
               <div className="empty-state-concepts-new">
                 <div className="empty-concepts-icon">
                   <i className="fas fa-file-alt" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
