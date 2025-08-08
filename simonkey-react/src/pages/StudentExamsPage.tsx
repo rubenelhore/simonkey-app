@@ -375,7 +375,7 @@ const StudentExamsPage: React.FC = () => {
             <div className="empty-state-tips">
               <div className="tip-card">
                 <i className="fas fa-lightbulb"></i>
-                <span>Tip: Revisa regularmente esta sección para no perderte ningún examen</span>
+                <span>Tip: Revisa regularmente esta sección para no perderte ningún examen (No te preocupes nosotros te avisaremos)</span>
               </div>
             </div>
           </div>
