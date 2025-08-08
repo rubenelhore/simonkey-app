@@ -37,14 +37,23 @@ const Materias: React.FC = () => {
   console.log('🎯 MATERIAS COMPONENT MOUNTED - TEACHER VERSION');
   
   const { user, userProfile, loading: authLoading } = useAuth();
+  const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   const [materias, setMaterias] = useState<Materia[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Inicializar loading basado en el tipo de usuario
+  const [loading, setLoading] = useState(() => {
+    // Para profesores escolares, empezar con true ya que cargaremos sus materias
+    if (isSchoolTeacher) return true;
+    // Para otros usuarios también empezar con true
+    return true;
+  });
+  
+  // Log inmediato del estado de loading
+  console.log('📌 Loading state actual:', loading);
   const [error, setError] = useState<Error | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
-  const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   const { migrationStatus, migrationMessage } = useAutoMigration();
   const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
   
@@ -102,8 +111,14 @@ const Materias: React.FC = () => {
         // Para estudiantes escolares, no cargar materias regulares
         return;
       }
+      if (isSchoolTeacher) {
+        console.log('  ❌ Es profesor escolar, saliendo (las materias se cargan desde schoolSubjects)');
+        // Para profesores escolares, las materias se cargan desde otro lugar
+        // No establecer loading aquí porque se maneja en el efecto específico del profesor
+        return;
+      }
       
-      console.log('  ✅ Cargando materias para profesor/usuario regular');
+      console.log('  ✅ Cargando materias para usuario regular (no escolar)');
       setLoading(true);
       try {
         // Cargar materias y notebooks en paralelo
@@ -162,7 +177,7 @@ const Materias: React.FC = () => {
       }
     };
     loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent]);
+  }, [user, refreshTrigger, isSchoolStudent, isSchoolTeacher]);
 
   // Log para debugging
   console.log('🔍 Materias - Estado actual del componente:', {
@@ -263,6 +278,71 @@ const Materias: React.FC = () => {
       }
     }
   }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user, userProfile]);
+
+  // Efecto específico para profesores escolares
+  useEffect(() => {
+    const loadTeacherMaterias = async () => {
+      if (!isSchoolTeacher || !user || !userProfile) return;
+      
+      console.log('👨‍🏫 Cargando materias para profesor escolar');
+      setLoading(true);
+      
+      try {
+        // Cargar materias asignadas al profesor
+        const materiasQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('idProfesor', '==', user.uid)
+        );
+        
+        const materiasSnapshot = await getDocs(materiasQuery);
+        
+        // Cargar notebooks para contar cuántos hay por materia
+        const notebooksQuery = query(
+          collection(db, 'schoolNotebooks'),
+          where('idProfesor', '==', user.uid)
+        );
+        
+        const notebooksSnapshot = await getDocs(notebooksQuery);
+        
+        // Crear mapa de conteo de notebooks
+        const notebookCountMap: Record<string, number> = {};
+        notebooksSnapshot.docs.forEach(doc => {
+          const idMateria = doc.data().idMateria;
+          if (idMateria) {
+            notebookCountMap[idMateria] = (notebookCountMap[idMateria] || 0) + 1;
+          }
+        });
+        
+        // Construir las materias del profesor
+        const teacherMaterias: Materia[] = materiasSnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            title: data.nombre,
+            color: data.color || '#6147FF',
+            category: '',
+            userId: user.uid,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            notebookCount: notebookCountMap[docSnap.id] || 0
+          };
+        });
+        
+        console.log('👨‍🏫 Materias del profesor cargadas:', teacherMaterias.length);
+        setMaterias(teacherMaterias);
+        setError(null);
+        console.log('👨‍🏫 About to set loading to false');
+        setLoading(false);
+        console.log('👨‍🏫 Loading should now be false');
+      } catch (error) {
+        console.error('Error loading teacher materias:', error);
+        setError(error as Error);
+        setLoading(false);
+      }
+    };
+    
+    loadTeacherMaterias();
+  }, [isSchoolTeacher, user, userProfile, refreshTrigger]);
 
   // Cargar datos del usuario
   useEffect(() => {

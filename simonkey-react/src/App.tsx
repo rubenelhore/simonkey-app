@@ -59,6 +59,7 @@ import AboutSimonkeyInline from './components/AboutSimonkeyInline';
 // Importaciones para el sistema escolar
 import SchoolTeacherNotebooksPage from './pages/SchoolTeacherNotebooksPage';
 import SchoolTeacherMateriasPage from './pages/SchoolTeacherMateriasPage';
+import TeacherMateriasPage from './pages/TeacherMateriasPage';
 import SchoolTeacherMateriaNotebooksPage from './pages/SchoolTeacherMateriaNotebooksPage';
 import TeacherMateriaRedirect from './components/TeacherMateriaRedirect';
 import SchoolTeacherAnalyticsPage from './pages/SchoolTeacherAnalyticsPage';
@@ -816,7 +817,21 @@ const AppContent: React.FC = () => {
           />
           <Route
             path="/school/teacher"
-            element={<Navigate to="/materias" replace />}
+            element={<Navigate to="/teacher/materias" replace />}
+          />
+          <Route
+            path="/teacher/materias"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <TeacherMateriasPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
           />
           <Route
             path="/school/teacher/exams"

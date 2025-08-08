@@ -108,7 +108,13 @@ const SchoolTeacherMateriasPage: React.FC = () => {
   }, [user, userProfile, isSchoolAdmin]);
 
   const handleViewMateria = (materiaId: string) => {
-    navigate(`/school/teacher/materias/${materiaId}/notebooks`);
+    // Encontrar la materia por ID para obtener su nombre
+    const materia = materias.find(m => m.id === materiaId);
+    if (materia) {
+      // Navegar directamente a la ruta de notebooks con el nombre de la materia
+      const encodedName = encodeURIComponent(materia.nombre);
+      navigate(`/materias/${encodedName}/notebooks`);
+    }
   };
 
   const handleToggleActions = (materiaId: string) => {

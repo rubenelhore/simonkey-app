@@ -45,10 +45,10 @@ const TeacherMobileNavigation = () => {
       </NavLink>
       
       <NavLink 
-        to="/materias" 
+        to="/teacher/materias" 
         className={({ isActive }) => {
-          // Considera activo si estamos en /materias o en subrutas de materias
-          const isMateriasRoute = location.pathname === '/materias' || 
+          // Considera activo si estamos en /teacher/materias o en subrutas de materias
+          const isMateriasRoute = location.pathname === '/teacher/materias' || 
                                  location.pathname.includes('/materias/');
           return isMateriasRoute && !location.pathname.includes('/analytics') ? "nav-item active" : "nav-item";
         }}
