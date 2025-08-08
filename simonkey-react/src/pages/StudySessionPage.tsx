@@ -516,7 +516,9 @@ const StudySessionPage = () => {
       );
       
       // Update SM-3 for smart study only
-      if (studyMode === StudyMode.SMART) {
+      // No actualizar si ya se actualizó en el mini quiz (cuando miniQuizPassed es true)
+      if (studyMode === StudyMode.SMART && !miniQuizPassed) {
+        console.log('[STUDY] Actualizando SM-3 al completar sesión (no hubo mini quiz exitoso)');
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         
@@ -592,6 +594,17 @@ const StudySessionPage = () => {
       const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
       if (passed) {
+        // Actualizar SM-3 para todos los conceptos estudiados cuando se pasa el mini quiz
+        console.log('[STUDY] Actualizando SM-3 para conceptos estudiados después de pasar mini quiz');
+        for (const [conceptId, quality] of conceptFinalResults) {
+          try {
+            console.log(`[STUDY] Actualizando concepto ${conceptId} con calidad ${quality}`);
+            await studyService.updateConceptResponse(userKey, conceptId, quality);
+          } catch (error) {
+            console.error(`Error updating SM-3 for concept ${conceptId}:`, error);
+          }
+        }
+        
         await studyService.updateSmartStudyUsage(userKey, notebookId, true);
         setStudySessionValidated(true);
         await studyService.markStudySessionAsValidated(sessionId);
