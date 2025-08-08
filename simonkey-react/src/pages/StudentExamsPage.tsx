@@ -350,7 +350,7 @@ const StudentExamsPage: React.FC = () => {
               {filter === 'all' 
                 ? 'Cuando tu profesor asigne nuevos exámenes, aparecerán aquí. Mientras tanto, puedes seguir estudiando en tus cuadernos.'
                 : filter === 'available'
-                ? 'Todos los exámenes disponibles han sido completados o aún no han sido asignados.'
+                ? 'No tienes exámenes pendientes por realizar en este momento. Los nuevos exámenes aparecerán aquí cuando tu profesor los publique.'
                 : 'Aún no tienes exámenes completados. Una vez que realices tu primer examen, aparecerá aquí con tu calificación y podrás revisar tus resultados.'}
             </p>
             <div className="empty-state-actions">
