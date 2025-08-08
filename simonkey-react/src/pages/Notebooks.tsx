@@ -327,29 +327,22 @@ const Notebooks: React.FC = () => {
   }
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
-  // TEMPORAL: Para estudiantes escolares NO filtrar, mostrar todos sus cuadernos
-  // porque hay un problema con múltiples materias "Biología" con diferentes IDs
-  // Los profesores escolares tampoco necesitan filtrado porque ya vienen filtrados del servicio
-  if (materiaId && !isSchoolAdmin && !isSchoolTeacher && !isSchoolStudent) {
-    console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA (solo usuarios free/pro)');
+  // Los profesores escolares no necesitan filtrado porque ya vienen filtrados del servicio
+  if (materiaId && !isSchoolAdmin && !isSchoolTeacher) {
+    console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA');
     console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
     console.log('  - materiaId buscado:', materiaId);
     console.log('  - isSchoolStudent:', isSchoolStudent);
-    console.log('  - isSchoolTeacher:', isSchoolTeacher);
     
     effectiveNotebooks = effectiveNotebooks.filter(notebook => {
-      // Para usuarios regulares es 'materiaId'
-      const notebookMateriaId = notebook.materiaId;
-      console.log(`  - Notebook ${notebook.id}: materiaId=${notebook.materiaId}, notebookMateriaId=${notebookMateriaId}`);
+      // Para estudiantes escolares el campo es 'idMateria', para usuarios regulares es 'materiaId'
+      const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
+      console.log(`  - Notebook ${notebook.id}: campo=${isSchoolStudent ? 'idMateria' : 'materiaId'}=${notebookMateriaId}, buscado=${materiaId}`);
       return notebookMateriaId === materiaId;
     });
     
     console.log('  - Notebooks después de filtrar:', effectiveNotebooks.length);
-  } else if (isSchoolStudent && materiaId) {
-    console.log('📚 ESTUDIANTE ESCOLAR: Mostrando TODOS sus cuadernos sin filtrar por materia');
-    console.log('  - Total cuadernos del estudiante:', effectiveNotebooks.length);
-    console.log('  - Razón: Problema temporal con IDs de materias duplicadas');
-    // NO filtrar para estudiantes escolares
+    console.log('  - Notebooks filtrados:', effectiveNotebooks.map(n => ({ id: n.id, title: n.title, idMateria: n.idMateria })));
   }
 
   // Ahora sí, calcula el domainProgress para todos los cuadernos
@@ -779,6 +772,19 @@ const Notebooks: React.FC = () => {
           }}>
             <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
             <span>Como administrador, tienes acceso de solo lectura a los cuadernos y conceptos.</span>
+          </div>
+        )}
+        {isSchoolStudent && effectiveNotebooks.length > 0 && (
+          <div className="student-info-message" style={{
+            background: '#e8f5e9',
+            border: '1px solid #4caf50',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            color: '#2e7d32'
+          }}>
+            <i className="fas fa-book-reader" style={{ marginRight: '0.5rem', color: '#4caf50' }}></i>
+            <span>Estos son los cuadernos de tu profesor para esta materia. Puedes ver y estudiar los conceptos.</span>
           </div>
         )}
         <div className="notebooks-list-section notebooks-list-section-full">
