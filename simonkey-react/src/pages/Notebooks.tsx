@@ -6,7 +6,7 @@ import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import { decodeMateriaName } from '../utils/urlUtils';
 import StreakTracker from '../components/StreakTracker';
@@ -96,6 +96,7 @@ const Notebooks: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
+  const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
 
   // Effect to find materiaId by materiaName
   useEffect(() => {
@@ -111,16 +112,60 @@ const Notebooks: React.FC = () => {
 
         if (isSchoolAdmin || isSchoolTeacher) {
           // For school admins and teachers, search in schoolSubjects
-          const schoolSubjectsQuery = query(
-            collection(db, 'schoolSubjects'),
-            where('nombre', '==', decodedName)
-          );
-          const querySnapshot = await getDocs(schoolSubjectsQuery);
+          // Get ALL subjects with this name that belong to the teacher
+          let allMateriaIds: string[] = [];
           
-          if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
-            setMateriaId(doc.id);
-            console.log('Materia escolar encontrada:', doc.id);
+          if (isSchoolTeacher && userProfile?.id) {
+            // For teachers, find all subjects with this name where they are the teacher
+            const teacherDocId = userProfile.id;
+            const teacherUid = user?.uid;
+            
+            // Query by teacher document ID
+            if (teacherDocId) {
+              const query1 = query(
+                collection(db, 'schoolSubjects'),
+                where('nombre', '==', decodedName),
+                where('idProfesor', '==', teacherDocId)
+              );
+              const snapshot1 = await getDocs(query1);
+              snapshot1.docs.forEach(doc => {
+                if (!allMateriaIds.includes(doc.id)) {
+                  allMateriaIds.push(doc.id);
+                }
+              });
+            }
+            
+            // Query by teacher UID
+            if (teacherUid && teacherUid !== teacherDocId) {
+              const query2 = query(
+                collection(db, 'schoolSubjects'),
+                where('nombre', '==', decodedName),
+                where('idProfesor', '==', teacherUid)
+              );
+              const snapshot2 = await getDocs(query2);
+              snapshot2.docs.forEach(doc => {
+                if (!allMateriaIds.includes(doc.id)) {
+                  allMateriaIds.push(doc.id);
+                }
+              });
+            }
+            
+            console.log(`Encontradas ${allMateriaIds.length} materias con nombre "${decodedName}" para el profesor`);
+            console.log('IDs de materias:', allMateriaIds);
+          } else {
+            // For admins, get all subjects with this name in their school
+            const schoolSubjectsQuery = query(
+              collection(db, 'schoolSubjects'),
+              where('nombre', '==', decodedName)
+            );
+            const querySnapshot = await getDocs(schoolSubjectsQuery);
+            allMateriaIds = querySnapshot.docs.map(doc => doc.id);
+          }
+          
+          if (allMateriaIds.length > 0) {
+            // Store all materia IDs for teachers to load notebooks from all of them
+            setMateriaId(allMateriaIds.join(','));
+            console.log('Materias escolares encontradas:', allMateriaIds);
           } else {
             console.error('No se encontró la materia escolar:', decodedName);
           }
@@ -169,7 +214,15 @@ const Notebooks: React.FC = () => {
       try {
         // Si es admin escolar o profesor, buscar en schoolSubjects
         if (isSchoolAdmin || isSchoolTeacher) {
-          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          // Check if materiaId contains multiple IDs (comma-separated)
+          const materiaIds = materiaId.split(',');
+          if (materiaIds.length > 1) {
+            // Multiple materias with same name - just use the first one for display
+            console.log('Multiple materias detected, using first for display:', materiaIds[0]);
+          }
+          
+          const firstMateriaId = materiaIds[0];
+          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', firstMateriaId));
           if (materiaDoc.exists()) {
             const data = materiaDoc.data();
             setMateriaData({ 
@@ -199,10 +252,24 @@ const Notebooks: React.FC = () => {
     const loadAdminNotebooks = async () => {
       if ((!isSchoolAdmin && !isSchoolTeacher) || !materiaId) return;
       
+      console.log('📚 loadAdminNotebooks - Iniciando carga');
+      console.log('  - isSchoolAdmin:', isSchoolAdmin);
+      console.log('  - isSchoolTeacher:', isSchoolTeacher);
+      console.log('  - materiaId:', materiaId);
+      
       setAdminNotebooksLoading(true);
       try {
         // Usar el servicio unificado para obtener notebooks del profesor/materia
-        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
+        // Para profesores, pasar su ID para filtrar solo sus notebooks
+        const teacherId = isSchoolTeacher ? user?.uid : undefined;
+        
+        // Check if materiaId contains multiple IDs (comma-separated)
+        const materiaIds = materiaId.split(',').filter(id => id.trim());
+        console.log('  - Processing materia IDs:', materiaIds);
+        
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks(materiaIds, teacherId);
+        console.log('📚 Notebooks recibidos del servicio:', notebooksData.length);
+        console.log('  - Notebooks detalle:', notebooksData);
         
         // Contar conceptos para cada notebook
         for (const notebook of notebooksData) {
@@ -230,7 +297,7 @@ const Notebooks: React.FC = () => {
     };
     
     loadAdminNotebooks();
-  }, [isSchoolAdmin, isSchoolTeacher, materiaId]);
+  }, [isSchoolAdmin, isSchoolTeacher, materiaId, user, notebookRefreshTrigger]);
 
   useEffect(() => {
     if (user) {
@@ -287,6 +354,9 @@ const Notebooks: React.FC = () => {
   
   if (isSchoolAdmin || isSchoolTeacher) {
     // Para admin escolar y profesores, usar los notebooks cargados específicamente
+    console.log('👨‍🏫 PROFESOR/ADMIN ESCOLAR - Notebooks cargados:', adminNotebooks.length);
+    console.log('  - adminNotebooks:', adminNotebooks);
+    console.log('  - materiaId:', materiaId);
     effectiveNotebooks = adminNotebooks.map(notebook => ({
       ...notebook,
       userId: notebook.userId || '',
@@ -314,27 +384,22 @@ const Notebooks: React.FC = () => {
   }
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
-  // TEMPORAL: Para estudiantes escolares NO filtrar, mostrar todos sus cuadernos
-  // porque hay un problema con múltiples materias "Biología" con diferentes IDs
-  if (materiaId && !isSchoolAdmin && !isSchoolStudent) {
-    console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA (solo usuarios free/pro)');
+  // Los profesores escolares no necesitan filtrado porque ya vienen filtrados del servicio
+  if (materiaId && !isSchoolAdmin && !isSchoolTeacher) {
+    console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA');
     console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
     console.log('  - materiaId buscado:', materiaId);
     console.log('  - isSchoolStudent:', isSchoolStudent);
     
     effectiveNotebooks = effectiveNotebooks.filter(notebook => {
-      // Para usuarios regulares es 'materiaId'
-      const notebookMateriaId = notebook.materiaId;
-      console.log(`  - Notebook ${notebook.id}: materiaId=${notebook.materiaId}, notebookMateriaId=${notebookMateriaId}`);
+      // Para estudiantes escolares el campo es 'idMateria', para usuarios regulares es 'materiaId'
+      const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
+      console.log(`  - Notebook ${notebook.id}: campo=${isSchoolStudent ? 'idMateria' : 'materiaId'}=${notebookMateriaId}, buscado=${materiaId}`);
       return notebookMateriaId === materiaId;
     });
     
     console.log('  - Notebooks después de filtrar:', effectiveNotebooks.length);
-  } else if (isSchoolStudent && materiaId) {
-    console.log('📚 ESTUDIANTE ESCOLAR: Mostrando TODOS sus cuadernos sin filtrar por materia');
-    console.log('  - Total cuadernos del estudiante:', effectiveNotebooks.length);
-    console.log('  - Razón: Problema temporal con IDs de materias duplicadas');
-    // NO filtrar para estudiantes escolares
+    console.log('  - Notebooks filtrados:', effectiveNotebooks.map(n => ({ id: n.id, title: n.title, idMateria: n.idMateria })));
   }
 
   // Ahora sí, calcula el domainProgress para todos los cuadernos
@@ -367,20 +432,60 @@ const Notebooks: React.FC = () => {
   }, []);
 
   const handleCreate = async (title?: string, color?: string) => {
-    if (!user || !materiaId || !title || !color) return;
+    console.log('🎯 handleCreate llamado con:', { title, color, user: user?.uid, materiaId, isSchoolTeacher, isSchoolAdmin });
+    
+    if (!user || !materiaId || !title || !color) {
+      console.error('❌ Faltan parámetros requeridos:', { 
+        hasUser: !!user, 
+        hasMateriaId: !!materiaId, 
+        hasTitle: !!title, 
+        hasColor: !!color 
+      });
+      return;
+    }
     
     try {
       // Determinar si es un notebook escolar o regular
       if (isSchoolAdmin || isSchoolTeacher) {
         // Crear notebook escolar
-        await addDoc(collection(db, 'schoolNotebooks'), {
+        console.log('📝 Creando notebook escolar para profesor/admin');
+        console.log('  - materiaId:', materiaId);
+        console.log('  - userId:', user.uid);
+        
+        const newNotebook = {
           title,
           color,
           idMateria: materiaId,
+          idProfesor: user.uid, // Importante: agregar idProfesor para profesores
           userId: user.uid,
+          type: 'school', // Agregar type explícitamente
+          conceptCount: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
+        };
+        
+        console.log('📝 Datos del notebook a crear:', {
+          ...newNotebook,
+          createdAt: '[ServerTimestamp]',
+          updatedAt: '[ServerTimestamp]'
         });
+        
+        const docRef = await addDoc(collection(db, 'schoolNotebooks'), newNotebook);
+        console.log('✅ Notebook escolar creado con ID:', docRef.id);
+        
+        // Verificar que se creó correctamente
+        const verifyDoc = await getDoc(doc(db, 'schoolNotebooks', docRef.id));
+        if (verifyDoc.exists()) {
+          const data = verifyDoc.data();
+          console.log('✅ Verificación - Notebook creado con datos:', {
+            id: docRef.id,
+            idMateria: data.idMateria,
+            idProfesor: data.idProfesor,
+            title: data.title
+          });
+        } else {
+          console.error('❌ Error: El notebook no se encontró después de crearlo');
+        }
       } else {
         // Crear notebook regular
         await addDoc(collection(db, 'notebooks'), {
@@ -399,8 +504,24 @@ const Notebooks: React.FC = () => {
       
       // Recargar notebooks de admin/profesor si es necesario
       if (isSchoolAdmin || isSchoolTeacher) {
-        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
+        console.log('🔄 Recargando notebooks después de crear uno nuevo');
+        
+        // Pequeña espera para asegurar que Firestore indexe el documento
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const teacherId = isSchoolTeacher ? user.uid : undefined;
+        console.log('  - Buscando notebooks con teacherId:', teacherId);
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId], teacherId);
+        console.log('📚 Notebooks recargados:', notebooksData.length);
+        console.log('  - Detalle de notebooks:', notebooksData.map(n => ({ 
+          id: n.id, 
+          title: n.title, 
+          idProfesor: n.idProfesor 
+        })));
         setAdminNotebooks(notebooksData);
+        
+        // Trigger useEffect para recargar notebooks
+        setNotebookRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error("Error creating notebook:", error);
@@ -408,10 +529,47 @@ const Notebooks: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    console.log(`Notebook with id ${id} deleted successfully`);
-    // Forzar actualización de categorías
-    setRefreshTrigger(prev => prev + 1);
+  const handleDelete = async (id: string) => {
+    console.log(`🗑️ Intentando eliminar notebook con id ${id}`);
+    
+    try {
+      // Si es profesor o admin escolar, eliminar de schoolNotebooks
+      if (isSchoolAdmin || isSchoolTeacher) {
+        // Verificar que el notebook pertenece al profesor actual
+        const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', id));
+        
+        if (notebookDoc.exists()) {
+          const notebookData = notebookDoc.data();
+          
+          // Solo permitir eliminar si es el profesor dueño del notebook
+          if (notebookData.idProfesor === user?.uid || isSchoolAdmin) {
+            await deleteDoc(doc(db, 'schoolNotebooks', id));
+            console.log(`✅ Notebook escolar ${id} eliminado exitosamente`);
+            
+            // Recargar notebooks
+            const teacherId = isSchoolTeacher ? user?.uid : undefined;
+            const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId!], teacherId);
+            setAdminNotebooks(notebooksData);
+          } else {
+            console.error('❌ No tienes permisos para eliminar este notebook');
+            alert('No tienes permisos para eliminar este notebook');
+          }
+        } else {
+          console.error('❌ Notebook no encontrado');
+        }
+      } else {
+        // Para usuarios regulares, usar UnifiedNotebookService
+        await UnifiedNotebookService.deleteNotebook(id);
+        console.log(`✅ Notebook ${id} eliminado exitosamente`);
+      }
+      
+      // Forzar actualización de categorías y notebooks
+      setRefreshTrigger(prev => prev + 1);
+      setNotebookRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('❌ Error eliminando notebook:', error);
+      alert('Error al eliminar el cuaderno');
+    }
   };
 
   const handleEdit = async (id: string, newTitle: string) => {
@@ -673,6 +831,19 @@ const Notebooks: React.FC = () => {
             <span>Como administrador, tienes acceso de solo lectura a los cuadernos y conceptos.</span>
           </div>
         )}
+        {isSchoolStudent && effectiveNotebooks.length > 0 && (
+          <div className="student-info-message" style={{
+            background: '#e8f5e9',
+            border: '1px solid #4caf50',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            color: '#2e7d32'
+          }}>
+            <i className="fas fa-book-reader" style={{ marginRight: '0.5rem', color: '#4caf50' }}></i>
+            <span>Estos son los cuadernos de tu profesor para esta materia. Puedes ver y estudiar los conceptos.</span>
+          </div>
+        )}
         <div className="notebooks-list-section notebooks-list-section-full">
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
@@ -704,7 +875,7 @@ const Notebooks: React.FC = () => {
             onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
             onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
             showCreateButton={!isSchoolStudent}
-            isSchoolTeacher={false} // School students and admins should navigate to regular routes, not school routes
+            isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}
             onCloseCategoryModal={() => setShowCategoryModal(false)}
