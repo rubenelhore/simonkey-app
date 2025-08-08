@@ -7,7 +7,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { Notebook } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake } from '@fortawesome/free-solid-svg-icons';
+import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock } from '@fortawesome/free-solid-svg-icons';
 import { useUserType } from '../hooks/useUserType';
 import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
@@ -932,13 +932,8 @@ const StudyModePage = () => {
         });
         break;
       case 'exam':
-        navigate('/exam-test', { 
-          state: { 
-            notebookId: selectedNotebook.id,
-            notebookTitle: selectedNotebook.title
-          }
-        });
-        break;
+        // Módulo deshabilitado temporalmente
+        return;
     }
   };
 
@@ -999,7 +994,7 @@ const StudyModePage = () => {
 
         {/* Main Study Module */}
         <div className="main-study-module">
-          {/* Score Module on the Left */}
+          {/* Score Module */}
           <div className="study-score-module">
             <div className="study-score-header">
               <FontAwesomeIcon icon={faTrophy} className="study-score-icon" />
@@ -1073,20 +1068,14 @@ const StudyModePage = () => {
               })}
             </div>
           </div>
-          
-          {/* Motivational Message */}
-          <div className="motivational-message">
-            <h3>¡Es hora de estudiar y brillar! ✨</h3>
-          </div>
 
-          {/* Top Row: Dropdowns */}
+          {/* Study Module Header */}
           <div className="study-module-header">
-            {/* Materia & Notebook Dropdown */}
-            <div className="notebook-dropdown-container">
-              <div className="dropdown-instruction">
-                Elige el cuaderno para estudiar
-              </div>
-              <button 
+          <div className="notebook-dropdown-container">
+            <div className="dropdown-instruction">
+              Elige el cuaderno para estudiar
+            </div>
+            <button 
                 className={`notebook-dropdown-btn ${showNotebookError ? 'error' : ''}`}
                 onClick={() => setShowNotebookDropdown(!showNotebookDropdown)}
                 disabled={materias.length === 0}
@@ -1166,7 +1155,7 @@ const StudyModePage = () => {
 
           {/* Study Functions */}
           <div className="study-functions">
-            <div 
+          <div 
               className={`study-function-card ${!selectedNotebook || !studyAvailability.available ? 'disabled' : ''}`}
               onClick={() => handleStudyMode('smart')}
             >
@@ -1286,122 +1275,16 @@ const StudyModePage = () => {
             </div>
 
             <div 
-              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
-              onClick={() => handleStudyMode('exam')}
+              className="study-function-card disabled coming-soon"
             >
+              <div className="coming-soon-tag">
+                Próximamente
+              </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faMedal} />
               </div>
               <h3>Prueba de examen</h3>
-              {!selectedNotebook ? (
-                <p className="function-status">Selecciona un cuaderno</p>
-              ) : (
-                <>
-                  <p className="function-status available">Disponible</p>
-                  <button className="function-btn">
-                    <FontAwesomeIcon icon={faPlay} /> Iniciar
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Learning modules - Simplified without header */}
-        <div className="learning-space-section">
-          <div className="learning-modules-grid">
-            {/* Suggestions Section */}
-            <div className="learning-module">
-              <div className="section-header">
-                <FontAwesomeIcon icon={faLightbulb} />
-                <h4>Sugerencias de estudio</h4>
-              </div>
-              <div className="suggestions-list">
-                {suggestions.map((suggestion, index) => (
-                  <div key={index} className="suggestion-item">
-                    <FontAwesomeIcon icon={faStar} />
-                    <span>{suggestion}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Ranking Section */}
-            <div className="learning-module">
-              <div className="section-header">
-                <FontAwesomeIcon icon={faTrophy} />
-                <h4>Ranking del Cuaderno</h4>
-              </div>
-              
-              {!selectedNotebook ? (
-                <div className="ranking-empty-state">
-                  <p>Selecciona un cuaderno para ver el ranking</p>
-                </div>
-              ) : !isSchoolStudent ? (
-                <div className="ranking-empty-state">
-                  <p>El ranking está disponible solo para estudiantes escolares</p>
-                </div>
-              ) : rankingLoadError ? (
-                <div className="ranking-empty-state">
-                  <p>{rankingLoadError}</p>
-                </div>
-              ) : !notebookRanking ? (
-                <div className="ranking-loading">
-                  <p>Cargando ranking...</p>
-                </div>
-              ) : (
-                <div className="ranking-content">
-                  {/* Your position card */}
-                  <div className="your-position-card">
-                    <div className="position-badge">#{notebookRanking.userPosition}</div>
-                    <div className="position-info">
-                      <span className="position-label">Tu posición</span>
-                      <span className="position-score">{notebookRanking.userScore.toLocaleString()} pts</span>
-                      {notebookRanking.pointsToNext > 0 && (
-                        <span className="points-to-next">
-                          {notebookRanking.pointsToNext} pts para el siguiente
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Top 3 Podium */}
-                  <div className="ranking-podium">
-                    {notebookRanking.topUsers.slice(0, 3).map((user, index) => (
-                      <div 
-                        key={user.userId} 
-                        className={`podium-position position-${index + 1} ${user.isCurrentUser ? 'is-current-user' : ''}`}
-                      >
-                        <div className="podium-medal">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                        </div>
-                        <div className="podium-name">{user.displayName}</div>
-                        <div className="podium-score">{user.score.toLocaleString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Rest of top 10 */}
-                  {notebookRanking.topUsers.length > 3 && (
-                    <div className="ranking-list">
-                      {notebookRanking.topUsers.slice(3).map((user) => (
-                        <div 
-                          key={user.userId} 
-                          className={`ranking-item ${user.isCurrentUser ? 'is-current-user' : ''}`}
-                        >
-                          <span className="rank-position">#{user.position}</span>
-                          <span className="rank-name">{user.displayName}</span>
-                          <span className="rank-score">{user.score.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className="ranking-footer">
-                    <span className="total-students">Total: {notebookRanking.totalUsers} estudiantes</span>
-                  </div>
-                </div>
-              )}
+              <p className="function-status">Evaluaciones personalizadas</p>
             </div>
           </div>
         </div>

@@ -40,7 +40,7 @@
 
 .study-mode-main {
   flex: 1;
-  padding: 0.75rem 1.5rem 1.5rem 1.5rem;
+  padding: 0.5rem 1.5rem 1.5rem 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -641,10 +641,13 @@
 .main-study-module {
   background: var(--bg-white);
   border-radius: var(--radius-lg);
-  padding: 2.5rem;
+  padding: 2rem;
   box-shadow: var(--shadow-md);
   position: relative;
-  min-height: calc(100vh - 380px);
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 /* Custom scrollbar for main-study-module */
@@ -669,8 +672,8 @@
 /* Study Score Module - Left side */
 .study-score-module {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 1.5rem;
+  left: 2rem;
   background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
   border-radius: var(--radius-md);
   padding: 1rem 1.5rem;
@@ -746,7 +749,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 2rem;
+  padding-top: 1rem;
 }
 
 /* Notebook Dropdown */
@@ -1100,8 +1103,8 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1.5rem;
-  margin-top: auto;
-  margin-bottom: 0.5rem;
+  margin-top: 6rem;
+  margin-bottom: 2rem;
 }
 
 .study-function-card {
@@ -1947,8 +1950,8 @@
 /* Corner Medal Module - Smaller and elegant with navigation */
 .corner-medal-module {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 1.5rem;
+  right: 2rem;
   background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
   border: 1px solid rgba(97, 71, 255, 0.3);
   border-radius: var(--radius-md);
@@ -2411,3 +2414,43 @@
   color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
 }
+
+/* Coming Soon styles for exam test */
+.study-function-card.coming-soon {
+  opacity: 0.75;
+  cursor: not-allowed;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Banda pequeña y sobria en la esquina */
+.coming-soon-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #6B7280;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 15% 100%);
+  z-index: 10;
+}
+
+/* Botón deshabilitado */
+.function-btn.disabled {
+  background: #E5E7EB;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  border-color: #E5E7EB;
+}
+
+.function-btn.disabled:hover {
+  background: #E5E7EB;
+  color: #9CA3AF;
+  transform: none;
+  box-shadow: none;
+}
+
