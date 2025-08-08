@@ -36,7 +36,6 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       if (isSchoolTeacher && !hasNavigated.current) {
         const validTeacherRoutes = [
           '/teacher/home',
-          '/teacher/materias',
           '/materias',
           '/school/teacher',
           '/school/notebooks',

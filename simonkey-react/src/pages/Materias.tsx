@@ -303,15 +303,19 @@ const Materias: React.FC = () => {
         );
         
         const notebooksSnapshot = await getDocs(notebooksQuery);
+        console.log('📚 Total notebooks del profesor:', notebooksSnapshot.size);
         
         // Crear mapa de conteo de notebooks
         const notebookCountMap: Record<string, number> = {};
         notebooksSnapshot.docs.forEach(doc => {
-          const idMateria = doc.data().idMateria;
+          const data = doc.data();
+          const idMateria = data.idMateria;
+          console.log(`  - Notebook ${doc.id}: idMateria=${idMateria}, title=${data.title}`);
           if (idMateria) {
             notebookCountMap[idMateria] = (notebookCountMap[idMateria] || 0) + 1;
           }
         });
+        console.log('📊 Conteo de notebooks por materia:', notebookCountMap);
         
         // Construir las materias del profesor
         const teacherMaterias: Materia[] = materiasSnapshot.docs.map(docSnap => {
@@ -1008,22 +1012,36 @@ const Materias: React.FC = () => {
                 </div>
                 
                 <div className="empty-state-content">
-                  <div className="badge-new">¡Nuevo estudiante!</div>
-                  <h2 className="empty-state-title gradient-text">
-                    Organiza tu conocimiento,<br/>
-                    <span className="highlight">domina tu aprendizaje</span>
-                  </h2>
+                  {isSchoolTeacher ? (
+                    <>
+                      <div className="badge-new">¡Bienvenido profesor!</div>
+                      <h2 className="empty-state-title gradient-text">
+                        No tienes materias asignadas<br/>
+                        <span className="highlight">contacta a tu administrador</span>
+                      </h2>
+                    </>
+                  ) : (
+                    <>
+                      <div className="badge-new">¡Nuevo estudiante!</div>
+                      <h2 className="empty-state-title gradient-text">
+                        Organiza tu conocimiento,<br/>
+                        <span className="highlight">domina tu aprendizaje</span>
+                      </h2>
+                    </>
+                  )}
                   
                   <div className="empty-state-actions">
-                    <button className="create-materia-button primary pulse" onClick={() => {
-                      setShowCreateModal(true);
-                    }}>
-                      <div className="button-bg"></div>
-                      <span className="button-content">
-                        <i className="fas fa-plus"></i>
-                        Crear mi primera materia
-                      </span>
-                    </button>
+                    {!isSchoolStudent && !isSchoolTeacher && (
+                      <button className="create-materia-button primary pulse" onClick={() => {
+                        setShowCreateModal(true);
+                      }}>
+                        <div className="button-bg"></div>
+                        <span className="button-content">
+                          <i className="fas fa-plus"></i>
+                          Crear mi primera materia
+                        </span>
+                      </button>
+                    )}
                     
                     <div className="quick-suggestions enhanced">
                       <span className="suggestions-label">
@@ -1072,12 +1090,12 @@ const Materias: React.FC = () => {
           ) : (
             <MateriaList 
               materias={materias}
-              onDeleteMateria={isSchoolStudent ? undefined : handleDelete}
-              onEditMateria={isSchoolStudent ? undefined : handleEdit}
-              onColorChange={isSchoolStudent ? undefined : handleColorChange}
-              onCreateMateria={isSchoolStudent ? undefined : handleCreate}
+              onDeleteMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleDelete}
+              onEditMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleEdit}
+              onColorChange={isSchoolStudent || isSchoolTeacher ? undefined : handleColorChange}
+              onCreateMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleCreate}
               onViewMateria={handleView}
-              showCreateButton={!isSchoolStudent}
+              showCreateButton={!isSchoolStudent && !isSchoolTeacher}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}

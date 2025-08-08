@@ -96,6 +96,7 @@ const Notebooks: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
+  const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
 
   // Effect to find materiaId by materiaName
   useEffect(() => {
@@ -199,10 +200,19 @@ const Notebooks: React.FC = () => {
     const loadAdminNotebooks = async () => {
       if ((!isSchoolAdmin && !isSchoolTeacher) || !materiaId) return;
       
+      console.log('📚 loadAdminNotebooks - Iniciando carga');
+      console.log('  - isSchoolAdmin:', isSchoolAdmin);
+      console.log('  - isSchoolTeacher:', isSchoolTeacher);
+      console.log('  - materiaId:', materiaId);
+      
       setAdminNotebooksLoading(true);
       try {
         // Usar el servicio unificado para obtener notebooks del profesor/materia
-        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
+        // Para profesores, pasar su ID para filtrar solo sus notebooks
+        const teacherId = isSchoolTeacher ? user?.uid : undefined;
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId], teacherId);
+        console.log('📚 Notebooks recibidos del servicio:', notebooksData.length);
+        console.log('  - Notebooks detalle:', notebooksData);
         
         // Contar conceptos para cada notebook
         for (const notebook of notebooksData) {
@@ -230,7 +240,7 @@ const Notebooks: React.FC = () => {
     };
     
     loadAdminNotebooks();
-  }, [isSchoolAdmin, isSchoolTeacher, materiaId]);
+  }, [isSchoolAdmin, isSchoolTeacher, materiaId, user, notebookRefreshTrigger]);
 
   useEffect(() => {
     if (user) {
@@ -287,6 +297,9 @@ const Notebooks: React.FC = () => {
   
   if (isSchoolAdmin || isSchoolTeacher) {
     // Para admin escolar y profesores, usar los notebooks cargados específicamente
+    console.log('👨‍🏫 PROFESOR/ADMIN ESCOLAR - Notebooks cargados:', adminNotebooks.length);
+    console.log('  - adminNotebooks:', adminNotebooks);
+    console.log('  - materiaId:', materiaId);
     effectiveNotebooks = adminNotebooks.map(notebook => ({
       ...notebook,
       userId: notebook.userId || '',
@@ -316,11 +329,13 @@ const Notebooks: React.FC = () => {
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
   // TEMPORAL: Para estudiantes escolares NO filtrar, mostrar todos sus cuadernos
   // porque hay un problema con múltiples materias "Biología" con diferentes IDs
-  if (materiaId && !isSchoolAdmin && !isSchoolStudent) {
+  // Los profesores escolares tampoco necesitan filtrado porque ya vienen filtrados del servicio
+  if (materiaId && !isSchoolAdmin && !isSchoolTeacher && !isSchoolStudent) {
     console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA (solo usuarios free/pro)');
     console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
     console.log('  - materiaId buscado:', materiaId);
     console.log('  - isSchoolStudent:', isSchoolStudent);
+    console.log('  - isSchoolTeacher:', isSchoolTeacher);
     
     effectiveNotebooks = effectiveNotebooks.filter(notebook => {
       // Para usuarios regulares es 'materiaId'
@@ -373,14 +388,44 @@ const Notebooks: React.FC = () => {
       // Determinar si es un notebook escolar o regular
       if (isSchoolAdmin || isSchoolTeacher) {
         // Crear notebook escolar
-        await addDoc(collection(db, 'schoolNotebooks'), {
+        console.log('📝 Creando notebook escolar para profesor/admin');
+        console.log('  - materiaId:', materiaId);
+        console.log('  - userId:', user.uid);
+        
+        const newNotebook = {
           title,
           color,
           idMateria: materiaId,
+          idProfesor: user.uid, // Importante: agregar idProfesor para profesores
           userId: user.uid,
+          type: 'school', // Agregar type explícitamente
+          conceptCount: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
+        };
+        
+        console.log('📝 Datos del notebook a crear:', {
+          ...newNotebook,
+          createdAt: '[ServerTimestamp]',
+          updatedAt: '[ServerTimestamp]'
         });
+        
+        const docRef = await addDoc(collection(db, 'schoolNotebooks'), newNotebook);
+        console.log('✅ Notebook escolar creado con ID:', docRef.id);
+        
+        // Verificar que se creó correctamente
+        const verifyDoc = await getDoc(doc(db, 'schoolNotebooks', docRef.id));
+        if (verifyDoc.exists()) {
+          const data = verifyDoc.data();
+          console.log('✅ Verificación - Notebook creado con datos:', {
+            id: docRef.id,
+            idMateria: data.idMateria,
+            idProfesor: data.idProfesor,
+            title: data.title
+          });
+        } else {
+          console.error('❌ Error: El notebook no se encontró después de crearlo');
+        }
       } else {
         // Crear notebook regular
         await addDoc(collection(db, 'notebooks'), {
@@ -399,8 +444,24 @@ const Notebooks: React.FC = () => {
       
       // Recargar notebooks de admin/profesor si es necesario
       if (isSchoolAdmin || isSchoolTeacher) {
-        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId]);
+        console.log('🔄 Recargando notebooks después de crear uno nuevo');
+        
+        // Pequeña espera para asegurar que Firestore indexe el documento
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const teacherId = isSchoolTeacher ? user.uid : undefined;
+        console.log('  - Buscando notebooks con teacherId:', teacherId);
+        const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId], teacherId);
+        console.log('📚 Notebooks recargados:', notebooksData.length);
+        console.log('  - Detalle de notebooks:', notebooksData.map(n => ({ 
+          id: n.id, 
+          title: n.title, 
+          idProfesor: n.idProfesor 
+        })));
         setAdminNotebooks(notebooksData);
+        
+        // Trigger useEffect para recargar notebooks
+        setNotebookRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error("Error creating notebook:", error);

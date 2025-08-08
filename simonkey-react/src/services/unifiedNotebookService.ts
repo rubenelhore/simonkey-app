@@ -80,21 +80,108 @@ export class UnifiedNotebookService {
   /**
    * Obtiene notebooks escolares para un profesor
    */
-  static async getTeacherNotebooks(materiaIds: string[]): Promise<Notebook[]> {
-    if (!materiaIds || materiaIds.length === 0) return [];
+  static async getTeacherNotebooks(materiaIds: string[], teacherId?: string): Promise<Notebook[]> {
+    console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
+    console.log('  - materiaIds:', materiaIds);
+    console.log('  - teacherId:', teacherId);
+    
+    if (!materiaIds || materiaIds.length === 0) {
+      console.log('  ❌ No hay materiaIds, retornando array vacío');
+      return [];
+    }
     
     const notebooks: Notebook[] = [];
     
-    // Buscar en schoolNotebooks
-    const schoolQuery = query(
-      collection(db, 'schoolNotebooks'),
+    // Buscar en schoolNotebooks - filtrar por materia Y profesor si se proporciona
+    let constraints: any[] = [
       where('idMateria', 'in', materiaIds),
       orderBy('createdAt', 'desc')
+    ];
+    
+    // Si se proporciona teacherId, filtrar también por profesor
+    if (teacherId) {
+      constraints = [
+        where('idMateria', 'in', materiaIds),
+        where('idProfesor', '==', teacherId),
+        orderBy('createdAt', 'desc')
+      ];
+    }
+    
+    const schoolQuery = query(
+      collection(db, 'schoolNotebooks'),
+      ...constraints
     );
     
-    const schoolSnapshot = await getDocs(schoolQuery);
+    console.log('  📖 Ejecutando query en schoolNotebooks');
+    console.log('     Query: where idMateria in', materiaIds);
+    if (teacherId) {
+      console.log('     Query: where idProfesor ==', teacherId);
+    }
+    
+    let schoolSnapshot;
+    try {
+      schoolSnapshot = await getDocs(schoolQuery);
+      console.log('  📊 Documentos encontrados con query compuesto:', schoolSnapshot.size);
+    } catch (error) {
+      console.error('  ❌ Error con query compuesto:', error);
+      console.log('  🔄 Intentando query alternativo...');
+      
+      // Si falla el query compuesto, hacer un query más simple y filtrar manualmente
+      const simpleQuery = query(
+        collection(db, 'schoolNotebooks'),
+        where('idMateria', 'in', materiaIds)
+      );
+      
+      schoolSnapshot = await getDocs(simpleQuery);
+      console.log('  📊 Documentos encontrados con query simple:', schoolSnapshot.size);
+      
+      // Filtrar manualmente por profesor si es necesario
+      schoolSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (!teacherId || data.idProfesor === teacherId) {
+          console.log(`  📓 Notebook encontrado: ${doc.id}`);
+          console.log(`     - title: ${data.title}`);
+          console.log(`     - idMateria: ${data.idMateria}`);
+          console.log(`     - idProfesor: ${data.idProfesor}`);
+          notebooks.push({
+            id: doc.id,
+            type: 'school',
+            ...data
+          } as Notebook);
+        }
+      });
+      
+      console.log('  ✅ Total notebooks después de filtrar manualmente:', notebooks.length);
+      return notebooks;
+    }
+    
+    // Debug: buscar TODOS los notebooks para ver qué hay ANTES de procesar
+    console.log('  🔍 DEBUG: Buscando TODOS los notebooks en schoolNotebooks...');
+    const allNotebooks = await getDocs(collection(db, 'schoolNotebooks'));
+    console.log('  🔍 TOTAL notebooks en schoolNotebooks:', allNotebooks.size);
+    
+    // Filtrar manualmente para ver cuántos coinciden
+    let matchingCount = 0;
+    allNotebooks.forEach(doc => {
+      const data = doc.data();
+      const matchesMateria = materiaIds.includes(data.idMateria);
+      const matchesTeacher = !teacherId || data.idProfesor === teacherId;
+      
+      if (matchesMateria && matchesTeacher) {
+        matchingCount++;
+        console.log(`     ✅ MATCH - ${doc.id}: idMateria=${data.idMateria}, idProfesor=${data.idProfesor}, title=${data.title}`);
+      } else {
+        console.log(`     ❌ NO MATCH - ${doc.id}: idMateria=${data.idMateria} (buscado: ${materiaIds}), idProfesor=${data.idProfesor} (buscado: ${teacherId})`);
+      }
+    });
+    console.log(`  📊 Total que deberían coincidir: ${matchingCount}`);
+    
     schoolSnapshot.forEach(doc => {
       const data = doc.data();
+      console.log(`  📓 Notebook encontrado: ${doc.id}`);
+      console.log(`     - title: ${data.title}`);
+      console.log(`     - idMateria: ${data.idMateria}`);
+      console.log(`     - idProfesor: ${data.idProfesor}`);
       notebooks.push({
         id: doc.id,
         type: 'school',
@@ -102,6 +189,7 @@ export class UnifiedNotebookService {
       } as Notebook);
     });
     
+    console.log('  ✅ Total notebooks retornados:', notebooks.length);
     return notebooks;
   }
   

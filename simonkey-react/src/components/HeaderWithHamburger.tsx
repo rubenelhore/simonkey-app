@@ -508,8 +508,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {isSidebarExpanded && <span>Inicio</span>}
               </button>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/teacher/materias' || location.pathname.includes('/materias/') ? 'active' : ''}`} 
-                onClick={() => navigate('/teacher/materias')}
+                className={`sidebar-icon-btn ${location.pathname === '/materias' || location.pathname.includes('/materias/') ? 'active' : ''}`} 
+                onClick={() => navigate('/materias')}
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />
