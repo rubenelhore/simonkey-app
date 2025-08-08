@@ -382,7 +382,17 @@ const Notebooks: React.FC = () => {
   }, []);
 
   const handleCreate = async (title?: string, color?: string) => {
-    if (!user || !materiaId || !title || !color) return;
+    console.log('🎯 handleCreate llamado con:', { title, color, user: user?.uid, materiaId, isSchoolTeacher, isSchoolAdmin });
+    
+    if (!user || !materiaId || !title || !color) {
+      console.error('❌ Faltan parámetros requeridos:', { 
+        hasUser: !!user, 
+        hasMateriaId: !!materiaId, 
+        hasTitle: !!title, 
+        hasColor: !!color 
+      });
+      return;
+    }
     
     try {
       // Determinar si es un notebook escolar o regular
@@ -765,7 +775,7 @@ const Notebooks: React.FC = () => {
             onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
             onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
             showCreateButton={!isSchoolStudent}
-            isSchoolTeacher={false} // School students and admins should navigate to regular routes, not school routes
+            isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}
             onCloseCategoryModal={() => setShowCategoryModal(false)}
