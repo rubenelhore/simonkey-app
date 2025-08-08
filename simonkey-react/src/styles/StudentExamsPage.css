@@ -1,8 +1,8 @@
 .student-exams-page {
-  padding: 2rem;
-  max-width: 1200px;
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
+  padding: 0;
+  width: 100%;
+  background: transparent;
+  min-height: 100%;
 }
 
 .student-exams-loading {
@@ -303,7 +303,7 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .student-exams-page {
-    padding: 1rem;
+    padding: 0;
   }
   
   .exams-filters {

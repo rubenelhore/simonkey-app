@@ -233,7 +233,9 @@ const StudentExamsPage: React.FC = () => {
         subtitle="Todos tus exámenes disponibles"
         themeColor="#FF6B6B"
       />
-      <div className="student-exams-page">
+      <main className="notebooks-main notebooks-main-no-sidebar">
+        <div className="notebooks-list-section notebooks-list-section-full">
+          <div className="student-exams-page">
         {/* Filter controls */}
         <div className="exams-filters">
           <button
@@ -347,7 +349,9 @@ const StudentExamsPage: React.FC = () => {
             )}
           </div>
         )}
-      </div>
+          </div>
+        </div>
+      </main>
     </>
   );
 };
