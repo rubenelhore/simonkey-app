@@ -371,7 +371,7 @@ const StudentExamsPage: React.FC = () => {
                   {filter === 'all' 
                     ? 'Tip: Revisa regularmente esta sección para no perderte ningún examen (No te preocupes nosotros te avisaremos)'
                     : filter === 'available'
-                    ? 'Tip: Los exámenes aparecerán aquí cuando tu profesor los active (Te notificaremos inmediatamente)'
+                    ? 'Tip: Cuando tu profesor publique nuevos exámenes, aparecerán automáticamente aquí (Te enviaremos una notificación)'
                     : 'Tip: Practica en la zona de estudio para mejorar tus resultados en futuros exámenes (¡La práctica hace al maestro!)'}
                 </span>
               </div>
