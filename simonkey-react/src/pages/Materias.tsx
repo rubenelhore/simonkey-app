@@ -25,6 +25,7 @@ interface Materia {
   createdAt: Date;
   updatedAt: Date;
   notebookCount?: number;
+  conceptCount?: number;
   domainProgress?: {
     total: number;
     dominated: number;
@@ -246,37 +247,103 @@ const Materias: React.FC = () => {
 
   // Efecto específico para estudiantes escolares
   useEffect(() => {
-    if (isSchoolStudent) {
-      if (!schoolLoading) {
-        if (schoolSubjects && schoolSubjects.length > 0) {
-          const schoolMateriasData: Materia[] = schoolSubjects.map(subject => {
-            const notebookCount = schoolNotebooks 
-              ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
-              : 0;
-            
-            return {
-              id: subject.id,
-              title: subject.nombre,
-              color: subject.color || '#6147FF',
-              category: '',
-              userId: user?.uid || '',
-              createdAt: subject.createdAt?.toDate() || new Date(),
-              updatedAt: subject.createdAt?.toDate() || new Date(),
-              notebookCount: notebookCount
-            };
-          });
+    const loadStudentMateriasWithConcepts = async () => {
+      if (!isSchoolStudent || schoolLoading) return;
+      
+      if (schoolSubjects && schoolSubjects.length > 0) {
+        setLoading(true);
+        try {
+          const schoolMateriasData: Materia[] = await Promise.all(
+            schoolSubjects.map(async (subject) => {
+              const notebookCount = schoolNotebooks 
+                ? schoolNotebooks.filter(notebook => notebook.idMateria === subject.id).length 
+                : 0;
+              
+              // Calcular el conteo total de conceptos para esta materia
+              let totalConceptCount = 0;
+              if (schoolNotebooks) {
+                const materiaNotebooks = schoolNotebooks.filter(notebook => notebook.idMateria === subject.id);
+                console.log(`📚 Calculando conceptos para materia ${subject.nombre} (${subject.id})`);
+                console.log(`  - Notebooks encontrados: ${materiaNotebooks.length}`);
+                
+                for (const notebook of materiaNotebooks) {
+                  try {
+                    // Los conceptos están en documentos que contienen arrays de conceptos
+                    const conceptsQuery = query(
+                      collection(db, 'schoolConcepts'),
+                      where('cuadernoId', '==', notebook.id)
+                    );
+                    const conceptsSnapshot = await getDocs(conceptsQuery);
+                    
+                    // Contar todos los conceptos en todos los documentos
+                    const notebookConceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+                      const data = doc.data();
+                      // Los conceptos están en un array llamado 'conceptos'
+                      const conceptosArray = data.conceptos || [];
+                      return total + conceptosArray.length;
+                    }, 0);
+                    
+                    console.log(`    - Notebook ${notebook.id}: ${notebookConceptCount} conceptos`);
+                    totalConceptCount += notebookConceptCount;
+                  } catch (error) {
+                    console.error(`Error counting concepts for notebook ${notebook.id}:`, error);
+                  }
+                }
+                console.log(`  📊 Total de conceptos para ${subject.nombre}: ${totalConceptCount}`);
+              }
+              
+              // Calcular el progreso de dominio para la materia
+              let domainProgress = {
+                total: totalConceptCount,
+                dominated: 0,
+                learning: 0,
+                notStarted: totalConceptCount
+              };
+              
+              try {
+                domainProgress = await getDomainProgressForMateria(subject.id);
+              } catch (error) {
+                console.error(`Error calculating domain progress for materia ${subject.id}:`, error);
+              }
+              
+              return {
+                id: subject.id,
+                title: subject.nombre,
+                color: subject.color || '#6147FF',
+                category: '',
+                userId: user?.uid || '',
+                createdAt: subject.createdAt?.toDate() || new Date(),
+                updatedAt: subject.createdAt?.toDate() || new Date(),
+                notebookCount: notebookCount,
+                conceptCount: totalConceptCount,
+                domainProgress: domainProgress
+              };
+            })
+          );
           
+          console.log('📊 DATOS FINALES DE MATERIAS PARA ESTUDIANTE:', schoolMateriasData.map(m => ({
+            title: m.title,
+            notebookCount: m.notebookCount,
+            conceptCount: m.conceptCount,
+            domainProgress: m.domainProgress
+          })));
           setMaterias(schoolMateriasData);
           // Cargar exámenes después de establecer las materias
           loadStudentExams();
-        } else {
-          // Si no hay materias, establecer un array vacío
+        } catch (error) {
+          console.error('Error loading student materias with concepts:', error);
           setMaterias([]);
+        } finally {
+          setLoading(false);
         }
-        // Siempre establecer loading a false cuando schoolLoading es false
+      } else {
+        // Si no hay materias, establecer un array vacío
+        setMaterias([]);
         setLoading(false);
       }
-    }
+    };
+    
+    loadStudentMateriasWithConcepts();
   }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user, userProfile]);
 
   // Efecto específico para profesores escolares

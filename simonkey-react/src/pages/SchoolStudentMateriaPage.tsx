@@ -171,12 +171,22 @@ const SchoolStudentMateriaPage: React.FC = () => {
             // Cargar el conteo real de conceptos desde la colección schoolConcepts
             let actualConceptCount = 0;
             try {
+              // Los conceptos están en documentos que contienen arrays de conceptos
+              // Buscar documentos con cuadernoId (campo confirmado por UnifiedConceptService)
               const conceptsQuery = query(
                 collection(db, 'schoolConcepts'),
-                where('notebookId', '==', notebookDoc.id)
+                where('cuadernoId', '==', notebookDoc.id)
               );
               const conceptsSnapshot = await getDocs(conceptsQuery);
-              actualConceptCount = conceptsSnapshot.size;
+              
+              // Contar todos los conceptos en todos los documentos
+              actualConceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+                const data = doc.data();
+                // Los conceptos están en un array llamado 'conceptos'
+                const conceptosArray = data.conceptos || [];
+                return total + conceptosArray.length;
+              }, 0);
+              
               console.log(`📝 Conteo real de conceptos para ${data.title}: ${actualConceptCount}`);
             } catch (error) {
               console.error('Error contando conceptos:', error);
@@ -246,21 +256,61 @@ const SchoolStudentMateriaPage: React.FC = () => {
 
   if (loading || authLoading) {
     return (
-      <div className="loading-container">
-        <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
-        <p>Cargando...</p>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title="Cargando materia..."
+          subtitle="Por favor espera"
+          showBackButton={true}
+          onBackClick={() => navigate('/materias')}
+          themeColor="#6147FF"
+        />
+        <main className="notebooks-main notebooks-main-no-sidebar">
+          <div className="notebooks-list-section notebooks-list-section-full">
+            <div className="loading-container" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '400px',
+              width: '100%'
+            }}>
+              <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
+              <p>Cargando...</p>
+            </div>
+          </div>
+        </main>
+      </>
     );
   }
 
   if (!materia) {
     return (
-      <div className="error-container">
-        <h2>Materia no encontrada</h2>
-        <button onClick={() => navigate('/materias')} className="back-button">
-          Volver a materias
-        </button>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title="Error"
+          subtitle="Materia no encontrada"
+          showBackButton={true}
+          onBackClick={() => navigate('/materias')}
+          themeColor="#FF6B6B"
+        />
+        <main className="notebooks-main notebooks-main-no-sidebar">
+          <div className="notebooks-list-section notebooks-list-section-full">
+            <div className="error-container" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '400px',
+              width: '100%'
+            }}>
+              <h2>Materia no encontrada</h2>
+              <button onClick={() => navigate('/materias')} className="back-button">
+                Volver a materias
+              </button>
+            </div>
+          </div>
+        </main>
+      </>
     );
   }
 

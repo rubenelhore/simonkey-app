@@ -10,7 +10,7 @@ import MiniQuiz from '../components/MiniQuiz';
 import { useStudyService } from '../hooks/useStudyService';
 import { Concept, ResponseQuality, StudyMode, StudyIntensity, StudySessionMetrics } from '../types/interfaces';
 import '../styles/StudySessionPage.css';
-import Confetti from 'react-confetti';
+// import Confetti from 'react-confetti'; // Deshabilitado por solicitud del usuario
 import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
@@ -515,20 +515,14 @@ const StudySessionPage = () => {
         detailedResultsData
       );
       
-      // Update SM-3 for smart study only
-      // No actualizar si ya se actualizó en el mini quiz (cuando miniQuizPassed es true)
-      if (studyMode === StudyMode.SMART && !miniQuizPassed) {
-        console.log('[STUDY] Actualizando SM-3 al completar sesión (no hubo mini quiz exitoso)');
-        const effectiveUserData = await getEffectiveUserId();
-        const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-        
-        for (const [conceptId, quality] of conceptFinalResults) {
-          try {
-            await studyService.updateConceptResponse(userKey, conceptId, quality);
-          } catch (error) {
-            console.error(`Error updating SM-3 for concept ${conceptId}:`, error);
-          }
-        }
+      // IMPORTANTE: Solo el estudio inteligente (SMART) actualiza SM-3
+      // El estudio libre (FREE) NO modifica el algoritmo SM-3
+      // Para SMART study, la actualización ocurre en handleMiniQuizComplete
+      if (studyMode === StudyMode.SMART) {
+        console.log('[STUDY] SM-3 se actualizará después del mini quiz (solo para estudio inteligente)');
+        // La actualización real ocurre en handleMiniQuizComplete
+      } else if (studyMode === StudyMode.FREE) {
+        console.log('[STUDY] Estudio libre completado - NO se actualiza SM-3');
       }
       
       // Update KPIs
@@ -650,13 +644,13 @@ const StudySessionPage = () => {
     }
   };
 
-  // Get window size for confetti
-  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
-  useEffect(() => {
-    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Efecto de confetti deshabilitado
+  // const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  // useEffect(() => {
+  //   const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+  //   window.addEventListener('resize', handleResize);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, []);
 
   // Render intro screen
   const renderIntroScreen = () => {
@@ -924,7 +918,7 @@ const StudySessionPage = () => {
           {/* Session complete */}
           {sessionComplete && !showMiniQuiz && (
             <div className="session-complete-container">
-              <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
+              {/* <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} /> */}
               <div className="session-complete-card">
                 <div className="session-complete-trophy">
                   <i className="fas fa-trophy"></i>

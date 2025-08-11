@@ -14,6 +14,7 @@ interface Materia {
   createdAt: Date;
   updatedAt: Date;
   notebookCount?: number;
+  conceptCount?: number;
   teacherName?: string;
   studentCount?: number;
   domainProgress?: {
@@ -423,6 +424,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 color={materia.color}
                 category={materia.category}
                 notebookCount={materia.notebookCount || 0}
+                conceptCount={materia.conceptCount}
                 onDelete={onDeleteMateria}
                 onEdit={onEditMateria}
                 onColorChange={onColorChange}

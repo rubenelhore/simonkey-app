@@ -48,6 +48,7 @@ import './utils/debugStudentMaterias';
 import './utils/debugExams';
 import './utils/fixStudentSchoolId';
 import './utils/verifyStudentExams';
+import './utils/cleanStudentData';
 import './utils/debugSchoolConcepts';
 import './utils/debugTeacherKpis';
 import ExamplesPage from './pages/ExamplesPage';
@@ -127,6 +128,7 @@ import TeacherHomePage from './pages/TeacherHomePage';
 // Importar utilidad de limpieza de notebooks huérfanos
 import './utils/cleanOrphanNotebooks';
 import './utils/forceUpdateStreak';
+import './utils/fixStudentNotebooks';
 import HelpWhatsAppButton from './components/HelpWhatsAppButton';
 import StudySessionPage from './pages/StudySessionPage';
 import ExamTestPage from './pages/ExamTestPage';

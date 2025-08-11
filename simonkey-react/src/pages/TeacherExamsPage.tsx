@@ -49,7 +49,6 @@ const TeacherExamsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'materia'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [showAdvancedActions, setShowAdvancedActions] = useState(false);
   const [stats, setStats] = useState({
     totalStudents: 0,
     upcomingExams: 0,
@@ -265,62 +264,6 @@ const TeacherExamsPage: React.FC = () => {
     alert('Funcionalidad de duplicar examen - en desarrollo');
   };
 
-  const handleCreateFromTemplate = (templateType: 'quick' | 'comprehensive' | 'practice') => {
-    const templates = {
-      quick: {
-        title: 'Examen Rápido',
-        description: 'Evaluación corta de conceptos clave',
-        percentageQuestions: 30,
-        timePerConcept: 45
-      },
-      comprehensive: {
-        title: 'Examen Integral',
-        description: 'Evaluación completa de la materia',
-        percentageQuestions: 70,
-        timePerConcept: 90
-      },
-      practice: {
-        title: 'Examen de Práctica',
-        description: 'Examen para preparación sin calificación',
-        percentageQuestions: 50,
-        timePerConcept: 60
-      }
-    };
-    
-    const template = templates[templateType];
-    console.log('Creating from template:', template);
-    alert(`Creando examen desde plantilla: ${template.title}`);
-  };
-
-  const handleExportExams = () => {
-    if (exams.length === 0) {
-      alert('No hay exámenes para exportar');
-      return;
-    }
-    
-    // Preparar datos para exportar
-    const exportData = exams.map(exam => ({
-      Título: exam.title,
-      Descripción: exam.description || '',
-      Materia: exam.materiaName,
-      Estado: exam.isActive ? 'Activo' : 'Inactivo',
-      'Preguntas (%)': exam.percentageQuestions,
-      'Tiempo por concepto': exam.timePerConcept,
-      'Fecha de creación': exam.createdAt?.toDate?.()?.toLocaleDateString() || new Date(exam.createdAt).toLocaleDateString()
-    }));
-    
-    // Convertir a CSV
-    const headers = Object.keys(exportData[0]).join(',');
-    const csv = exportData.map(row => Object.values(row).join(',')).join('\n');
-    const csvContent = headers + '\n' + csv;
-    
-    // Descargar archivo
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `examenes_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  };
 
   const getFilteredAndSortedExams = () => {
     let filteredExams = exams.filter(exam => {
@@ -581,62 +524,6 @@ const TeacherExamsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="exams-controls-row advanced-actions">
-            <button 
-              className="toggle-advanced-btn"
-              onClick={() => setShowAdvancedActions(!showAdvancedActions)}
-            >
-              <i className={`fas ${showAdvancedActions ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
-              <span>Acciones avanzadas</span>
-            </button>
-            
-            {showAdvancedActions && (
-              <div className="advanced-actions-container">
-                <div className="templates-section">
-                  <span className="section-label">Plantillas:</span>
-                  <button 
-                    className="template-btn quick"
-                    onClick={() => handleCreateFromTemplate('quick')}
-                    disabled={materias.length === 0}
-                    title="Crear examen rápido (30% preguntas, 45s por concepto)"
-                  >
-                    <i className="fas fa-bolt"></i>
-                    <span>Rápido</span>
-                  </button>
-                  <button 
-                    className="template-btn comprehensive"
-                    onClick={() => handleCreateFromTemplate('comprehensive')}
-                    disabled={materias.length === 0}
-                    title="Crear examen integral (70% preguntas, 90s por concepto)"
-                  >
-                    <i className="fas fa-clipboard-list"></i>
-                    <span>Integral</span>
-                  </button>
-                  <button 
-                    className="template-btn practice"
-                    onClick={() => handleCreateFromTemplate('practice')}
-                    disabled={materias.length === 0}
-                    title="Crear examen de práctica (50% preguntas, 60s por concepto)"
-                  >
-                    <i className="fas fa-dumbbell"></i>
-                    <span>Práctica</span>
-                  </button>
-                </div>
-                
-                <div className="export-section">
-                  <button 
-                    className="export-btn"
-                    onClick={handleExportExams}
-                    disabled={exams.length === 0}
-                    title="Exportar todos los exámenes a CSV"
-                  >
-                    <i className="fas fa-download"></i>
-                    <span>Exportar CSV</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Exams grid */}

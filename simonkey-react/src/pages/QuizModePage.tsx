@@ -293,13 +293,16 @@ const QuizModePage: React.FC = () => {
           const studentDoc = usersSnapshot.docs[0];
           const studentData = studentDoc.data();
           const notebookIds = studentData.idCuadernos || [];
+          const subjectIds = studentData.subjectIds || [];
+          
           console.log('[QuizModePage] Usuario escolar encontrado:', {
             documentId: studentDoc.id,
             email: studentData.email,
-            notebookIds: notebookIds
+            notebookIds: notebookIds,
+            subjectIds: subjectIds
           });
           
-          // Luego obtener cada cuaderno
+          // Primero obtener cuadernos directamente asignados (idCuadernos)
           for (const notebookId of notebookIds) {
             const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
             if (notebookDoc.exists()) {
@@ -309,7 +312,31 @@ const QuizModePage: React.FC = () => {
               } as Notebook);
             }
           }
-          console.log('[QuizModePage] Cuadernos escolares encontrados:', notebooksData.length);
+          
+          // Luego obtener cuadernos de las materias asignadas
+          if (subjectIds.length > 0) {
+            console.log('[QuizModePage] Buscando cuadernos de materias asignadas...');
+            for (const subjectId of subjectIds) {
+              const notebooksQuery = query(
+                collection(db, 'schoolNotebooks'),
+                where('idMateria', '==', subjectId)
+              );
+              const notebooksSnapshot = await getDocs(notebooksQuery);
+              
+              for (const notebookDoc of notebooksSnapshot.docs) {
+                // Evitar duplicados
+                if (!notebooksData.find(n => n.id === notebookDoc.id)) {
+                  notebooksData.push({
+                    id: notebookDoc.id,
+                    ...notebookDoc.data()
+                  } as Notebook);
+                }
+              }
+            }
+          }
+          
+          console.log('[QuizModePage] Total cuadernos escolares encontrados:', notebooksData.length);
+          console.log('[QuizModePage] IDs de cuadernos disponibles:', notebooksData.map(n => n.id));
         } else {
           console.log('[QuizModePage] No se encontró usuario escolar por email');
         }

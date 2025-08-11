@@ -355,6 +355,7 @@
   z-index: 1000;
   animation: fadeIn 0.3s ease;
   will-change: opacity;
+  backdrop-filter: blur(4px);
 }
 
 @keyframes fadeIn {
@@ -375,8 +376,10 @@
   text-align: center;
   position: relative;
   margin: 0 auto;
-  animation: fadeInScale 0.3s ease-out;
+  animation: fadeInScale 0.3s ease-out forwards;
   transform-origin: center center;
+  will-change: transform, opacity;
+  transform: scale(1);
 }
 
 @keyframes fadeInScale {

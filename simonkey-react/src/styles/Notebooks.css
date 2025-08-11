@@ -4120,7 +4120,7 @@ body.modal-open .notebooks-hamburger-btn {
 
 /* Back button for notebooks page */
 .back-button-notebooks {
-  background: #6B7280;
+  background: #818CF8;
   color: white;
   border: none;
   border-radius: 50%;
@@ -4144,14 +4144,14 @@ body.modal-open .notebooks-hamburger-btn {
 }
 
 .back-button-notebooks:hover {
-  background: #4B5563;
+  background: #6147FF;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+  box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
 }
 
 .back-button-notebooks:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(107, 114, 128, 0.2);
+  box-shadow: 0 2px 6px rgba(97, 71, 255, 0.2);
 }
 
 .back-button-notebooks i {

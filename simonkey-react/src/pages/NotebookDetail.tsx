@@ -1108,10 +1108,39 @@ const NotebookDetail = () => {
   // Muestra spinner de carga solo mientras se obtienen los datos básicos
   if (!cuaderno || !notebookId) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Cargando cuaderno...</p>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title="Cargando..."
+          subtitle="Por favor espera"
+          showBackButton={true}
+          onBackClick={() => {
+            // Navegar de vuelta según el tipo de usuario
+            if (isSchoolStudent) {
+              navigate('/materias');
+            } else if (isSchoolTeacher) {
+              navigate('/school/teacher');
+            } else {
+              navigate('/notebooks');
+            }
+          }}
+          themeColor="#6147FF"
+        />
+        <main className="notebooks-main notebooks-main-no-sidebar">
+          <div className="notebooks-list-section notebooks-list-section-full">
+            <div className="loading-container" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '400px',
+              width: '100%'
+            }}>
+              <div className="loading-spinner"></div>
+              <p>Cargando cuaderno...</p>
+            </div>
+          </div>
+        </main>
+      </>
     );
   }
 

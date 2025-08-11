@@ -338,20 +338,22 @@ const ExamDashboardPage: React.FC = () => {
                 title="Actualizar datos"
                 style={{
                   marginLeft: '1rem',
-                  padding: '0.5rem 1rem',
+                  padding: '0.5rem',
                   background: '#667eea',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '0.875rem',
+                  fontSize: '1rem',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  justifyContent: 'center',
+                  width: '40px',
+                  height: '40px',
+                  transition: 'all 0.3s ease'
                 }}
               >
                 <i className="fas fa-sync-alt"></i>
-                Actualizar
               </button>
             </h1>
             {exam.description && <p className="exam-description">{exam.description}</p>}
@@ -487,7 +489,7 @@ const ExamDashboardPage: React.FC = () => {
                 <th>Respuestas Correctas</th>
                 <th>Tiempo</th>
                 <th>Fecha</th>
-                <th>Acciones</th>
+                <th>Integridad</th>
               </tr>
             </thead>
             <tbody>
@@ -521,7 +523,6 @@ const ExamDashboardPage: React.FC = () => {
                     {result.attempt && result.attempt.status === 'completed' ? (
                       <div className="score-display">
                         <span className="score-value">{result.score}</span>
-                        <span className="score-label">pts</span>
                       </div>
                     ) : '-'}
                   </td>
@@ -542,14 +543,22 @@ const ExamDashboardPage: React.FC = () => {
                       '-'}
                   </td>
                   <td>
-                    {result.attempt && result.attempt.status === 'completed' && (
-                      <button 
-                        className="view-details-btn"
-                        onClick={() => navigate(`/exam/${examId}/student/${result.studentId}`)}
-                      >
-                        <i className="fas fa-eye"></i>
-                        Ver detalles
-                      </button>
+                    {result.attempt && result.attempt.status === 'completed' ? (
+                      <div className="tab-switches-info">
+                        {result.attempt.tabSwitches && result.attempt.tabSwitches > 0 ? (
+                          <span className="tab-switch-warning">
+                            <i className="fas fa-exclamation-triangle"></i>
+                            {result.attempt.tabSwitches} {result.attempt.tabSwitches === 1 ? 'cambio' : 'cambios'} de pestaña
+                          </span>
+                        ) : (
+                          <span className="tab-switch-ok">
+                            <i className="fas fa-check-circle"></i>
+                            Sin cambios de pestaña
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="tab-switch-na">-</span>
                     )}
                   </td>
                 </tr>

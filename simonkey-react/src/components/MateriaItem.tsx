@@ -7,6 +7,7 @@ interface MateriaItemProps {
   color?: string;
   category?: string;
   notebookCount: number;
+  conceptCount?: number;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void;
@@ -32,6 +33,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   color, 
   category, 
   notebookCount,
+  conceptCount,
   onDelete, 
   onEdit, 
   onColorChange, 

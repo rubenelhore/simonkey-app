@@ -7,7 +7,7 @@ import {
   faBook, faChartBar, faCalendarAlt, faBrain, faTrophy,
   faBookOpen, faGamepad, faClock, faGraduationCap
 } from '@fortawesome/free-solid-svg-icons';
-import { db, collection, query, where, getDocs, Timestamp } from '../services/firebase';
+import { db, collection, query, where, getDocs, getDoc, doc, Timestamp } from '../services/firebase';
 import '../styles/InicioPage.css';
 
 // Interface for calendar events
@@ -36,6 +36,10 @@ const TeacherHomePage: React.FC = () => {
     finishedExams: 0
   });
   const [examsLoading, setExamsLoading] = useState(false);
+  
+  // Estados para materias del profesor
+  const [teacherSubjects, setTeacherSubjects] = useState<any[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
 
   // Función para cargar eventos del día actual
   const fetchTodayEvents = async () => {
@@ -202,12 +206,136 @@ const TeacherHomePage: React.FC = () => {
     return 'active';
   };
 
+  // Función para cargar las materias del profesor
+  const fetchTeacherSubjects = async () => {
+    // Si ya se están cargando o ya hay materias cargadas, no cargar de nuevo
+    if (subjectsLoading || teacherSubjects.length > 0) {
+      console.log('📚 [TeacherHome] Saltando carga de materias - ya cargadas o en proceso');
+      return;
+    }
+    
+    try {
+      setSubjectsLoading(true);
+      console.log('📚 [TeacherHome] Iniciando carga de materias del profesor');
+      console.log('📚 [TeacherHome] userProfile:', userProfile);
+      console.log('📚 [TeacherHome] user?.uid:', user?.uid);
+      
+      // Para profesores escolares, cargar las materias desde schoolNotebooks
+      if (userProfile?.schoolRole === 'teacher') {
+        console.log('📚 [TeacherHome] Es profesor escolar, buscando notebooks...');
+        console.log('📚 [TeacherHome] idEscuela:', userProfile?.idEscuela);
+        
+        // Obtener todos los notebooks del profesor
+        const notebooksQuery = query(
+          collection(db, 'schoolNotebooks'),
+          where('idProfesor', '==', userProfile.id || user?.uid)
+        );
+        const notebooksSnap = await getDocs(notebooksQuery);
+        
+        console.log('📚 [TeacherHome] Notebooks encontrados:', notebooksSnap.size);
+        
+        // Extraer IDs únicos de materias
+        const materiaIds = new Set<string>();
+        const materiaData = new Map<string, any>();
+        
+        notebooksSnap.forEach(doc => {
+          const notebook = doc.data();
+          console.log('📚 [TeacherHome] Notebook:', doc.id, 'idMateria:', notebook.idMateria);
+          if (notebook.idMateria) {
+            materiaIds.add(notebook.idMateria);
+          }
+        });
+        
+        console.log('📚 [TeacherHome] IDs únicos de materias encontradas:', Array.from(materiaIds));
+        
+        // Cargar información de cada materia
+        const subjects = [];
+        const addedMateriaIds = new Set(); // Para evitar duplicados
+        
+        for (const materiaId of materiaIds) {
+          console.log('📚 [TeacherHome] Buscando materia con ID:', materiaId);
+          
+          // Evitar duplicados
+          if (addedMateriaIds.has(materiaId)) {
+            console.log('📚 [TeacherHome] Materia ya agregada, saltando:', materiaId);
+            continue;
+          }
+          
+          // Buscar directamente por ID del documento
+          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+          
+          if (materiaDoc.exists()) {
+            const materiaData = materiaDoc.data();
+            console.log('📚 [TeacherHome] Materia encontrada:', {
+              id: materiaDoc.id,
+              nombre: materiaData.nombre,
+              idAdmin: materiaData.idAdmin,
+              idEscuela: materiaData.idEscuela,
+              idProfesor: materiaData.idProfesor
+            });
+            subjects.push({
+              id: materiaDoc.id,
+              ...materiaData
+            });
+            addedMateriaIds.add(materiaId);
+          } else {
+            console.log('📚 [TeacherHome] No se encontró la materia con ID:', materiaId);
+          }
+        }
+        
+        console.log('📚 [TeacherHome] Total de materias cargadas:', subjects.length);
+        console.log('📚 [TeacherHome] Materias:', subjects);
+        setTeacherSubjects(subjects);
+      } else if (userProfile?.subjectIds && userProfile.subjectIds.length > 0) {
+        // Para otros tipos de usuarios con subjectIds
+        console.log('📚 Cargando materias desde subjectIds:', userProfile.subjectIds);
+        
+        const subjects: any[] = [];
+        for (const subjectId of userProfile.subjectIds) {
+          const subjectQuery = query(
+            collection(db, 'schoolSubjects')
+          );
+          const subjectSnap = await getDocs(subjectQuery);
+          
+          subjectSnap.forEach(doc => {
+            if (doc.id === subjectId) {
+              subjects.push({
+                id: doc.id,
+                ...doc.data()
+              });
+            }
+          });
+        }
+        
+        console.log('📚 Materias cargadas:', subjects);
+        setTeacherSubjects(subjects);
+      } else {
+        console.log('👤 El profesor no tiene materias asignadas');
+        setTeacherSubjects([]);
+      }
+      
+    } catch (error) {
+      console.error('Error cargando materias del profesor:', error);
+      setTeacherSubjects([]);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  };
+
+  // UseEffect para cargar eventos y estadísticas
   useEffect(() => {
-    if (user?.uid) {
+    if (user?.uid && userProfile) {
       fetchTodayEvents();
       fetchExamStats();
     }
-  }, [user?.uid, userProfile?.id]);
+  }, [user?.uid, userProfile]);
+
+  // UseEffect separado para cargar materias solo una vez
+  useEffect(() => {
+    if (user?.uid && userProfile && !subjectsLoading && teacherSubjects.length === 0) {
+      fetchTeacherSubjects();
+    }
+  }, [user?.uid, userProfile?.id]); // Solo depende del ID del perfil, no del objeto completo
 
   // Función para navegar al calendario con fecha específica
   const handleEventClick = (event: CalendarEvent) => {
@@ -268,14 +396,68 @@ const TeacherHomePage: React.FC = () => {
               <div className="module-content">
                 <div className="module-header">
                   <h3>Materias</h3>
-                  <span className="current-date">Gestión</span>
+                  <span className="current-date">
+                    {subjectsLoading ? 'Cargando...' : `${teacherSubjects.length} asignadas`}
+                  </span>
                 </div>
                 <div className="materias-container">
-                  <div className="no-materias">
-                    <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
-                    <p style={{ margin: 0, fontWeight: 600 }}>Panel de Materias</p>
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>Administra tus materias</p>
-                  </div>
+                  {subjectsLoading ? (
+                    <div className="no-materias">
+                      <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }}></i>
+                      <p style={{ margin: 0, fontWeight: 600 }}>Cargando materias...</p>
+                    </div>
+                  ) : teacherSubjects.length > 0 ? (
+                    <div className="materias-list" style={{ padding: '0.5rem' }}>
+                      {teacherSubjects.slice(0, 3).map((subject, index) => (
+                        <div 
+                          key={subject.id} 
+                          className="materia-item" 
+                          style={{
+                            padding: '0.75rem',
+                            marginBottom: '0.5rem',
+                            background: 'rgba(97, 71, 255, 0.05)',
+                            borderRadius: '8px',
+                            borderLeft: '3px solid #6147FF',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FontAwesomeIcon 
+                              icon={faGraduationCap} 
+                              style={{ color: '#6147FF', fontSize: '1rem' }}
+                            />
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                              {subject.nombre || subject.name}
+                            </span>
+                          </div>
+                          {subject.grado && (
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '1.5rem' }}>
+                              {subject.grado}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {teacherSubjects.length > 3 && (
+                        <p style={{ 
+                          textAlign: 'center', 
+                          fontSize: '0.75rem', 
+                          color: '#6147FF',
+                          marginTop: '0.5rem',
+                          fontWeight: 600
+                        }}>
+                          +{teacherSubjects.length - 3} más...
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="no-materias">
+                      <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
+                      <p style={{ margin: 0, fontWeight: 600 }}>Sin materias asignadas</p>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>
+                        Contacta con el administrador
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

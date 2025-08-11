@@ -183,33 +183,33 @@ const ExamTestPage = () => {
       .filter(c => c.id !== concept.id)
       .sort(() => 0.5 - Math.random())
       .slice(0, 3)
-      .map(c => c.definition);
+      .map(c => c.definición);
 
-    const options = [concept.definition, ...incorrectOptions].sort(() => 0.5 - Math.random());
+    const options = [concept.definición, ...incorrectOptions].sort(() => 0.5 - Math.random());
     
     return {
       ...baseQuestion,
-      question: `¿Cuál es la definición de "${concept.term}"?`,
+      question: `¿Cuál es la definición de "${concept.término}"?`,
       options,
-      correctAnswer: concept.definition
+      correctAnswer: concept.definición
     };
   };
 
   // Generar pregunta de rellenar espacios
   const generateFillBlanksQuestion = (baseQuestion: ExamQuestion): ExamQuestion => {
     const concept = baseQuestion.concept;
-    const definition = concept.definition;
+    const definition = concept.definición;
     
     // Seleccionar palabras clave para reemplazar con espacios
     const words = definition.split(' ');
-    const importantWords = words.filter(word => word.length > 3);
+    const importantWords = words.filter((word: string) => word.length > 3);
     const wordToBlank = importantWords[Math.floor(Math.random() * importantWords.length)];
     
     const questionText = definition.replace(new RegExp(`\\b${wordToBlank}\\b`, 'gi'), '______');
     
     return {
       ...baseQuestion,
-      question: `Completa la siguiente definición de "${concept.term}": ${questionText}`,
+      question: `Completa la siguiente definición de "${concept.término}": ${questionText}`,
       correctAnswer: wordToBlank.toLowerCase(),
       blanks: [wordToBlank]
     };
@@ -226,12 +226,12 @@ const ExamTestPage = () => {
       .slice(0, 3);
 
     const allConcepts = [concept, ...otherConcepts];
-    const leftColumn = allConcepts.map(c => c.term).sort(() => 0.5 - Math.random());
-    const rightColumn = allConcepts.map(c => c.definition).sort(() => 0.5 - Math.random());
+    const leftColumn = allConcepts.map(c => c.término).sort(() => 0.5 - Math.random());
+    const rightColumn = allConcepts.map(c => c.definición).sort(() => 0.5 - Math.random());
     
     const matches: { [key: string]: string } = {};
     allConcepts.forEach(c => {
-      matches[c.term] = c.definition;
+      matches[c.término] = c.definición;
     });
     
     return {

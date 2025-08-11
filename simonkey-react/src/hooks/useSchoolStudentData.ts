@@ -109,11 +109,20 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
             // Contar conceptos del notebook
             let conceptCount = 0;
             try {
+              // Los conceptos están en documentos que contienen arrays de conceptos
               const conceptsSnapshot = await getDocs(
                 query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', doc.id))
               );
-              conceptCount = conceptsSnapshot.size;
-              console.log(`📊 Notebook ${doc.id} tiene ${conceptCount} conceptos`);
+              
+              // Contar todos los conceptos en todos los documentos
+              conceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+                const data = doc.data();
+                // Los conceptos están en un array llamado 'conceptos'
+                const conceptosArray = data.conceptos || [];
+                return total + conceptosArray.length;
+              }, 0);
+              
+              console.log(`📊 Notebook ${doc.id} (${data.title}) tiene ${conceptCount} conceptos`);
             } catch (error) {
               console.error(`Error contando conceptos para notebook ${doc.id}:`, error);
               conceptCount = data.conceptCount || 0; // Usar el valor existente si hay error
@@ -154,10 +163,18 @@ export const useSchoolStudentData = (): UseSchoolStudentDataReturn => {
                   // Contar conceptos del notebook
                   let conceptCount = 0;
                   try {
+                    // Los conceptos están en documentos que contienen arrays de conceptos
                     const conceptsSnapshot = await getDocs(
                       query(collection(db, 'schoolConcepts'), where('cuadernoId', '==', notebookId))
                     );
-                    conceptCount = conceptsSnapshot.size;
+                    
+                    // Contar todos los conceptos en todos los documentos
+                    conceptCount = conceptsSnapshot.docs.reduce((total, doc) => {
+                      const data = doc.data();
+                      // Los conceptos están en un array llamado 'conceptos'
+                      const conceptosArray = data.conceptos || [];
+                      return total + conceptosArray.length;
+                    }, 0);
                   } catch (error) {
                     console.error(`Error contando conceptos para notebook ${notebookId}:`, error);
                     conceptCount = data.conceptCount || 0;

@@ -141,7 +141,7 @@ export const getConceptsReadyForReview = (
       reviewDate = data.nextReviewDate;
     } else if (data.nextReviewDate && typeof data.nextReviewDate === 'object' && 'toDate' in data.nextReviewDate) {
       // Es un Timestamp de Firebase
-      reviewDate = data.nextReviewDate.toDate();
+      reviewDate = (data.nextReviewDate as any).toDate();
     } else if (typeof data.nextReviewDate === 'string') {
       reviewDate = new Date(data.nextReviewDate);
     } else {
@@ -189,7 +189,7 @@ export const getAvailableConceptsForStudy = (
     if (data.nextReviewDate instanceof Date) {
       reviewDate = data.nextReviewDate;
     } else if (data.nextReviewDate && typeof data.nextReviewDate === 'object' && 'toDate' in data.nextReviewDate) {
-      reviewDate = data.nextReviewDate.toDate();
+      reviewDate = (data.nextReviewDate as any).toDate();
     } else if (typeof data.nextReviewDate === 'string') {
       reviewDate = new Date(data.nextReviewDate);
     } else {

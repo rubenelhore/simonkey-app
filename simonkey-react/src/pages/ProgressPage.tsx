@@ -180,36 +180,84 @@ const ProgressPage: React.FC = () => {
       
       const materiasArray: Materia[] = [];
       
-      if (isSchoolUser && kpis?.materias) {
-        // Para usuarios escolares, usar las materias de los KPIs
-        console.log('[ProgressPage] Usuario escolar detectado, extrayendo materias de KPIs');
-        
-        // Obtener todas las IDs de materias
-        const materiaIds = Object.keys(kpis.materias);
-        
-        // Cargar todos los documentos de materias en paralelo
-        const materiaPromises = materiaIds.map(materiaId => 
-          getDoc(doc(db, 'schoolSubjects', materiaId))
-        );
-        
-        const materiaDocs = await Promise.all(materiaPromises);
-        
-        // Procesar los resultados
-        materiaDocs.forEach((subjectDoc, index) => {
-          const materiaId = materiaIds[index];
-          let nombreMateria = 'Sin nombre';
+      if (isSchoolUser) {
+        // Para usuarios escolares, verificar el rol del usuario
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
           
-          if (subjectDoc.exists()) {
-            const subjectData = subjectDoc.data();
-            nombreMateria = subjectData.nombre || subjectData.name || 'Sin nombre';
+          if (userData.schoolRole === 'teacher') {
+            // Para profesores, buscar las materias de sus notebooks
+            console.log('[ProgressPage] Usuario es profesor, buscando materias de sus notebooks');
+            
+            const notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('idProfesor', '==', userId)
+            );
+            const notebooksSnap = await getDocs(notebooksQuery);
+            
+            const materiaIds = new Set<string>();
+            notebooksSnap.forEach(doc => {
+              const notebookData = doc.data();
+              if (notebookData.idMateria) {
+                materiaIds.add(notebookData.idMateria);
+              }
+            });
+            
+            console.log('[ProgressPage] IDs de materias encontradas:', Array.from(materiaIds));
+            
+            // Cargar información de cada materia
+            for (const materiaId of materiaIds) {
+              const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+              if (subjectDoc.exists()) {
+                const subjectData = subjectDoc.data();
+                materiasArray.push({
+                  id: materiaId,
+                  nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
+                });
+              }
+            }
+          } else {
+            // Para estudiantes, buscar materias de sus cuadernos asignados
+            console.log('[ProgressPage] Usuario escolar (estudiante), buscando materias de cuadernos');
+            
+            const idCuadernos = userData.idCuadernos || [];
+            const materiaIds = new Set<string>();
+            
+            // Obtener las materias de todos los cuadernos asignados
+            for (const cuadernoId of idCuadernos) {
+              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
+              if (notebookDoc.exists()) {
+                const notebookData = notebookDoc.data();
+                if (notebookData.idMateria) {
+                  materiaIds.add(notebookData.idMateria);
+                }
+              }
+            }
+            
+            // También incluir materias de KPIs si existen
+            if (kpis?.materias) {
+              Object.keys(kpis.materias).forEach(materiaId => {
+                materiaIds.add(materiaId);
+              });
+            }
+            
+            console.log('[ProgressPage] IDs de materias encontradas:', Array.from(materiaIds));
+            
+            // Cargar información de cada materia
+            for (const materiaId of materiaIds) {
+              const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+              if (subjectDoc.exists()) {
+                const subjectData = subjectDoc.data();
+                materiasArray.push({
+                  id: materiaId,
+                  nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
+                });
+              }
+            }
           }
-          
-          materiasArray.push({
-            id: materiaId,
-            nombre: nombreMateria
-          });
-        });
-        console.log('[ProgressPage] Materias extraídas de KPIs:', materiasArray);
+        }
+        console.log('[ProgressPage] Materias procesadas para usuario escolar:', materiasArray);
       } else {
         // Para usuarios regulares, buscar en la colección materias
         const materiasQuery = query(
@@ -340,15 +388,37 @@ const ProgressPage: React.FC = () => {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          const idCuadernos = userData.idCuadernos || [];
           
-          for (const cuadernoId of idCuadernos) {
-            const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
-            if (notebookDoc.exists()) {
-              const notebookData = notebookDoc.data();
-              notebookNames.set(cuadernoId, notebookData.title || 'Sin nombre');
-              notebookMaterias.set(cuadernoId, notebookData.idMateria || '');
-              console.log(`[ProgressPage] Cuaderno ${cuadernoId}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
+          // Para profesores, buscar notebooks por idProfesor
+          if (userData.schoolRole === 'teacher') {
+            console.log('[ProgressPage] Usuario es profesor, buscando notebooks por idProfesor');
+            const notebooksQuery = query(
+              collection(db, 'schoolNotebooks'),
+              where('idProfesor', '==', userId)
+            );
+            const notebooksSnap = await getDocs(notebooksQuery);
+            
+            console.log(`[ProgressPage] Notebooks encontrados para profesor: ${notebooksSnap.size}`);
+            
+            notebooksSnap.forEach((doc) => {
+              const notebookData = doc.data();
+              notebookNames.set(doc.id, notebookData.title || 'Sin nombre');
+              notebookMaterias.set(doc.id, notebookData.idMateria || '');
+              console.log(`[ProgressPage] Notebook profesor ${doc.id}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
+            });
+          } else {
+            // Para estudiantes, usar idCuadernos
+            const idCuadernos = userData.idCuadernos || [];
+            console.log('[ProgressPage] Usuario es estudiante, usando idCuadernos:', idCuadernos);
+            
+            for (const cuadernoId of idCuadernos) {
+              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
+              if (notebookDoc.exists()) {
+                const notebookData = notebookDoc.data();
+                notebookNames.set(cuadernoId, notebookData.title || 'Sin nombre');
+                notebookMaterias.set(cuadernoId, notebookData.idMateria || '');
+                console.log(`[ProgressPage] Cuaderno estudiante ${cuadernoId}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
+              }
             }
           }
         }
@@ -390,6 +460,8 @@ const ProgressPage: React.FC = () => {
         });
       } else {
         // Filtrar por materia seleccionada
+        
+        // Primero, procesar cuadernos que están en KPIs
         Object.entries(kpisData.cuadernos || {}).forEach(([cuadernoId, cuadernoData]: [string, any]) => {
           const cuadernoMateria = notebookMaterias.get(cuadernoId) || cuadernoData.idMateria || '';
           
@@ -423,6 +495,31 @@ const ProgressPage: React.FC = () => {
               porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
               estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
               juegosJugados: cuadernoData.juegosJugados || 0
+            });
+          }
+        });
+        
+        // Luego, agregar cuadernos que no están en KPIs pero sí están asignados
+        notebookMaterias.forEach((materiaId, cuadernoId) => {
+          // Si el cuaderno no está en KPIs pero su materia coincide
+          if (materiaId === selectedMateria && !kpisData.cuadernos?.[cuadernoId]) {
+            const nombreCuaderno = notebookNames.get(cuadernoId) || 'Sin nombre';
+            
+            console.log(`[ProgressPage] Agregando cuaderno sin KPIs: ${cuadernoId} - ${nombreCuaderno}`);
+            
+            cuadernosTemp.push({
+              id: cuadernoId,
+              nombre: nombreCuaderno,
+              score: 0,
+              posicion: 1,
+              totalAlumnos: 1,
+              conceptos: 0,
+              tiempoEstudio: 0,
+              estudiosInteligentes: 0,
+              porcentajeExito: 0,
+              porcentajeDominio: 0,
+              estudiosLibres: 0,
+              juegosJugados: 0
             });
           }
         });

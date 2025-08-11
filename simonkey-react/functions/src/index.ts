@@ -2465,10 +2465,22 @@ export const generateConceptsFromFile = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini con ambos modelos
+      // Inicializar Gemini con ambos modelos y temperatura 0 para respuestas consistentes
       const genAI = new GoogleGenerativeAI(apiKey);
-      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const generationConfig = {
+        temperature: 0,
+        topP: 1,
+        topK: 1,
+        maxOutputTokens: 8192,
+      };
+      const primaryModel = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: generationConfig
+      });
+      const fallbackModel = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: generationConfig
+      });
 
       // Determinar el tipo MIME basado en el nombre del archivo
       const getMimeType = (filename: string): string => {
@@ -2599,12 +2611,124 @@ Responde ÚNICAMENTE con este JSON válido:
           }
         }
       } else {
-        // Procesar como texto plano (fallback)
+        // Procesar como texto plano con chunking para documentos largos
         logger.info("📝 Procesando como texto plano", { contentLength: fileContent?.length });
-        result = await retryWithModelFallback(
-          async () => await primaryModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`),
-          async () => await fallbackModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`)
-        );
+        
+        // Configuración de chunking optimizada
+        const CHUNK_SIZE = 3500; // Caracteres por chunk (optimizado para mejor precisión)
+        const CHUNK_OVERLAP = 300; // Overlap entre chunks para mantener contexto
+        const MAX_CHUNKS = 10; // Límite máximo de chunks para evitar procesar documentos extremadamente largos
+        
+        // Si el contenido es pequeño, procesar directamente
+        if (!fileContent || fileContent.length <= CHUNK_SIZE) {
+          result = await retryWithModelFallback(
+            async () => await primaryModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`),
+            async () => await fallbackModel.generateContent(prompt + `\n\nCONTENIDO A ANALIZAR:\n${fileContent}`)
+          );
+        } else {
+          // Implementar chunking para documentos largos
+          logger.info("📚 Documento largo detectado, aplicando chunking", {
+            totalLength: fileContent.length,
+            chunkSize: CHUNK_SIZE,
+            overlap: CHUNK_OVERLAP
+          });
+          
+          // Dividir el contenido en chunks
+          const chunks: string[] = [];
+          let startIndex = 0;
+          
+          while (startIndex < fileContent.length) {
+            const endIndex = Math.min(startIndex + CHUNK_SIZE, fileContent.length);
+            const chunk = fileContent.slice(startIndex, endIndex);
+            chunks.push(chunk);
+            
+            // Mover el índice con overlap (excepto en el último chunk)
+            startIndex = endIndex - CHUNK_OVERLAP;
+            if (startIndex + CHUNK_SIZE >= fileContent.length) {
+              startIndex = endIndex; // Para el último chunk, no aplicar overlap
+            }
+          }
+          
+          // Limitar el número de chunks si el documento es demasiado largo
+          const chunksToProcess = chunks.slice(0, MAX_CHUNKS);
+          if (chunks.length > MAX_CHUNKS) {
+            logger.warn(`⚠️ Documento muy largo: procesando solo los primeros ${MAX_CHUNKS} chunks de ${chunks.length}`);
+          }
+          
+          logger.info(`📦 Documento dividido en ${chunks.length} chunks, procesando ${chunksToProcess.length}`);
+          
+          // Procesar cada chunk y acumular conceptos
+          const allConcepts: any[] = [];
+          const processedConcepts = new Set<string>(); // Para evitar duplicados
+          
+          for (let i = 0; i < chunksToProcess.length; i++) {
+            logger.info(`🔄 Procesando chunk ${i + 1}/${chunksToProcess.length}`);
+            
+            const chunkPrompt = `
+${prompt}
+
+NOTA: Este es el chunk ${i + 1} de ${chunksToProcess.length} del documento.
+${i > 0 ? 'Evita duplicar conceptos del chunk anterior.' : ''}
+
+CONTENIDO A ANALIZAR:
+${chunksToProcess[i]}`;
+            
+            try {
+              const chunkResult = await retryWithModelFallback(
+                async () => await primaryModel.generateContent(chunkPrompt),
+                async () => await fallbackModel.generateContent(chunkPrompt)
+              );
+              
+              const chunkResponse = await chunkResult.response;
+              const chunkText = chunkResponse.text();
+              
+              // Parsear conceptos del chunk
+              const jsonMatch = chunkText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const chunkData = JSON.parse(jsonMatch[0]);
+                if (chunkData.conceptos && Array.isArray(chunkData.conceptos)) {
+                  // Filtrar duplicados basados en término y definición similar
+                  for (const concept of chunkData.conceptos) {
+                    const conceptKey = concept.termino.toLowerCase().trim();
+                    const definitionKey = concept.definicion.toLowerCase().trim().substring(0, 50);
+                    const uniqueKey = `${conceptKey}::${definitionKey}`;
+                    
+                    // Verificar si el concepto es realmente único
+                    if (!processedConcepts.has(conceptKey) && !processedConcepts.has(uniqueKey)) {
+                      processedConcepts.add(conceptKey);
+                      processedConcepts.add(uniqueKey);
+                      allConcepts.push(concept);
+                    }
+                  }
+                }
+              }
+              
+              logger.info(`✅ Chunk ${i + 1} procesado: ${chunkData?.conceptos?.length || 0} conceptos nuevos`);
+              
+            } catch (chunkError) {
+              logger.error(`❌ Error procesando chunk ${i + 1}`, chunkError);
+              // Continuar con el siguiente chunk incluso si uno falla
+            }
+          }
+          
+          // Limitar el número total de conceptos según el plan del usuario
+          const limits = SUBSCRIPTION_LIMITS[userType];
+          const finalConcepts = allConcepts.slice(0, limits.maxConceptsPerFile);
+          
+          logger.info("📊 Resumen de chunking", {
+            totalChunks: chunks.length,
+            totalConceptsFound: allConcepts.length,
+            finalConceptsCount: finalConcepts.length,
+            duplicatesRemoved: allConcepts.length - finalConcepts.length
+          });
+          
+          // Crear una respuesta simulada con todos los conceptos consolidados
+          result = {
+            response: {
+              text: () => JSON.stringify({ conceptos: finalConcepts })
+            }
+          };
+        }
       }
 
       const response = await result.response;
@@ -2834,10 +2958,22 @@ export const explainConcept = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini con ambos modelos
+      // Inicializar Gemini con ambos modelos y temperatura 0 para respuestas consistentes
       const genAI = new GoogleGenerativeAI(apiKey);
-      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const generationConfig = {
+        temperature: 0,
+        topP: 1,
+        topK: 1,
+        maxOutputTokens: 8192,
+      };
+      const primaryModel = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: generationConfig
+      });
+      const fallbackModel = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: generationConfig
+      });
 
       // Prompt adaptado a la dificultad
       const difficultyPrompts = {
@@ -2985,10 +3121,22 @@ export const generateContent = onCall(
         throw new HttpsError("internal", "Configuración de API no disponible");
       }
 
-      // Inicializar Gemini con ambos modelos
+      // Inicializar Gemini con ambos modelos y temperatura 0 para respuestas consistentes
       const genAI = new GoogleGenerativeAI(apiKey);
-      const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const generationConfig = {
+        temperature: 0,
+        topP: 1,
+        topK: 1,
+        maxOutputTokens: 8192,
+      };
+      const primaryModel = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: generationConfig
+      });
+      const fallbackModel = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: generationConfig
+      });
 
       // Construir prompt según el tipo de contenido
       let enhancedPrompt = prompt;
