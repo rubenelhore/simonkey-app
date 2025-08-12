@@ -2053,7 +2053,7 @@ body.modal-open .notebooks-hamburger-btn {
 .notebook-list-header .search-input {
   width: 100%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 2px solid #e5e7eb;
+  border: none;
   border-radius: 10px;
   font-size: 1rem;
   transition: all 0.3s ease;
@@ -2062,7 +2062,6 @@ body.modal-open .notebooks-hamburger-btn {
 
 .notebook-list-header .search-input:focus {
   outline: none;
-  border-color: #6147FF;
   background: white;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }

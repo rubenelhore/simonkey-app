@@ -447,12 +447,13 @@ const NotebookDetail = () => {
         if (isDuplicate) {
           newDuplicates.add(file.name);
           console.warn(`⚠️ Archivo duplicado detectado: ${file.name}`);
+          return false; // No incluir archivos duplicados en la lista
         }
         
-        return true; // Mantener el archivo para mostrarlo con el borde rojo
+        return true;
       });
       
-      setDuplicateFiles(newDuplicates);
+      setDuplicateFiles(new Set()); // Limpiar duplicados ya que no los incluimos
       setArchivos(validFiles);
       
       // Si hay duplicados, mostrar mensaje de error
@@ -993,11 +994,23 @@ const NotebookDetail = () => {
         fuente: 'Manual'
       });
       
+      // Mostrar mensaje de éxito temporal
+      setSuccessMessage({
+        isVisible: true,
+        conceptCount: 1
+      });
+      
       // Cerrar el modal después de creación exitosa
       setIsModalOpen(false);
       setDuplicateFiles(new Set());
       
-      alert("Concepto añadido exitosamente");
+      // Ocultar el mensaje después de 5 segundos
+      setTimeout(() => {
+        setSuccessMessage({
+          isVisible: false,
+          conceptCount: 0
+        });
+      }, 5000);
     } catch (error) {
       console.error('Error al guardar concepto manual:', error);
       alert('Error al guardar el concepto. Por favor intente nuevamente.');
@@ -1799,6 +1812,7 @@ const NotebookDetail = () => {
           if (e.target === e.currentTarget) {
             setIsModalOpen(false);
             setDuplicateFiles(new Set());
+            setArchivos([]); // Limpiar archivos seleccionados
           }
         }}>
           <div className="modal-content add-concepts-modal-new">
@@ -1807,6 +1821,7 @@ const NotebookDetail = () => {
               <button className="close-button-simple" onClick={() => {
                 setIsModalOpen(false);
                 setDuplicateFiles(new Set());
+                setArchivos([]); // Limpiar archivos seleccionados
               }}>
                 <i className="fas fa-times"></i>
               </button>
@@ -1827,14 +1842,14 @@ const NotebookDetail = () => {
                 onClick={() => setActiveTab('upload')}
               >
                 <i className="fas fa-upload"></i>
-                Subir archivos
+                Subir Archivo
               </button>
               <button 
                 className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
                 onClick={() => setActiveTab('manual')}
               >
                 <i className="fas fa-edit"></i>
-                Añadir manual
+                Añadir manualmente
               </button>
             </div>
             
@@ -1854,8 +1869,8 @@ const NotebookDetail = () => {
                   <label htmlFor="pdf-upload" className="file-input-label">
                     <div className="file-input-content">
                       <i className="fas fa-cloud-upload-alt"></i>
-                      <p>Haz clic aquí para seleccionar archivos</p>
-                      <span>o arrastra y suelta archivos aquí</span>
+                      <p>Haz clic aquí para seleccionar un archivo</p>
+                      <span>o arrastra y suelta un archivo aquí</span>
                       <span style={{ color: '#6147FF', fontWeight: 600, marginTop: 6, display: 'block', fontSize: '0.98rem' }}>
                         Formatos soportados: .TXT, .CSV, .JPG, .PNG, .PDF
                       </span>
@@ -1973,9 +1988,9 @@ const NotebookDetail = () => {
                   </button>
                 </div>
               ) : (
-                <div className="concept-form">
-                  <div className="form-group">
-                    <label htmlFor="termino">Término *</label>
+                <div className="concept-form" style={{ padding: '10px 0' }}>
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label htmlFor="termino" style={{ fontSize: '14px', marginBottom: '4px', display: 'block' }}>Término *</label>
                     <input 
                       type="text" 
                       id="termino"
@@ -1983,30 +1998,20 @@ const NotebookDetail = () => {
                       onChange={(e) => setNuevoConcepto({...nuevoConcepto, término: e.target.value})}
                       placeholder="Nombre del concepto"
                       disabled={cargando}
+                      style={{ padding: '8px 12px', fontSize: '14px' }}
                     />
                   </div>
                   
-                  <div className="form-group">
-                    <label htmlFor="definicion">Definición *</label>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label htmlFor="definicion" style={{ fontSize: '14px', marginBottom: '4px', display: 'block' }}>Definición *</label>
                     <textarea 
                       id="definicion"
                       value={nuevoConcepto.definición}
                       onChange={(e) => setNuevoConcepto({...nuevoConcepto, definición: e.target.value})}
                       placeholder="Explica brevemente el concepto"
-                      rows={4}
+                      rows={3}
                       disabled={cargando}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="fuente">Fuente</label>
-                    <input 
-                      type="text" 
-                      id="fuente"
-                      value={nuevoConcepto.fuente}
-                      onChange={(e) => setNuevoConcepto({...nuevoConcepto, fuente: e.target.value})}
-                      placeholder="Fuente del concepto"
-                      disabled={cargando}
+                      style={{ padding: '8px 12px', fontSize: '14px', resize: 'vertical', minHeight: '60px', maxHeight: '120px' }}
                     />
                   </div>
                   
@@ -2014,6 +2019,7 @@ const NotebookDetail = () => {
                     onClick={agregarConceptoManual} 
                     disabled={cargando || !nuevoConcepto.término || !nuevoConcepto.definición}
                     className="add-concept-button"
+                    style={{ padding: '10px 20px', fontSize: '14px' }}
                   >
                     {cargando && loadingText === "Guardando concepto..." ? loadingText : 'Añadir Concepto'}
                   </button>
