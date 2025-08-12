@@ -143,24 +143,40 @@ const InicioPage: React.FC = () => {
   const calculateDivision = (concepts: number) => {
     let divisionKey = 'WOOD';
     
+    console.log('🏆 Calculando división para', concepts, 'conceptos');
+    
+    // Ordenar las divisiones por su valor mínimo para procesarlas en orden
+    const divisionsInOrder = Object.entries(DIVISION_LEVELS).sort((a, b) => {
+      const minA = Math.min(...a[1].ranges);
+      const minB = Math.min(...b[1].ranges);
+      return minA - minB;
+    });
+    
     // Find current division based on concepts
-    for (const [key, data] of Object.entries(DIVISION_LEVELS)) {
+    for (const [key, data] of divisionsInOrder) {
+      const minInDivision = Math.min(...data.ranges);
       const maxInDivision = Math.max(...data.ranges);
-      if (concepts >= maxInDivision) {
-        continue;
-      } else {
+      console.log(`  - ${key}: rango ${minInDivision}-${maxInDivision}, conceptos actuales: ${concepts}`);
+      
+      if (concepts >= minInDivision && concepts <= maxInDivision) {
+        // El usuario está en esta división
         divisionKey = key;
+        console.log(`  ✓ DIVISIÓN ENCONTRADA: ${key}`);
+      } else if (concepts > maxInDivision) {
+        // El usuario superó esta división, continuar buscando
+        divisionKey = key; // Mantener esta como la más alta alcanzada hasta ahora
+        console.log(`  ↑ Superó ${key}, continuando...`);
+      } else {
+        // El usuario no alcanza esta división, usar la anterior
+        console.log(`  ✗ No alcanza ${key}, usando la división anterior`);
         break;
       }
     }
     
-    // If beyond the highest division, stay at legend
-    if (concepts >= 50000) {
-      divisionKey = 'LEGEND';
-    }
-    
     const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
+    console.log(`🎖️ División final asignada: ${division.name} ${division.icon} para ${concepts} conceptos`);
     setCurrentDivision({ name: division.name, icon: division.icon });
+    return { name: division.name, icon: division.icon }; // Return the division for immediate use
   };
 
   // Check if cache is valid (5 minutes)
@@ -367,14 +383,16 @@ const InicioPage: React.FC = () => {
       setHasStudiedToday(data.hasStudiedToday);
       setCurrentScore(data.currentScore);
       setWeeklyProgress(data.weeklyProgress);
-      setCurrentDivision(data.currentDivision);
+      // NO cargar división desde caché - continuar para recalcularla
+      // setCurrentDivision(data.currentDivision); // ELIMINADO
       // Cargar datos de progreso desde el caché si existen
       if (data.progressData) {
         console.log('📊 Usando datos de progreso desde cache:', data.progressData);
         setProgressData(data.progressData);
       }
-      setLoading(false);
-      return;
+      // NO retornar aquí - continuar para recalcular la división
+      // setLoading(false);
+      // return;
     }
     
     try {
@@ -399,7 +417,17 @@ const InicioPage: React.FC = () => {
         
         // Obtener conceptos dominados y calcular división
         const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
-        calculateDivision(conceptStats.conceptosDominados);
+        console.log('🎯 División: Conceptos dominados actuales:', conceptStats.conceptosDominados);
+        
+        // También obtener conceptos con repeticiones >= 2 (otra métrica alternativa)
+        const conceptsWithRepetitions = await kpiService.kpiService.getConceptsWithMinRepetitions(user.uid, 2);
+        console.log('🎯 División: Conceptos con 2+ repeticiones:', conceptsWithRepetitions);
+        
+        // Usar el mayor de los dos valores para ser más generoso con la división
+        const conceptsForDivision = Math.max(conceptStats.conceptosDominados, conceptsWithRepetitions);
+        console.log('🎯 División: Usando', conceptsForDivision, 'conceptos para calcular división');
+        
+        const calculatedDivision = calculateDivision(conceptsForDivision);
         
         // Actualizar datos del módulo de Progreso
         console.log('📊 Actualizando datos del módulo de Progreso...');
@@ -460,11 +488,11 @@ const InicioPage: React.FC = () => {
             hasStudiedToday: studiedToday,
             currentScore: scoreValue,
             weeklyProgress: weeklyProgressValue,
-            currentDivision: { name: currentDivision.name, icon: currentDivision.icon },
+            currentDivision: calculatedDivision, // Usar la división recién calculada
             progressData: newProgressData // Usar los nuevos datos de progreso
           };
           setCachedData(`main_data_${user.uid}`, mainData, Date.now());
-          console.log('💾 Datos principales y de progreso guardados en cache localStorage');
+          console.log('💾 Datos principales y de progreso guardados en cache localStorage con división:', calculatedDivision);
         } else {
           console.log('⚠️ No se encontraron KPIs data, estableciendo valores por defecto');
           const defaultProgressData = {
@@ -505,11 +533,11 @@ const InicioPage: React.FC = () => {
             hasStudiedToday: studiedToday,
             currentScore: scoreValue,
             weeklyProgress: weeklyProgressValue,
-            currentDivision: { name: currentDivision.name, icon: currentDivision.icon },
+            currentDivision: calculatedDivision, // Usar la división recién calculada
             progressData: defaultProgressData // Usar los datos por defecto
           };
           setCachedData(`main_data_${user.uid}`, mainData, Date.now());
-          console.log('💾 Datos principales guardados con valores por defecto en cache localStorage');
+          console.log('💾 Datos principales guardados con valores por defecto en cache localStorage con división:', calculatedDivision);
         }
         
       } catch (error) {
@@ -539,7 +567,8 @@ const InicioPage: React.FC = () => {
         setHasStudiedToday(data.hasStudiedToday);
         setCurrentScore(data.currentScore);
         setWeeklyProgress(data.weeklyProgress);
-        setCurrentDivision(data.currentDivision);
+        // NO cargar la división desde el caché - siempre recalcular basado en conceptos actuales
+        // setCurrentDivision(data.currentDivision); // ELIMINADO - división se calcula en fetchData()
         // Cargar datos de progreso desde el caché si existen
         if (data.progressData) {
           console.log('📊 Cargando datos de progreso desde cache:', data.progressData);

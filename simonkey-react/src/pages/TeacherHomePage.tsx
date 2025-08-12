@@ -222,10 +222,76 @@ const TeacherHomePage: React.FC = () => {
       
       // Para profesores escolares, cargar las materias desde schoolNotebooks
       if (userProfile?.schoolRole === 'teacher') {
-        console.log('📚 [TeacherHome] Es profesor escolar, buscando notebooks...');
+        console.log('📚 [TeacherHome] Es profesor escolar, buscando materias...');
         console.log('📚 [TeacherHome] idEscuela:', userProfile?.idEscuela);
+        console.log('📚 [TeacherHome] ID del profesor:', userProfile.id || user?.uid);
         
-        // Obtener todos los notebooks del profesor
+        // PRIMERO: Buscar materias directamente asignadas al profesor (campo idProfesor)
+        const directSubjectsQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('idProfesor', '==', userProfile.id || user?.uid)
+        );
+        const directSubjectsSnap = await getDocs(directSubjectsQuery);
+        
+        console.log('📚 [TeacherHome] Materias directas encontradas:', directSubjectsSnap.size);
+        
+        const materiaIds = new Set<string>();
+        const subjects = [];
+        
+        // Agregar materias directas
+        directSubjectsSnap.forEach(doc => {
+          const subjectData = doc.data();
+          console.log('📚 [TeacherHome] Materia directa:', doc.id, subjectData.nombre);
+          materiaIds.add(doc.id);
+          subjects.push({
+            id: doc.id,
+            ...subjectData
+          });
+        });
+        
+        // EXTRA: Buscar materias donde el profesor esté en el array de profesores
+        const allSubjectsQuery = query(
+          collection(db, 'schoolSubjects'),
+          where('idEscuela', '==', userProfile.idEscuela || userProfile.idInstitucion)
+        );
+        const allSubjectsSnap = await getDocs(allSubjectsQuery);
+        
+        console.log('📚 [TeacherHome] Buscando en todas las materias de la escuela:', allSubjectsSnap.size);
+        
+        allSubjectsSnap.forEach(doc => {
+          const subjectData = doc.data();
+          const profesorId = userProfile.id || user?.uid;
+          
+          // Verificar si el profesor está en el array de profesores
+          if (subjectData.profesores && Array.isArray(subjectData.profesores)) {
+            if (subjectData.profesores.includes(profesorId)) {
+              if (!materiaIds.has(doc.id)) {
+                console.log('📚 [TeacherHome] Materia con profesor en array:', doc.id, subjectData.nombre);
+                materiaIds.add(doc.id);
+                subjects.push({
+                  id: doc.id,
+                  ...subjectData
+                });
+              }
+            }
+          }
+          
+          // También verificar idProfesores (plural)
+          if (subjectData.idProfesores && Array.isArray(subjectData.idProfesores)) {
+            if (subjectData.idProfesores.includes(profesorId)) {
+              if (!materiaIds.has(doc.id)) {
+                console.log('📚 [TeacherHome] Materia con profesor en idProfesores:', doc.id, subjectData.nombre);
+                materiaIds.add(doc.id);
+                subjects.push({
+                  id: doc.id,
+                  ...subjectData
+                });
+              }
+            }
+          }
+        });
+        
+        // SEGUNDO: Buscar notebooks del profesor para encontrar materias adicionales
         const notebooksQuery = query(
           collection(db, 'schoolNotebooks'),
           where('idProfesor', '==', userProfile.id || user?.uid)
@@ -234,39 +300,36 @@ const TeacherHomePage: React.FC = () => {
         
         console.log('📚 [TeacherHome] Notebooks encontrados:', notebooksSnap.size);
         
-        // Extraer IDs únicos de materias
-        const materiaIds = new Set<string>();
+        // Extraer IDs únicos de materias de los notebooks
         const materiaData = new Map<string, any>();
         
         notebooksSnap.forEach(doc => {
           const notebook = doc.data();
           console.log('📚 [TeacherHome] Notebook:', doc.id, 'idMateria:', notebook.idMateria);
-          if (notebook.idMateria) {
+          if (notebook.idMateria && !materiaIds.has(notebook.idMateria)) {
+            // Solo agregar si no está ya en las materias directas
             materiaIds.add(notebook.idMateria);
           }
         });
         
-        console.log('📚 [TeacherHome] IDs únicos de materias encontradas:', Array.from(materiaIds));
+        console.log('📚 [TeacherHome] IDs únicos de materias totales:', Array.from(materiaIds));
         
-        // Cargar información de cada materia
-        const subjects = [];
-        const addedMateriaIds = new Set(); // Para evitar duplicados
-        
+        // Cargar información de cada materia que no está ya cargada
         for (const materiaId of materiaIds) {
-          console.log('📚 [TeacherHome] Buscando materia con ID:', materiaId);
-          
-          // Evitar duplicados
-          if (addedMateriaIds.has(materiaId)) {
-            console.log('📚 [TeacherHome] Materia ya agregada, saltando:', materiaId);
+          // Si ya tenemos esta materia de la búsqueda directa, saltarla
+          if (subjects.find(s => s.id === materiaId)) {
+            console.log('📚 [TeacherHome] Materia ya cargada directamente:', materiaId);
             continue;
           }
+          
+          console.log('📚 [TeacherHome] Buscando materia adicional con ID:', materiaId);
           
           // Buscar directamente por ID del documento
           const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
           
           if (materiaDoc.exists()) {
             const materiaData = materiaDoc.data();
-            console.log('📚 [TeacherHome] Materia encontrada:', {
+            console.log('📚 [TeacherHome] Materia adicional encontrada:', {
               id: materiaDoc.id,
               nombre: materiaData.nombre,
               idAdmin: materiaData.idAdmin,
@@ -277,7 +340,6 @@ const TeacherHomePage: React.FC = () => {
               id: materiaDoc.id,
               ...materiaData
             });
-            addedMateriaIds.add(materiaId);
           } else {
             console.log('📚 [TeacherHome] No se encontró la materia con ID:', materiaId);
           }
@@ -285,6 +347,43 @@ const TeacherHomePage: React.FC = () => {
         
         console.log('📚 [TeacherHome] Total de materias cargadas:', subjects.length);
         console.log('📚 [TeacherHome] Materias:', subjects);
+        
+        // Si no se encontraron materias, intentar buscar en el documento del profesor
+        if (subjects.length === 0 && userProfile?.idEscuela) {
+          console.log('📚 [TeacherHome] No se encontraron materias, buscando en documento del profesor...');
+          
+          // Buscar el documento del profesor en schoolTeachers
+          const teacherQuery = query(
+            collection(db, 'schoolTeachers'),
+            where('idUsuario', '==', user?.uid)
+          );
+          const teacherSnap = await getDocs(teacherQuery);
+          
+          if (!teacherSnap.empty) {
+            const teacherDoc = teacherSnap.docs[0];
+            const teacherData = teacherDoc.data();
+            console.log('📚 [TeacherHome] Documento del profesor encontrado:', teacherData);
+            
+            // Verificar si tiene idMaterias o materias asignadas
+            if (teacherData.idMaterias && Array.isArray(teacherData.idMaterias)) {
+              console.log('📚 [TeacherHome] idMaterias encontrado en documento del profesor:', teacherData.idMaterias);
+              
+              for (const materiaId of teacherData.idMaterias) {
+                const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+                if (materiaDoc.exists() && !materiaIds.has(materiaId)) {
+                  const materiaData = materiaDoc.data();
+                  console.log('📚 [TeacherHome] Materia desde documento del profesor:', materiaId, materiaData.nombre);
+                  subjects.push({
+                    id: materiaDoc.id,
+                    ...materiaData
+                  });
+                  materiaIds.add(materiaId);
+                }
+              }
+            }
+          }
+        }
+        
         setTeacherSubjects(subjects);
       } else if (userProfile?.subjectIds && userProfile.subjectIds.length > 0) {
         // Para otros tipos de usuarios con subjectIds
@@ -452,9 +551,12 @@ const TeacherHomePage: React.FC = () => {
                   ) : (
                     <div className="no-materias">
                       <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>Sin materias asignadas</p>
-                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>
-                        Contacta con el administrador
+                      <p style={{ margin: 0, fontWeight: 600 }}>Preparando tu espacio educativo</p>
+                      <p style={{ margin: '0.5rem 0', fontSize: '0.85rem', opacity: 0.8, lineHeight: 1.4 }}>
+                        Tu administrador pronto te asignará materias increíbles para transformar vidas.
+                      </p>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.6 }}>
+                        Mientras tanto, explora el calendario y prepara tus estrategias
                       </p>
                     </div>
                   )}
