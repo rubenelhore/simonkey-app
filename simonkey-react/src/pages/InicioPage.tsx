@@ -300,7 +300,7 @@ const InicioPage: React.FC = () => {
           if (isSchoolStudent || isSchoolTeacher) {
             // Para usuarios escolares, calcular dominio basado en notebooks de la materia
             console.log(`📊 Calculando dominio para materia escolar: ${materiaDoc.id}`);
-            domainProgress = await getDomainProgressForMateria(materiaDoc.id, isSchoolStudent || isSchoolTeacher);
+            domainProgress = await getDomainProgressForMateria(materiaDoc.id);
           } else {
             domainProgress = await getDomainProgressForMateria(materiaDoc.id);
           }
