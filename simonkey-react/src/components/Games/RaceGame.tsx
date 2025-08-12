@@ -28,9 +28,11 @@ interface RaceGameProps {
   notebookId: string;
   notebookTitle: string;
   onBack: () => void;
+  cachedConcepts?: any[];
+  cachedLearningData?: any[];
 }
 
-const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }) => {
+const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
   const gameLoopRef = useRef<number | undefined>(undefined);
   
   // Game state
@@ -70,7 +72,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
 
   useEffect(() => {
     loadConcepts();
-  }, [notebookId]);
+  }, [notebookId, cachedConcepts, cachedLearningData]);
 
   useEffect(() => {
     if (gameStarted && !gameOver) {
@@ -114,13 +116,17 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      // Obtener TODOS los conceptos del cuaderno primero
-      let allConcepts: any[] = await studyService.getAllConceptsFromNotebook(userId, notebookId);
-      console.log('🏃 Total de conceptos en el cuaderno:', allConcepts.length);
+      // Usar conceptos del cache si están disponibles, sino cargarlos
+      let allConcepts: any[] = cachedConcepts && cachedConcepts.length > 0 
+        ? cachedConcepts 
+        : await studyService.getAllConceptsFromNotebook(userId, notebookId);
+      console.log('🏃 Total de conceptos para el juego:', allConcepts.length, cachedConcepts ? '(desde cache)' : '(cargados)');
       
-      // Obtener datos de aprendizaje para filtrar solo conceptos repasados
-      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
-      console.log('📚 Datos de aprendizaje encontrados:', learningData.length);
+      // Usar datos de aprendizaje del cache si están disponibles, sino cargarlos
+      const learningData = cachedLearningData && cachedLearningData.length >= 0 
+        ? cachedLearningData 
+        : await studyService.getLearningDataForNotebook(userId, notebookId);
+      console.log('📚 Datos de aprendizaje para el juego:', learningData.length, cachedLearningData ? '(desde cache)' : '(cargados)');
       
       // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
       const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
@@ -132,15 +138,22 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       
       console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
       
+      // Si no hay suficientes conceptos repasados, usar todos los conceptos disponibles
+      let conceptsToUse = reviewedConcepts;
       if (reviewedConcepts.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos repasados para el juego (mínimo 3)');
+        console.log('⚠️ No hay suficientes conceptos repasados, usando todos los conceptos disponibles');
+        conceptsToUse = allConcepts;
+      }
+      
+      if (conceptsToUse.length < 3) {
+        console.log('⚠️ No hay suficientes conceptos disponibles para el juego (mínimo 3)');
         setNoReviewedConcepts(true);
         setLoading(false);
         return;
       }
       
       // Convertir al formato que espera el juego
-      const conceptsList: Concept[] = reviewedConcepts.map(concept => ({
+      const conceptsList: Concept[] = conceptsToUse.map(concept => ({
         id: concept.id,
         term: concept.término || '',
         definition: concept.definición || ''

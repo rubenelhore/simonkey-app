@@ -7,6 +7,7 @@ import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
 import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
+import HeaderWithHamburger from '../HeaderWithHamburger';
 import '../../styles/MemoryGame.css';
 
 interface Concept {
@@ -28,9 +29,11 @@ interface MemoryGameProps {
   notebookId: string;
   notebookTitle: string;
   onBack: () => void;
+  cachedConcepts?: any[];
+  cachedLearningData?: any[];
 }
 
-const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBack }) => {
+const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedCards, setSelectedCards] = useState<Card[]>([]);
   const [isChecking, setIsChecking] = useState(false);
@@ -45,6 +48,9 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   const [bestStreak, setBestStreak] = useState(0);
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
+  const [availableConcepts, setAvailableConcepts] = useState<Concept[]>([]);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -63,7 +69,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   // Load concepts from notebook
   useEffect(() => {
     loadConcepts();
-  }, [notebookId]);
+  }, [notebookId, cachedConcepts, cachedLearningData]);
 
   const loadConcepts = async () => {
     if (!auth.currentUser) return;
@@ -74,13 +80,17 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      // Obtener TODOS los conceptos del cuaderno primero
-      let allConcepts: any[] = await studyService.getAllConceptsFromNotebook(userId, notebookId);
-      console.log('🎮 Total de conceptos en el cuaderno:', allConcepts.length);
+      // Usar conceptos del cache si están disponibles, sino cargarlos
+      let allConcepts: any[] = cachedConcepts && cachedConcepts.length > 0 
+        ? cachedConcepts 
+        : await studyService.getAllConceptsFromNotebook(userId, notebookId);
+      console.log('🎮 Total de conceptos para el juego:', allConcepts.length, cachedConcepts ? '(desde cache)' : '(cargados)');
       
-      // Obtener datos de aprendizaje para filtrar solo conceptos repasados
-      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
-      console.log('📚 Datos de aprendizaje encontrados:', learningData.length);
+      // Usar datos de aprendizaje del cache si están disponibles, sino cargarlos
+      const learningData = cachedLearningData && cachedLearningData.length >= 0 
+        ? cachedLearningData 
+        : await studyService.getLearningDataForNotebook(userId, notebookId);
+      console.log('📚 Datos de aprendizaje para el juego:', learningData.length, cachedLearningData ? '(desde cache)' : '(cargados)');
       
       // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
       const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
@@ -92,15 +102,22 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
       
       console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
       
+      // Si no hay conceptos repasados, usar todos los conceptos disponibles
+      let conceptsToUse = reviewedConcepts;
       if (reviewedConcepts.length === 0) {
-        console.log('⚠️ No hay conceptos repasados disponibles para el juego');
+        console.log('⚠️ No hay conceptos repasados, usando todos los conceptos disponibles');
+        conceptsToUse = allConcepts;
+      }
+      
+      if (conceptsToUse.length === 0) {
+        console.log('⚠️ No hay conceptos disponibles para el juego');
         setNoReviewedConcepts(true);
         setLoading(false);
         return;
       }
       
       // Convertir al formato que espera el juego
-      const concepts: Concept[] = reviewedConcepts.map(concept => ({
+      const concepts: Concept[] = conceptsToUse.map(concept => ({
         id: concept.id,
         term: concept.término || '',
         definition: concept.definición || ''
@@ -108,38 +125,73 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
 
       console.log('🎯 Total de conceptos repasados para el juego:', concepts.length);
       
-      // Shuffle and take max 5 concepts
-      const shuffled = concepts.sort(() => Math.random() - 0.5).slice(0, 5);
+      // Store available concepts for difficulty selection
+      setAvailableConcepts(concepts);
       
-      // Create cards (each concept creates 2 cards: term and definition)
-      const gameCards: Card[] = [];
-      shuffled.forEach((concept) => {
-        gameCards.push({
-          id: `${concept.id}_term`,
-          content: concept.term,
-          type: 'term',
-          conceptId: concept.id,
-          isFlipped: false,
-          isMatched: false
-        });
-        gameCards.push({
-          id: `${concept.id}_def`,
-          content: concept.definition,
-          type: 'definition',
-          conceptId: concept.id,
-          isFlipped: false,
-          isMatched: false
-        });
-      });
-
-      // Shuffle cards
-      const shuffledCards = gameCards.sort(() => Math.random() - 0.5);
-      setCards(shuffledCards);
+      // Show difficulty selection modal
+      setShowDifficultyModal(true);
       setLoading(false);
     } catch (error) {
       console.error('Error loading concepts:', error);
       setLoading(false);
     }
+  };
+
+  const startGameWithDifficulty = (difficulty: 'easy' | 'medium' | 'hard') => {
+    setSelectedDifficulty(difficulty);
+    setShowDifficultyModal(false);
+    
+    let conceptCount: number;
+    let gridSize: string;
+    
+    switch (difficulty) {
+      case 'easy':
+        conceptCount = 4; // 4 conceptos = 8 cartas (4x2)
+        gridSize = 'repeat(4, 1fr)';
+        break;
+      case 'medium':
+        conceptCount = 6; // 6 conceptos = 12 cartas (4x3)
+        gridSize = 'repeat(4, 1fr)';
+        break;
+      case 'hard':
+        conceptCount = 8; // 8 conceptos = 16 cartas (4x4)
+        gridSize = 'repeat(4, 1fr)';
+        break;
+    }
+    
+    // Update grid layout
+    const memoryGrid = document.querySelector('.memory-grid') as HTMLElement;
+    if (memoryGrid) {
+      memoryGrid.style.gridTemplateColumns = gridSize;
+    }
+    
+    // Take concepts based on difficulty
+    const shuffled = availableConcepts.sort(() => Math.random() - 0.5).slice(0, conceptCount);
+    
+    // Create cards (each concept creates 2 cards: term and definition)
+    const gameCards: Card[] = [];
+    shuffled.forEach((concept) => {
+      gameCards.push({
+        id: `${concept.id}_term`,
+        content: concept.term,
+        type: 'term',
+        conceptId: concept.id,
+        isFlipped: false,
+        isMatched: false
+      });
+      gameCards.push({
+        id: `${concept.id}_def`,
+        content: concept.definition,
+        type: 'definition',
+        conceptId: concept.id,
+        isFlipped: false,
+        isMatched: false
+      });
+    });
+
+    // Shuffle cards
+    const shuffledCards = gameCards.sort(() => Math.random() - 0.5);
+    setCards(shuffledCards);
   };
 
   const handleCardClick = (clickedCard: Card) => {
@@ -249,7 +301,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const resetGame = () => {
-    setCards(cards.map(card => ({ ...card, isFlipped: false, isMatched: false })));
+    setCards([]);
     setSelectedCards([]);
     setMoves(0);
     setMatchedPairs(0);
@@ -259,7 +311,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     setStreak(0);
     setBestStreak(0);
     setPointsAwarded(false);
-    loadConcepts();
+    setShowDifficultyModal(true);
+    setSelectedDifficulty(null);
   };
 
   const formatTime = (seconds: number) => {
@@ -341,39 +394,40 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
 
   return (
     <div className="memory-game-container">
-      <div className="memory-game-header">
-        <button className="back-button" onClick={onBack}>
+      <HeaderWithHamburger 
+        title="Memorama" 
+        showBackButton={true}
+        onBackClick={onBack}
+      />
+      
+      <div className="game-controls">
+        <button className="back-to-games-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
+          <span>Juegos</span>
         </button>
         
-        <div className="game-title">
-          <h1>Memorama</h1>
-          <p>{notebookTitle}</p>
+        <div className="game-stats">
+          <div className="stat">
+            <span><FontAwesomeIcon icon={faClock} /> {formatTime(elapsedTime)}</span>
+          </div>
+          <div className="stat">
+            <span>Movimientos: {moves}</span>
+          </div>
+          <div className="stat">
+            <span>Parejas: {matchedPairs}/{Math.floor(cards.length / 2)}</span>
+          </div>
+          {streak > 0 && (
+            <div className="stat streak">
+              <FontAwesomeIcon icon={faFire} />
+              <span>Racha: {streak}</span>
+            </div>
+          )}
         </div>
 
         <button className="reset-button" onClick={resetGame}>
           <FontAwesomeIcon icon={faRedo} />
           <span>Reiniciar</span>
         </button>
-      </div>
-
-      <div className="game-stats">
-        <div className="stat">
-          <FontAwesomeIcon icon={faClock} />
-          <span>{formatTime(elapsedTime)}</span>
-        </div>
-        <div className="stat">
-          <span>Movimientos: {moves}</span>
-        </div>
-        <div className="stat">
-          <span>Parejas: {matchedPairs}/{Math.floor(cards.length / 2)}</span>
-        </div>
-        {streak > 0 && (
-          <div className="stat streak">
-            <FontAwesomeIcon icon={faFire} />
-            <span>Racha: {streak}</span>
-          </div>
-        )}
       </div>
 
       <div className="memory-grid">
@@ -400,34 +454,84 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
         ))}
       </div>
 
-      {gameCompleted && (
+      {showDifficultyModal && (
         <div className="game-completed-modal">
           <div className="modal-content">
-            <FontAwesomeIcon icon={faTrophy} className="trophy-icon" />
-            <h2>¡Felicidades!</h2>
-            <p>Has completado el memorama</p>
+            <h2>Selecciona Dificultad</h2>
             
-            <div className="final-stats">
-              <div className="final-stat">
-                <span className="label">Tiempo:</span>
-                <span className="value">{formatTime(elapsedTime)}</span>
-              </div>
-              <div className="final-stat">
-                <span className="label">Movimientos:</span>
-                <span className="value">{moves}</span>
-              </div>
-              <div className="final-stat">
-                <span className="label">Mejor racha:</span>
-                <span className="value">{bestStreak}</span>
-              </div>
-              <div className="final-stat highlight">
-                <span className="label">Puntuación:</span>
-                <span className="value">{getScore()}</span>
-              </div>
+            <div className="difficulty-options">
+              <button 
+                className={`difficulty-btn easy ${availableConcepts.length >= 4 ? '' : 'disabled'}`}
+                onClick={() => availableConcepts.length >= 4 && startGameWithDifficulty('easy')}
+                disabled={availableConcepts.length < 4}
+              >
+                <span className="difficulty-title">🟢 Fácil</span>
+                <span className="difficulty-info">Grid 4x2 (8 cartas)</span>
+                <span className="difficulty-info">4 conceptos</span>
+                {availableConcepts.length < 4 && <span className="insufficient-text">Necesitas 4 conceptos</span>}
+              </button>
+              
+              <button 
+                className={`difficulty-btn medium ${availableConcepts.length >= 6 ? '' : 'disabled'}`}
+                onClick={() => availableConcepts.length >= 6 && startGameWithDifficulty('medium')}
+                disabled={availableConcepts.length < 6}
+              >
+                <span className="difficulty-title">🟡 Medio</span>
+                <span className="difficulty-info">Grid 4x3 (12 cartas)</span>
+                <span className="difficulty-info">6 conceptos</span>
+                {availableConcepts.length < 6 && <span className="insufficient-text">Necesitas 6 conceptos</span>}
+              </button>
+              
+              <button 
+                className={`difficulty-btn hard ${availableConcepts.length >= 8 ? '' : 'disabled'}`}
+                onClick={() => availableConcepts.length >= 8 && startGameWithDifficulty('hard')}
+                disabled={availableConcepts.length < 8}
+              >
+                <span className="difficulty-title">🔴 Difícil</span>
+                <span className="difficulty-info">Grid 4x4 (16 cartas)</span>
+                <span className="difficulty-info">8 conceptos</span>
+                {availableConcepts.length < 8 && <span className="insufficient-text">Necesitas 8 conceptos</span>}
+              </button>
             </div>
 
             <div className="modal-actions">
               <button className="back-to-games-btn" onClick={onBack}>
+                Volver a juegos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {gameCompleted && (
+        <div className="game-completed-modal">
+          <div className="simple-modal">
+            <h2>Juego Completado</h2>
+            
+            <div className="stats-grid">
+              <div className="stat-box">
+                <span className="stat-label">Tiempo</span>
+                <span className="stat-number">{formatTime(elapsedTime)}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Movimientos</span>
+                <span className="stat-number">{moves}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Mejor racha</span>
+                <span className="stat-number">{bestStreak}</span>
+              </div>
+              <div className="stat-box highlight">
+                <span className="stat-label">Puntuación</span>
+                <span className="stat-number">{getScore()}</span>
+              </div>
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn-primary" onClick={resetGame}>
+                Jugar de nuevo
+              </button>
+              <button className="btn-secondary" onClick={onBack}>
                 Volver a juegos
               </button>
             </div>

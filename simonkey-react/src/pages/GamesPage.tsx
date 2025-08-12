@@ -23,6 +23,10 @@ const GamesPage: React.FC = () => {
   const [isNotebookFrozen, setIsNotebookFrozen] = useState(false);
   const [hasReviewedConcepts, setHasReviewedConcepts] = useState<boolean | null>(null);
   const [checkingConcepts, setCheckingConcepts] = useState(false);
+  const [cachedConcepts, setCachedConcepts] = useState<any[]>([]);
+  const [conceptsLoading, setConceptsLoading] = useState(false);
+  const [cachedLearningData, setCachedLearningData] = useState<any[]>([]);
+  const [learningDataLoaded, setLearningDataLoaded] = useState(false);
   const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService();
@@ -60,9 +64,36 @@ const GamesPage: React.FC = () => {
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      console.log('🎮 GamesPage - Verificando conceptos repasados');
+      console.log('🎮 GamesPage - Verificando conceptos repasados y cargando conceptos');
       console.log('🎮 userId:', userId);
       console.log('🎮 notebookId:', notebookId);
+      
+      // Cargar conceptos y datos de aprendizaje una sola vez para usar en todos los juegos
+      if (cachedConcepts.length === 0) {
+        setConceptsLoading(true);
+        try {
+          const concepts = await studyService.getAllConceptsFromNotebook(userId, notebookId);
+          console.log('🎮 Conceptos cargados y guardados en cache:', concepts.length);
+          setCachedConcepts(concepts);
+        } catch (error) {
+          console.error('Error cargando conceptos:', error);
+        } finally {
+          setConceptsLoading(false);
+        }
+      }
+
+      // Cargar datos de aprendizaje una sola vez
+      if (!learningDataLoaded) {
+        try {
+          const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
+          console.log('🎮 Datos de aprendizaje cargados y guardados en cache:', learningData.length);
+          setCachedLearningData(learningData);
+          setLearningDataLoaded(true);
+        } catch (error) {
+          console.error('Error cargando datos de aprendizaje:', error);
+          setLearningDataLoaded(true); // Evitar intentos infinitos
+        }
+      }
       
       // PRIMERA OPCIÓN: Verificar si hay CUALQUIER sesión de estudio para este cuaderno
       // Incluye sesiones completadas Y sesiones en progreso con al menos un concepto
@@ -152,35 +183,56 @@ const GamesPage: React.FC = () => {
       return;
     }
     
-    // Primero verificar si hay conceptos repasados
-    setCheckingConcepts(true);
-    const hasReviewed = await checkReviewedConcepts();
-    setCheckingConcepts(false);
-    
-    if (!hasReviewed) {
-      alert('¡Primero necesitas estudiar! Para jugar, necesitas haber repasado algunos conceptos en el estudio inteligente.');
-      return;
+    // Cargar conceptos y datos de aprendizaje si no están cargados
+    if (cachedConcepts.length === 0) {
+      setCheckingConcepts(true);
+      await checkReviewedConcepts();
+      setCheckingConcepts(false);
     }
     
-    // Ir directamente al juego sin restricciones de tickets
+    // Ir directamente al juego sin restricciones
     setSelectedGame(gameId);
   };
 
 
   if (selectedGame === 'memory' && notebookId) {
-    return <MemoryGame notebookId={notebookId} notebookTitle={notebookTitle} onBack={() => setSelectedGame(null)} />;
+    return <MemoryGame 
+      notebookId={notebookId} 
+      notebookTitle={notebookTitle} 
+      onBack={() => setSelectedGame(null)}
+      cachedConcepts={cachedConcepts}
+      cachedLearningData={cachedLearningData}
+    />;
   }
 
   if (selectedGame === 'puzzle' && notebookId) {
-    return <PuzzleGame notebookId={notebookId} notebookTitle={notebookTitle} onBack={() => setSelectedGame(null)} />;
+    return <PuzzleGame 
+      notebookId={notebookId} 
+      notebookTitle={notebookTitle} 
+      onBack={() => setSelectedGame(null)}
+      cachedConcepts={cachedConcepts}
+      cachedLearningData={cachedLearningData}
+    />;
   }
 
   if (selectedGame === 'race' && notebookId) {
-    return <RaceGame notebookId={notebookId} notebookTitle={notebookTitle} onBack={() => setSelectedGame(null)} />;
+    return <RaceGame 
+      notebookId={notebookId} 
+      notebookTitle={notebookTitle} 
+      onBack={() => setSelectedGame(null)}
+      cachedConcepts={cachedConcepts}
+      cachedLearningData={cachedLearningData}
+    />;
   }
 
   if (selectedGame === 'quiz' && notebookId) {
-    return <QuizBattle notebookId={notebookId} notebookTitle={notebookTitle} onBack={() => setSelectedGame(null)} />;
+    return <QuizBattle 
+      notebookId={notebookId} 
+      notebookTitle={notebookTitle} 
+      onBack={() => setSelectedGame(null)}
+      cachedConcepts={cachedConcepts}
+      cachedLearningData={cachedLearningData}
+    />;
   }
 
   return (

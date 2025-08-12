@@ -28,9 +28,10 @@ interface PuzzleGameProps {
   notebookId: string;
   notebookTitle: string;
   onBack: () => void;
+  cachedConcepts?: any[];
 }
 
-const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBack }) => {
+const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts }) => {
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [currentConcepts, setCurrentConcepts] = useState<Concept[]>([]);
   const [fragments, setFragments] = useState<Fragment[]>([]);
@@ -104,15 +105,22 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       
       console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
       
+      // Si no hay suficientes conceptos repasados, usar todos los conceptos disponibles
+      let conceptsToUse = reviewedConcepts;
       if (reviewedConcepts.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos repasados para el juego (mínimo 3)');
+        console.log('⚠️ No hay suficientes conceptos repasados, usando todos los conceptos disponibles');
+        conceptsToUse = allConcepts;
+      }
+      
+      if (conceptsToUse.length < 3) {
+        console.log('⚠️ No hay suficientes conceptos disponibles para el juego (mínimo 3)');
         setNoReviewedConcepts(true);
         setLoading(false);
         return;
       }
       
       // Convertir al formato que espera el juego
-      const conceptsList: Concept[] = reviewedConcepts.map(concept => ({
+      const conceptsList: Concept[] = conceptsToUse.map(concept => ({
         id: concept.id,
         term: concept.término || '',
         definition: concept.definición || ''
