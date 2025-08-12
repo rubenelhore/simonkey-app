@@ -63,6 +63,34 @@ const NotebookDetail = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('upload');
   
+  // Estado para el modal de error
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    details?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    details: ''
+  });
+
+  // Estado para el mensaje de éxito
+  const [successMessage, setSuccessMessage] = useState<{
+    isVisible: boolean;
+    conceptCount: number;
+  }>({
+    isVisible: false,
+    conceptCount: 0
+  });
+
+  // Estado para el progreso de generación
+  const [progress, setProgress] = useState<number>(0);
+
+  // Estado para archivos duplicados
+  const [duplicateFiles, setDuplicateFiles] = useState<Set<string>>(new Set());
+  
   // Estado para los datos de aprendizaje (para el semáforo)
   const [learningDataMap, setLearningDataMap] = useState<Map<string, number>>(new Map());
   
@@ -399,15 +427,44 @@ const NotebookDetail = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
+      const newDuplicates = new Set<string>();
+      
       const validFiles = files.filter(file => {
         const ext = file.name.split('.').pop()?.toLowerCase();
         const isValid = (ext && SUPPORTED_EXTENSIONS.includes(ext)) || SUPPORTED_MIME_TYPES.includes(file.type);
+        
         if (!isValid) {
           alert('El documento "' + file.name + '" no es soportado por la plataforma. Solo se permiten archivos .TXT, .CSV, .JPG, .PNG, .PDF');
+          return false;
         }
-        return isValid;
+        
+        // Verificar si el archivo ya existe en los materiales del cuaderno
+        const isDuplicate = materials.some(material => material.name === file.name);
+        console.log(`🔍 Verificando archivo: ${file.name}`);
+        console.log(`📋 Materiales actuales:`, materials.map(m => m.name));
+        console.log(`❓ ¿Es duplicado?: ${isDuplicate}`);
+        
+        if (isDuplicate) {
+          newDuplicates.add(file.name);
+          console.warn(`⚠️ Archivo duplicado detectado: ${file.name}`);
+        }
+        
+        return true; // Mantener el archivo para mostrarlo con el borde rojo
       });
+      
+      setDuplicateFiles(newDuplicates);
       setArchivos(validFiles);
+      
+      // Si hay duplicados, mostrar mensaje de error
+      if (newDuplicates.size > 0) {
+        const duplicateList = Array.from(newDuplicates).join(', ');
+        setErrorModal({
+          isOpen: true,
+          title: "Documentos duplicados",
+          message: `${newDuplicates.size === 1 ? 'Este documento ya fue cargado' : 'Estos documentos ya fueron cargados'} en el cuaderno anteriormente: ${duplicateList}`
+        });
+      }
+      
       // Limpia el valor del input para que onChange se dispare siempre
       if (e.target) {
         e.target.value = '';
@@ -575,6 +632,17 @@ const NotebookDetail = () => {
 
     setCargando(true);
     setLoadingText("Procesando archivos...");
+    setProgress(0);
+    
+    // Simular progreso durante la carga de manera más fluida
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return prev;
+        // Progreso más consistente y fluido
+        const increment = Math.random() * 3 + 1; // Entre 1% y 4%
+        return Math.min(prev + increment, 90);
+      });
+    }, 200); // Más frecuente para mayor fluidez
 
     try {
       // Verificar que el cuaderno existe
@@ -722,11 +790,28 @@ const NotebookDetail = () => {
         // console.log('🎯 Punto de control: antes del alert de éxito');
         
         // Siempre mostrar éxito porque los conceptos se generaron
-        alert(`¡Éxito! Se generaron ${totalConcepts} conceptos.`);
+        // Completar el progreso
+        clearInterval(progressInterval);
+        setProgress(100);
         
-        // console.log('🎯 Punto de control: después del alert, cerrando modal');
+        // Mostrar mensaje de éxito temporal
+        setSuccessMessage({
+          isVisible: true,
+          conceptCount: totalConcepts
+        });
+        
+        // Cerrar el modal inmediatamente
         setIsModalOpen(false);
         setArchivos([]);
+        setDuplicateFiles(new Set());
+        
+        // Ocultar el mensaje después de 5 segundos
+        setTimeout(() => {
+          setSuccessMessage({
+            isVisible: false,
+            conceptCount: 0
+          });
+        }, 5000);
         
         // console.log('🎯 Punto de control: todo completado exitosamente');
       } else {
@@ -735,22 +820,45 @@ const NotebookDetail = () => {
     } catch (error: any) {
       console.error("Error generating concepts:", error);
       
-      // Manejo específico de errores
-      let errorMessage = "Error al generar conceptos. Por favor, intenta de nuevo.";
+      // Cerrar el modal de carga
+      setIsModalOpen(false);
+      setDuplicateFiles(new Set());
       
-      if (error.message?.includes('overloaded') || error.message?.includes('503')) {
-        errorMessage = "El servicio de IA está temporalmente sobrecargado. Por favor, espera unos minutos e intenta nuevamente.";
-      } else if (error.message?.includes('quota exceeded')) {
-        errorMessage = "Has alcanzado el límite diario de generación de conceptos. Intenta nuevamente mañana.";
-      } else if (error.message?.includes('file too large')) {
-        errorMessage = "El archivo es demasiado grande. Por favor, intenta con un archivo más pequeño.";
+      // Manejo específico de errores con mensajes compactos
+      let errorTitle = "Error al generar conceptos";
+      let errorMessage = "Intenta nuevamente o contacta soporte.";
+      
+      if (error.message?.includes('deadline-exceeded') || error.message?.includes('tardó demasiado')) {
+        errorTitle = "Archivo muy grande";
+        errorMessage = "El archivo es demasiado pesado (máximo 10MB recomendado).";
+      } else if (error.message?.includes('overloaded') || error.message?.includes('503')) {
+        errorTitle = "Servicio sobrecargado";
+        errorMessage = "Intenta nuevamente en unos minutos.";
+      } else if (error.message?.includes('quota exceeded') || error.message?.includes('resource-exhausted')) {
+        errorTitle = "Límite diario alcanzado";
+        errorMessage = "Podrás generar más conceptos mañana.";
+      } else if (error.message?.includes('file too large') || error.message?.includes('tamaño')) {
+        errorTitle = "Archivo demasiado grande";
+        errorMessage = "Reduce el tamaño del archivo (máximo 10MB).";
       } else if (error.message?.includes('unsupported file type')) {
-        errorMessage = "Tipo de archivo no soportado. Por favor, usa archivos PDF, TXT, DOC o DOCX.";
+        errorTitle = "Archivo no soportado";
+        errorMessage = "Solo se permiten PDF, TXT, DOC y DOCX.";
+      } else if (error.message?.includes('invalid-argument')) {
+        errorTitle = "Archivo inválido";
+        errorMessage = "Verifica que el archivo no esté corrupto.";
       }
       
-      alert(errorMessage);
+      // Mostrar el modal de error
+      setErrorModal({
+        isOpen: true,
+        title: errorTitle,
+        message: errorMessage
+      });
+      
     } finally {
       // console.log('🏁 Finally block: desactivando cargando');
+      clearInterval(progressInterval);
+      setProgress(0);
       setCargando(false);
       setLoadingText("Cargando...");
       // console.log('🏁 Finally block: completado');
@@ -887,6 +995,7 @@ const NotebookDetail = () => {
       
       // Cerrar el modal después de creación exitosa
       setIsModalOpen(false);
+      setDuplicateFiles(new Set());
       
       alert("Concepto añadido exitosamente");
     } catch (error) {
@@ -996,6 +1105,7 @@ const NotebookDetail = () => {
       alert('Error al eliminar el material. Por favor, intenta de nuevo.');
     }
   };
+
 
   // Abrir modal con pestaña específica
   const openModalWithTab = (tab: 'upload' | 'manual') => {
@@ -1278,16 +1388,54 @@ const NotebookDetail = () => {
                 </button>
                 <h2>Materiales de Estudio</h2>
               </div>
+              
               {loadingMaterials ? (
                 <div className="materials-chevron-spinner"></div>
               ) : materials.length > 0 ? (
-                <button 
-                  className="toggle-materials-btn"
-                  onClick={() => setShowMaterialsList(!showMaterialsList)}
-                  title={showMaterialsList ? "Ocultar materiales" : "Mostrar materiales"}
-                >
-                  <i className={`fas fa-chevron-${showMaterialsList ? 'up' : 'down'}`}></i>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Botón + para subir otro documento */}
+                  {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) && (
+                    <button
+                      onClick={() => setIsModalOpen(true)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        backgroundColor: 'rgb(224, 231, 255)',
+                        color: '#6147FF',
+                        border: 'none',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 4px rgba(97, 71, 255, 0.1)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgb(199, 210, 254)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(97, 71, 255, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgb(224, 231, 255)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(97, 71, 255, 0.1)';
+                      }}
+                      title="Subir otro documento"
+                    >
+                      <i className="fas fa-plus" style={{ fontSize: '14px' }}></i>
+                    </button>
+                  )}
+                  
+                  {/* Botón dropdown */}
+                  <button 
+                    className="toggle-materials-btn"
+                    onClick={() => setShowMaterialsList(!showMaterialsList)}
+                    title={showMaterialsList ? "Ocultar materiales" : "Mostrar materiales"}
+                  >
+                    <i className={`fas fa-chevron-${showMaterialsList ? 'up' : 'down'}`}></i>
+                  </button>
+                </div>
               ) : null}
             </div>
             {showMaterialsList && (
@@ -1551,13 +1699,15 @@ const NotebookDetail = () => {
                     <h3 className="empty-concepts-title">Cuaderno vacío</h3>
                     <p className="empty-concepts-subtitle">Añade tu primer documento para comenzar a estudiar</p>
                     {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
-                      <button
-                        className="btn-add-first-concept"
-                        onClick={() => openModalWithTab("upload")}
-                      >
-                        <i className="fas fa-upload"></i>
-                        Subir documento
-                      </button>
+                      <>
+                        <button
+                          className="btn-add-first-concept"
+                          onClick={() => openModalWithTab("upload")}
+                        >
+                          <i className="fas fa-upload"></i>
+                          Subir documento
+                        </button>
+                      </>
                     ) : isSchoolAdmin ? (
                       <p className="school-admin-info" style={{ 
                         background: '#f0ebff', 
@@ -1648,12 +1798,16 @@ const NotebookDetail = () => {
         <div className="modal-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsModalOpen(false);
+            setDuplicateFiles(new Set());
           }
         }}>
           <div className="modal-content add-concepts-modal-new">
             {/* Header simplificado */}
             <div className="modal-header-simple">
-              <button className="close-button-simple" onClick={() => setIsModalOpen(false)}>
+              <button className="close-button-simple" onClick={() => {
+                setIsModalOpen(false);
+                setDuplicateFiles(new Set());
+              }}>
                 <i className="fas fa-times"></i>
               </button>
             </div>
@@ -1691,7 +1845,7 @@ const NotebookDetail = () => {
                     type="file"
                     id="pdf-upload"
                     multiple
-                    accept="*/*"
+                    accept=".pdf,.txt,.csv,.jpg,.jpeg,.png,application/pdf,text/plain,text/csv,image/jpeg,image/jpg,image/png"
                     onChange={handleFileChange}
                     disabled={cargando}
                     className="file-input"
@@ -1712,10 +1866,39 @@ const NotebookDetail = () => {
                       <>
                         <p><strong>{archivos.length === 1 ? 'Archivo seleccionado:' : 'Archivos seleccionados:'}</strong></p>
                         <ul>
-                          {archivos.map((file, index) => (
-                            <li key={index}>
-                              <span className="file-name">{file.name}</span>
-                              <div className="file-actions">
+                          {archivos.map((file, index) => {
+                            const isDuplicate = duplicateFiles.has(file.name);
+                            return (
+                              <li 
+                                key={index}
+                                style={{
+                                  border: isDuplicate ? '2px solid #ef4444' : '',
+                                  borderRadius: isDuplicate ? '6px' : '',
+                                  backgroundColor: isDuplicate ? '#fef2f2' : '',
+                                  padding: isDuplicate ? '8px' : '',
+                                  margin: isDuplicate ? '4px 0' : ''
+                                }}
+                              >
+                                <span 
+                                  className="file-name"
+                                  style={{
+                                    color: isDuplicate ? '#dc2626' : '',
+                                    fontWeight: isDuplicate ? '600' : ''
+                                  }}
+                                >
+                                  {file.name}
+                                  {isDuplicate && (
+                                    <span style={{ 
+                                      marginLeft: '8px', 
+                                      fontSize: '12px',
+                                      color: '#dc2626',
+                                      fontWeight: '500'
+                                    }}>
+                                      ⚠️ Ya existe en el cuaderno
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="file-actions">
                                 <button 
                                   className="preview-button"
                                   onClick={() => {
@@ -1729,7 +1912,18 @@ const NotebookDetail = () => {
                                 <button 
                                   className="remove-button"
                                   onClick={() => {
-                                    setArchivos(archivos.filter((_, i) => i !== index));
+                                    const newArchivos = archivos.filter((_, i) => i !== index);
+                                    setArchivos(newArchivos);
+                                    
+                                    // Actualizar duplicados después de eliminar archivo
+                                    const newDuplicates = new Set<string>();
+                                    newArchivos.forEach(file => {
+                                      const isDuplicate = materials.some(material => material.name === file.name);
+                                      if (isDuplicate) {
+                                        newDuplicates.add(file.name);
+                                      }
+                                    });
+                                    setDuplicateFiles(newDuplicates);
                                   }}
                                   title="Eliminar"
                                 >
@@ -1737,17 +1931,45 @@ const NotebookDetail = () => {
                                 </button>
                               </div>
                             </li>
-                          ))}
+                            );
+                          })}
                         </ul>
                       </>
                     )}
                   </div>
                   <button 
                     onClick={generarConceptos} 
-                    disabled={archivos.length === 0 || cargando}
+                    disabled={archivos.length === 0 || cargando || duplicateFiles.size > 0}
                     className="generate-button"
+                    style={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: cargando 
+                        ? `linear-gradient(to right, 
+                            #6147FF ${progress}%, 
+                            #f1f5f9 ${progress}%)`
+                        : '',
+                      transition: 'all 0.15s ease-out',
+                      minHeight: '48px',
+                      width: '100%',
+                      boxShadow: cargando 
+                        ? '0 4px 12px rgba(97, 71, 255, 0.15)' 
+                        : ''
+                    }}
                   >
-                    {cargando ? loadingText : 'Generar Conceptos'}
+                    <span style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      color: cargando ? '#1f2937' : '',
+                      fontWeight: cargando ? '600' : '500',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      textShadow: cargando ? '0 1px 2px rgba(255, 255, 255, 0.5)' : '',
+                      letterSpacing: cargando ? '0.025em' : ''
+                    }}>
+                      {cargando ? `Generando... ${Math.round(progress)}%` : 'Generar Conceptos'}
+                    </span>
                   </button>
                 </div>
               ) : (
@@ -1825,6 +2047,172 @@ const NotebookDetail = () => {
           </div>
         </div>,
         document.body
+      )}
+      
+      {/* Modal de Error Mejorado */}
+      {errorModal.isOpen && ReactDOM.createPortal(
+        <div 
+          className="modal-overlay" 
+          onClick={() => setErrorModal({ ...errorModal, isOpen: false })}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '20px'
+          }}
+        >
+          <div 
+            className="error-modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '450px',
+              height: '123px',
+              padding: '16px',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}
+          >
+            {/* Título con ícono */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '8px'
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#FEE2E2',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <i className="fas fa-exclamation-triangle" style={{
+                  fontSize: '12px',
+                  color: '#DC2626'
+                }}></i>
+              </div>
+              <h3 style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#1F2937',
+                margin: 0
+              }}>
+                {errorModal.title}
+              </h3>
+            </div>
+            
+            {/* Mensaje principal */}
+            <p style={{
+              fontSize: '12px',
+              color: '#4B5563',
+              marginBottom: '8px',
+              lineHeight: '1.3',
+              flex: 1
+            }}>
+              {errorModal.message}
+            </p>
+            
+            {/* Botones */}
+            <div style={{
+              display: 'flex',
+              gap: '6px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setErrorModal({ ...errorModal, isOpen: false })}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#F3F4F6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  setErrorModal({ ...errorModal, isOpen: false });
+                  setIsModalOpen(true);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6147FF',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Subir otro documento
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Mensaje de Éxito Temporal */}
+      {successMessage.isVisible && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: '80px',
+            right: '20px',
+            backgroundColor: '#10B981',
+            color: 'white',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)',
+            zIndex: 999998,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            minWidth: '280px',
+            animation: 'slideInFromRight 0.5s ease-out, fadeOut 0.5s ease-in 4.5s forwards',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+          }}
+        >
+          <div 
+            style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <i className="fas fa-check" style={{ fontSize: '16px', color: 'white' }}></i>
+          </div>
+          <div>
+            <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>
+              ¡ÉXITO!
+            </div>
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>
+              Se generaron {successMessage.conceptCount} conceptos
+            </div>
+          </div>
+        </div>
       )}
       
     </>

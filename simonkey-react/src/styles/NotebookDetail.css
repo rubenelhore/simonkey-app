@@ -2086,3 +2086,55 @@
   box-shadow: none !important;
   outline: none !important;
 }
+
+/* Animaciones para el mensaje de éxito */
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Animaciones para la barra de progreso */
+@keyframes progressShine {
+  0% {
+    background-position: -40px 0;
+  }
+  100% {
+    background-position: 40px 0;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mejoras adicionales para la barra de progreso */
+.generate-button {
+  background: linear-gradient(135deg, #6147FF 0%, #8b5cf6 100%);
+}
+
+.generate-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
