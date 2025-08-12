@@ -1002,7 +1002,7 @@ const StudyModePage = () => {
             </div>
             <div className="study-score-content">
               <div className="study-score-value">
-                {selectedNotebook ? notebookScore.score.toLocaleString() : '0'}
+                {selectedNotebook ? Math.round(notebookScore.score).toLocaleString() : '0'}
               </div>
               <div className="study-score-label">
                 {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}

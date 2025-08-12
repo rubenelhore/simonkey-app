@@ -130,13 +130,13 @@ export class KPIService {
       let notebooksSnap;
       if (isSchoolUser) {
         // Para usuarios escolares, los cuadernos se obtienen diferente
+        const notebooks: any[] = [];
         
         // Usar los datos del usuario que ya obtuvimos
         if (userData) {
           const idCuadernos = userData.idCuadernos || [];
           
-          // Obtener los cuadernos específicos
-          const notebooks: any[] = [];
+          // Primero obtener los cuadernos específicos de idCuadernos
           for (const cuadernoId of idCuadernos) {
             const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
             if (notebookDoc.exists()) {
@@ -144,14 +144,63 @@ export class KPIService {
             }
           }
           
-          notebooksSnap = {
-            docs: notebooks,
-            size: notebooks.length,
-            forEach: (callback: any) => notebooks.forEach(callback)
-          };
-        } else {
-          notebooksSnap = { docs: [], size: 0, forEach: () => {} };
+          // Si no hay cuadernos en idCuadernos, buscar por materias asignadas
+          if (notebooks.length === 0 && userData.subjectIds && userData.subjectIds.length > 0) {
+            console.log('[KPIService] No hay cuadernos en idCuadernos, buscando por materias:', userData.subjectIds);
+            
+            for (const subjectId of userData.subjectIds) {
+              // Buscar notebooks de esta materia
+              const notebooksQuery = query(
+                collection(db, 'schoolNotebooks'),
+                where('idMateria', '==', subjectId)
+              );
+              const notebooksForSubject = await getDocs(notebooksQuery);
+              
+              notebooksForSubject.forEach(doc => {
+                // Evitar duplicados
+                if (!notebooks.find(nb => nb.id === doc.id)) {
+                  notebooks.push(doc);
+                  console.log('[KPIService] Agregando notebook de materia:', doc.id, doc.data().title);
+                }
+              });
+            }
+          }
+          
+          // Si aún no hay notebooks y es estudiante, buscar en learningData
+          if (notebooks.length === 0 && userData.schoolRole === 'student') {
+            console.log('[KPIService] Buscando notebooks en learningData para estudiante');
+            
+            const learningQuery = query(
+              collection(db, 'learningData'),
+              where('userId', '==', userId)
+            );
+            
+            const learningSnap = await getDocs(learningQuery);
+            const notebookIds = new Set<string>();
+            
+            learningSnap.forEach(doc => {
+              const data = doc.data();
+              if (data.notebookId) {
+                notebookIds.add(data.notebookId);
+              }
+            });
+            
+            // Obtener los notebooks encontrados
+            for (const notebookId of notebookIds) {
+              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+              if (notebookDoc.exists()) {
+                notebooks.push(notebookDoc);
+                console.log('[KPIService] Agregando notebook de learningData:', notebookId, notebookDoc.data().title);
+              }
+            }
+          }
         }
+        
+        notebooksSnap = {
+          docs: notebooks,
+          size: notebooks.length,
+          forEach: (callback: any) => notebooks.forEach(callback)
+        };
       } else {
         // Para usuarios regulares, buscar en notebooks
         // Primero buscar por userId

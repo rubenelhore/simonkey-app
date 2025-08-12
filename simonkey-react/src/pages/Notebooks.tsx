@@ -95,6 +95,7 @@ const Notebooks: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
   const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
 
@@ -382,6 +383,46 @@ const Notebooks: React.FC = () => {
     effectiveNotebooks = notebooks || [];
     isLoading = notebooksLoading;
   }
+  
+  // Efecto para manejar la carga inicial y evitar el flash de contenido vacío
+  useEffect(() => {
+    // Si estamos navegando a una materia y aún no tenemos el materiaId, esperar
+    if (materiaName && !materiaId) {
+      setInitialLoadComplete(false);
+      return;
+    }
+    
+    // Si tenemos materiaId y estamos cargando notebooks de admin/profesor
+    if (materiaId && (isSchoolAdmin || isSchoolTeacher) && adminNotebooksLoading) {
+      setInitialLoadComplete(false);
+      return;
+    }
+    
+    // Si tenemos materiaId pero aún no hemos cargado notebooks (para profesores/admins)
+    if (materiaId && (isSchoolAdmin || isSchoolTeacher) && adminNotebooks.length === 0 && !adminNotebooksLoading) {
+      // Esperar un poco por si los notebooks están por cargar
+      const timer = setTimeout(() => {
+        setInitialLoadComplete(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    
+    // Para otros casos, marcar como completo cuando termine de cargar
+    if (!isLoading && !adminNotebooksLoading) {
+      setInitialLoadComplete(true);
+    }
+  }, [isLoading, materiaId, materiaName, adminNotebooksLoading, isSchoolAdmin, isSchoolTeacher, adminNotebooks.length]);
+  
+  // Mostrar loading si:
+  // 1. Estamos cargando auth
+  // 2. O estamos buscando materiaId pero aún no lo tenemos (y sí tenemos materiaName)
+  // 3. O estamos cargando notebooks (regulares o admin)
+  // 4. O no hemos completado la carga inicial
+  const shouldShowLoading = authLoading || 
+    (materiaName && !materiaId) ||
+    isLoading || 
+    adminNotebooksLoading ||
+    !initialLoadComplete;
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
   // Los profesores escolares no necesitan filtrado porque ya vienen filtrados del servicio
@@ -788,11 +829,11 @@ const Notebooks: React.FC = () => {
     setSelectedCategory(null);
   };
 
-  if (isLoading) {
+  if (shouldShowLoading) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p>Cargando materias...</p>
+        <p>Cargando {materiaId ? 'cuadernos' : 'materias'}...</p>
       </div>
     );
   }

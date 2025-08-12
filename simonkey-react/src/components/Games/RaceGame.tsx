@@ -53,6 +53,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   const [isJumping, setIsJumping] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
+  const [processedGroups, setProcessedGroups] = useState<Set<string>>(new Set());
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -65,7 +66,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
   const COLLISION_ZONE = 750; // X position where collision occurs (near runner)
   const SPAWN_POSITION = -150; // Starting position for hurdles (off screen left)
   const SPAWN_FREQUENCY = 4500; // Milliseconds between spawns
-  const MAX_QUESTIONS = 10; // Total questions per game
+  const MAX_QUESTIONS = 8; // Total questions per game
 
   useEffect(() => {
     loadConcepts();
@@ -156,7 +157,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
 
   const spawnNewQuestion = () => {
     if (concepts.length < 3) return;
-    if (questionsAnswered >= MAX_QUESTIONS) return; // Stop spawning after 10 questions
+    if (questionsAnswered >= MAX_QUESTIONS) return; // Stop spawning after MAX_QUESTIONS
     
     // Select a random concept for the correct answer
     const correctIndex = Math.floor(Math.random() * concepts.length);
@@ -226,7 +227,12 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
       
       if (hurdlesInCollisionZone.length > 0) {
         const hurdle = hurdlesInCollisionZone[0];
-        handleCollision(hurdle);
+        
+        // Check if this group has already been processed
+        if (!processedGroups.has(hurdle.groupId)) {
+          handleCollision(hurdle);
+          setProcessedGroups(prev => new Set(prev).add(hurdle.groupId));
+        }
         
         // Remove all hurdles from the same group after collision
         return updated.filter(h => h.groupId !== hurdle.groupId);
@@ -303,6 +309,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack }
     setIsJumping(false);
     setPointsAwarded(false);
     setGameOver(false);
+    setProcessedGroups(new Set());
     
     // Spawn first question immediately
     setTimeout(() => spawnNewQuestion(), 500);

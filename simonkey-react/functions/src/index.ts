@@ -980,12 +980,22 @@ export const syncSchoolUsers = onCall(
         return `${cleanName}.${uniqueId}@school.simonkey.com`;
       };
 
+      // Función auxiliar para generar contraseña aleatoria segura
+      const generateSecurePassword = (): string => {
+        const words = ['Sol', 'Luna', 'Libro', 'Mundo', 'Cielo', 'Mar', 'Flor', 'Arbol', 'Nube', 'Estrella'];
+        const word = words[Math.floor(Math.random() * words.length)];
+        const numbers = Math.floor(Math.random() * 9000) + 1000;
+        const symbols = ['!', '@', '#', '$', '*', '+'][Math.floor(Math.random() * 6)];
+        return `${word}${numbers}${symbols}`;
+      };
+
       // Función auxiliar para obtener password válido
       const getValidPassword = (originalPassword?: string): string => {
         if (originalPassword && originalPassword.length >= 6) {
           return originalPassword;
         }
-        return 'school123';
+        // Generar contraseña aleatoria en lugar de usar school123
+        return generateSecurePassword();
       };
 
       // Función auxiliar para verificar si usuario existe
@@ -1261,17 +1271,25 @@ export const createSchoolUser = onCall(
         );
       }
 
-      // Obtener password válido y detectar si es la contraseña por defecto
-      const passwordToUse = userData.password && userData.password.length >= 6 
-        ? userData.password 
-        : 'school123';
+      // Función para generar contraseña segura (duplicada aquí para esta función)
+      const generateSecurePasswordLocal = (): string => {
+        const words = ['Sol', 'Luna', 'Libro', 'Mundo', 'Cielo', 'Mar', 'Flor', 'Arbol', 'Nube', 'Estrella'];
+        const word = words[Math.floor(Math.random() * words.length)];
+        const numbers = Math.floor(Math.random() * 9000) + 1000;
+        const symbols = ['!', '@', '#', '$', '*', '+'][Math.floor(Math.random() * 6)];
+        return `${word}${numbers}${symbols}`;
+      };
+
+      // Generar contraseña aleatoria si no se proporciona
+      const isProvidedPassword = userData.password && userData.password.length >= 6;
+      const passwordToUse = isProvidedPassword ? userData.password : generateSecurePasswordLocal();
       
-      // Marcar si necesita cambiar contraseña (cuando usa la contraseña por defecto)
-      const requiresPasswordChange = !userData.password || userData.password === 'school123';
+      // Marcar si necesita cambiar contraseña (solo si proporcionó una contraseña específica)
+      const requiresPasswordChange = !isProvidedPassword;
       
-      logger.info("🔐 Verificación de contraseña por defecto", {
-        providedPassword: userData.password,
-        usingDefaultPassword: passwordToUse === 'school123',
+      logger.info("🔐 Configuración de contraseña", {
+        providedPassword: !!userData.password,
+        generatedPassword: !isProvidedPassword,
         requiresPasswordChange: requiresPasswordChange
       });
 
@@ -1351,12 +1369,33 @@ export const createSchoolUser = onCall(
         ...userData.additionalData
       });
 
+      // Si se generó una contraseña, guardarla temporalmente y enviar email
+      if (!isProvidedPassword && userData.role === 'student') {
+        // Guardar credenciales temporales en una colección segura
+        await db.collection("temporaryCredentials").doc(userId).set({
+          userId,
+          email: userData.email,
+          temporaryPassword: passwordToUse,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          emailSent: false,
+          firstLogin: false
+        });
+
+        // TODO: Llamar a función de envío de email aquí
+        logger.info("📧 Credenciales temporales guardadas para envío de email", { 
+          userId, 
+          email: userData.email 
+        });
+      }
+
       logger.info("✅ Usuario escolar creado exitosamente", { userId, email: userData.email });
 
       return {
         success: true,
         userId,
-        message: `Usuario escolar creado: ${userData.nombre} (${userData.email})`
+        message: `Usuario escolar creado: ${userData.nombre} (${userData.email})`,
+        temporaryPassword: !isProvidedPassword ? passwordToUse : undefined,
+        requiresPasswordChange
       };
 
     } catch (error: any) {

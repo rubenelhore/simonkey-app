@@ -9,7 +9,7 @@ import {
   faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar
 } from '@fortawesome/free-solid-svg-icons';
 import { StudyStreakService } from '../services/studyStreakService';
-import { db, collection, query, where, getDocs, Timestamp } from '../services/firebase';
+import { db, collection, query, where, getDocs, getDoc, doc, Timestamp } from '../services/firebase';
 import { getDomainProgressForMateria } from '../utils/domainProgress';
 import { CacheManager } from '../utils/cacheManager';
 import '../styles/InicioPage.css';
@@ -216,23 +216,71 @@ const InicioPage: React.FC = () => {
     
     console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}`);
     
-    if (!forceRefresh && cacheValid && cachedMaterias.data) {
+    // Para estudiantes escolares, siempre forzar recarga en desarrollo
+    if (!forceRefresh && cacheValid && cachedMaterias.data && !isSchoolStudent) {
       console.log('📦 Usando materias desde cache localStorage');
       setMateriasByDominio(cachedMaterias.data);
       materiasLoadedRef.current = true;
       return;
     }
     
+    if (isSchoolStudent) {
+      console.log('👩‍🎓 Estudiante escolar detectado, forzando recarga de materias desde servidor');
+    }
+    
     try {
       console.log('🚀 Iniciando carga de materias desde servidor...');
+      console.log('📚 Tipo de usuario - isSchoolStudent:', isSchoolStudent, 'isSchoolTeacher:', isSchoolTeacher);
       setMateriasLoading(true);
       
-      // Get user's materias
-      const materiasQuery = query(
-        collection(db, 'materias'),
-        where('userId', '==', user.uid)
-      );
-      const materiasSnapshot = await getDocs(materiasQuery);
+      let materiasSnapshot: any;
+      
+      if (isSchoolStudent || isSchoolTeacher) {
+        // Para usuarios escolares, buscar materias asignadas
+        console.log('👩‍🎓 Buscando materias para usuario escolar');
+        
+        // Obtener datos del usuario
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (!userDoc.exists()) {
+          console.log('❌ No se encontró documento del usuario');
+          setMateriasByDominio([]);
+          return;
+        }
+        
+        const userData = userDoc.data();
+        const subjectIds = userData.subjectIds || [];
+        
+        console.log('📚 Subject IDs del usuario:', subjectIds);
+        
+        if (subjectIds.length === 0) {
+          console.log('⚠️ Usuario sin materias asignadas');
+          const emptyResult: MateriaWithDominio[] = [];
+          setMateriasByDominio(emptyResult);
+          setCachedData(`materias_${user.uid}`, emptyResult, Date.now());
+          return;
+        }
+        
+        // Obtener las materias de schoolSubjects
+        const materiasDocs: any[] = [];
+        for (const subjectId of subjectIds) {
+          const subjectDoc = await getDoc(doc(db, 'schoolSubjects', subjectId));
+          if (subjectDoc.exists()) {
+            materiasDocs.push(subjectDoc);
+          }
+        }
+        
+        materiasSnapshot = {
+          empty: materiasDocs.length === 0,
+          docs: materiasDocs
+        };
+      } else {
+        // Para usuarios regulares
+        const materiasQuery = query(
+          collection(db, 'materias'),
+          where('userId', '==', user.uid)
+        );
+        materiasSnapshot = await getDocs(materiasQuery);
+      }
       
       if (materiasSnapshot.empty) {
         const emptyResult: MateriaWithDominio[] = [];
@@ -247,14 +295,26 @@ const InicioPage: React.FC = () => {
       for (const materiaDoc of materiasSnapshot.docs) {
         const materiaData = materiaDoc.data();
         try {
-          const domainProgress = await getDomainProgressForMateria(materiaDoc.id);
+          // Para usuarios escolares, usar una lógica diferente
+          let domainProgress;
+          if (isSchoolStudent || isSchoolTeacher) {
+            // Para usuarios escolares, calcular dominio basado en notebooks de la materia
+            console.log(`📊 Calculando dominio para materia escolar: ${materiaDoc.id}`);
+            domainProgress = await getDomainProgressForMateria(materiaDoc.id, isSchoolStudent || isSchoolTeacher);
+          } else {
+            domainProgress = await getDomainProgressForMateria(materiaDoc.id);
+          }
+          
           const dominioPercentage = domainProgress.total > 0 
             ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
             : 0;
           
+          // Para materias escolares, usar el campo 'nombre' en lugar de 'title'
+          const materiaTitle = materiaData.nombre || materiaData.title || 'Sin nombre';
+          
           materiasWithDominio.push({
             id: materiaDoc.id,
-            title: materiaData.title,
+            title: materiaTitle,
             color: materiaData.color || '#6147FF',
             dominioPercentage,
             totalConcepts: domainProgress.total,
@@ -263,9 +323,10 @@ const InicioPage: React.FC = () => {
         } catch (error) {
           console.error(`Error calculating dominio for materia ${materiaDoc.id}:`, error);
           // Include materia with 0% dominio if error
+          const materiaTitle = materiaData.nombre || materiaData.title || 'Sin nombre';
           materiasWithDominio.push({
             id: materiaDoc.id,
-            title: materiaData.title,
+            title: materiaTitle,
             color: materiaData.color || '#6147FF',
             dominioPercentage: 0,
             totalConcepts: 0,
@@ -284,6 +345,10 @@ const InicioPage: React.FC = () => {
       
       // Take only top 5
       const topMaterias = materiasWithDominio.slice(0, 5);
+      
+      console.log('📚 Materias con dominio calculado:', materiasWithDominio);
+      console.log('📚 Top 5 materias:', topMaterias);
+      
       setMateriasByDominio(topMaterias);
       
       // Update localStorage cache
@@ -550,6 +615,12 @@ const InicioPage: React.FC = () => {
   useEffect(() => {
     if (user?.uid) {
       console.log('🚀 Inicializando página de inicio para usuario:', user.uid);
+      console.log('📚 Tipo de usuario detectado:', {
+        isSchoolStudent,
+        isSchoolTeacher,
+        isSchoolAdmin,
+        isSchoolTutor
+      });
       
       // Reset loaded ref when user changes
       materiasLoadedRef.current = false;
@@ -793,8 +864,14 @@ const InicioPage: React.FC = () => {
                   ) : (
                     <div className="no-materias">
                       <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>No tienes materias creadas</p>
-                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>Crea tu primera materia para empezar</p>
+                      <p style={{ margin: 0, fontWeight: 600 }}>
+                        {isSchoolStudent ? 'No tienes materias asignadas' : 'No tienes materias creadas'}
+                      </p>
+                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>
+                        {isSchoolStudent 
+                          ? 'Contacta a tu profesor para que te asigne materias' 
+                          : 'Crea tu primera materia para empezar'}
+                      </p>
                     </div>
                   )}
                 </div>

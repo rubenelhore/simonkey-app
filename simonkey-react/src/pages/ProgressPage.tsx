@@ -151,20 +151,28 @@ const ProgressPage: React.FC = () => {
       // Primero intentar obtener KPIs existentes
       let kpis = await kpiService.getUserKPIs(userId);
       
-      // Solo actualizar si no hay KPIs o si son muy antiguos (más de 1 hora)
+      // Actualizar si no hay KPIs, si son muy antiguos (más de 1 hora), o si no tienen cuadernos
+      const hasNoCuadernos = !kpis?.cuadernos || Object.keys(kpis.cuadernos).length === 0;
       const shouldUpdate = !kpis || !kpis.ultimaActualizacion || 
-        (Date.now() - (kpis.ultimaActualizacion?.toDate?.()?.getTime() || 0)) > 3600000;
+        (Date.now() - (kpis.ultimaActualizacion?.toDate?.()?.getTime() || 0)) > 3600000 ||
+        hasNoCuadernos;
       
       if (shouldUpdate) {
-        console.log('[ProgressPage] Actualizando KPIs...');
+        if (hasNoCuadernos) {
+          console.log('[ProgressPage] KPIs sin cuadernos, forzando actualización...');
+        } else {
+          console.log('[ProgressPage] Actualizando KPIs...');
+        }
         await kpiService.updateUserKPIs(userId);
         // Obtener KPIs actualizados
         kpis = await kpiService.getUserKPIs(userId);
+        console.log('[ProgressPage] KPIs actualizados:', kpis);
       } else {
         console.log('[ProgressPage] Usando KPIs existentes (actualizados hace menos de 1 hora)');
       }
       
       console.log('[ProgressPage] KPIs obtenidos:', kpis);
+      console.log('[ProgressPage] Cuadernos en KPIs:', Object.keys(kpis?.cuadernos || {}));
       
       return kpis;
       
@@ -208,31 +216,83 @@ const ProgressPage: React.FC = () => {
             
             // Cargar información de cada materia
             for (const materiaId of materiaIds) {
-              const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
-              if (subjectDoc.exists()) {
-                const subjectData = subjectDoc.data();
-                materiasArray.push({
-                  id: materiaId,
-                  nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
-                });
+              try {
+                const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+                if (subjectDoc.exists()) {
+                  const subjectData = subjectDoc.data();
+                  materiasArray.push({
+                    id: materiaId,
+                    nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
+                  });
+                }
+              } catch (error) {
+                console.error('[ProgressPage] Error cargando materia:', materiaId, error);
               }
             }
-          } else {
-            // Para estudiantes, buscar materias de sus cuadernos asignados
-            console.log('[ProgressPage] Usuario escolar (estudiante), buscando materias de cuadernos');
             
-            const idCuadernos = userData.idCuadernos || [];
-            const materiaIds = new Set<string>();
+            // Si no se encontraron materias, crear una materia genérica para mostrar progreso general
+            if (materiasArray.length === 0) {
+              console.log('[ProgressPage] No se encontraron materias, creando vista general');
+              materiasArray.push({
+                id: 'general',
+                nombre: 'Progreso General'
+              });
+            }
+          } else if (userData.schoolRole === 'student') {
+            // Para estudiantes escolares, buscar sus materias asignadas
+            console.log('[ProgressPage] Usuario escolar (estudiante), buscando materias asignadas');
+            console.log('[ProgressPage] Datos del usuario:', userData);
             
-            // Obtener las materias de todos los cuadernos asignados
-            for (const cuadernoId of idCuadernos) {
-              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
-              if (notebookDoc.exists()) {
-                const notebookData = notebookDoc.data();
-                if (notebookData.idMateria) {
-                  materiaIds.add(notebookData.idMateria);
+            let materiaIds = new Set<string>();
+            
+            // Primero verificar si el usuario tiene subjectIds (este es el campo correcto para estudiantes)
+            if (userData.subjectIds && Array.isArray(userData.subjectIds)) {
+              console.log('[ProgressPage] subjectIds encontrados en usuario:', userData.subjectIds);
+              userData.subjectIds.forEach((id: string) => materiaIds.add(id));
+            }
+            
+            // También verificar idMaterias (otro posible campo)
+            if (userData.idMaterias && Array.isArray(userData.idMaterias)) {
+              console.log('[ProgressPage] idMaterias encontrados en usuario:', userData.idMaterias);
+              userData.idMaterias.forEach((id: string) => materiaIds.add(id));
+            }
+            
+            // Si no encontramos materias directamente, buscar en schoolStudents
+            if (materiaIds.size === 0) {
+              const studentQuery = query(
+                collection(db, 'schoolStudents'),
+                where('idUsuario', '==', userId)
+              );
+              const studentSnap = await getDocs(studentQuery);
+              
+              if (!studentSnap.empty) {
+                const studentData = studentSnap.docs[0].data();
+                console.log('[ProgressPage] Datos de schoolStudents:', studentData);
+                
+                if (studentData.idMaterias && Array.isArray(studentData.idMaterias)) {
+                  studentData.idMaterias.forEach((id: string) => materiaIds.add(id));
+                }
+                if (studentData.subjectIds && Array.isArray(studentData.subjectIds)) {
+                  studentData.subjectIds.forEach((id: string) => materiaIds.add(id));
                 }
               }
+            }
+            
+            // Si aún no hay materias, buscar en las asignaciones del admin/profesor
+            if (materiaIds.size === 0 && userData.idAdmin) {
+              console.log('[ProgressPage] Buscando materias asignadas por admin:', userData.idAdmin);
+              
+              // Buscar materias donde el estudiante esté asignado
+              const subjectsQuery = query(
+                collection(db, 'schoolSubjects'),
+                where('idEstudiantes', 'array-contains', userId)
+              );
+              const subjectsSnap = await getDocs(subjectsQuery);
+              
+              subjectsSnap.forEach(doc => {
+                console.log('[ProgressPage] Materia donde estudiante está asignado:', doc.id);
+                materiaIds.add(doc.id);
+              });
             }
             
             // También incluir materias de KPIs si existen
@@ -246,15 +306,30 @@ const ProgressPage: React.FC = () => {
             
             // Cargar información de cada materia
             for (const materiaId of materiaIds) {
-              const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
-              if (subjectDoc.exists()) {
-                const subjectData = subjectDoc.data();
-                materiasArray.push({
-                  id: materiaId,
-                  nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
-                });
+              try {
+                const subjectDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
+                if (subjectDoc.exists()) {
+                  const subjectData = subjectDoc.data();
+                  materiasArray.push({
+                    id: materiaId,
+                    nombre: subjectData.nombre || subjectData.name || 'Sin nombre'
+                  });
+                }
+              } catch (error) {
+                console.error('[ProgressPage] Error cargando materia:', materiaId, error);
               }
             }
+            
+            // Si no se encontraron materias, crear una materia genérica para mostrar progreso general
+            if (materiasArray.length === 0) {
+              console.log('[ProgressPage] No se encontraron materias, creando vista general');
+              materiasArray.push({
+                id: 'general',
+                nombre: 'Progreso General'
+              });
+            }
+          } else {
+            console.log('[ProgressPage] Rol de usuario escolar no reconocido:', userData.schoolRole);
           }
         }
         console.log('[ProgressPage] Materias procesadas para usuario escolar:', materiasArray);
@@ -368,11 +443,11 @@ const ProgressPage: React.FC = () => {
   const processCuadernosData = async () => {
     if (!auth.currentUser || !kpisData) return;
     
-    console.log('[ProgressPage] === PROCESANDO DATOS DE CUADERNOS ===');
-    console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
-    console.log('[ProgressPage] KPIs cuadernos:', kpisData.cuadernos);
-    
     try {
+      console.log('[ProgressPage] === PROCESANDO DATOS DE CUADERNOS ===');
+      console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
+      console.log('[ProgressPage] KPIs cuadernos:', kpisData.cuadernos);
+    
       const effectiveUserData = await getEffectiveUserId();
       const isSchoolUser = effectiveUserData?.isSchoolUser || false;
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
@@ -407,18 +482,47 @@ const ProgressPage: React.FC = () => {
               console.log(`[ProgressPage] Notebook profesor ${doc.id}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
             });
           } else {
-            // Para estudiantes, usar idCuadernos
-            const idCuadernos = userData.idCuadernos || [];
-            console.log('[ProgressPage] Usuario es estudiante, usando idCuadernos:', idCuadernos);
+            // Para estudiantes, buscar notebooks de varias formas
+            console.log('[ProgressPage] Usuario es estudiante, buscando notebooks');
             
-            for (const cuadernoId of idCuadernos) {
-              const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
-              if (notebookDoc.exists()) {
-                const notebookData = notebookDoc.data();
-                notebookNames.set(cuadernoId, notebookData.title || 'Sin nombre');
-                notebookMaterias.set(cuadernoId, notebookData.idMateria || '');
-                console.log(`[ProgressPage] Cuaderno estudiante ${cuadernoId}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
+            // Primero intentar con idCuadernos si existe
+            const idCuadernos = userData.idCuadernos || [];
+            console.log('[ProgressPage] idCuadernos del estudiante:', idCuadernos);
+            
+            if (idCuadernos.length > 0) {
+              for (const cuadernoId of idCuadernos) {
+                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', cuadernoId));
+                if (notebookDoc.exists()) {
+                  const notebookData = notebookDoc.data();
+                  notebookNames.set(cuadernoId, notebookData.title || 'Sin nombre');
+                  notebookMaterias.set(cuadernoId, notebookData.idMateria || '');
+                  console.log(`[ProgressPage] Cuaderno de idCuadernos ${cuadernoId}: ${notebookData.title}, materia: ${notebookData.idMateria}`);
+                }
               }
+            }
+            
+            // Si no hay idCuadernos o está vacío, buscar notebooks de la materia seleccionada
+            if (notebookNames.size === 0 && selectedMateria && selectedMateria !== 'general') {
+              console.log('[ProgressPage] Buscando notebooks de la materia:', selectedMateria);
+              
+              // Buscar notebooks de la materia que sean del profesor
+              const materiaNotebooksQuery = query(
+                collection(db, 'schoolNotebooks'),
+                where('idMateria', '==', selectedMateria)
+              );
+              const materiaNotebooksSnap = await getDocs(materiaNotebooksQuery);
+              
+              console.log(`[ProgressPage] Notebooks encontrados para materia ${selectedMateria}: ${materiaNotebooksSnap.size}`);
+              
+              materiaNotebooksSnap.forEach(doc => {
+                const notebookData = doc.data();
+                // Solo incluir notebooks que tengan idProfesor (son del profesor)
+                if (notebookData.idProfesor) {
+                  notebookNames.set(doc.id, notebookData.title || 'Sin nombre');
+                  notebookMaterias.set(doc.id, notebookData.idMateria || '');
+                  console.log(`[ProgressPage] Notebook de materia ${doc.id}: ${notebookData.title}`);
+                }
+              });
             }
           }
         }
@@ -439,16 +543,73 @@ const ProgressPage: React.FC = () => {
       }
       
       if (!selectedMateria || selectedMateria === 'general') {
-        // Mostrar todos los cuadernos
-        Object.entries(kpisData.cuadernos || {}).forEach(([cuadernoId, cuadernoData]: [string, any]) => {
-          const nombreCuaderno = notebookNames.get(cuadernoId) || cuadernoData.nombreCuaderno || 'Sin nombre';
+        // Mostrar todos los cuadernos del estudiante
+        console.log('[ProgressPage] Vista general - buscando todos los cuadernos del estudiante');
+        
+        // Para estudiantes escolares, buscar todos sus notebooks de estudio
+        if (isSchoolUser && userData?.schoolRole === 'student') {
+          // Buscar en learningData todos los notebooks que el estudiante ha estudiado
+          const learningQuery = query(
+            collection(db, 'learningData'),
+            where('userId', '==', userId)
+          );
           
-          cuadernosTemp.push({
-            id: cuadernoId,
-            nombre: nombreCuaderno,
-            score: cuadernoData.scoreCuaderno || 0,
-            posicion: cuadernoData.posicionRanking || 1,
-            totalAlumnos: cuadernoData.totalAlumnos || 1,
+          try {
+            const learningSnap = await getDocs(learningQuery);
+            const studiedNotebooks = new Set<string>();
+            
+            learningSnap.forEach(doc => {
+              const data = doc.data();
+              if (data.notebookId) {
+                studiedNotebooks.add(data.notebookId);
+              }
+            });
+            
+            console.log('[ProgressPage] Notebooks estudiados por el estudiante:', Array.from(studiedNotebooks));
+            
+            // Para cada notebook estudiado, obtener sus datos
+            for (const notebookId of studiedNotebooks) {
+              try {
+                const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+                if (notebookDoc.exists()) {
+                  const notebookData = notebookDoc.data();
+                  const cuadernoKPI = kpisData.cuadernos?.[notebookId] || {};
+                  
+                  cuadernosTemp.push({
+                    id: notebookId,
+                    nombre: notebookData.title || 'Sin nombre',
+                    score: cuadernoKPI.scoreCuaderno || 0,
+                    posicion: cuadernoKPI.posicionRanking || 1,
+                    totalAlumnos: cuadernoKPI.totalAlumnos || 1,
+                    conceptos: cuadernoKPI.conceptosTotales || 0,
+                    tiempoEstudio: cuadernoKPI.tiempoEstudio || 0,
+                    estudiosInteligentes: cuadernoKPI.estudiosInteligentes || 0,
+                    porcentajeExito: cuadernoKPI.porcentajeExito || 0,
+                    porcentajeDominio: cuadernoKPI.porcentajeDominio || 0,
+                    estudiosLibres: cuadernoKPI.estudiosLibres || 0,
+                    juegosJugados: cuadernoKPI.juegosJugados || 0
+                  });
+                }
+              } catch (error) {
+                console.error('[ProgressPage] Error cargando notebook:', notebookId, error);
+              }
+            }
+          } catch (error) {
+            console.error('[ProgressPage] Error buscando notebooks estudiados:', error);
+          }
+        }
+        
+        // También incluir cuadernos de KPIs si no se encontraron de otra forma
+        if (cuadernosTemp.length === 0) {
+          Object.entries(kpisData.cuadernos || {}).forEach(([cuadernoId, cuadernoData]: [string, any]) => {
+            const nombreCuaderno = notebookNames.get(cuadernoId) || cuadernoData.nombreCuaderno || 'Sin nombre';
+            
+            cuadernosTemp.push({
+              id: cuadernoId,
+              nombre: nombreCuaderno,
+              score: cuadernoData.scoreCuaderno || 0,
+              posicion: cuadernoData.posicionRanking || 1,
+              totalAlumnos: cuadernoData.totalAlumnos || 1,
             conceptos: cuadernoData.numeroConceptos || 0,
             tiempoEstudio: cuadernoData.tiempoEstudioLocal || 0,
             estudiosInteligentes: cuadernoData.estudiosInteligentesLocal || 0,
@@ -458,8 +619,11 @@ const ProgressPage: React.FC = () => {
             juegosJugados: cuadernoData.juegosJugados || 0
           });
         });
+        }
       } else {
         // Filtrar por materia seleccionada
+        console.log('[ProgressPage] Filtrando cuadernos por materia:', selectedMateria);
+        console.log('[ProgressPage] Notebooks con materias:', Array.from(notebookMaterias.entries()));
         
         // Primero, procesar cuadernos que están en KPIs
         Object.entries(kpisData.cuadernos || {}).forEach(([cuadernoId, cuadernoData]: [string, any]) => {
@@ -501,25 +665,39 @@ const ProgressPage: React.FC = () => {
         
         // Luego, agregar cuadernos que no están en KPIs pero sí están asignados
         notebookMaterias.forEach((materiaId, cuadernoId) => {
-          // Si el cuaderno no está en KPIs pero su materia coincide
-          if (materiaId === selectedMateria && !kpisData.cuadernos?.[cuadernoId]) {
+          // Verificar si ya fue agregado
+          const yaAgregado = cuadernosTemp.some(c => c.id === cuadernoId);
+          
+          // Si el cuaderno no está en KPIs pero su materia coincide y no ha sido agregado
+          if (materiaId === selectedMateria && !yaAgregado) {
             const nombreCuaderno = notebookNames.get(cuadernoId) || 'Sin nombre';
             
-            console.log(`[ProgressPage] Agregando cuaderno sin KPIs: ${cuadernoId} - ${nombreCuaderno}`);
+            console.log(`[ProgressPage] Agregando cuaderno: ${cuadernoId} - ${nombreCuaderno}`);
+            
+            // Buscar datos del cuaderno en KPIs si existe
+            const cuadernoKPI = kpisData.cuadernos?.[cuadernoId] || {};
+            console.log(`[ProgressPage] Datos KPI para ${cuadernoId}:`, cuadernoKPI);
+            console.log(`[ProgressPage] Todos los cuadernos en KPIs:`, Object.keys(kpisData.cuadernos || {}));
+            
+            // Si no hay datos KPI y el cuaderno existe, intentar forzar actualización
+            if (Object.keys(cuadernoKPI).length === 0) {
+              console.log(`[ProgressPage] ⚠️ No hay datos KPI para ${cuadernoId}, considere actualizar KPIs`);
+              // TODO: Aquí podríamos llamar a updateUserKPIs si es necesario
+            }
             
             cuadernosTemp.push({
               id: cuadernoId,
               nombre: nombreCuaderno,
-              score: 0,
-              posicion: 1,
-              totalAlumnos: 1,
-              conceptos: 0,
-              tiempoEstudio: 0,
-              estudiosInteligentes: 0,
-              porcentajeExito: 0,
-              porcentajeDominio: 0,
-              estudiosLibres: 0,
-              juegosJugados: 0
+              score: cuadernoKPI.scoreCuaderno || 0,
+              posicion: cuadernoKPI.posicionRanking || 1,
+              totalAlumnos: cuadernoKPI.totalAlumnos || 1,
+              conceptos: cuadernoKPI.conceptosTotales || cuadernoKPI.numeroConceptos || 0,
+              tiempoEstudio: cuadernoKPI.tiempoEstudio || cuadernoKPI.tiempoEstudioLocal || 0,
+              estudiosInteligentes: cuadernoKPI.estudiosInteligentes || cuadernoKPI.estudiosInteligentesLocal || 0,
+              porcentajeExito: cuadernoKPI.porcentajeExito || cuadernoKPI.porcentajeExitoEstudiosInteligentes || 0,
+              porcentajeDominio: cuadernoKPI.porcentajeDominio || cuadernoKPI.porcentajeDominioConceptos || 0,
+              estudiosLibres: cuadernoKPI.estudiosLibres || cuadernoKPI.estudiosLibresLocal || 0,
+              juegosJugados: cuadernoKPI.juegosJugados || 0
             });
           }
         });
