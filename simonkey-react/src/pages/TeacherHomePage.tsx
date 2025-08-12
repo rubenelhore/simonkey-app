@@ -224,6 +224,7 @@ const TeacherHomePage: React.FC = () => {
       if (userProfile?.schoolRole === 'teacher') {
         console.log('📚 [TeacherHome] Es profesor escolar, buscando materias...');
         console.log('📚 [TeacherHome] idEscuela:', userProfile?.idEscuela);
+        console.log('📚 [TeacherHome] idInstitucion:', userProfile?.idInstitucion);
         console.log('📚 [TeacherHome] ID del profesor:', userProfile.id || user?.uid);
         
         // PRIMERO: Buscar materias directamente asignadas al profesor (campo idProfesor)
@@ -249,47 +250,90 @@ const TeacherHomePage: React.FC = () => {
           });
         });
         
-        // EXTRA: Buscar materias donde el profesor esté en el array de profesores
-        const allSubjectsQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idEscuela', '==', userProfile.idEscuela || userProfile.idInstitucion)
-        );
-        const allSubjectsSnap = await getDocs(allSubjectsQuery);
-        
-        console.log('📚 [TeacherHome] Buscando en todas las materias de la escuela:', allSubjectsSnap.size);
-        
-        allSubjectsSnap.forEach(doc => {
-          const subjectData = doc.data();
-          const profesorId = userProfile.id || user?.uid;
+        // Si hay idEscuela o idInstitucion, buscar materias donde el profesor esté en arrays
+        const schoolId = userProfile.idEscuela || userProfile.idInstitucion;
+        if (schoolId) {
+          console.log('📚 [TeacherHome] Buscando materias adicionales para escuela:', schoolId);
+          const allSubjectsQuery = query(
+            collection(db, 'schoolSubjects'),
+            where('idEscuela', '==', schoolId)
+          );
+          const allSubjectsSnap = await getDocs(allSubjectsQuery);
+          console.log('📚 [TeacherHome] Materias de la escuela encontradas:', allSubjectsSnap.size);
           
-          // Verificar si el profesor está en el array de profesores
-          if (subjectData.profesores && Array.isArray(subjectData.profesores)) {
-            if (subjectData.profesores.includes(profesorId)) {
-              if (!materiaIds.has(doc.id)) {
-                console.log('📚 [TeacherHome] Materia con profesor en array:', doc.id, subjectData.nombre);
-                materiaIds.add(doc.id);
-                subjects.push({
-                  id: doc.id,
-                  ...subjectData
-                });
+          allSubjectsSnap.forEach(doc => {
+            const subjectData = doc.data();
+            const profesorId = userProfile.id || user?.uid;
+            
+            // Verificar si el profesor está en el array de profesores
+            if (subjectData.profesores && Array.isArray(subjectData.profesores)) {
+              if (subjectData.profesores.includes(profesorId)) {
+                if (!materiaIds.has(doc.id)) {
+                  console.log('📚 [TeacherHome] Materia con profesor en array:', doc.id, subjectData.nombre);
+                  materiaIds.add(doc.id);
+                  subjects.push({
+                    id: doc.id,
+                    ...subjectData
+                  });
+                }
               }
             }
-          }
-          
-          // También verificar idProfesores (plural)
-          if (subjectData.idProfesores && Array.isArray(subjectData.idProfesores)) {
-            if (subjectData.idProfesores.includes(profesorId)) {
-              if (!materiaIds.has(doc.id)) {
-                console.log('📚 [TeacherHome] Materia con profesor en idProfesores:', doc.id, subjectData.nombre);
-                materiaIds.add(doc.id);
-                subjects.push({
-                  id: doc.id,
-                  ...subjectData
-                });
+            
+            // También verificar idProfesores (plural)
+            if (subjectData.idProfesores && Array.isArray(subjectData.idProfesores)) {
+              if (subjectData.idProfesores.includes(profesorId)) {
+                if (!materiaIds.has(doc.id)) {
+                  console.log('📚 [TeacherHome] Materia con profesor en idProfesores:', doc.id, subjectData.nombre);
+                  materiaIds.add(doc.id);
+                  subjects.push({
+                    id: doc.id,
+                    ...subjectData
+                  });
+                }
               }
             }
-          }
-        });
+          });
+        } else {
+          // Si no hay escuela, buscar todas las materias y filtrar
+          console.log('📚 [TeacherHome] No hay idEscuela, buscando todas las materias...');
+          const allSubjectsQuery = query(collection(db, 'schoolSubjects'));
+          const allSubjectsSnap = await getDocs(allSubjectsQuery);
+          
+          console.log('📚 [TeacherHome] Total de materias encontradas:', allSubjectsSnap.size);
+          
+          allSubjectsSnap.forEach(doc => {
+            const subjectData = doc.data();
+            const profesorId = userProfile.id || user?.uid;
+            
+            // Verificar si el profesor está en el array de profesores
+            if (subjectData.profesores && Array.isArray(subjectData.profesores)) {
+              if (subjectData.profesores.includes(profesorId)) {
+                if (!materiaIds.has(doc.id)) {
+                  console.log('📚 [TeacherHome] Materia con profesor en array:', doc.id, subjectData.nombre);
+                  materiaIds.add(doc.id);
+                  subjects.push({
+                    id: doc.id,
+                    ...subjectData
+                  });
+                }
+              }
+            }
+            
+            // También verificar idProfesores (plural)  
+            if (subjectData.idProfesores && Array.isArray(subjectData.idProfesores)) {
+              if (subjectData.idProfesores.includes(profesorId)) {
+                if (!materiaIds.has(doc.id)) {
+                  console.log('📚 [TeacherHome] Materia con profesor en idProfesores:', doc.id, subjectData.nombre);
+                  materiaIds.add(doc.id);
+                  subjects.push({
+                    id: doc.id,
+                    ...subjectData
+                  });
+                }
+              }
+            }
+          });
+        }
         
         // SEGUNDO: Buscar notebooks del profesor para encontrar materias adicionales
         const notebooksQuery = query(

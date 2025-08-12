@@ -1,6 +1,6 @@
 // src/services/notebookService.ts
 import { db } from './firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, serverTimestamp, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, serverTimestamp, updateDoc, setDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { canCreateNotebook, incrementNotebookCount } from './userService';
 
 interface Notebook {
@@ -118,19 +118,67 @@ export const updateNotebook = async (id: string, newTitle: string, userId: strin
   }
 
   console.log('No hay duplicados, actualizando en Firestore...');
-  const notebookRef = doc(db, "notebooks", id);
-  await updateDoc(notebookRef, { title: newTitle });
-  console.log('Notebook actualizado exitosamente');
+  
+  // Primero intentar en schoolNotebooks (para usuarios escolares)
+  try {
+    const schoolNotebookRef = doc(db, "schoolNotebooks", id);
+    const schoolNotebookDoc = await getDoc(schoolNotebookRef);
+    
+    if (schoolNotebookDoc.exists()) {
+      console.log('Es un schoolNotebook, actualizando en schoolNotebooks...');
+      await updateDoc(schoolNotebookRef, { title: newTitle });
+      console.log('SchoolNotebook actualizado exitosamente');
+      return;
+    }
+  } catch (error) {
+    console.log('No es un schoolNotebook o error al buscar:', error);
+  }
+  
+  // Si no es schoolNotebook, intentar en notebooks regular
+  try {
+    const notebookRef = doc(db, "notebooks", id);
+    const notebookDoc = await getDoc(notebookRef);
+    
+    if (notebookDoc.exists()) {
+      console.log('Es un notebook regular, actualizando en notebooks...');
+      await updateDoc(notebookRef, { title: newTitle });
+      console.log('Notebook actualizado exitosamente');
+      return;
+    }
+  } catch (error) {
+    console.log('Error al buscar notebook regular:', error);
+  }
+  
+  // Si no se encuentra en ninguna colección, lanzar error
+  throw new Error(`No se encontró el cuaderno con ID: ${id} en ninguna colección`);
 };
 
 // Update notebook color
 export const updateNotebookColor = async (id: string, newColor: string) => {
   try {
+    // Primero intentar en schoolNotebooks
+    try {
+      const schoolNotebookRef = doc(db, 'schoolNotebooks', id);
+      const schoolNotebookDoc = await getDoc(schoolNotebookRef);
+      
+      if (schoolNotebookDoc.exists()) {
+        await updateDoc(schoolNotebookRef, { color: newColor });
+        return true;
+      }
+    } catch (error) {
+      console.log('No es un schoolNotebook:', error);
+    }
+    
+    // Si no es schoolNotebook, intentar en notebooks regular
     const notebookRef = doc(db, 'notebooks', id);
-    await updateDoc(notebookRef, {
-      color: newColor
-    });
-    return true;
+    const notebookDoc = await getDoc(notebookRef);
+    
+    if (notebookDoc.exists()) {
+      await updateDoc(notebookRef, { color: newColor });
+      return true;
+    }
+    
+    throw new Error(`No se encontró el cuaderno con ID: ${id} en ninguna colección`);
   } catch (error) {
     console.error('Error al actualizar el color:', error);
     throw error;

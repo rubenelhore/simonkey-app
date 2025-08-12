@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { deleteNotebook } from '../services/notebookService';
 import { useState, useEffect } from 'react';
 import { decodeMateriaName, encodeNotebookName } from '../utils/urlUtils';
+import { generateNotebookUrl } from '../utils/slugify';
 import { CacheManager } from '../utils/cacheManager';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -94,17 +95,17 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
     const materiaName = materiaMatch ? materiaMatch[1] : null;
     
-    // Encode notebook name for URL
-    const encodedNotebookName = encodeNotebookName(title);
+    // Usar ID + slug para la navegación
+    const notebookUrl = generateNotebookUrl(id, title);
     
     if (isSchoolNotebook) {
-      // Navegar a la vista del cuaderno escolar
-      navigate(`/school/notebooks/${encodedNotebookName}`);
+      // Navegar a la vista del cuaderno escolar con ID + slug
+      navigate(`/school/notebooks/${notebookUrl}`);
     } else if (materiaName) {
       // Keep the encoded materia name as it appears in the URL
-      navigate(`/materias/${materiaName}/notebooks/${encodedNotebookName}`);
+      navigate(`/materias/${materiaName}/notebooks/${notebookUrl}`);
     } else {
-      navigate(`/notebooks/${encodedNotebookName}`);
+      navigate(`/notebooks/${notebookUrl}`);
     }
   };
 

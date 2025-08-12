@@ -608,7 +608,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/materias/:materiaName/notebooks/:notebookName"
+            path="/materias/:materiaName/notebooks/:notebookName/*"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -637,7 +637,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
-            path="/notebooks/:notebookName"
+            path="/notebooks/:notebookName/*"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
@@ -910,7 +910,7 @@ const AppContent: React.FC = () => {
             element={<SuperAdminRoute />}
           />
           <Route
-            path="/school/notebooks/:notebookName"
+            path="/school/notebooks/:notebookName/*"
             element={
               isAuthenticated ? (
                 <EmailVerificationGuard>
