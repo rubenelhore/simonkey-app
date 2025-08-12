@@ -547,6 +547,9 @@ const ProgressPage: React.FC = () => {
         console.log('[ProgressPage] Vista general - buscando todos los cuadernos del estudiante');
         
         // Para estudiantes escolares, buscar todos sus notebooks de estudio
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        
         if (isSchoolUser && userData?.schoolRole === 'student') {
           // Buscar en learningData todos los notebooks que el estudiante ha estudiado
           const learningQuery = query(

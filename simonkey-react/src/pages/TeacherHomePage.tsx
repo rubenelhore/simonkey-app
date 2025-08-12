@@ -237,7 +237,7 @@ const TeacherHomePage: React.FC = () => {
         console.log('📚 [TeacherHome] Materias directas encontradas:', directSubjectsSnap.size);
         
         const materiaIds = new Set<string>();
-        const subjects = [];
+        const subjects: any[] = [];
         
         // Agregar materias directas
         directSubjectsSnap.forEach(doc => {

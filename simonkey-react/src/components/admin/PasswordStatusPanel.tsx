@@ -5,7 +5,7 @@ import { EmailService } from '../../services/emailService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faKey, faEnvelope, faCheck, faTimes, faSync, 
-  faExclamationTriangle, faUserGraduateCap, faPaperPlane 
+  faExclamationTriangle, faUserGraduate, faPaperPlane 
 } from '@fortawesome/free-solid-svg-icons';
 import './PasswordStatusPanel.css';
 
@@ -211,7 +211,7 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
         </h3>
         <div className="panel-stats">
           <span className="stat">
-            <FontAwesomeIcon icon={faUserGraduateCap} />
+            <FontAwesomeIcon icon={faUserGraduate} />
             {students.length} estudiantes
           </span>
           <span className="stat warning">
