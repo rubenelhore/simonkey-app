@@ -726,6 +726,49 @@ const NotebookList: React.FC<NotebookListProps> = ({
         <hr className="notebook-divider" />
       </div>
 
+      {/* Mensaje informativo para estudiantes cuando no hay contenido */}
+      {!showCreateButton && notebooks.length === 0 && (
+        <div className="student-no-content-message" style={{
+          backgroundColor: '#f0f7ff',
+          border: '1px solid #d0e2ff',
+          borderRadius: '12px',
+          padding: '24px',
+          margin: '20px auto',
+          maxWidth: '600px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '16px'
+          }}>
+            <i className="fas fa-info-circle" style={{ color: '#0066cc' }}></i>
+          </div>
+          <h3 style={{
+            color: '#1e3a5f',
+            marginBottom: '12px',
+            fontSize: '20px',
+            fontWeight: '600'
+          }}>
+            Sin contenido disponible
+          </h3>
+          <p style={{
+            color: '#5a6c7d',
+            marginBottom: '8px',
+            fontSize: '16px',
+            lineHeight: '1.5'
+          }}>
+            Tu profesor aún no ha cargado material de estudio para esta materia.
+          </p>
+          <p style={{
+            color: '#7a8b9c',
+            fontSize: '14px',
+            marginTop: '12px'
+          }}>
+            Por favor, vuelve más tarde o contacta a tu profesor para más información.
+          </p>
+        </div>
+      )}
+
       {/* Subsección de categoría seleccionada o todos los cuadernos */}
       {notebooksBySelectedCategory.length > 0 && (
         <div className="categories-section">

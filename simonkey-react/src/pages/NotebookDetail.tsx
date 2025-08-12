@@ -1480,35 +1480,83 @@ const NotebookDetail = () => {
               </div>
             ) : conceptosDocs.length === 0 ? (
               <div className="empty-state-concepts-new">
-                <div className="empty-concepts-icon">
-                  <i className="fas fa-file-alt" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
-                </div>
-                <h3 className="empty-concepts-title">Cuaderno vacío</h3>
-                <p className="empty-concepts-subtitle">Añade tu primer documento para comenzar a estudiar</p>
-                {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
-                  <button
-                    className="btn-add-first-concept"
-                    onClick={() => openModalWithTab("upload")}
-                  >
-                    <i className="fas fa-upload"></i>
-                    Subir documento
-                  </button>
-                ) : isSchoolAdmin ? (
-                  <p className="school-admin-info" style={{ 
-                    background: '#f0ebff', 
-                    padding: '1rem', 
-                    borderRadius: '8px',
-                    color: '#4a5568',
-                    textAlign: 'center'
-                  }}>
-                    <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
-                    Como administrador, tienes acceso de solo lectura a los conceptos.
-                  </p>
+                {isSchoolStudent ? (
+                  <>
+                    <div className="empty-concepts-icon">
+                      <i className="fas fa-user-graduate" style={{ color: '#4a90e2', fontSize: '3rem' }}></i>
+                    </div>
+                    <div style={{
+                      backgroundColor: '#f8fbff',
+                      border: '1px solid #d0e2ff',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      marginTop: '20px',
+                      maxWidth: '500px',
+                      margin: '20px auto',
+                      textAlign: 'center'
+                    }}>
+                      <h3 style={{
+                        margin: '0 0 12px 0',
+                        color: '#2c3e50',
+                        fontSize: '24px',
+                        fontWeight: '600'
+                      }}>
+                        ¡Upss!
+                      </h3>
+                      <p style={{
+                        margin: 0,
+                        color: '#5a6c7d',
+                        fontSize: '16px',
+                        lineHeight: '1.6'
+                      }}>
+                        Parece que este cuaderno está vacío por el momento.
+                        <br />
+                        Tu profesor pronto agregará contenido para que puedas estudiar.
+                      </p>
+                      <div style={{
+                        marginTop: '16px',
+                        paddingTop: '16px',
+                        borderTop: '1px solid #e1ecf7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        color: '#7a8b9c'
+                      }}>
+                        <i className="fas fa-clock"></i>
+                        <span>Revisa más tarde o consulta con tu profesor</span>
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <p className="school-student-info">
-                    <i className="fas fa-info-circle"></i>
-                    Como estudiante escolar, tu profesor añadirá los conceptos a este cuaderno.
-                  </p>
+                  <>
+                    <div className="empty-concepts-icon">
+                      <i className="fas fa-file-alt" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+                    </div>
+                    <h3 className="empty-concepts-title">Cuaderno vacío</h3>
+                    <p className="empty-concepts-subtitle">Añade tu primer documento para comenzar a estudiar</p>
+                    {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
+                      <button
+                        className="btn-add-first-concept"
+                        onClick={() => openModalWithTab("upload")}
+                      >
+                        <i className="fas fa-upload"></i>
+                        Subir documento
+                      </button>
+                    ) : isSchoolAdmin ? (
+                      <p className="school-admin-info" style={{ 
+                        background: '#f0ebff', 
+                        padding: '1rem', 
+                        borderRadius: '8px',
+                        color: '#4a5568',
+                        textAlign: 'center'
+                      }}>
+                        <i className="fas fa-info-circle" style={{ marginRight: '0.5rem', color: '#6147FF' }}></i>
+                        Como administrador, tienes acceso de solo lectura a los conceptos.
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
             ) : (

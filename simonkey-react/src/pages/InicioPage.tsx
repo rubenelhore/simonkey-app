@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserType } from '../hooks/useUserType';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faFire, faClock, faChartLine, faGift, faMedal, faTrophy,
@@ -51,6 +52,7 @@ const DIVISION_LEVELS = {
 const InicioPage: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile, user } = useAuth();
+  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor } = useUserType();
   const userName = userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Santiago';
   const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,6 +75,21 @@ const InicioPage: React.FC = () => {
     successRate: 0,
     activeNotebooks: 0
   });
+  
+  // Redirección automática para usuarios escolares
+  useEffect(() => {
+    if (isSchoolTeacher) {
+      console.log('🎓 Profesor detectado, redirigiendo a /teacher/home');
+      navigate('/teacher/home', { replace: true });
+    } else if (isSchoolAdmin) {
+      console.log('👨‍💼 Admin escolar detectado, redirigiendo a /school/admin');
+      navigate('/school/admin', { replace: true });
+    } else if (isSchoolTutor) {
+      console.log('👨‍🏫 Tutor detectado, redirigiendo a /school/tutor');
+      navigate('/school/tutor', { replace: true });
+    }
+    // Los estudiantes escolares pueden quedarse en esta página
+  }, [isSchoolTeacher, isSchoolAdmin, isSchoolTutor, navigate]);
   
   // Global cache using localStorage
   const getCachedData = (key: string) => {
