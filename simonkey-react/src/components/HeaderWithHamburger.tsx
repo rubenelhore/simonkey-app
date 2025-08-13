@@ -24,7 +24,8 @@ import {
   faStar,
   faSignOutAlt,
   faEnvelope,
-  faFileAlt
+  faFileAlt,
+  faKey
 } from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderWithHamburgerProps {
@@ -495,6 +496,14 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               >
                 <FontAwesomeIcon icon={faChartLine} />
                 {isSidebarExpanded && <span>Analítica</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/school/admin/passwords' ? 'active' : ''}`} 
+                onClick={() => navigate('/school/admin/passwords')}
+                title="Contraseñas"
+              >
+                <FontAwesomeIcon icon={faKey} />
+                {isSidebarExpanded && <span>Contraseñas</span>}
               </button>
             </>
           ) : isSchoolTeacher ? (

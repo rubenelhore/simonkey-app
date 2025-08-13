@@ -19,6 +19,94 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Importar funciones de congelación programada
 // export { processScheduledFreezeUnfreeze, processScheduledFreezeUnfreezeManual } from './scheduledFreezeUnfreeze';
 
+// Exportar funciones de email
+export { sendCredentialEmail, processMailQueue } from './emailService';
+
+// Cloud Function para actualizar contraseñas temporales
+export const setTemporaryPassword = onCall(async (request) => {
+  // Verificar que el usuario esté autenticado y sea admin de escuela
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Usuario no autenticado');
+  }
+
+  const { targetUserId, temporaryPassword, schoolId } = request.data;
+
+  if (!targetUserId || !temporaryPassword || !schoolId) {
+    throw new HttpsError('invalid-argument', 'Faltan parámetros requeridos');
+  }
+
+  try {
+    // Verificar que el usuario que hace la petición sea admin de la escuela
+    const adminDoc = await getDb().collection('users').doc(request.auth.uid).get();
+    const adminData = adminDoc.data();
+    
+    if (!adminData || adminData.schoolRole !== 'admin' || adminData.idInstitucion !== schoolId) {
+      throw new HttpsError('permission-denied', 'No tienes permisos para esta operación');
+    }
+
+    // Verificar que el usuario target pertenece a la escuela
+    const targetDoc = await getDb().collection('users').doc(targetUserId).get();
+    const targetData = targetDoc.data();
+    
+    // Verificar pertenencia a la escuela según el tipo de usuario
+    let belongsToSchool = false;
+    
+    if (targetData?.idInstitucion === schoolId) {
+      belongsToSchool = true;
+    } else if (targetData?.idAdmin) {
+      // Es profesor, verificar que su admin sea de esta escuela
+      const teacherAdminDoc = await getDb().collection('users').doc(targetData.idAdmin).get();
+      if (teacherAdminDoc.data()?.idInstitucion === schoolId) {
+        belongsToSchool = true;
+      }
+    } else if (targetData?.idAlumnos && Array.isArray(targetData.idAlumnos)) {
+      // Es tutor, verificar que alguno de sus alumnos sea de esta escuela
+      for (const studentId of targetData.idAlumnos) {
+        const studentDoc = await getDb().collection('users').doc(studentId).get();
+        if (studentDoc.data()?.idInstitucion === schoolId) {
+          belongsToSchool = true;
+          break;
+        }
+      }
+    }
+    
+    if (!belongsToSchool) {
+      throw new HttpsError('permission-denied', 'El usuario no pertenece a tu escuela');
+    }
+
+    // Actualizar la contraseña en Firebase Auth
+    await admin.auth().updateUser(targetUserId, {
+      password: temporaryPassword
+    });
+
+    // Guardar en temporaryCredentials
+    await getDb().collection('temporaryCredentials').doc(targetUserId).set({
+      userId: targetUserId,
+      temporaryPassword: temporaryPassword,
+      emailSent: false,
+      firstLogin: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: request.auth.uid,
+      schoolId: schoolId
+    }, { merge: true });
+
+    // Marcar que requiere cambio de contraseña
+    await getDb().collection('users').doc(targetUserId).update({
+      requiresPasswordChange: true
+    });
+
+    logger.info(`Contraseña temporal establecida para usuario ${targetUserId} por admin ${request.auth.uid}`);
+
+    return { 
+      success: true, 
+      message: 'Contraseña temporal establecida correctamente'
+    };
+  } catch (error) {
+    logger.error('Error estableciendo contraseña temporal:', error);
+    throw new HttpsError('internal', 'Error al establecer la contraseña temporal');
+  }
+});
+
 // Inicializar Firebase Admin con el bucket de Storage
 admin.initializeApp({
   storageBucket: 'simonkey-5c78f.appspot.com'
@@ -2742,7 +2830,7 @@ ${chunksToProcess[i]}`;
                 }
               }
               
-              logger.info(`✅ Chunk ${i + 1} procesado: ${chunkData?.conceptos?.length || 0} conceptos nuevos`);
+              logger.info(`✅ Chunk ${i + 1} procesado: conceptos nuevos`);
               
             } catch (chunkError) {
               logger.error(`❌ Error procesando chunk ${i + 1}`, chunkError);
@@ -2751,7 +2839,8 @@ ${chunksToProcess[i]}`;
           }
           
           // Limitar el número total de conceptos según el plan del usuario
-          const limits = SUBSCRIPTION_LIMITS[userType];
+          const userSubscription = userData?.subscription || 'FREE';
+          const limits = SUBSCRIPTION_LIMITS[userSubscription] || SUBSCRIPTION_LIMITS.FREE;
           const finalConcepts = allConcepts.slice(0, limits.maxConceptsPerFile);
           
           logger.info("📊 Resumen de chunking", {

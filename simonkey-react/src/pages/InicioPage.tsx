@@ -466,12 +466,25 @@ const InicioPage: React.FC = () => {
         
         // Obtener racha
         const streakService = StudyStreakService.getInstance();
-        const streakData = await streakService.getUserStreak(user.uid);
-        setCurrentStreak(streakData.currentStreak);
         
         // Verificar si ha estudiado hoy
         const studiedToday = await streakService.hasStudiedToday(user.uid);
         setHasStudiedToday(studiedToday);
+        
+        // Si ha estudiado hoy, actualizar la racha automáticamente
+        let currentStreakValue = 0;
+        if (studiedToday) {
+          console.log('✅ Usuario ha estudiado hoy, actualizando racha...');
+          currentStreakValue = await streakService.updateStreakIfStudied(user.uid);
+          console.log('🔥 Racha actualizada a:', currentStreakValue);
+        } else {
+          // Si no ha estudiado hoy, solo obtener la racha actual
+          const streakData = await streakService.getUserStreak(user.uid);
+          currentStreakValue = streakData.currentStreak;
+          console.log('📊 Racha actual (sin actualizar):', currentStreakValue);
+        }
+        console.log('🎯 Valor final de racha para mostrar:', currentStreakValue);
+        setCurrentStreak(currentStreakValue);
 
         // Obtener KPIs actuales
         const kpiService = await import('../services/kpiService');
@@ -549,7 +562,7 @@ const InicioPage: React.FC = () => {
           
           // Cache the main data including progress data (con los datos actualizados)
           const mainData = {
-            currentStreak: streakData.currentStreak,
+            currentStreak: currentStreakValue, // Usar el valor de racha actualizado
             hasStudiedToday: studiedToday,
             currentScore: scoreValue,
             weeklyProgress: weeklyProgressValue,
@@ -594,7 +607,7 @@ const InicioPage: React.FC = () => {
           
           // Cache the main data including progress data (con valores por defecto)
           const mainData = {
-            currentStreak: streakData.currentStreak,
+            currentStreak: currentStreakValue, // Usar el valor de racha actualizado
             hasStudiedToday: studiedToday,
             currentScore: scoreValue,
             weeklyProgress: weeklyProgressValue,

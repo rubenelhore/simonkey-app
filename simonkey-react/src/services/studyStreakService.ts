@@ -230,6 +230,7 @@ export class StudyStreakService {
    */
   async updateStreakIfStudied(userId: string): Promise<number> {
     try {
+      console.log('[StudyStreakService] === INICIO updateStreakIfStudied ===');
       const hasStudied = await this.hasStudiedToday(userId);
       
       if (!hasStudied) {
@@ -244,9 +245,15 @@ export class StudyStreakService {
       const currentStreak = await this.getUserStreak(userId);
       const today = new Date();
       
+      console.log('[StudyStreakService] Datos actuales:', {
+        lastStudyDate: currentStreak.lastStudyDate?.toISOString(),
+        currentStreak: currentStreak.currentStreak,
+        today: today.toISOString()
+      });
+      
       // Si ya se actualizó hoy, no hacer nada
       if (currentStreak.lastStudyDate && this.isSameDay(currentStreak.lastStudyDate, today)) {
-        console.log('[StudyStreakService] Racha ya actualizada hoy');
+        console.log('[StudyStreakService] Racha ya actualizada hoy, retornando:', currentStreak.currentStreak);
         return currentStreak.currentStreak;
       }
 

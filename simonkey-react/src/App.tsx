@@ -66,6 +66,7 @@ import SchoolTeacherAnalyticsPage from './pages/SchoolTeacherAnalyticsPage';
 import SchoolStudentStudyPage from './pages/SchoolStudentStudyPage';
 import SchoolStudentMateriaPage from './pages/SchoolStudentMateriaPage';
 import SchoolAdminPage from './pages/SchoolAdminPage';
+import SchoolAdminPasswordsPage from './pages/SchoolAdminPasswordsPage';
 import SchoolTutorPage from './pages/SchoolTutorPage';
 import TeacherExamsPage from './pages/TeacherExamsPage';
 import CalendarPage from './pages/CalendarPage';
@@ -84,8 +85,8 @@ import { TourProvider } from './contexts/TourContext';
 import TourOverlay from './components/Onboarding/TourOverlay';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
-// Importar el nuevo componente de cambio de contraseña
-import ChangePasswordRequired from './pages/ChangePasswordRequired';
+// DESHABILITADO: Ya no forzamos cambio de contraseña
+// import ChangePasswordRequired from './pages/ChangePasswordRequired';
 import PasswordChangeGuard from './components/Guards/PasswordChangeGuard';
 // Importar el guard de verificación de email
 import EmailVerificationGuard from './components/EmailVerificationGuard';
@@ -538,15 +539,15 @@ const AppContent: React.FC = () => {
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           
-          {/* Ruta para cambio de contraseña obligatorio */}
-          <Route
+          {/* DESHABILITADO: Ya no forzamos cambio de contraseña */}
+          {/* <Route
             path="/change-password-required"
             element={
               isAuthenticated ? (
                 <ChangePasswordRequired />
               ) : <Navigate to="/login" replace />
             }
-          />
+          /> */}
           
           {/* Nuevas rutas informativas - disponibles para todos */}
           <Route path="/examples" element={<ExamplesPage />} />
@@ -881,6 +882,22 @@ const AppContent: React.FC = () => {
                   <PasswordChangeGuard>
                     <SchoolUserGuard>
                       <SchoolAdminPage />
+                    </SchoolUserGuard>
+                  </PasswordChangeGuard>
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Ruta para el dashboard de contraseñas del admin escolar */}
+          <Route
+            path="/school/admin/passwords"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <PasswordChangeGuard>
+                    <SchoolUserGuard>
+                      <SchoolAdminPasswordsPage />
                     </SchoolUserGuard>
                   </PasswordChangeGuard>
                 </EmailVerificationGuard>

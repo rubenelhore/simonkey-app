@@ -669,18 +669,12 @@
   background: #a0a0a0;
 }
 
-/* Study Score Module - Left side */
+/* Study Score Module - In header */
 .study-score-module {
-  position: absolute;
-  top: 1.5rem;
-  left: 2rem;
-  background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
+  background: white;
   border-radius: var(--radius-md);
   padding: 1rem 1.5rem;
-  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
-  color: white;
-  width: 221.02px;
-  z-index: 10;
+  color: var(--text-dark);
 }
 
 .study-score-header {
@@ -701,11 +695,24 @@
 
 .study-score-icon {
   font-size: 1.2rem;
-  color: white;
+  color: #6147FF;
 }
 
 .study-score-content {
   text-align: center;
+}
+
+/* Score content in dropdown wrapper */
+.notebook-dropdown-wrapper .study-score-content {
+  background: white;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  z-index: 1;
 }
 
 .study-score-value {
@@ -713,13 +720,28 @@
   font-weight: 700;
   line-height: 1;
   margin-bottom: 0.25rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #6147FF;
+}
+
+/* Score value in dropdown wrapper */
+.notebook-dropdown-wrapper .study-score-value {
+  font-size: 1.5rem;
+  color: #6147FF;
 }
 
 .study-score-label {
   font-size: 0.75rem;
-  opacity: 0.95;
+  opacity: 0.7;
   font-weight: 500;
+  color: var(--text-medium);
+}
+
+/* Score label in dropdown wrapper */
+.notebook-dropdown-wrapper .study-score-label {
+  font-size: 0.7rem;
+  color: var(--text-medium);
+  opacity: 0.8;
+  white-space: nowrap;
 }
 
 /* Motivational Message */
@@ -749,15 +771,23 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 1.5rem;
   padding-top: 1rem;
+  margin-bottom: 2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Notebook Dropdown Wrapper */
+.notebook-dropdown-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 /* Notebook Dropdown */
 .notebook-dropdown-container {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   min-width: 300px;
 }
 
@@ -781,6 +811,7 @@
   gap: 1rem;
   cursor: pointer;
   transition: var(--transition);
+  font-family: 'Poppins', sans-serif;
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-dark);
@@ -1098,12 +1129,66 @@
   font-weight: 400;
 }
 
+/* Top Info Modules - Two centered modules above study functions */
+.top-info-modules {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 6rem;
+  margin-bottom: 1.5rem;
+}
+
+.top-info-module {
+  background: #6147FF;
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  color: white;
+  width: calc(20% - 0.75rem); /* Same width as study function cards (1/5 of container minus gap) */
+  min-height: 140px;
+  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.top-info-module:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.4);
+}
+
+.top-info-module-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.95;
+}
+
+.top-info-module-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.top-info-module-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.top-info-module-label {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
 /* Study Functions Grid */
 .study-functions {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1.5rem;
-  margin-top: 6rem;
   margin-bottom: 2rem;
 }
 
@@ -1278,6 +1363,14 @@
     align-items: center;
   }
   
+  .top-info-modules {
+    margin-top: 4rem;
+  }
+
+  .top-info-module {
+    width: calc(50% - 0.5rem);
+  }
+
   .study-functions {
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
@@ -1454,11 +1547,23 @@
     font-size: 0.813rem;
   }
   
+  /* Top info modules on mobile */
+  .top-info-modules {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .top-info-module {
+    width: 100%;
+    max-width: 400px;
+  }
+
   /* Study functions in 2x2 grid on mobile */
   .study-functions {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
-    margin-top: 1.5rem;
   }
   
   .study-function-card {
@@ -1947,25 +2052,16 @@
 }
 
 
-/* Corner Medal Module - Smaller and elegant with navigation */
+/* Corner Medal Module - In header */
 .corner-medal-module {
-  position: absolute;
-  top: 1.5rem;
-  right: 2rem;
-  background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
-  border: 1px solid rgba(97, 71, 255, 0.3);
+  background: white;
   border-radius: var(--radius-md);
   padding: 0.875rem;
-  box-shadow: 0 4px 15px rgba(97, 71, 255, 0.3);
   transition: var(--transition);
-  z-index: 50;
-  min-width: 150px;
 }
 
 
 .corner-medal-module:hover {
-  border-color: rgba(97, 71, 255, 0.5);
-  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.4);
   transform: translateY(-1px);
 }
 
@@ -2001,22 +2097,22 @@
 .corner-medal-label {
   font-size: 0.7rem;
   font-weight: 500;
-  color: white;
+  color: var(--text-medium);
   margin-bottom: 0.1rem;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .corner-medal-division {
   font-size: 0.875rem;
   font-weight: 600;
-  color: white;
+  color: #6147FF;
 }
 
 .corner-medal-progress {
   font-size: 0.75rem;
-  color: white;
+  color: var(--text-medium);
   margin-top: 0.125rem;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 /* Corner medals grid */
@@ -2040,16 +2136,16 @@
 }
 
 .corner-medal-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(97, 71, 255, 0.05);
   transform: scale(1.05);
 }
 
 .corner-medal-item.earned {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 215, 0, 0.2));
+  background: linear-gradient(135deg, rgba(97, 71, 255, 0.1), rgba(255, 215, 0, 0.1));
 }
 
 .corner-medal-item.current-target {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 215, 0, 0.2));
+  background: linear-gradient(135deg, rgba(97, 71, 255, 0.15), rgba(255, 215, 0, 0.1));
   animation: pulse-corner-medal 2s infinite;
 }
 
@@ -2066,7 +2162,7 @@
 .corner-medal-requirement {
   font-size: 0.5rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-medium);
   text-align: center;
   line-height: 1;
 }
@@ -2082,7 +2178,7 @@
 }
 
 .corner-nav-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(97, 71, 255, 0.05);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -2092,13 +2188,13 @@
   justify-content: center;
   cursor: pointer;
   transition: var(--transition);
-  color: white;
+  color: #6147FF;
   font-size: 0.625rem;
 }
 
 .corner-nav-btn:hover:not(:disabled) {
-  color: white;
-  background: rgba(255, 255, 255, 0.2);
+  color: #6147FF;
+  background: rgba(97, 71, 255, 0.1);
   transform: scale(1.1);
 }
 

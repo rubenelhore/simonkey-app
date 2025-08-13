@@ -13,6 +13,7 @@
     "init-db": "node scripts/init-firebase-db.js"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",

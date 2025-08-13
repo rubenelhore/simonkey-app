@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { db, auth } from '../../services/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { EmailService } from '../../services/emailService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faKey, faEnvelope, faCheck, faTimes, faSync, 
-  faExclamationTriangle, faUserGraduate, faPaperPlane 
+  faExclamationTriangle, faUserGraduate, faPaperPlane,
+  faChalkboardTeacher, faUserTie, faUsers
 } from '@fortawesome/free-solid-svg-icons';
 import './PasswordStatusPanel.css';
 
-interface StudentCredential {
+interface UserCredential {
   userId: string;
   email: string;
-  studentName: string;
+  userName: string;
+  userRole: 'student' | 'teacher' | 'tutor';
   temporaryPassword: string;
   emailSent: boolean;
   firstLogin: boolean;
   createdAt: Date;
-  requiresPasswordChange: boolean;
 }
 
 interface PasswordStatusPanelProps {
@@ -25,20 +27,24 @@ interface PasswordStatusPanelProps {
 }
 
 const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) => {
-  const [students, setStudents] = useState<StudentCredential[]>([]);
+  const [users, setUsers] = useState<UserCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingEmails, setSendingEmails] = useState<Set<string>>(new Set());
-  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'pending' | 'sent' | 'logged'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'teacher' | 'tutor'>('all');
 
   useEffect(() => {
-    loadStudentCredentials();
+    loadUserCredentials();
   }, [schoolId]);
 
-  const loadStudentCredentials = async () => {
+  const loadUserCredentials = async () => {
     setLoading(true);
     try {
-      // Obtener estudiantes de la escuela
+      console.log('🔍 Cargando usuarios de la escuela:', schoolId);
+      const usersList: UserCredential[] = [];
+      
+      // 1. Obtener estudiantes de la escuela
       const studentsQuery = query(
         collection(db, 'users'),
         where('idInstitucion', '==', schoolId),
@@ -46,47 +52,99 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
       );
       
       const studentsSnap = await getDocs(studentsQuery);
-      const studentsList: StudentCredential[] = [];
+      console.log(`👥 Estudiantes encontrados: ${studentsSnap.size}`);
       
-      for (const studentDoc of studentsSnap.docs) {
-        const studentData = studentDoc.data();
+      for (const userDoc of studentsSnap.docs) {
+        const userData = userDoc.data();
+        usersList.push({
+          userId: userDoc.id,
+          email: userData.email,
+          userName: userData.displayName || userData.nombre || 'Sin nombre',
+          userRole: 'student',
+          temporaryPassword: '',
+          emailSent: false,
+          firstLogin: userData.lastLogin ? true : false,
+          createdAt: userData.createdAt?.toDate() || new Date()
+        });
+      }
+      
+      // 2. Obtener el admin de la escuela para buscar profesores
+      const adminQuery = query(
+        collection(db, 'users'),
+        where('idInstitucion', '==', schoolId),
+        where('schoolRole', '==', 'admin')
+      );
+      
+      const adminSnap = await getDocs(adminQuery);
+      
+      if (!adminSnap.empty) {
+        const adminId = adminSnap.docs[0].id;
+        console.log(`👨‍💼 Admin encontrado: ${adminId}`);
         
-        // Buscar credenciales temporales
-        const credDoc = await getDocs(
-          query(
-            collection(db, 'temporaryCredentials'),
-            where('userId', '==', studentDoc.id)
-          )
+        // 3. Obtener profesores (tienen idAdmin)
+        const teachersQuery = query(
+          collection(db, 'users'),
+          where('idAdmin', '==', adminId),
+          where('schoolRole', '==', 'teacher')
         );
         
-        if (!credDoc.empty) {
-          const credData = credDoc.docs[0].data();
-          studentsList.push({
-            userId: studentDoc.id,
-            email: studentData.email,
-            studentName: studentData.displayName || studentData.nombre,
-            temporaryPassword: credData.temporaryPassword,
-            emailSent: credData.emailSent || false,
-            firstLogin: credData.firstLogin || false,
-            createdAt: credData.createdAt?.toDate() || new Date(),
-            requiresPasswordChange: studentData.requiresPasswordChange || false
-          });
-        } else if (studentData.requiresPasswordChange) {
-          // Estudiante que necesita cambiar contraseña pero no tiene credenciales temporales
-          studentsList.push({
-            userId: studentDoc.id,
-            email: studentData.email,
-            studentName: studentData.displayName || studentData.nombre,
+        const teachersSnap = await getDocs(teachersQuery);
+        console.log(`👨‍🏫 Profesores encontrados: ${teachersSnap.size}`);
+        
+        for (const teacherDoc of teachersSnap.docs) {
+          const teacherData = teacherDoc.data();
+          usersList.push({
+            userId: teacherDoc.id,
+            email: teacherData.email,
+            userName: teacherData.displayName || teacherData.nombre || 'Sin nombre',
+            userRole: 'teacher',
             temporaryPassword: '',
             emailSent: false,
-            firstLogin: false,
-            createdAt: studentData.createdAt?.toDate() || new Date(),
-            requiresPasswordChange: true
+            firstLogin: teacherData.lastLogin ? true : false,
+            createdAt: teacherData.createdAt?.toDate() || new Date()
           });
         }
       }
       
-      setStudents(studentsList);
+      // 4. Obtener tutores (tienen idAlumnos array)
+      const tutorsQuery = query(
+        collection(db, 'users'),
+        where('schoolRole', '==', 'tutor')
+      );
+      
+      const tutorsSnap = await getDocs(tutorsQuery);
+      const studentIds = new Set(studentsSnap.docs.map(doc => doc.id));
+      let tutorCount = 0;
+      
+      for (const tutorDoc of tutorsSnap.docs) {
+        const tutorData = tutorDoc.data();
+        
+        // Verificar si el tutor tiene alumnos de esta escuela
+        if (tutorData.idAlumnos && Array.isArray(tutorData.idAlumnos)) {
+          const belongsToSchool = tutorData.idAlumnos.some(studentId => 
+            studentIds.has(studentId)
+          );
+          
+          if (belongsToSchool) {
+            tutorCount++;
+            usersList.push({
+              userId: tutorDoc.id,
+              email: tutorData.email,
+              userName: tutorData.displayName || tutorData.nombre || 'Sin nombre',
+              userRole: 'tutor',
+              temporaryPassword: '',
+              emailSent: false,
+              firstLogin: tutorData.lastLogin ? true : false,
+              createdAt: tutorData.createdAt?.toDate() || new Date()
+            });
+          }
+        }
+      }
+      
+      console.log(`👨‍👩‍👧‍👦 Tutores encontrados: ${tutorCount}`);
+      console.log(`✅ Total usuarios: ${usersList.length}`);
+      
+      setUsers(usersList);
     } catch (error) {
       console.error('Error cargando credenciales:', error);
     } finally {
@@ -94,103 +152,147 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
     }
   };
 
-  const sendCredentialEmail = async (student: StudentCredential) => {
-    setSendingEmails(prev => new Set(prev).add(student.userId));
+  const sendPasswordReset = async (user: UserCredential) => {
+    setSendingEmails(prev => new Set(prev).add(user.userId));
     
     try {
-      const success = await EmailService.sendStudentCredentials({
-        to: student.email,
-        studentName: student.studentName,
-        email: student.email,
-        password: student.temporaryPassword,
-        schoolName: 'Tu Escuela', // TODO: Obtener nombre real de la escuela
-        loginUrl: window.location.origin + '/login'
+      console.log('📧 Enviando email de reseteo de contraseña a:', user.email);
+      await sendPasswordResetEmail(auth, user.email);
+      
+      // Guardar en colección passwordResets
+      await setDoc(doc(db, 'passwordResets', user.userId), {
+        userId: user.userId,
+        email: user.email,
+        sent: true,
+        sentAt: new Date(),
+        schoolId: schoolId
       });
       
-      if (success) {
-        // Actualizar estado en Firebase
-        await updateDoc(doc(db, 'temporaryCredentials', student.userId), {
-          emailSent: true,
-          emailSentAt: new Date()
-        });
-        
-        // Actualizar estado local
-        setStudents(prev => prev.map(s => 
-          s.userId === student.userId 
-            ? { ...s, emailSent: true }
-            : s
-        ));
-        
-        alert('Email enviado exitosamente');
+      // Actualizar estado en Firebase
+      await updateDoc(doc(db, 'temporaryCredentials', user.userId), {
+        emailSent: true,
+        emailSentAt: new Date()
+      });
+      
+      // Actualizar estado local
+      setUsers(prev => prev.map(u => 
+        u.userId === user.userId 
+          ? { ...u, emailSent: true }
+          : u
+      ));
+      
+      alert('✅ Email de reseteo de contraseña enviado exitosamente');
+    } catch (error: any) {
+      console.error('Error enviando email de reseteo:', error);
+      if (error.code === 'auth/user-not-found') {
+        alert('⚠️ Este usuario no existe en Firebase Auth. Puede que necesite ser creado primero.');
       } else {
-        alert('Error al enviar el email');
+        alert('❌ Error al enviar el email de reseteo: ' + error.message);
       }
-    } catch (error) {
-      console.error('Error enviando email:', error);
-      alert('Error al enviar el email');
     } finally {
       setSendingEmails(prev => {
         const newSet = new Set(prev);
-        newSet.delete(student.userId);
+        newSet.delete(user.userId);
         return newSet;
       });
     }
   };
 
-  const sendBulkEmails = async () => {
-    const studentsToSend = students.filter(s => 
-      selectedStudents.has(s.userId) && !s.emailSent && s.temporaryPassword
+  const sendBulkPasswordResets = async () => {
+    const usersToSend = users.filter(u => 
+      selectedUsers.has(u.userId) && !u.firstLogin
     );
     
-    if (studentsToSend.length === 0) {
-      alert('No hay estudiantes seleccionados para enviar');
+    if (usersToSend.length === 0) {
+      alert('No hay usuarios seleccionados para enviar');
       return;
     }
     
-    if (!confirm(`¿Enviar credenciales a ${studentsToSend.length} estudiantes?`)) {
+    if (!confirm(`¿Enviar email de reseteo a ${usersToSend.length} usuarios?`)) {
       return;
     }
     
-    const credentials = studentsToSend.map(s => ({
-      to: s.email,
-      studentName: s.studentName,
-      email: s.email,
-      password: s.temporaryPassword,
-      schoolName: 'Tu Escuela'
-    }));
+    let successCount = 0;
+    let errorCount = 0;
     
-    const result = await EmailService.sendBulkCredentials(credentials);
+    for (const user of usersToSend) {
+      try {
+        await sendPasswordReset(user);
+        successCount++;
+        // Pequeña pausa entre emails para evitar límites
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`Error enviando a ${user.email}:`, error);
+        errorCount++;
+      }
+    }
     
-    alert(`Enviados: ${result.sent.length}, Fallidos: ${result.failed.length}`);
+    alert(`✅ Enviados: ${successCount}\n❌ Errores: ${errorCount}`);
     
     // Recargar datos
-    await loadStudentCredentials();
+    await loadUserCredentials();
   };
 
-  const filteredStudents = students.filter(student => {
+  const getFilteredUsers = () => {
+    let filtered = users;
+    
+    // Filtro por estado
     switch (filter) {
       case 'pending':
-        return !student.emailSent && student.temporaryPassword;
+        filtered = filtered.filter(u => !u.emailSent && !u.firstLogin);
+        break;
       case 'sent':
-        return student.emailSent && !student.firstLogin;
+        filtered = filtered.filter(u => u.emailSent && !u.firstLogin);
+        break;
       case 'logged':
-        return student.firstLogin;
-      default:
-        return true;
+        filtered = filtered.filter(u => u.firstLogin);
+        break;
     }
-  });
+    
+    // Filtro por rol
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(u => u.userRole === roleFilter);
+    }
+    
+    return filtered;
+  };
+  
+  const filteredUsers = getFilteredUsers();
 
-  const getStatusIcon = (student: StudentCredential) => {
-    if (student.firstLogin) {
+  const getStatusIcon = (user: UserCredential) => {
+    if (user.firstLogin) {
       return <FontAwesomeIcon icon={faCheck} className="status-icon success" title="Ha iniciado sesión" />;
     }
-    if (student.emailSent) {
+    if (user.emailSent) {
       return <FontAwesomeIcon icon={faEnvelope} className="status-icon sent" title="Email enviado" />;
     }
-    if (student.temporaryPassword) {
-      return <FontAwesomeIcon icon={faExclamationTriangle} className="status-icon warning" title="Pendiente de envío" />;
+    return <FontAwesomeIcon icon={faExclamationTriangle} className="status-icon warning" title="Pendiente" />;
+  };
+  
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'student':
+        return <FontAwesomeIcon icon={faUserGraduate} />;
+      case 'teacher':
+        return <FontAwesomeIcon icon={faChalkboardTeacher} />;
+      case 'tutor':
+        return <FontAwesomeIcon icon={faUserTie} />;
+      default:
+        return <FontAwesomeIcon icon={faUsers} />;
     }
-    return <FontAwesomeIcon icon={faTimes} className="status-icon error" title="Sin contraseña temporal" />;
+  };
+  
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'student':
+        return 'Estudiante';
+      case 'teacher':
+        return 'Profesor';
+      case 'tutor':
+        return 'Tutor';
+      default:
+        return role;
+    }
   };
 
   if (loading) {
@@ -207,20 +309,20 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
     <div className="password-status-panel">
       <div className="panel-header">
         <h3>
-          <FontAwesomeIcon icon={faKey} /> Estado de Contraseñas de Estudiantes
+          <FontAwesomeIcon icon={faKey} /> Estado de Contraseñas
         </h3>
         <div className="panel-stats">
           <span className="stat">
-            <FontAwesomeIcon icon={faUserGraduate} />
-            {students.length} estudiantes
+            <FontAwesomeIcon icon={faUsers} />
+            {users.length} usuarios
           </span>
           <span className="stat warning">
             <FontAwesomeIcon icon={faExclamationTriangle} />
-            {students.filter(s => !s.emailSent && s.temporaryPassword).length} pendientes
+            {users.filter(u => !u.firstLogin).length} pendientes
           </span>
           <span className="stat success">
             <FontAwesomeIcon icon={faCheck} />
-            {students.filter(s => s.firstLogin).length} activos
+            {users.filter(u => u.firstLogin).length} activos
           </span>
         </div>
       </div>
@@ -253,12 +355,52 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
           </button>
         </div>
         
-        {selectedStudents.size > 0 && (
-          <button className="bulk-send-btn" onClick={sendBulkEmails}>
-            <FontAwesomeIcon icon={faPaperPlane} />
-            Enviar a {selectedStudents.size} seleccionados
+        <div className="filter-group" style={{ marginTop: '10px' }}>
+          <label>Rol:</label>
+          <select 
+            value={roleFilter} 
+            onChange={(e) => setRoleFilter(e.target.value as any)}
+          >
+            <option value="all">Todos</option>
+            <option value="student">Estudiantes</option>
+            <option value="teacher">Profesores</option>
+            <option value="tutor">Tutores</option>
+          </select>
+        </div>
+        
+        <div style={{ marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            className="select-all-btn"
+            onClick={() => {
+              const eligibleUsers = filteredUsers.filter(u => !u.firstLogin);
+              setSelectedUsers(new Set(eligibleUsers.map(u => u.userId)));
+            }}
+            style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Seleccionar Todos
           </button>
-        )}
+          
+          {selectedUsers.size > 0 && (
+            <>
+              <button 
+                className="clear-selection-btn"
+                onClick={() => setSelectedUsers(new Set())}
+                style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Limpiar Selección
+              </button>
+              
+              <button 
+                className="bulk-send-btn" 
+                onClick={sendBulkPasswordResets}
+                style={{ padding: '8px 16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                <FontAwesomeIcon icon={faKey} />
+                {' '}Resetear contraseña de {selectedUsers.size} seleccionados
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="students-table">
@@ -270,72 +412,65 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
                   type="checkbox"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedStudents(new Set(filteredStudents.map(s => s.userId)));
+                      setSelectedUsers(new Set(filteredUsers.map(u => u.userId)));
                     } else {
-                      setSelectedStudents(new Set());
+                      setSelectedUsers(new Set());
                     }
                   }}
                 />
               </th>
               <th>Estado</th>
+              <th>Rol</th>
               <th>Nombre</th>
               <th>Email</th>
-              <th>Contraseña Temporal</th>
               <th>Fecha Creación</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredStudents.map(student => (
-              <tr key={student.userId} className={student.firstLogin ? 'logged-in' : ''}>
+            {filteredUsers.map(user => (
+              <tr key={user.userId} className={user.firstLogin ? 'logged-in' : ''}>
                 <td>
                   <input 
                     type="checkbox"
-                    checked={selectedStudents.has(student.userId)}
+                    checked={selectedUsers.has(user.userId)}
                     onChange={(e) => {
-                      const newSelected = new Set(selectedStudents);
+                      const newSelected = new Set(selectedUsers);
                       if (e.target.checked) {
-                        newSelected.add(student.userId);
+                        newSelected.add(user.userId);
                       } else {
-                        newSelected.delete(student.userId);
+                        newSelected.delete(user.userId);
                       }
-                      setSelectedStudents(newSelected);
+                      setSelectedUsers(newSelected);
                     }}
-                    disabled={student.emailSent || !student.temporaryPassword}
+                    disabled={user.firstLogin}
                   />
                 </td>
-                <td>{getStatusIcon(student)}</td>
-                <td>{student.studentName}</td>
-                <td>{student.email}</td>
+                <td>{getStatusIcon(user)}</td>
                 <td>
-                  {student.temporaryPassword ? (
-                    <span className="password-display">
-                      {student.temporaryPassword.substring(0, 3)}****
-                    </span>
-                  ) : (
-                    <span className="no-password">N/A</span>
-                  )}
+                  <span className="role-badge">
+                    {getRoleIcon(user.userRole)} {getRoleLabel(user.userRole)}
+                  </span>
                 </td>
-                <td>{student.createdAt.toLocaleDateString('es-MX')}</td>
+                <td>{user.userName}</td>
+                <td>{user.email}</td>
+                <td>{user.createdAt.toLocaleDateString('es-MX')}</td>
                 <td>
-                  {!student.emailSent && student.temporaryPassword && (
+                  {!user.firstLogin && (
                     <button 
                       className="send-email-btn"
-                      onClick={() => sendCredentialEmail(student)}
-                      disabled={sendingEmails.has(student.userId)}
+                      onClick={() => sendPasswordReset(user)}
+                      disabled={sendingEmails.has(user.userId)}
                     >
-                      {sendingEmails.has(student.userId) ? (
+                      {sendingEmails.has(user.userId) ? (
                         <FontAwesomeIcon icon={faSync} spin />
                       ) : (
-                        <FontAwesomeIcon icon={faPaperPlane} />
+                        <FontAwesomeIcon icon={faKey} />
                       )}
-                      Enviar
+                      Resetear Contraseña
                     </button>
                   )}
-                  {student.emailSent && !student.firstLogin && (
-                    <span className="status-text">Email enviado</span>
-                  )}
-                  {student.firstLogin && (
+                  {user.firstLogin && (
                     <span className="status-text success">Activo</span>
                   )}
                 </td>

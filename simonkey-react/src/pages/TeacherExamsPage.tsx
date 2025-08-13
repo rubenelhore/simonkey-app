@@ -43,9 +43,9 @@ const TeacherExamsPage: React.FC = () => {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
-  // Obtener filtro inicial desde navegación o usar 'all' por defecto
-  const initialFilter = (location.state as any)?.filter || 'all';
-  const [filter, setFilter] = useState<'all' | 'draft' | 'scheduled' | 'active' | 'finished'>(initialFilter);
+  // Obtener filtro inicial desde navegación o usar 'active' por defecto
+  const initialFilter = (location.state as any)?.filter || 'active';
+  const [filter, setFilter] = useState<'active' | 'finished'>(initialFilter);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'materia'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -270,16 +270,12 @@ const TeacherExamsPage: React.FC = () => {
       // Filtro por estado
       const statusMatch = (() => {
         switch (filter) {
-          case 'draft':
-            return exam.status === 'draft';
-          case 'scheduled':
-            return exam.status === 'scheduled';
           case 'active':
             return exam.status === 'active';
           case 'finished':
             return exam.status === 'finished';
           default:
-            return true;
+            return exam.status === 'active';
         }
       })();
 
@@ -380,57 +376,29 @@ const TeacherExamsPage: React.FC = () => {
         themeColor="#6147FF"
       />
       <div className="teacher-exams-page">
-        {/* Context info section */}
-        <div className="context-info">
-          <div className="context-stats">
-            <div className="context-stat">
-              <div className="context-stat-icon">
-                <i className="fas fa-users"></i>
-              </div>
-              <div className="context-stat-content">
-                <span className="context-stat-value">{stats.totalStudents}</span>
-                <span className="context-stat-label">Estudiantes aprox.</span>
-              </div>
-            </div>
-            
-            <div className="context-stat">
-              <div className="context-stat-icon upcoming">
-                <i className="fas fa-calendar-check"></i>
-              </div>
-              <div className="context-stat-content">
-                <span className="context-stat-value">{stats.upcomingExams}</span>
-                <span className="context-stat-label">Exámenes activos</span>
-              </div>
-            </div>
-            
-            <div className="context-stat">
-              <div className="context-stat-icon activity">
-                <i className="fas fa-clock"></i>
-              </div>
-              <div className="context-stat-content">
-                <span className="context-stat-value">{materias.length}</span>
-                <span className="context-stat-label">Materias asignadas</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="context-activity">
-            <div className="activity-indicator">
-              <i className="fas fa-info-circle"></i>
-              <span>{stats.recentActivity}</span>
-            </div>
-            {materias.length === 0 && (
-              <div className="context-warning">
-                <i className="fas fa-exclamation-triangle"></i>
-                <span>Necesitas materias asignadas para crear exámenes</span>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Controls section */}
         <div className="exams-controls">
           <div className="exams-controls-row">
+            
+            <div className="exams-filters">
+              <button
+                className={`filter-btn ${filter === 'active' ? 'active' : ''}`}
+                onClick={() => setFilter('active')}
+                title="Exámenes disponibles para estudiantes"
+              >
+                <i className="fas fa-play-circle"></i>
+                Activos ({exams.filter(e => e.status === 'active').length})
+              </button>
+              <button
+                className={`filter-btn ${filter === 'finished' ? 'active' : ''}`}
+                onClick={() => setFilter('finished')}
+                title="Exámenes ya finalizados"
+              >
+                <i className="fas fa-check-circle"></i>
+                Finalizados ({exams.filter(e => e.status === 'finished').length})
+              </button>
+            </div>
+            
             <button 
               className="create-exam-button-main"
               onClick={handleCreateExam}
@@ -441,49 +409,6 @@ const TeacherExamsPage: React.FC = () => {
               <span>Crear nuevo examen</span>
             </button>
             
-            <div className="exams-filters">
-              <button
-                className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-                onClick={() => setFilter('all')}
-              >
-                Todos ({exams.length})
-              </button>
-              <button
-                className={`filter-btn draft ${filter === 'draft' ? 'active' : ''}`}
-                onClick={() => setFilter('draft')}
-                title="Exámenes en proceso de creación"
-              >
-                <i className="fas fa-edit"></i>
-                Borradores ({exams.filter(e => e.status === 'draft').length})
-              </button>
-              <button
-                className={`filter-btn scheduled ${filter === 'scheduled' ? 'active' : ''}`}
-                onClick={() => setFilter('scheduled')}
-                title="Exámenes programados para fecha futura"
-              >
-                <i className="fas fa-clock"></i>
-                Programados ({exams.filter(e => e.status === 'scheduled').length})
-              </button>
-              <button
-                className={`filter-btn active ${filter === 'active' ? 'active' : ''}`}
-                onClick={() => setFilter('active')}
-                title="Exámenes disponibles para estudiantes"
-              >
-                <i className="fas fa-play-circle"></i>
-                Activos ({exams.filter(e => e.status === 'active').length})
-              </button>
-              <button
-                className={`filter-btn finished ${filter === 'finished' ? 'active' : ''}`}
-                onClick={() => setFilter('finished')}
-                title="Exámenes ya finalizados"
-              >
-                <i className="fas fa-check-circle"></i>
-                Finalizados ({exams.filter(e => e.status === 'finished').length})
-              </button>
-            </div>
-          </div>
-
-          <div className="exams-controls-row">
             <div className="search-container">
               <i className="fas fa-search search-icon"></i>
               <input
@@ -503,27 +428,7 @@ const TeacherExamsPage: React.FC = () => {
                 </button>
               )}
             </div>
-
-            <div className="sort-controls">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'materia')}
-                className="sort-select"
-              >
-                <option value="date">Ordenar por fecha</option>
-                <option value="name">Ordenar por nombre</option>
-                <option value="materia">Ordenar por materia</option>
-              </select>
-              <button
-                className={`sort-order-btn ${sortOrder === 'desc' ? 'desc' : 'asc'}`}
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                title={sortOrder === 'asc' ? 'Cambiar a descendente' : 'Cambiar a ascendente'}
-              >
-                <i className={`fas ${sortOrder === 'asc' ? 'fa-sort-up' : 'fa-sort-down'}`}></i>
-              </button>
-            </div>
           </div>
-
         </div>
 
         {/* Exams grid */}
@@ -618,23 +523,13 @@ const TeacherExamsPage: React.FC = () => {
               }
             })()}</h3>
             <p>
-              {filter === 'all' 
+              {filter === 'active'
                 ? materias.length === 0 
                   ? 'Necesitas tener materias asignadas para crear exámenes.'
-                  : 'Aún no has creado ningún examen.'
-                : filter === 'active'
-                ? 'No tienes exámenes activos en este momento.'
-                : 'No hay exámenes inactivos.'
+                  : 'No tienes exámenes activos en este momento.'
+                : 'No tienes exámenes finalizados.'
               }
             </p>
-            {filter !== 'all' && (
-              <button 
-                className="btn-secondary"
-                onClick={() => setFilter('all')}
-              >
-                Ver todos los exámenes
-              </button>
-            )}
           </div>
         )}
       </div>

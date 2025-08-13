@@ -44,7 +44,14 @@
       "Bash(npm uninstall:*)",
       "Bash(cat:*)",
       "Bash(git fetch:*)",
-      "Bash(firebase functions:secrets:set:*)"
+      "Bash(firebase functions:secrets:set:*)",
+      "Bash(firebase functions:log:*)",
+      "Bash(gcloud organizations get-iam-policy:*)",
+      "Bash(gcloud projects get-iam-policy:*)",
+      "Bash(gcloud auth:*)",
+      "Bash(gcloud resource-manager org-policies list:*)",
+      "Bash(gcloud resource-manager org-policies describe:*)",
+      "Bash(gcloud resource-manager org-policies set-policy:*)"
     ],
     "deny": []
   }

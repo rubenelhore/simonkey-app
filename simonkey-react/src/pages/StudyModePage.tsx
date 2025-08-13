@@ -994,87 +994,29 @@ const StudyModePage = () => {
 
         {/* Main Study Module */}
         <div className="main-study-module">
-          {/* Score Module */}
-          <div className="study-score-module">
-            <div className="study-score-header">
-              <FontAwesomeIcon icon={faTrophy} className="study-score-icon" />
-              <h3>Score</h3>
-            </div>
-            <div className="study-score-content">
-              <div className="study-score-value">
-                {selectedNotebook ? Math.round(notebookScore.score).toLocaleString() : '0'}
-              </div>
-              <div className="study-score-label">
-                {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}
-              </div>
-            </div>
-          </div>
-
-          {/* Simple Medal Corner with Current Division Medals */}
-          <div className="corner-medal-module">
-            <div className="corner-medal-header">
-              <button 
-                className="corner-nav-btn prev"
-                onClick={navigateToPreviousDivision}
-                disabled={DIVISION_KEYS.indexOf(viewingDivision) === 0}
-              >
-                <FontAwesomeIcon icon={faChevronLeft} />
-              </button>
-              
-              <div className="corner-medal-center">
-                <div className="corner-medal-icon">
-                  {DIVISION_LEVELS[viewingDivision].icon}
-                </div>
-                <div className="corner-medal-content">
-                  {viewingDivision === divisionData.current && (
-                    <div className="corner-medal-label">Tu división actual</div>
-                  )}
-                  <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
-                  <div className="corner-medal-progress">{conceptsLearned} conceptos</div>
-                </div>
-              </div>
-              
-              <button 
-                className="corner-nav-btn next"
-                onClick={navigateToNextDivision}
-                disabled={DIVISION_KEYS.indexOf(viewingDivision) === DIVISION_KEYS.length - 1}
-              >
-                <FontAwesomeIcon icon={faChevronRight} />
-              </button>
-            </div>
-            
-            {/* Small medals for viewing division */}
-            <div className="corner-medals-grid">
-              {DIVISION_LEVELS[viewingDivision].ranges.map((requiredConcepts, index) => {
-                const isEarned = getMedalStatus(requiredConcepts);
-                const isCurrentTarget = requiredConcepts === divisionData.nextMilestone;
-                
-                return (
-                  <div 
-                    key={`corner-${requiredConcepts}`}
-                    className={`corner-medal-item ${isEarned ? 'earned' : 'locked'} ${isCurrentTarget ? 'current-target' : ''}`}
-                  >
-                    <div 
-                      className="corner-medal-small-icon"
-                      style={{ 
-                        color: isEarned ? DIVISION_LEVELS[viewingDivision].color : '#ccc'
-                      }}
-                    >
-                      🏅
-                    </div>
-                    <div className="corner-medal-requirement">{requiredConcepts}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Study Module Header */}
           <div className="study-module-header">
-          <div className="notebook-dropdown-container">
-            <div className="dropdown-instruction">
-              Elige el cuaderno para estudiar
+            {/* Medal Module */}
+            <div className="corner-medal-module">
+              <div className="corner-medal-header">
+                <div className="corner-medal-center">
+                  <div className="corner-medal-icon">
+                    {DIVISION_LEVELS[viewingDivision].icon}
+                  </div>
+                  <div className="corner-medal-content">
+                    {viewingDivision === divisionData.current && (
+                      <div className="corner-medal-label">Tu división actual</div>
+                    )}
+                    <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
+                    <div className="corner-medal-progress">{conceptsLearned} conceptos</div>
+                  </div>
+                </div>
+              </div>
             </div>
+            
+            {/* Dropdown with Score */}
+            <div className="notebook-dropdown-wrapper">
+              <div className="notebook-dropdown-container">
             <button 
                 className={`notebook-dropdown-btn ${showNotebookError ? 'error' : ''}`}
                 onClick={() => setShowNotebookDropdown(!showNotebookDropdown)}
@@ -1151,7 +1093,18 @@ const StudyModePage = () => {
                 </div>
               )}
             </div>
+            
+            {/* Score Content */}
+            <div className="study-score-content">
+              <div className="study-score-value">
+                {selectedNotebook ? Math.round(notebookScore.score).toLocaleString() : '0'}
+              </div>
+              <div className="study-score-label">
+                {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}
+              </div>
+            </div>
           </div>
+        </div>
 
           {/* Study Functions */}
           <div className="study-functions">

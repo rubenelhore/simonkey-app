@@ -9,7 +9,6 @@ const JoinSimonkeyBanner: React.FC = () => {
           <div className="join-simonkey-header">
             <span className="header-text">Únete a Simonkey</span>
             <span className="header-arrow">→</span>
-            <span className="header-separator">-</span>
             <span className="header-highlight">disfruta tu aprendizaje</span>
           </div>
           <div className="join-simonkey-features">
