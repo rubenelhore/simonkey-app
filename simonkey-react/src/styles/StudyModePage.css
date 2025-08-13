@@ -777,7 +777,9 @@
   margin-bottom: 2rem;
   padding-left: 2rem;
   padding-right: 2rem;
-  border-bottom: 1px solid #e5e5e5;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
 }
 
 /* Notebook Dropdown Wrapper */
@@ -805,7 +807,7 @@
   width: 100%;
   padding: 1rem 1.25rem;
   background: var(--bg-white);
-  border: 2px solid var(--border-medium);
+  border: 2px solid var(--primary-color);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;

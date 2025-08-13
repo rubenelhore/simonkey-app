@@ -2,7 +2,7 @@
 
 .progress-layout {
   min-height: calc(100vh - 70px);
-  background-color: #f3f4f6;
+  background-color: white;
   padding: 20px;
   padding-top: 20px; /* Padding normal, el header ya tiene su propio espacio */
   padding-left: 80px; /* Space for sidebar on desktop */
@@ -44,11 +44,12 @@
   /* Para igualar altura */
   display: flex;
   align-items: stretch;
+  background: white !important;
 }
 
 /* KPI Modules */
 .progress-module {
-  background: white;
+  background: white !important;
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -65,6 +66,13 @@
   align-items: center;
   gap: 16px;
   min-height: 120px;
+  background: white !important;
+}
+
+/* Asegurar que la combinación de clases también tenga fondo blanco */
+.progress-module.kpi-module {
+  background: white !important;
+  background-color: white !important;
 }
 
 .kpi-icon {
