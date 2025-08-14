@@ -22,7 +22,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 2rem;
-  align-items: center;
+  align-items: flex-end;
   background: white;
   border-radius: 16px;
   padding: 1.5rem;
