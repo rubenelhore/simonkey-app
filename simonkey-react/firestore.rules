@@ -95,8 +95,16 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: users
     // ========================================
     match /users/{userId} {
-      // Lectura: propietario o super admin
-      allow read: if isOwner(userId) || isSuperAdmin();
+      // Lectura: propietario, super admin, o admin escolar leyendo sus profesores/estudiantes
+      allow read: if isOwner(userId) || 
+                     isSuperAdmin() ||
+                     // Admin escolar puede leer profesores con su idAdmin
+                     (hasSchoolRole('admin') && 
+                      resource.data.idAdmin == request.auth.uid) ||
+                     // Admin escolar puede leer estudiantes con su idAdmin
+                     (hasSchoolRole('admin') && 
+                      resource.data.subscription == 'school' &&
+                      resource.data.idAdmin == request.auth.uid);
       
       // Creación: solo el propio usuario al registrarse
       allow create: if isOwner(userId) &&
@@ -415,11 +423,14 @@ service cloud.firestore {
     
     match /schoolSubjects/{subjectId} {
       allow read: if isSchoolUser();
-      allow create: if hasSchoolRole('teacher') &&
+      allow create: if (hasSchoolRole('teacher') &&
         hasRequiredFields(['nombre', 'idProfesor']) &&
-        request.resource.data.idProfesor == request.auth.uid;
-      allow update, delete: if hasSchoolRole('teacher') &&
-        resource.data.idProfesor == request.auth.uid ||
+        request.resource.data.idProfesor == request.auth.uid) ||
+        // Admin escolar puede crear materias
+        (hasSchoolRole('admin') && hasRequiredFields(['nombre', 'idProfesor']));
+      allow update, delete: if (hasSchoolRole('teacher') &&
+        resource.data.idProfesor == request.auth.uid) ||
+        hasSchoolRole('admin') ||
         isSuperAdmin();
     }
     
@@ -490,6 +501,11 @@ service cloud.firestore {
     }
     
     match /temporaryCredentials/{credentialId} {
+      allow read: if hasSchoolRole('admin') || isSuperAdmin();
+      allow write: if hasSchoolRole('admin') || isSuperAdmin();
+    }
+    
+    match /passwordResets/{resetId} {
       allow read: if hasSchoolRole('admin') || isSuperAdmin();
       allow write: if hasSchoolRole('admin') || isSuperAdmin();
     }
