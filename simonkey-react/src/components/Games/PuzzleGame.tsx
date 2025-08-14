@@ -7,6 +7,7 @@ import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
 import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
+import HeaderWithHamburger from '../HeaderWithHamburger';
 import '../../styles/PuzzleGame.css';
 
 interface Concept {
@@ -29,16 +30,17 @@ interface PuzzleGameProps {
   notebookTitle: string;
   onBack: () => void;
   cachedConcepts?: any[];
+  cachedLearningData?: any[];
 }
 
-const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts }) => {
+const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [currentConcepts, setCurrentConcepts] = useState<Concept[]>([]);
   const [fragments, setFragments] = useState<Fragment[]>([]);
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [gameCompleted, setGameCompleted] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [draggedFragment, setDraggedFragment] = useState<Fragment | null>(null);
   const [correctPuzzles, setCorrectPuzzles] = useState<string[]>([]);
   const [gameStarted, setGameStarted] = useState(false);
@@ -51,9 +53,18 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [touchStartFragment, setTouchStartFragment] = useState<Fragment | null>(null);
   const [touchTargetPosition, setTouchTargetPosition] = useState<number | null>(null);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [conceptsLoaded, setConceptsLoaded] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
+
+  // Format time helper
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Timer
   useEffect(() => {
@@ -66,10 +77,12 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     return () => clearInterval(interval);
   }, [gameStarted, gameCompleted, startTime]);
 
-  // Load concepts
+  // Load concepts only when intro is closed and game starts
   useEffect(() => {
-    loadConcepts();
-  }, [notebookId]);
+    if (notebookId && !conceptsLoaded && !loading && !showIntro) {
+      loadConcepts();
+    }
+  }, [notebookId, showIntro]);
 
   // Check if all puzzles are solved
   useEffect(() => {
@@ -81,66 +94,38 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   }, [correctPuzzles, currentConcepts]);
 
   const loadConcepts = async () => {
-    if (!auth.currentUser) return;
+    console.log('🎯 loadConcepts llamado, conceptsLoaded:', conceptsLoaded);
+    if (conceptsLoaded) return;
 
+    console.log('⏳ Iniciando carga de conceptos mock...');
     setLoading(true);
-    try {
-      // Obtener el ID efectivo del usuario
-      const effectiveUserData = await getEffectiveUserId();
-      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      
-      // Obtener TODOS los conceptos del cuaderno primero
-      let allConcepts: any[] = await studyService.getAllConceptsFromNotebook(userId, notebookId);
-      console.log('🧩 Total de conceptos en el cuaderno:', allConcepts.length);
-      
-      // Obtener datos de aprendizaje para filtrar solo conceptos repasados
-      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
-      console.log('📚 Datos de aprendizaje encontrados:', learningData.length);
-      
-      // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
-      const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
-      
-      // Filtrar solo los conceptos que han sido repasados
-      const reviewedConcepts = allConcepts.filter(concept => 
-        reviewedConceptIds.has(concept.id)
-      );
-      
-      console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
-      
-      // Si no hay suficientes conceptos repasados, usar todos los conceptos disponibles
-      let conceptsToUse = reviewedConcepts;
-      if (reviewedConcepts.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos repasados, usando todos los conceptos disponibles');
-        conceptsToUse = allConcepts;
-      }
-      
-      if (conceptsToUse.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos disponibles para el juego (mínimo 3)');
-        setNoReviewedConcepts(true);
-        setLoading(false);
-        return;
-      }
-      
-      // Convertir al formato que espera el juego
-      const conceptsList: Concept[] = conceptsToUse.map(concept => ({
-        id: concept.id,
-        term: concept.término || '',
-        definition: concept.definición || ''
-      }));
+    setConceptsLoaded(true);
+    
+    // Usar conceptos mock para testing rápido
+    const mockConcepts: Concept[] = [
+      { id: '1', term: 'React', definition: 'Una biblioteca de JavaScript para construir interfaces de usuario' },
+      { id: '2', term: 'Estado', definition: 'Datos que pueden cambiar a lo largo del tiempo en un componente' },
+      { id: '3', term: 'Props', definition: 'Propiedades que se pasan de un componente padre a un componente hijo' },
+      { id: '4', term: 'JSX', definition: 'Una extensión de sintaxis para JavaScript que permite escribir HTML en React' },
+      { id: '5', term: 'Hook', definition: 'Funciones especiales que te permiten usar estado y otras características de React' },
+      { id: '6', term: 'Componente', definition: 'Una función o clase que devuelve elementos de React' },
+      { id: '7', term: 'Virtual DOM', definition: 'Una representación en memoria del DOM real mantenida por React' },
+      { id: '8', term: 'useEffect', definition: 'Un Hook que te permite realizar efectos secundarios en componentes funcionales' },
+      { id: '9', term: 'useState', definition: 'Un Hook que te permite añadir estado a componentes funcionales' },
+      { id: '10', term: 'Renderizado', definition: 'El proceso de convertir componentes de React en elementos del DOM' }
+    ];
 
-      console.log('🎯 Total de conceptos repasados para el juego:', conceptsList.length);
-      setConcepts(conceptsList);
-      
-      // Start with 3 random concepts
-      if (conceptsList.length >= 3) {
-        startNewRound(conceptsList);
-      }
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('❌ Error loading concepts:', error);
-      setLoading(false);
+    console.log('🚀 Usando conceptos mock para testing:', mockConcepts.length);
+    setConcepts(mockConcepts);
+    
+    // Start with 3 random concepts
+    if (mockConcepts.length >= 3) {
+      console.log('🎲 Iniciando nueva ronda con conceptos mock');
+      startNewRound(mockConcepts);
     }
+    
+    console.log('✅ Conceptos cargados, finalizando loading');
+    setLoading(false);
   };
 
   const fragmentDefinition = (definition: string, conceptId: string): Fragment[] => {
@@ -373,7 +358,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     });
 
     if (newCorrectPuzzles.length > 0) {
-      setCorrectPuzzles([...correctPuzzles, ...newCorrectPuzzles]);
+      const updatedCorrectPuzzles = [...correctPuzzles, ...newCorrectPuzzles];
+      setCorrectPuzzles(updatedCorrectPuzzles);
+      console.log('✅ Puzzles correctos actualizados:', updatedCorrectPuzzles.length, '/', currentConcepts.length);
     } else if (correctPuzzles.length === 0) {
       setCombo(0);
     }
@@ -408,12 +395,6 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   };
 
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const awardGamePoints = async () => {
     if (!pointsAwarded) {
       setPointsAwarded(true);
@@ -439,49 +420,139 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
 
   if (loading) {
     return (
-      <div className="puzzle-game-container">
-        <div className="loading-container">
-          <div className="loading-circle"></div>
-          <p className="loading-text">Cargando</p>
+      <>
+        <HeaderWithHamburger 
+          title="Puzzle de Definiciones"
+          subtitle={notebookTitle}
+        />
+        <div className="puzzle-game-container with-header-sidebar">
+          <div className="loading-container">
+            <div className="loading-circle"></div>
+            <p className="loading-text">Cargando</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (noReviewedConcepts) {
     return (
-      <div className="puzzle-game-container">
-        <div className="no-concepts-message">
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-          </button>
-          <div className="empty-state">
-            <i className="fas fa-graduation-cap"></i>
-            <h2>¡Primero necesitas estudiar!</h2>
-            <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
-            <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
-            <button className="primary-button" onClick={onBack}>
-              Volver
+      <>
+        <HeaderWithHamburger 
+          title="Puzzle de Definiciones"
+          subtitle={notebookTitle}
+        />
+        <div className="puzzle-game-container with-header-sidebar">
+          <div className="no-concepts-message">
+            <button className="back-button" onClick={onBack}>
+              <FontAwesomeIcon icon={faArrowLeft} />
             </button>
+            <div className="empty-state">
+              <i className="fas fa-graduation-cap"></i>
+              <h2>¡Primero necesitas estudiar!</h2>
+              <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
+              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <button className="primary-button" onClick={onBack}>
+                Volver
+              </button>
+            </div>
           </div>
         </div>
+      </>
+    );
+  }
+
+  const renderIntroModal = () => (
+    <div className="puzzle-intro-overlay">
+      <div className="puzzle-intro-modal">
+        <div className="intro-header">
+          <FontAwesomeIcon icon={faPuzzlePiece} className="intro-icon" />
+          <h2>Puzzle de Definiciones</h2>
+        </div>
+        
+        <div className="intro-content">
+          <div className="intro-section">
+            <h3>¿Cómo jugar?</h3>
+            <ul>
+              <li><i className="fas fa-puzzle-piece"></i> Arrastra los fragmentos para formar las definiciones correctas</li>
+              <li><i className="fas fa-clock"></i> Completa cada puzzle lo más rápido posible</li>
+              <li><i className="fas fa-fire"></i> Mantén un combo para obtener más puntos</li>
+              <li><i className="fas fa-trophy"></i> Supera los 3 niveles para completar el juego</li>
+            </ul>
+          </div>
+          
+          <div className="intro-section">
+            <h3>Sistema de puntuación</h3>
+            <div className="scoring-info">
+              <div className="score-item">
+                <span className="score-points">+100</span>
+                <span>Por puzzle correcto</span>
+              </div>
+              <div className="score-item">
+                <span className="score-points">+50</span>
+                <span>Bonus de velocidad</span>
+              </div>
+              <div className="score-item">
+                <span className="score-points">x2</span>
+                <span>Multiplicador de combo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="intro-actions">
+          <button className="action-button secondary" onClick={onBack}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+            Cancelar
+          </button>
+          <button 
+            className="action-button primary" 
+            onClick={() => {
+              console.log('🎮 Botón "Comenzar Juego" presionado');
+              console.log('📊 Estado actual - conceptsLoaded:', conceptsLoaded, 'loading:', loading);
+              setShowIntro(false);
+              if (!conceptsLoaded) {
+                console.log('🔄 Llamando loadConcepts...');
+                loadConcepts();
+              } else {
+                console.log('✅ Conceptos ya cargados, no se llama loadConcepts');
+              }
+            }}
+          >
+            <FontAwesomeIcon icon={faPuzzlePiece} />
+            Comenzar Juego
+          </button>
+        </div>
       </div>
+    </div>
+  );
+
+  if (showIntro) {
+    return (
+      <>
+        <HeaderWithHamburger 
+          title="Puzzle de Definiciones"
+          subtitle={notebookTitle}
+        />
+        <div className="puzzle-game-container with-header-sidebar">
+          {renderIntroModal()}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="puzzle-game-container">
-      <div className="puzzle-header">
-        <button className="back-button" onClick={onBack}>
-          <FontAwesomeIcon icon={faArrowLeft} />
-        </button>
-        
-        <div className="game-title">
-          <h1><FontAwesomeIcon icon={faPuzzlePiece} /> Puzzle de Definiciones</h1>
-          <p>{notebookTitle} - Nivel {level} de 3</p>
+    <>
+      <HeaderWithHamburger 
+        title="Puzzle de Definiciones"
+        subtitle={`${notebookTitle} - Nivel ${level} de 3`}
+      />
+      <div className="puzzle-game-container with-header-sidebar">
+        <div className="puzzle-header">
+          <button className="back-button" onClick={onBack}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+          </button>
         </div>
-
-      </div>
 
       <div className="game-stats">
         <div className="stat">
@@ -493,8 +564,39 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
           <span>Puntos: {score}</span>
         </div>
         <div className="stat">
-          <span>Combo: x{combo}</span>
+          <span>En posición: {(() => {
+            // Contar fragmentos que están en la fila correcta (verdes)
+            let correctFragments = 0;
+            currentConcepts.forEach((concept, conceptIndex) => {
+              // Calcular el rango de posiciones para este concepto
+              let startPosition = 0;
+              for (let i = 0; i < conceptIndex; i++) {
+                const prevConceptFragments = fragments.filter(f => f.conceptId === currentConcepts[i].id);
+                startPosition += prevConceptFragments.length;
+              }
+              const conceptFragments = fragments.filter(f => f.conceptId === concept.id);
+              const endPosition = startPosition + conceptFragments.length;
+              
+              // Contar fragmentos de este concepto que están en su fila (verde)
+              fragments.forEach(fragment => {
+                if (fragment.conceptId === concept.id && 
+                    fragment.currentPosition >= startPosition && 
+                    fragment.currentPosition < endPosition) {
+                  correctFragments++;
+                }
+              });
+            });
+            const totalFragments = fragments.length;
+            return totalFragments > 0 ? Math.round((correctFragments / totalFragments) * 100) : 0;
+          })()}%</span>
         </div>
+        <div className="stat">
+          <span>Nivel: {level}/3</span>
+        </div>
+        <button className="exit-button" onClick={onBack}>
+          <FontAwesomeIcon icon={faArrowLeft} />
+          <span>Salir</span>
+        </button>
       </div>
 
       <div className={`puzzle-board ${isAnimating ? 'animating' : ''}`}>
@@ -516,47 +618,51 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
               className={`puzzle-row ${correctPuzzles.includes(concept.id) ? 'completed' : ''}`}
             >
               <div className="concept-term">
+                {rowIndex === 0 && <div className="section-label">Concepto</div>}
                 <h3>{concept.term}</h3>
                 {correctPuzzles.includes(concept.id) && (
                   <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
                 )}
               </div>
               
-              <div className="fragments-container" style={{ gridTemplateColumns: `repeat(${fragmentCount}, 1fr)` }}>
-                {Array.from({ length: fragmentCount }).map((_, position) => {
-                  const absolutePosition = startPosition + position;
-                  const fragment = fragments.find(f => f.currentPosition === absolutePosition);
-                  
-                  return (
-                    <div
-                      key={`slot-${absolutePosition}`}
-                      className="fragment-slot"
-                      data-position={absolutePosition}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, absolutePosition)}
-                    >
-                      {fragment && (
-                        <div
-                          className={`fragment ${fragment.conceptId === concept.id ? 'correct-concept' : 'wrong-concept'}`}
-                          draggable={!correctPuzzles.includes(fragment.conceptId)}
-                          onDragStart={() => handleDragStart(fragment)}
-                          onTouchStart={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchStart(fragment, e)}
-                          onTouchMove={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchMove(e)}
-                          onTouchEnd={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchEnd(e)}
-                        >
-                          <span>{fragment.text}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="fragments-section">
+                {rowIndex === 0 && <div className="section-label">Definición</div>}
+                <div className="fragments-container" style={{ gridTemplateColumns: `repeat(${fragmentCount}, 1fr)` }}>
+                  {Array.from({ length: fragmentCount }).map((_, position) => {
+                    const absolutePosition = startPosition + position;
+                    const fragment = fragments.find(f => f.currentPosition === absolutePosition);
+                    
+                    return (
+                      <div
+                        key={`slot-${absolutePosition}`}
+                        className="fragment-slot"
+                        data-position={absolutePosition}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, absolutePosition)}
+                      >
+                        {fragment && (
+                          <div
+                            className={`fragment ${fragment.conceptId === concept.id ? 'correct-concept' : 'wrong-concept'}`}
+                            draggable={!correctPuzzles.includes(fragment.conceptId)}
+                            onDragStart={() => handleDragStart(fragment)}
+                            onTouchStart={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchStart(fragment, e)}
+                            onTouchMove={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchMove(e)}
+                            onTouchEnd={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchEnd(e)}
+                          >
+                            <span>{fragment.text}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {correctPuzzles.length === currentConcepts.length && currentConcepts.length > 0 && !gameCompleted && (
+      {correctPuzzles.length === currentConcepts.length && currentConcepts.length > 0 && !gameCompleted && level < 3 && (
         <div className="level-complete">
           <h2>¡Nivel {level} Completado!</h2>
           <p>Preparando siguiente nivel...</p>
@@ -591,7 +697,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

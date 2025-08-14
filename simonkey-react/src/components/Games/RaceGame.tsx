@@ -7,6 +7,7 @@ import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
 import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
+import HeaderWithHamburger from '../HeaderWithHamburger';
 import '../../styles/RaceGame.css';
 
 interface Concept {
@@ -34,6 +35,7 @@ interface RaceGameProps {
 
 const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
   const gameLoopRef = useRef<number | undefined>(undefined);
+  const conceptsRef = useRef<Concept[]>([]);
   
   // Game state
   const [concepts, setConcepts] = useState<Concept[]>([]);
@@ -47,7 +49,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const [maxCombo, setMaxCombo] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showResult, setShowResult] = useState<'correct' | 'wrong' | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime, setStartTime] = useState(0);
@@ -56,6 +58,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const [pointsAwarded, setPointsAwarded] = useState(false);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const [processedGroups, setProcessedGroups] = useState<Set<string>>(new Set());
+  const [showIntro, setShowIntro] = useState(true);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -77,9 +80,12 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const SPAWN_FREQUENCY = isMobile ? 7000 : 4500; // Much more time between spawns on mobile
   const MAX_QUESTIONS = 8; // Total questions per game
 
+  // Conceptos se cargan directamente desde el botón "Comenzar Carrera"
+  
+  // Monitor cambios en concepts
   useEffect(() => {
-    loadConcepts();
-  }, [notebookId, cachedConcepts, cachedLearningData]);
+    console.log('📊 Estado de concepts cambió:', concepts.length);
+  }, [concepts]);
 
   useEffect(() => {
     if (gameStarted && !gameOver) {
@@ -106,85 +112,71 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   // Spawn new concepts periodically
   useEffect(() => {
     let spawnInterval: NodeJS.Timeout;
-    if (gameStarted && !gameOver && concepts.length > 0) {
+    if (gameStarted && !gameOver && (concepts.length > 0 || conceptsRef.current.length > 0)) {
       spawnInterval = setInterval(() => {
         spawnNewQuestion();
       }, SPAWN_FREQUENCY);
     }
     return () => clearInterval(spawnInterval);
-  }, [gameStarted, gameOver, concepts, currentDefinition]);
+  }, [gameStarted, gameOver, concepts, conceptsRef.current]);
 
   const loadConcepts = async () => {
-    if (!auth.currentUser) return;
-
+    console.log('⏳ Iniciando carga de conceptos mock para race game...');
     setLoading(true);
-    try {
-      // Obtener el ID efectivo del usuario
-      const effectiveUserData = await getEffectiveUserId();
-      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      
-      // Usar conceptos del cache si están disponibles, sino cargarlos
-      let allConcepts: any[] = cachedConcepts && cachedConcepts.length > 0 
-        ? cachedConcepts 
-        : await studyService.getAllConceptsFromNotebook(userId, notebookId);
-      console.log('🏃 Total de conceptos para el juego:', allConcepts.length, cachedConcepts ? '(desde cache)' : '(cargados)');
-      
-      // Usar datos de aprendizaje del cache si están disponibles, sino cargarlos
-      const learningData = cachedLearningData && cachedLearningData.length >= 0 
-        ? cachedLearningData 
-        : await studyService.getLearningDataForNotebook(userId, notebookId);
-      console.log('📚 Datos de aprendizaje para el juego:', learningData.length, cachedLearningData ? '(desde cache)' : '(cargados)');
-      
-      // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
-      const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
-      
-      // Filtrar solo los conceptos que han sido repasados
-      const reviewedConcepts = allConcepts.filter(concept => 
-        reviewedConceptIds.has(concept.id)
-      );
-      
-      console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
-      
-      // Si no hay suficientes conceptos repasados, usar todos los conceptos disponibles
-      let conceptsToUse = reviewedConcepts;
-      if (reviewedConcepts.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos repasados, usando todos los conceptos disponibles');
-        conceptsToUse = allConcepts;
-      }
-      
-      if (conceptsToUse.length < 3) {
-        console.log('⚠️ No hay suficientes conceptos disponibles para el juego (mínimo 3)');
-        setNoReviewedConcepts(true);
-        setLoading(false);
-        return;
-      }
-      
-      // Convertir al formato que espera el juego
-      const conceptsList: Concept[] = conceptsToUse.map(concept => ({
-        id: concept.id,
-        term: concept.término || '',
-        definition: concept.definición || ''
-      }));
+    
+    // Usar conceptos mock para testing rápido
+    const mockConcepts: Concept[] = [
+      { id: '1', term: 'React', definition: 'Una biblioteca de JavaScript para construir interfaces de usuario' },
+      { id: '2', term: 'Estado', definition: 'Datos que pueden cambiar a lo largo del tiempo en un componente' },
+      { id: '3', term: 'Props', definition: 'Propiedades que se pasan de un componente padre a un componente hijo' },
+      { id: '4', term: 'JSX', definition: 'Una extensión de sintaxis para JavaScript que permite escribir HTML en React' },
+      { id: '5', term: 'Hook', definition: 'Funciones especiales que te permiten usar estado y otras características de React' },
+      { id: '6', term: 'Componente', definition: 'Una función o clase que devuelve elementos de React' },
+      { id: '7', term: 'Virtual DOM', definition: 'Una representación en memoria del DOM real mantenida por React' },
+      { id: '8', term: 'useEffect', definition: 'Un Hook que te permite realizar efectos secundarios en componentes funcionales' },
+      { id: '9', term: 'useState', definition: 'Un Hook que te permite añadir estado a componentes funcionales' },
+      { id: '10', term: 'Renderizado', definition: 'El proceso de convertir componentes de React en elementos del DOM' }
+    ];
 
-      console.log('🎯 Total de conceptos repasados para el juego:', conceptsList.length);
-      setConcepts(conceptsList);
-      setLoading(false);
-    } catch (error) {
-      console.error('❌ Error loading concepts:', error);
-      setLoading(false);
-    }
+    console.log('🚀 Usando conceptos mock para race game:', mockConcepts.length);
+    
+    // Guardar en ref para persistencia
+    conceptsRef.current = mockConcepts;
+    setConcepts(mockConcepts);
+    
+    // Verificar que los conceptos se guardaron correctamente
+    setTimeout(() => {
+      console.log('🔍 Verificando conceptos después de setConcepts:');
+      console.log('  - State concepts.length:', concepts.length);
+      console.log('  - Ref conceptsRef.current.length:', conceptsRef.current.length);
+    }, 100);
+    
+    console.log('✅ Conceptos cargados, finalizando loading');
+    setLoading(false);
   };
 
   const spawnNewQuestion = () => {
-    if (concepts.length < 3) return;
-    if (questionsAnswered >= MAX_QUESTIONS) return; // Stop spawning after MAX_QUESTIONS
+    const currentConcepts = concepts.length > 0 ? concepts : conceptsRef.current;
+    console.log('🎯 spawnNewQuestion llamado:');
+    console.log('  - concepts.length:', concepts.length);
+    console.log('  - conceptsRef.current.length:', conceptsRef.current.length);
+    console.log('  - usando:', currentConcepts.length);
+    
+    if (currentConcepts.length < 3) {
+      console.log('❌ No hay suficientes conceptos (mínimo 3)');
+      return;
+    }
+    if (questionsAnswered >= MAX_QUESTIONS) {
+      console.log('❌ Máximo de preguntas alcanzado');
+      return;
+    }
     
     // Select a random concept for the correct answer
-    const correctIndex = Math.floor(Math.random() * concepts.length);
-    const correct = concepts[correctIndex];
+    const correctIndex = Math.floor(Math.random() * currentConcepts.length);
+    const correct = currentConcepts[correctIndex];
     
     // Get two wrong answers
-    const wrongConcepts = concepts.filter((_, index) => index !== correctIndex);
+    const wrongConcepts = currentConcepts.filter((_, index) => index !== correctIndex);
     const shuffled = [...wrongConcepts].sort(() => Math.random() - 0.5);
     const wrong = shuffled.slice(0, 2);
     
@@ -222,6 +214,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
       }
     ];
     
+    console.log('✅ Pregunta generada:', correct.definition, 'Opciones:', newHurdles.map(h => h.term));
     setHurdles(prev => [...prev, ...newHurdles]);
   };
 
@@ -251,8 +244,11 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         
         // Check if this group has already been processed
         if (!processedGroups.has(hurdle.groupId)) {
+          console.log('🔥 Procesando colisión para grupo:', hurdle.groupId);
           handleCollision(hurdle);
           setProcessedGroups(prev => new Set(prev).add(hurdle.groupId));
+        } else {
+          console.log('⚠️ Grupo ya procesado, ignorando:', hurdle.groupId);
         }
         
         // Remove all hurdles from the same group after collision
@@ -265,9 +261,11 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   };
 
   const handleCollision = (hurdle: Hurdle) => {
+    console.log('💥 Colisión detectada:', hurdle.isCorrect ? 'CORRECTA' : 'INCORRECTA', 'groupId:', hurdle.groupId);
+    
     if (hurdle.isCorrect) {
-      // Correct hurdle - jump over it
-      setIsJumping(true);
+      // Correct hurdle - NO jump, just score points
+      console.log('✅ Respuesta correcta');
       setScore(prev => prev + 5 + combo);
       setCombo(prev => prev + 1);
       if (combo + 1 > maxCombo) {
@@ -282,18 +280,21 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         return newCount;
       });
       
-      setTimeout(() => {
-        setIsJumping(false);
-      }, 600);
     } else {
       // Wrong hurdle - crash
-      setLives(prev => prev - 1);
+      console.log('❌ Respuesta incorrecta, restando 1 vida. Vidas antes:', lives);
+      setLives(prev => {
+        const newLives = prev - 1;
+        console.log('💔 Nuevas vidas:', newLives);
+        // Check game over with the new lives value, not the old one
+        if (newLives <= 0) {
+          console.log('☠️ Game Over con nuevas vidas:', newLives);
+          setTimeout(() => endGame(false), 100);
+        }
+        return newLives;
+      });
       setCombo(0);
       setShowResult('wrong');
-      
-      if (lives <= 1) {
-        endGame(false);
-      }
     }
     
     // Clear result after animation
@@ -303,21 +304,46 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   };
 
   const handleLaneChange = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowUp' && runnerLane > 0) {
-      setRunnerLane(runnerLane - 1);
-    } else if (e.key === 'ArrowDown' && runnerLane < 2) {
-      setRunnerLane(runnerLane + 1);
+    console.log('🎮 Tecla presionada:', e.key, 'gameStarted:', gameStarted, 'gameOver:', gameOver);
+    
+    // Start game if not started
+    if (!gameStarted && !gameOver && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      console.log('🚀 Iniciando juego...');
+      startGame();
+    }
+    
+    // Only change lanes if game is started
+    if (gameStarted && !gameOver) {
+      if (e.key === 'ArrowUp' && runnerLane > 0) {
+        console.log('⬆️ Moviendo hacia arriba');
+        setRunnerLane(runnerLane - 1);
+      } else if (e.key === 'ArrowDown' && runnerLane < 2) {
+        console.log('⬇️ Moviendo hacia abajo');
+        setRunnerLane(runnerLane + 1);
+      }
     }
   };
 
   // Touch handlers for mobile
   const handleMobileLaneUp = () => {
+    // Start game if not started
+    if (!gameStarted && !gameOver) {
+      startGame();
+    }
+    
+    // Only change lanes if game is started
     if (runnerLane > 0 && gameStarted && !gameOver) {
       setRunnerLane(runnerLane - 1);
     }
   };
 
   const handleMobileLaneDown = () => {
+    // Start game if not started
+    if (!gameStarted && !gameOver) {
+      startGame();
+    }
+    
+    // Only change lanes if game is started
     if (runnerLane < 2 && gameStarted && !gameOver) {
       setRunnerLane(runnerLane + 1);
     }
@@ -326,9 +352,10 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   useEffect(() => {
     window.addEventListener('keydown', handleLaneChange);
     return () => window.removeEventListener('keydown', handleLaneChange);
-  }, [runnerLane]);
+  }, [gameStarted, gameOver, runnerLane]);
 
   const startGame = () => {
+    console.log('🚀 Iniciando juego, concepts.length:', concepts.length);
     setGameStarted(true);
     setScore(0);
     setLives(3);
@@ -345,8 +372,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     setGameOver(false);
     setProcessedGroups(new Set());
     
-    // Spawn first question immediately
-    setTimeout(() => spawnNewQuestion(), 500);
+    // Spawn first question when game starts, but wait a bit longer for concepts to load
+    setTimeout(() => spawnNewQuestion(), 1000);
   };
 
   const endGame = async (completed: boolean) => {
@@ -386,41 +413,132 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (loading) {
-    return (
-      <div className="race-game-container">
-        <div className="loading-container">
-          <div className="loading-circle"></div>
-          <p className="loading-text">Cargando</p>
+  const renderIntroModal = () => (
+    <div className="race-intro-overlay">
+      <div className="race-intro-modal">
+        <div className="intro-header">
+          <FontAwesomeIcon icon={faRunning} className="intro-icon" />
+          <h2>Carrera de Conceptos</h2>
+        </div>
+        
+        <div className="intro-content">
+          <div className="intro-section">
+            <h3>¿Cómo jugar?</h3>
+            <ul>
+              <li><i className="fas fa-arrow-up"></i> Usa ↑↓ para cambiar de carril</li>
+              <li><i className="fas fa-clock"></i> Lee la definición y posiciónate correctamente</li>
+              <li><i className="fas fa-running"></i> Alinéate con el concepto correcto</li>
+              <li><i className="fas fa-heart"></i> Evita chocar con conceptos incorrectos</li>
+            </ul>
+          </div>
+          
+          <div className="intro-section">
+            <h3>Sistema de puntuación</h3>
+            <div className="scoring-info">
+              <div className="score-item">
+                <span className="score-points">+5</span>
+                <span>Por respuesta correcta</span>
+              </div>
+              <div className="score-item">
+                <span className="score-points">+Combo</span>
+                <span>Bonus por racha</span>
+              </div>
+              <div className="score-item">
+                <span className="score-points">3 ❤️</span>
+                <span>Vidas disponibles</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="intro-actions">
+          <button className="action-button secondary" onClick={onBack}>
+            <FontAwesomeIcon icon={faArrowLeft} />
+            Cancelar
+          </button>
+          <button 
+            className="action-button primary" 
+            onClick={async () => {
+              setShowIntro(false);
+              setLoading(true);
+              // Cargar conceptos inmediatamente
+              await loadConcepts();
+            }}
+          >
+            <FontAwesomeIcon icon={faRunning} />
+            Comenzar Carrera
+          </button>
         </div>
       </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <>
+        <HeaderWithHamburger 
+          title="Carrera de Conceptos"
+          subtitle={notebookTitle}
+        />
+        <div className="race-game-container with-header-sidebar">
+          <div className="loading-container">
+            <div className="loading-circle"></div>
+            <p className="loading-text">Cargando</p>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (noReviewedConcepts) {
     return (
-      <div className="race-game-container">
-        <div className="no-concepts-message">
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-          </button>
-          <div className="empty-state">
-            <i className="fas fa-graduation-cap"></i>
-            <h2>¡Primero necesitas estudiar!</h2>
-            <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
-            <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
-            <button className="primary-button" onClick={onBack}>
-              Volver
+      <>
+        <HeaderWithHamburger 
+          title="Carrera de Conceptos"
+          subtitle={notebookTitle}
+        />
+        <div className="race-game-container with-header-sidebar">
+          <div className="no-concepts-message">
+            <button className="back-button" onClick={onBack}>
+              <FontAwesomeIcon icon={faArrowLeft} />
             </button>
+            <div className="empty-state">
+              <i className="fas fa-graduation-cap"></i>
+              <h2>¡Primero necesitas estudiar!</h2>
+              <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
+              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <button className="primary-button" onClick={onBack}>
+                Volver
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </>
+    );
+  }
+
+  if (showIntro) {
+    return (
+      <>
+        <HeaderWithHamburger 
+          title="Carrera de Conceptos"
+          subtitle={notebookTitle}
+        />
+        <div className="race-game-container with-header-sidebar">
+          {renderIntroModal()}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="race-game-container">
-      <div className="race-header">
+    <>
+      <HeaderWithHamburger 
+        title="Carrera de Conceptos"
+        subtitle={notebookTitle}
+      />
+      <div className="race-game-container with-header-sidebar">
+        <div className="race-header">
         <button className="back-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
         </button>
@@ -454,11 +572,25 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         </div>
       )}
 
+      {/* Instructions Message - only show if no current definition */}
+      {!currentDefinition && (
+        <div className="race-instructions">
+          <p>¡Mueve al corredor a la respuesta correcta!</p>
+        </div>
+      )}
+
       <div className="race-track">
         <div className="track-background">
           <div className="parallax-layer clouds"></div>
           <div className="parallax-layer trees"></div>
         </div>
+
+        {/* Start Message */}
+        {!gameStarted && (
+          <div className="race-start-message">
+            <p>Haz click en las flechas ↑↓ para iniciar el juego</p>
+          </div>
+        )}
 
         <div className="race-lanes">
           {[0, 1, 2].map(lane => (
@@ -517,27 +649,6 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         </div>
       )}
 
-      {!gameStarted && !gameOver && (
-        <div className="game-start-modal">
-          <h2>¡Carrera de Conceptos!</h2>
-          <p>Lee la definición y alinéate con el concepto correcto</p>
-          <ul className="desktop-instructions">
-            <li>↑↓ Cambiar de carril</li>
-            <li>Los conceptos se acercan hacia ti</li>
-            <li>Colócate en el carril del concepto correcto</li>
-            <li>Evita chocar con conceptos incorrectos</li>
-          </ul>
-          <ul className="mobile-instructions">
-            <li>Usa los botones para cambiar de carril</li>
-            <li>Los conceptos se acercan hacia ti</li>
-            <li>Colócate en el carril del concepto correcto</li>
-            <li>Evita chocar con conceptos incorrectos</li>
-          </ul>
-          <button className="start-button" onClick={startGame}>
-            <FontAwesomeIcon icon={faRunning} /> ¡Empezar Carrera!
-          </button>
-        </div>
-      )}
 
       {gameOver && (
         <div className="game-over-modal">
@@ -567,7 +678,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

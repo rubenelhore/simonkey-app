@@ -183,7 +183,13 @@ const GamesPage: React.FC = () => {
       return;
     }
     
-    // Cargar conceptos y datos de aprendizaje si no están cargados
+    // Para el puzzle game, ir directamente sin validaciones
+    if (gameId === 'puzzle') {
+      setSelectedGame(gameId);
+      return;
+    }
+    
+    // Cargar conceptos y datos de aprendizaje si no están cargados (solo para otros juegos)
     if (cachedConcepts.length === 0) {
       setCheckingConcepts(true);
       await checkReviewedConcepts();
