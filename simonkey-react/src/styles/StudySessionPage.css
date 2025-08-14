@@ -33,6 +33,33 @@
   gap: 2rem;
 }
 
+.back-button-study {
+  position: absolute;
+  left: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.back-button-study:hover {
+  background: #f5f5f5;
+  transform: translateX(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.back-button-study i {
+  color: #48484A;
+  font-size: 14px;
+}
+
 .card-counter {
   display: flex;
   align-items: center;
@@ -685,7 +712,18 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: linear-gradient(135deg, #F0F8FF 0%, #E6F2FF 100%);
+  background: white;
+}
+
+/* Desactivar todas las animaciones en el contenedor de sesión completa */
+.session-complete-container * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.session-complete-container::before,
+.session-complete-container::after {
+  display: none !important;
 }
 
 .session-complete-card {
@@ -696,7 +734,19 @@
   max-width: 500px;
   width: 100%;
   margin: 0 auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
+  border: none;
+}
+
+/* Desactivar cualquier animación en la tarjeta de sesión completa */
+.session-complete-card * {
+  animation: none !important;
+}
+
+.session-complete-card::before,
+.session-complete-card::after {
+  animation: none !important;
+  display: none !important;
 }
 
 .session-complete-trophy {

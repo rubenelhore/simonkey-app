@@ -17,6 +17,34 @@ export const decodeMateriaName = (encodedName: string): string => {
 };
 
 /**
+ * Parse materia name and ID from URL format "nombre-id"
+ * Returns an object with name and id properties
+ */
+export const parseMateriaNameWithId = (encodedNameWithId: string): { name: string; id: string | null } => {
+  const decoded = decodeURIComponent(encodedNameWithId);
+  
+  // Buscar el último guión para separar el nombre del ID
+  // El ID siempre será la última parte después del último guión
+  const lastDashIndex = decoded.lastIndexOf('-');
+  
+  if (lastDashIndex === -1) {
+    // No hay guión, solo es el nombre (formato antiguo)
+    return { name: decoded, id: null };
+  }
+  
+  const name = decoded.substring(0, lastDashIndex);
+  const id = decoded.substring(lastDashIndex + 1);
+  
+  // Verificar que el ID parece válido (tiene al menos 10 caracteres alfanuméricos)
+  if (id.length >= 10 && /^[a-zA-Z0-9]+$/.test(id)) {
+    return { name, id };
+  }
+  
+  // Si el ID no parece válido, tratar todo como nombre
+  return { name: decoded, id: null };
+};
+
+/**
  * Create a URL-friendly slug from materia name
  * Alternative approach: converts to lowercase, replaces spaces with hyphens
  * Removes special characters for cleaner URLs

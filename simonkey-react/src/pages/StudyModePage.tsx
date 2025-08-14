@@ -589,26 +589,9 @@ const StudyModePage = () => {
       let canStudyToday = true;
       let studyLimitReason = '';
       
-      if (notebookLimitsDoc.exists()) {
-        const limits = notebookLimitsDoc.data();
-        if (limits.lastSmartStudyDate) {
-          const lastSmartStudyDate = limits.lastSmartStudyDate.toDate ? 
-            limits.lastSmartStudyDate.toDate() : 
-            new Date(limits.lastSmartStudyDate);
-          
-          const today = new Date();
-          const lastStudy = new Date(lastSmartStudyDate);
-          
-          today.setHours(0, 0, 0, 0);
-          lastStudy.setHours(0, 0, 0, 0);
-          
-          if (today.getTime() === lastStudy.getTime()) {
-            canStudyToday = false;
-            studyLimitReason = 'Ya usado hoy';
-            console.log('❌ Estudio inteligente ya usado hoy para este cuaderno');
-          }
-        }
-      }
+      // SIN LÍMITE DIARIO - El estudio inteligente ya no tiene restricciones de una vez al día
+      // Se permite usar el estudio inteligente tantas veces como el usuario quiera
+      console.log('✅ Estudio inteligente disponible sin límites diarios');
       
       // Actualizar disponibilidad de estudio con más contexto
       setStudyAvailability({
@@ -620,23 +603,13 @@ const StudyModePage = () => {
         limitReason: studyLimitReason
       } as any);
       
-      // Check quiz availability from limits
-      if (notebookLimitsDoc.exists()) {
-        const limits = notebookLimitsDoc.data();
-        if (limits.lastQuizDate) {
-          const lastQuizDate = limits.lastQuizDate.toDate ? limits.lastQuizDate.toDate() : new Date(limits.lastQuizDate);
-          const now = new Date();
-          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          
-          if (lastQuizDate > oneWeekAgo) {
-            const nextQuizDate = new Date(lastQuizDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-            setQuizAvailability({
-              available: false,
-              nextAvailable: nextQuizDate
-            });
-          }
-        }
-      }
+      // SIN LÍMITE SEMANAL - El quiz siempre está disponible
+      // Se permite hacer el quiz tantas veces como el usuario quiera
+      console.log('✅ Quiz disponible sin límites semanales');
+      setQuizAvailability({
+        available: true,
+        nextAvailable: new Date()
+      });
       
     } catch (error) {
       console.error('Error loading critical data:', error);

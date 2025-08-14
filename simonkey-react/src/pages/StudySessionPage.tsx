@@ -297,23 +297,40 @@ const StudySessionPage = () => {
       let conceptCount = 10;
       let multiplier = 1.5;
       
-      switch (studyIntensity) {
-        case StudyIntensity.WARM_UP:
-          // Warm-Up usa 5 conceptos o todos los disponibles si hay menos de 5
-          conceptCount = Math.min(5, allNotebookConcepts.length);
-          multiplier = 1;
-          break;
-        case StudyIntensity.PROGRESS:
-          conceptCount = 10;
-          multiplier = 1.5;
-          break;
-        case StudyIntensity.ROCKET:
-          conceptCount = 20;
-          multiplier = 2;
-          break;
+      // En modo FREE, SIEMPRE usar TODOS los conceptos disponibles
+      if (studyMode === StudyMode.FREE) {
+        conceptCount = allNotebookConcepts.length; // Usar todos los conceptos
+        // El multiplicador sigue dependiendo de la intensidad
+        switch (studyIntensity) {
+          case StudyIntensity.WARM_UP:
+            multiplier = 1;
+            break;
+          case StudyIntensity.PROGRESS:
+            multiplier = 1.5;
+            break;
+          case StudyIntensity.ROCKET:
+            multiplier = 2;
+            break;
+        }
+      } else {
+        // En modo SMART, aplicar límites según intensidad
+        switch (studyIntensity) {
+          case StudyIntensity.WARM_UP:
+            conceptCount = Math.min(5, allNotebookConcepts.length);
+            multiplier = 1;
+            break;
+          case StudyIntensity.PROGRESS:
+            conceptCount = 10;
+            multiplier = 1.5;
+            break;
+          case StudyIntensity.ROCKET:
+            conceptCount = 20;
+            multiplier = 2;
+            break;
+        }
       }
       
-      // Limit the number of concepts based on intensity
+      // Limit the number of concepts based on intensity (or use all in FREE mode)
       const selectedConcepts = allNotebookConcepts.slice(0, conceptCount);
       const shuffledConcepts = selectedConcepts.sort(() => 0.5 - Math.random());
       
@@ -876,6 +893,14 @@ const StudySessionPage = () => {
                 return (
                   <>
                     <div className="session-header-minimal">
+                      <button 
+                        className="back-button-study"
+                        onClick={() => navigate('/study')}
+                        title="Regresar a estudio"
+                      >
+                        <i className="fas fa-arrow-left"></i>
+                      </button>
+                      
                       <div className="card-counter">
                         <span className="card-number">{currentIndex}</span>
                         <span className="card-divider">/</span>

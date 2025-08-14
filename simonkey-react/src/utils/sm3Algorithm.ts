@@ -206,12 +206,12 @@ export const getAvailableConceptsForStudy = (
   // Ordenar por proximidad de fecha de repaso
   conceptsWithDates.sort((a, b) => a.daysUntilReview - b.daysUntilReview);
   
-  // Tomar al menos minConcepts o todos los disponibles
-  const availableConcepts = conceptsWithDates.slice(0, Math.max(minConcepts, readyToday.length));
+  // SOLO devolver conceptos que están listos HOY - no forzar conceptos futuros
+  const availableConcepts = readyToday;
   
   console.log(`📚 Conceptos disponibles para estudio: ${availableConcepts.length}`);
   console.log(`   - Listos hoy: ${readyToday.length}`);
-  console.log(`   - Próximos incluidos: ${availableConcepts.length - readyToday.length}`);
+  console.log(`   - No se incluyen conceptos futuros (respetando SM-3)`);
   
   return availableConcepts;
 };

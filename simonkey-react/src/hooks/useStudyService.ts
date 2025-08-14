@@ -137,19 +137,11 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         const effectiveUserId = await getEffectiveUserIdForService(userId);
         console.log('📝 createStudySession - using effectiveUserId:', effectiveUserId);
         
-        // Verificar límites según el modo
+        // SIN LÍMITES - Tanto estudio libre como inteligente están siempre disponibles
         if (mode === StudyMode.FREE) {
-          const canStudy = await checkFreeStudyLimit(effectiveUserId, notebookId);
-          if (!canStudy) {
-            throw new Error('Ya has usado tu sesión de estudio libre hoy');
-          }
+          console.log('✅ Estudio libre disponible sin límites diarios');
         } else if (mode === StudyMode.SMART) {
-          // Verificar límite de estudio inteligente (1 por día)
-          const canStudy = await checkSmartStudyLimit(effectiveUserId, notebookId);
-          if (!canStudy) {
-            throw new Error('Ya has usado tu sesión de estudio inteligente hoy para este cuaderno');
-          }
-          console.log('✅ Límite de estudio inteligente verificado - disponible');
+          console.log('✅ Estudio inteligente disponible sin límites diarios');
         }
         
         const sessionData = {
@@ -191,113 +183,21 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
    */
   const checkFreeStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
-      try {
-        // Obtener el ID efectivo del usuario
-        const effectiveUserId = await getEffectiveUserIdForService(userId);
-        console.log('🔍 checkFreeStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
-        
-        // CORRECCIÓN: Usar un solo documento con campos separados
-        const limitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
-        const limitsDoc = await getDoc(limitsRef);
-        
-        console.log('🔍 Documento de límites del cuaderno existe:', limitsDoc.exists());
-        
-        if (!limitsDoc.exists()) {
-          console.log('✅ No hay límites previos para este cuaderno, disponible');
-          return true; // Primera vez, puede estudiar
-        }
-        
-        const limits = limitsDoc.data();
-        console.log('🔍 Límites del cuaderno encontrados:', limits);
-        
-        const lastFreeStudyDate = limits.lastFreeStudyDate instanceof Timestamp 
-          ? limits.lastFreeStudyDate.toDate() 
-          : limits.lastFreeStudyDate;
-        
-        console.log('🔍 lastFreeStudyDate procesado (por cuaderno):', lastFreeStudyDate);
-        console.log('🔍 Tipo de lastFreeStudyDate:', typeof lastFreeStudyDate);
-        
-        const isAvailable = isFreeStudyAvailable(lastFreeStudyDate);
-        console.log('🔍 Resultado de isFreeStudyAvailable (por cuaderno):', isAvailable);
-        
-        return isAvailable;
-      } catch (err) {
-        console.error('Error checking free study limit:', err);
-        return true; // En caso de error, permitir estudio
-      }
+      // SIN LÍMITES - Siempre permitir estudio libre
+      console.log('✅ Estudio libre disponible (sin límites diarios)');
+      return true;
     },
     []
   );
   
   /**
-   * Verificar límite de estudio inteligente (1 por día por cuaderno) - POR CUADERNO
+   * Verificar límite de estudio inteligente - SIN LÍMITES
    */
   const checkSmartStudyLimit = useCallback(
     async (userId: string, notebookId: string): Promise<boolean> => {
-      try {
-        // Obtener el ID efectivo del usuario
-        const effectiveUserId = await getEffectiveUserIdForService(userId);
-        console.log('🔍 checkSmartStudyLimit llamado para usuario:', effectiveUserId, 'cuaderno:', notebookId);
-        
-        // CORRECCIÓN: Usar un solo documento con campos separados
-        const notebookLimitsRef = doc(db, 'users', effectiveUserId, 'notebookLimits', notebookId);
-        const notebookLimitsDoc = await getDoc(notebookLimitsRef);
-        
-        console.log('🔍 Documento de límites del cuaderno existe:', notebookLimitsDoc.exists());
-        
-        if (!notebookLimitsDoc.exists()) {
-          console.log('✅ No hay límites previos para este cuaderno, disponible');
-          return true; // Primera vez, puede estudiar
-        }
-        
-        const limits = notebookLimitsDoc.data();
-        console.log('🔍 Límites del cuaderno encontrados:', limits);
-        
-        const lastSmartStudyDate = limits.lastSmartStudyDate instanceof Timestamp 
-          ? limits.lastSmartStudyDate.toDate() 
-          : limits.lastSmartStudyDate;
-        
-        const lastQuizPassed = limits.lastQuizPassed !== undefined ? limits.lastQuizPassed : true;
-        
-        console.log('🔍 lastSmartStudyDate procesado (por cuaderno):', lastSmartStudyDate);
-        console.log('🔍 lastQuizPassed:', lastQuizPassed);
-        
-        if (!lastSmartStudyDate) {
-          console.log('✅ No hay fecha de último estudio inteligente para este cuaderno, disponible');
-          return true;
-        }
-        
-        // Verificar si ya se usó hoy
-        const today = new Date();
-        const lastStudy = new Date(lastSmartStudyDate);
-        
-        today.setHours(0, 0, 0, 0);
-        lastStudy.setHours(0, 0, 0, 0);
-        
-        // Si el último quiz falló, bloquear hasta el día siguiente
-        const isNewDay = today.getTime() !== lastStudy.getTime();
-        
-        if (!lastQuizPassed) {
-          // Si el quiz falló, solo permitir si es un nuevo día
-          console.log('❌ Último quiz fallido. Solo disponible en un nuevo día:', isNewDay);
-          return isNewDay;
-        }
-        
-        // Si el quiz pasó, usar la lógica normal
-        const isAvailable = isNewDay;
-        
-        console.log('🔍 Cálculo de disponibilidad de estudio inteligente (por cuaderno):', {
-          today: today.toISOString(),
-          lastStudy: lastStudy.toISOString(),
-          lastQuizPassed: lastQuizPassed,
-          isAvailable: isAvailable
-        });
-        
-        return isAvailable;
-      } catch (err) {
-        console.error('Error checking smart study limit:', err);
-        return true; // En caso de error, permitir estudio
-      }
+      // SIN LÍMITES - Siempre permitir estudio inteligente
+      console.log('✅ Estudio inteligente disponible (sin límites)');
+      return true;
     },
     []
   );
@@ -966,15 +866,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         const readyForReview = getConceptsReadyForReview(learningData);
         console.log('✅ Conceptos con datos de aprendizaje listos para repaso HOY:', readyForReview.length);
         
-        // Si no hay suficientes conceptos disponibles, incluir los próximos
-        let availableForStudy = readyForReview;
-        const minConceptsNeeded = 1; // Mínimo 1 concepto para poder estudiar
-        
-        if (readyForReview.length + newConcepts.length < minConceptsNeeded && learningData.length > 0) {
-          console.log('⚠️ Pocos conceptos disponibles, incluyendo próximos...');
-          availableForStudy = getAvailableConceptsForStudy(learningData, minConceptsNeeded - newConcepts.length);
-          console.log(`📚 Incluyendo ${availableForStudy.length} conceptos (algunos próximos)`);
-        }
+        // SOLO usar conceptos que están listos HOY - no forzar conceptos futuros
+        const availableForStudy = readyForReview;
+        console.log('✅ Respetando algoritmo SM-3: solo conceptos listos para hoy');
         
         console.log('✅ IDs de conceptos disponibles:', availableForStudy.map(d => d.conceptId));
         
@@ -1135,14 +1029,9 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         const readyForReview = getConceptsReadyForReview(learningData);
         console.log('✅ Conceptos con datos de aprendizaje listos para repaso HOY:', readyForReview.length);
         
-        // Si no hay suficientes, incluir próximos
-        let availableForStudy = readyForReview;
-        const minConceptsNeeded = 1;
-        
-        if (readyForReview.length + newConceptIds.length < minConceptsNeeded && learningData.length > 0) {
-          console.log('⚠️ Pocos conceptos disponibles para contador, incluyendo próximos...');
-          availableForStudy = getAvailableConceptsForStudy(learningData, minConceptsNeeded - newConceptIds.length);
-        }
+        // SOLO contar conceptos que están listos HOY - no forzar conceptos futuros
+        const availableForStudy = readyForReview;
+        console.log('✅ Contando solo conceptos listos para hoy (respetando SM-3)');
         
         // 6. El total de conceptos disponibles para estudio inteligente
         const totalReviewable = newConceptIds.length + availableForStudy.length;

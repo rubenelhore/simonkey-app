@@ -8,7 +8,7 @@ import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import '../styles/Notebooks.css';
-import { decodeMateriaName } from '../utils/urlUtils';
+import { decodeMateriaName, parseMateriaNameWithId } from '../utils/urlUtils';
 import StreakTracker from '../components/StreakTracker';
 import { updateNotebook, updateNotebookColor } from '../services/notebookService';
 import { useUserType } from '../hooks/useUserType';
@@ -108,7 +108,26 @@ const Notebooks: React.FC = () => {
       }
 
       try {
-        const decodedName = decodeMateriaName(materiaName);
+        // Parsear el nombre y el ID de la materia del URL
+        const { name: decodedName, id: materiaIdFromUrl } = parseMateriaNameWithId(materiaName);
+        console.log('Parseado de URL - Nombre:', decodedName, 'ID:', materiaIdFromUrl);
+
+        // Si tenemos un ID desde el URL, usarlo directamente
+        if (materiaIdFromUrl) {
+          setMateriaId(materiaIdFromUrl);
+          
+          // Obtener datos de la materia usando el ID
+          const materiaDoc = await getDoc(doc(db, 'materias', materiaIdFromUrl));
+          if (materiaDoc.exists()) {
+            setMateriaData(materiaDoc.data());
+            console.log('Materia encontrada por ID:', materiaIdFromUrl);
+          } else {
+            console.log('No se encontró materia con ID:', materiaIdFromUrl);
+          }
+          return;
+        }
+
+        // Si no hay ID, buscar por nombre (compatibilidad con URLs antiguos)
         console.log('Buscando materia con nombre:', decodedName);
 
         if (isSchoolAdmin || isSchoolTeacher) {

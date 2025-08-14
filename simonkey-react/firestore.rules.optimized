@@ -8,9 +8,7 @@ service cloud.firestore {
     
     // Cache del documento de usuario para reducir lecturas
     function getUserData() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
-        : {};
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
     // Verificar si el usuario está autenticado
@@ -25,7 +23,7 @@ service cloud.firestore {
     
     // Obtener tipo de suscripción del usuario
     function getUserSubscription() {
-      return getUserData().subscription != null ? getUserData().subscription : 'free';
+      return getUserData().subscription;
     }
     
     // Verificar si es super admin
@@ -63,12 +61,26 @@ service cloud.firestore {
     
     // Validar límites de suscripción para notebooks
     function canCreateNotebook() {
-      return getUserSubscription() == 'super_admin' || 
-             getUserSubscription() == 'school' ||
-             getUserSubscription() == 'university' ||
-             (getUserSubscription() == 'free' && 
-              (getUserData().notebookCount == null || getUserData().notebookCount < 4)) ||
-             getUserSubscription() == 'pro'; // PRO siempre puede crear (límites manejados en el cliente)
+      let subscription = getUserSubscription();
+      let userData = getUserData();
+      
+      // Super admin y school sin límites
+      if (subscription == 'super_admin' || subscription == 'school') {
+        return true;
+      }
+      
+      // FREE: máximo 4 notebooks
+      if (subscription == 'free') {
+        return userData.notebookCount < 4;
+      }
+      
+      // PRO: máximo 10 por semana
+      if (subscription == 'pro') {
+        return userData.notebooksCreatedThisWeek == null || 
+               userData.notebooksCreatedThisWeek < 10;
+      }
+      
+      return false;
     }
     
     // Validar campos requeridos en request
@@ -127,8 +139,8 @@ service cloud.firestore {
     match /notebooks/{notebookId} {
       // Lectura
       allow read: if isAuthenticated() && (
-        // Notebooks personales: solo propietario (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && isOwner(resource.data.userId)) ||
+        // Notebooks personales: solo propietario
+        (resource.data.type == 'personal' && isOwner(resource.data.userId)) ||
         // Notebooks escolares
         (resource.data.type == 'school' && (
           // Profesores y admins de la misma escuela
@@ -142,16 +154,25 @@ service cloud.firestore {
         isSuperAdmin()
       );
       
-      // Creación - Funcional con validaciones básicas
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.title is string &&
-        request.resource.data.title.size() <= 100;
+      // Creación
+      allow create: if isAuthenticated() && (
+        // Notebooks personales
+        (request.resource.data.type == 'personal' && 
+         isOwner(request.resource.data.userId) &&
+         canCreateNotebook() &&
+         hasRequiredFields(['title', 'color', 'type', 'userId']) &&
+         isValidString(request.resource.data.title, 100)) ||
+        // Notebooks escolares: solo profesores
+        (request.resource.data.type == 'school' && 
+         hasSchoolRole('teacher') &&
+         hasRequiredFields(['title', 'color', 'type', 'idMateria', 'idProfesor']) &&
+         request.resource.data.idProfesor == request.auth.uid)
+      );
       
       // Actualización
       allow update: if isAuthenticated() && (
-        // Notebooks personales: propietario (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && isOwner(resource.data.userId)) ||
+        // Notebooks personales: propietario
+        (resource.data.type == 'personal' && isOwner(resource.data.userId)) ||
         // Notebooks escolares: profesor creador
         (resource.data.type == 'school' && 
          hasSchoolRole('teacher') && 
@@ -160,15 +181,15 @@ service cloud.firestore {
         isSuperAdmin()
       ) &&
       // No permitir cambiar tipo o propietario
-      (request.resource.data.type == null || request.resource.data.type == resource.data.type) &&
+      request.resource.data.type == resource.data.type &&
       (resource.data.userId == null || request.resource.data.userId == resource.data.userId);
       
       // Eliminación
       allow delete: if isAuthenticated() && (
-        // Notebooks personales: propietario con permisos (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && 
+        // Notebooks personales: propietario con permisos
+        (resource.data.type == 'personal' && 
          isOwner(resource.data.userId) &&
-         (getUserSubscription() != 'free' || resource.data.conceptCount == null || resource.data.conceptCount == 0)) ||
+         (getUserSubscription() != 'free' || resource.data.conceptCount == 0)) ||
         // Notebooks escolares: profesor creador
         (resource.data.type == 'school' && 
          hasSchoolRole('teacher') && 
@@ -191,9 +212,9 @@ service cloud.firestore {
       // Creación
       allow create: if isAuthenticated() &&
         isOwner(request.resource.data.usuarioId) &&
-        hasRequiredFields(['termino', 'definicion', 'fuente', 'cuadernoId', 'usuarioId']) &&
-        isValidString(request.resource.data.termino, 200) &&
-        isValidString(request.resource.data.definicion, 2000) &&
+        hasRequiredFields(['término', 'definición', 'fuente', 'cuadernoId', 'usuarioId']) &&
+        isValidString(request.resource.data.término, 200) &&
+        isValidString(request.resource.data.definición, 2000) &&
         isValidString(request.resource.data.fuente, 500);
       
       // Actualización: propietario
@@ -227,11 +248,17 @@ service cloud.firestore {
       
       // Creación: usuario autenticado
       allow create: if isAuthenticated() &&
-        isOwner(request.resource.data.userId);
+        isOwner(request.resource.data.userId) &&
+        hasRequiredFields(['userId', 'notebookId', 'startTime', 'mode']) &&
+        isValidEnum(request.resource.data.mode, ['smart', 'free', 'quiz']) &&
+        isValidTimestamp(request.resource.data.startTime);
       
-      // Actualización: propietario de la sesión
+      // Actualización: solo para completar la sesión
       allow update: if isAuthenticated() &&
-        isOwner(resource.data.userId);
+        isOwner(resource.data.userId) &&
+        resource.data.completed == false &&
+        request.resource.data.completed == true &&
+        request.resource.data.endTime is timestamp;
       
       // Eliminación: nunca (inmutable)
       allow delete: if false;
@@ -361,7 +388,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && isOwner(resource.data.userId);
       allow create: if isAuthenticated() && 
         isOwner(request.resource.data.userId) &&
-        hasRequiredFields(['userId', 'gameName', 'points']);
+        hasRequiredFields(['userId', 'gameType', 'score', 'startTime']);
       allow update, delete: if false; // Inmutable
     }
     

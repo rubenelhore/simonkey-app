@@ -310,32 +310,10 @@ const StudyDashboard: React.FC<StudyDashboardProps> = ({
           weekStartDate: limits.weekStartDate?.toDate()
         });
         
-        if (lastQuizDate) {
-          // Si ya se ha usado el quiz, aplicar límites normales
-          const now = new Date();
-          const daysSinceLastQuiz = Math.floor((now.getTime() - lastQuizDate.getTime()) / (1000 * 60 * 60 * 24));
-          console.log('📅 Cálculo de días desde último quiz:', {
-            now: now.toISOString(),
-            lastQuizDate: lastQuizDate.toISOString(),
-            daysSinceLastQuiz: daysSinceLastQuiz,
-            shouldBeAvailable: daysSinceLastQuiz >= 7
-          });
-          
-          if (daysSinceLastQuiz < 7) {
-            const nextQuiz = new Date(lastQuizDate);
-            nextQuiz.setDate(nextQuiz.getDate() + 7);
-            nextQuizDate = nextQuiz;
-            isQuizAvailable = false;
-            console.log(`❌ Quiz no disponible, próximo en ${7 - daysSinceLastQuiz} días (${formatDate(nextQuizDate)})`);
-          } else {
-            isQuizAvailable = true;
-            console.log('✅ Quiz disponible (pasó más de 7 días)');
-          }
-        } else {
-          // No hay lastQuizDate, permitir quiz (primer uso)
-          isQuizAvailable = true;
-          console.log('✅ Quiz disponible (primer uso)');
-        }
+        // SIN LÍMITE SEMANAL - El quiz siempre está disponible
+        // Se elimina la restricción de 7 días entre quizzes
+        isQuizAvailable = true;
+        console.log('✅ Quiz siempre disponible (sin límite semanal)');
         
         // Extraer límites de estudio libre
         freeStudyLimits = {

@@ -803,9 +803,10 @@ const Materias: React.FC = () => {
       // Los admin navegan a la vista de notebooks del profesor
       navigate(`/school/teacher/materias/${materiaId}/notebooks`);
     } else {
-      // Los demás usuarios navegan a la ruta normal usando el nombre de la materia
-      const encodedName = encodeURIComponent(materia.title || materia.nombre);
-      navigate(`/materias/${encodedName}/notebooks`);
+      // Los demás usuarios navegan a la ruta normal usando nombre-id de la materia
+      const materiaName = materia.title || materia.nombre;
+      const encodedNameWithId = encodeURIComponent(`${materiaName}-${materiaId}`);
+      navigate(`/materias/${encodedNameWithId}/notebooks`);
     }
   };
 
