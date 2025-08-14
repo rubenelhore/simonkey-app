@@ -618,13 +618,14 @@ const StudySessionPage = () => {
         await studyService.updateSmartStudyUsage(userKey, notebookId, false);
       }
       
-      // Redirigir directamente al estudio sin mostrar pantalla de completado
-      navigate('/study');
+      // Mostrar pantalla de completado
+      setSessionComplete(true);
+      setSessionActive(false);
       
     } catch (error) {
       console.error("Error processing mini quiz result:", error);
       showFeedback('warning', 'Error al procesar el resultado');
-      navigate('/study');
+      setSessionComplete(true);
       setSessionActive(false);
     }
   };

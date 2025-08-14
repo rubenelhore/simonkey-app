@@ -25,7 +25,8 @@ import {
   faSignOutAlt,
   faEnvelope,
   faFileAlt,
-  faKey
+  faKey,
+  faBars
 } from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderWithHamburgerProps {
@@ -48,6 +49,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const { user, logout, userProfile } = useAuth();
   const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent, isUniversityUser } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
+  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -307,6 +309,15 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     navigate('/contact');
   };
 
+  // Función helper para navegación en móvil
+  const handleMobileNavigation = (path: string) => {
+    setMobileSidebarOpen(false);
+    navigate(path);
+  };
+
+  // Determinar si debe mostrar el texto del sidebar
+  const showSidebarText = isSidebarExpanded || isMobileSidebarOpen;
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => {
@@ -385,15 +396,22 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   // El cierre del popup ahora se maneja con el overlay onClick
 
   return (
-    <div className={`header-with-hamburger-container ${isSidebarExpanded ? 'menu-open' : ''} ${isFullscreen ? 'fullscreen-mode' : ''}`}>
+    <div className={`header-with-hamburger-container ${isSidebarExpanded ? 'menu-open' : ''} ${isFullscreen ? 'fullscreen-mode' : ''} ${isMobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
       
       {/* Header limitado */}
       <header className="limited-header">
         <div className="header-content-limited">
-          {/* Sección izquierda: Solo botón de pantalla completa */}
+          {/* Sección izquierda: Botón hamburguesa y pantalla completa */}
           <div className="header-left-section">
             <button 
-              className="fullscreen-btn"
+              className="hamburger-btn mobile-only"
+              onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
+              title="Menú"
+            >
+              <FontAwesomeIcon icon={faBars} />
+            </button>
+            <button 
+              className="fullscreen-btn desktop-only"
               onClick={toggleFullscreen}
               title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
             >
@@ -421,17 +439,24 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
       </header>
       
-      {/* Overlay para móvil removido - sidebar siempre visible */}
+      {/* Overlay para móvil */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="mobile-overlay"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
       
       {/* Nueva barra lateral fija */}
       <div 
-        className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''}`}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
+        className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''} ${isMobileSidebarOpen ? 'mobile-open' : ''}`}
+        onMouseEnter={window.innerWidth > 768 ? handleSidebarMouseEnter : undefined}
+        onMouseLeave={window.innerWidth > 768 ? handleSidebarMouseLeave : undefined}
       >
         {/* Logo */}
         <div className="sidebar-header">
           <div className="sidebar-logo" onClick={() => {
+            setMobileSidebarOpen(false);
             if (isUniversityUser) {
               navigate('/university');
             } else if (isSchoolAdmin) {
@@ -450,7 +475,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               width="32"
               height="32"
             />
-            {isSidebarExpanded && (
+            {showSidebarText && (
               <div className="sidebar-logo-text">
                 <span>Simon</span><span>key</span>
               </div>
@@ -468,7 +493,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis cursos"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {isSidebarExpanded && <span>Mis cursos</span>}
+                {showSidebarText && <span>Mis cursos</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/university/biblioteca' ? 'active' : ''}`} 
@@ -476,7 +501,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Biblioteca"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {isSidebarExpanded && <span>Biblioteca</span>}
+                {showSidebarText && <span>Biblioteca</span>}
               </button>
             </>
           ) : isSchoolAdmin ? (
@@ -487,7 +512,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {isSidebarExpanded && <span>Materias</span>}
+                {showSidebarText && <span>Materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/admin' ? 'active' : ''}`} 
@@ -495,7 +520,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {isSidebarExpanded && <span>Analítica</span>}
+                {showSidebarText && <span>Analítica</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/admin/passwords' ? 'active' : ''}`} 
@@ -503,7 +528,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Contraseñas"
               >
                 <FontAwesomeIcon icon={faKey} />
-                {isSidebarExpanded && <span>Contraseñas</span>}
+                {showSidebarText && <span>Contraseñas</span>}
               </button>
             </>
           ) : isSchoolTeacher ? (
@@ -514,7 +539,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
-                {isSidebarExpanded && <span>Inicio</span>}
+                {showSidebarText && <span>Inicio</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/materias' || location.pathname.includes('/materias/') ? 'active' : ''}`} 
@@ -522,7 +547,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {isSidebarExpanded && <span>Materias</span>}
+                {showSidebarText && <span>Materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher/exams' ? 'active' : ''}`} 
@@ -530,7 +555,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Mis exámenes"
               >
                 <FontAwesomeIcon icon={faFileAlt} />
-                {isSidebarExpanded && <span>Mis exámenes</span>}
+                {showSidebarText && <span>Mis exámenes</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/school/teacher/analytics' ? 'active' : ''}`} 
@@ -538,7 +563,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {isSidebarExpanded && <span>Analítica</span>}
+                {showSidebarText && <span>Analítica</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/calendar' ? 'active' : ''}`} 
@@ -546,7 +571,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Calendario"
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
-                {isSidebarExpanded && <span>Calendario</span>}
+                {showSidebarText && <span>Calendario</span>}
               </button>
             </>
           ) : isSchoolTutor ? (
@@ -557,50 +582,50 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Analítica"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {isSidebarExpanded && <span>Analítica</span>}
+                {showSidebarText && <span>Analítica</span>}
               </button>
             </>
           ) : isSchoolStudent ? (
             <>
               <button 
                 className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
-                onClick={() => navigate('/inicio')}
+                onClick={() => handleMobileNavigation('/inicio')}
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
-                {isSidebarExpanded && <span>Inicio</span>}
+                {showSidebarText && <span>Inicio</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
-                onClick={() => navigate('/materias')}
+                onClick={() => handleMobileNavigation('/materias')}
                 title="Mis materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {isSidebarExpanded && <span>Mis materias</span>}
+                {showSidebarText && <span>Mis materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
-                onClick={() => navigate('/study')}
+                onClick={() => handleMobileNavigation('/study')}
                 title="Estudiar"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {isSidebarExpanded && <span>Estudiar</span>}
+                {showSidebarText && <span>Estudiar</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
-                onClick={() => navigate('/exams')}
+                onClick={() => handleMobileNavigation('/exams')}
                 title="Mis exámenes"
               >
                 <FontAwesomeIcon icon={faFileAlt} />
-                {isSidebarExpanded && <span>Mis exámenes</span>}
+                {showSidebarText && <span>Mis exámenes</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
-                onClick={() => navigate('/progress')}
+                onClick={() => handleMobileNavigation('/progress')}
                 title="Mi progreso"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {isSidebarExpanded && <span>Mi progreso</span>}
+                {showSidebarText && <span>Mi progreso</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
@@ -608,42 +633,42 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Calendario"
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
-                {isSidebarExpanded && <span>Calendario</span>}
+                {showSidebarText && <span>Calendario</span>}
               </button>
             </>
           ) : (
             <>
               <button 
                 className={`sidebar-icon-btn ${isHomePage ? 'active' : ''}`} 
-                onClick={() => navigate('/inicio')}
+                onClick={() => handleMobileNavigation('/inicio')}
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
-                {isSidebarExpanded && <span>Inicio</span>}
+                {showSidebarText && <span>Inicio</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isMateriasPage ? 'active' : ''}`} 
-                onClick={() => navigate('/materias')}
+                onClick={() => handleMobileNavigation('/materias')}
                 title="Mis materias"
               >
                 <FontAwesomeIcon icon={faBook} />
-                {isSidebarExpanded && <span>Mis materias</span>}
+                {showSidebarText && <span>Mis materias</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isStudyPage ? 'active' : ''}`} 
-                onClick={() => navigate('/study')}
+                onClick={() => handleMobileNavigation('/study')}
                 title="Estudiar"
               >
                 <FontAwesomeIcon icon={faGraduationCap} />
-                {isSidebarExpanded && <span>Estudiar</span>}
+                {showSidebarText && <span>Estudiar</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
-                onClick={() => navigate('/progress')}
+                onClick={() => handleMobileNavigation('/progress')}
                 title="Mi progreso"
               >
                 <FontAwesomeIcon icon={faChartLine} />
-                {isSidebarExpanded && <span>Mi progreso</span>}
+                {showSidebarText && <span>Mi progreso</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${isCalendarPage ? 'active' : ''}`} 
@@ -651,18 +676,18 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 title="Calendario"
               >
                 <FontAwesomeIcon icon={faCalendarAlt} />
-                {isSidebarExpanded && <span>Calendario</span>}
+                {showSidebarText && <span>Calendario</span>}
               </button>
             </>
           )}
           {isSuperAdmin && (
             <button 
               className="sidebar-icon-btn" 
-              onClick={handleSuperAdminClick}
+              onClick={() => { setMobileSidebarOpen(false); handleSuperAdminClick(); }}
               title="Súper Admin"
             >
               <FontAwesomeIcon icon={faCrown} />
-              {isSidebarExpanded && <span>Súper Admin</span>}
+              <span>Súper Admin</span>
             </button>
           )}
         </div>
@@ -671,13 +696,16 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         <div className="sidebar-user-section">
           <div 
             className="user-avatar-container"
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              setIsUserMenuOpen(!isUserMenuOpen);
+            }}
             title="Opciones de usuario"
           >
             <div className="user-avatar">
               {getUserInitial()}
             </div>
-            {isSidebarExpanded && (
+            {showSidebarText && (
               <div className="user-info">
                 <span className="user-name">{getUserFullName()}</span>
               </div>

@@ -773,6 +773,11 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .card-counter {
+    justify-content: center;
+    width: 100%;
+  }
+  
   .intensity-options {
     grid-template-columns: 1fr;
   }

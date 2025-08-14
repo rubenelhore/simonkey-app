@@ -1269,6 +1269,166 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .quiz-battle-container {
+    padding: 5px;
+    min-height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .battle-header {
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .battle-info {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .battle-info h2 {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+
+  .enemy-name {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .score-display {
+    font-size: 0.85rem;
+    padding: 4px 10px;
+  }
+
+  .back-button {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+  }
+
+  /* Battle Arena Mobile - Horizontal layout */
+  .battle-arena {
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px;
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  .fighter-section {
+    width: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fighter {
+    width: 60px;
+    height: 60px;
+  }
+
+  .fighter-avatar {
+    font-size: 2rem;
+  }
+
+  .hp-bar {
+    width: 100px;
+    height: 16px;
+    margin: 5px auto 0;
+  }
+
+  .hp-text {
+    font-size: 0.7rem;
+  }
+
+  .vs-indicator {
+    display: none; /* Hide VS indicator on mobile */
+  }
+
+  /* Question Section Mobile - Compact */
+  .question-section {
+    padding: 10px;
+    margin: 0 0 8px 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .timer-bar {
+    height: 25px;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+  }
+
+  .timer-bar svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .question-text {
+    font-size: 0.9rem;
+    line-height: 1.3;
+    padding: 8px;
+    margin-bottom: 10px;
+    min-height: auto;
+  }
+
+  .options-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .option-button {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    min-height: 42px;
+  }
+
+  .turn-indicator {
+    font-size: 0.85rem;
+    padding: 6px;
+    margin-top: 8px;
+  }
+
+  /* Power Tracker Mobile - Hidden */
+  .power-progress-tracker {
+    display: none; /* Hide on mobile */
+  }
+
+  .power-tracker-header {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .power-tracker-emoji {
+    font-size: 1rem;
+  }
+
+  .power-tracker-name {
+    font-size: 0.85rem;
+  }
+
+  .power-progress-label {
+    font-size: 0.7rem;
+  }
+
+  .power-progress-bar {
+    height: 16px;
+  }
+
+  .power-progress-text {
+    font-size: 0.7rem;
+  }
+
+  /* Character Selection */
   .character-selection-content {
     padding: 24px 16px;
     margin: 10px;
@@ -1290,6 +1450,29 @@
   
   .character-selection-content h2 {
     font-size: 2rem;
+  }
+
+  /* Modals */
+  .game-modal {
+    padding: 20px;
+    width: 95%;
+  }
+
+  .round-victory-content {
+    padding: 24px 16px;
+    width: 90%;
+  }
+
+  .round-victory-content h2 {
+    font-size: 1.75rem;
+  }
+
+  .enemy-defeated-text {
+    font-size: 1rem;
+  }
+
+  .victory-enemy-icon {
+    font-size: 3rem;
   }
 }
 
@@ -1437,7 +1620,7 @@
   transition: all 0.2s ease;
   margin: 20px auto 0;
   min-width: 160px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', sans-serif !important;
 }
 
 .victory-back-button:hover {
@@ -1448,22 +1631,58 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .victory-modal {
+    padding: 10px;
+  }
+
   .victory-content {
-    padding: 32px 24px;
-    margin: 20px;
+    padding: 20px 16px;
+    margin: 10px;
+    max-width: 95%;
+    width: 95%;
+  }
+  
+  .victory-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
   }
   
   .victory-title {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
+    margin-bottom: 8px;
+  }
+  
+  .victory-subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
   }
   
   .victory-stats-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  
+  .victory-stat {
+    padding: 12px 10px;
   }
   
   .victory-stat .stat-number {
-    font-size: 2rem;
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+  
+  .victory-stat .stat-label {
+    font-size: 0.85rem;
+  }
+  
+  .victory-back-button,
+  .game-end-actions button {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+    width: 100%;
+    max-width: 250px;
+    margin: 10px auto;
   }
 }
 
@@ -1581,20 +1800,133 @@
   margin: 0;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Additional mobile adjustments for small screens */
+@media (max-width: 480px) {
+  .quiz-battle-container {
+    padding: 4px;
+  }
+  
+  /* Victory Modal for very small screens */
+  .victory-content {
+    padding: 16px 12px;
+  }
+  
+  .victory-icon {
+    font-size: 2.5rem;
+  }
+  
+  .victory-title {
+    font-size: 1.5rem;
+  }
+  
+  .victory-subtitle {
+    font-size: 1rem;
+  }
+  
+  .victory-stat .stat-number {
+    font-size: 1.25rem;
+  }
+  
+  .victory-stat .stat-label {
+    font-size: 0.8rem;
+  }
+  
+  .victory-back-button {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
   .battle-header {
-    flex-direction: column;
-    gap: 16px;
+    padding: 6px;
+    margin-bottom: 6px;
+  }
+
+  .battle-info h2 {
+    font-size: 1rem;
+  }
+
+  .enemy-name {
+    font-size: 0.8rem;
+  }
+
+  .back-button {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
   }
 
   .battle-arena {
-    flex-direction: column;
-    gap: 30px;
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+
+  .fighter {
+    width: 50px;
+    height: 50px;
+  }
+
+  .fighter-avatar {
+    font-size: 1.75rem;
+  }
+
+  .hp-bar {
+    width: 80px;
+    height: 14px;
+  }
+
+  .hp-text {
+    font-size: 0.65rem;
+  }
+
+  .question-section {
+    padding: 8px;
+  }
+
+  .question-text {
+    font-size: 0.85rem;
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+
+  .timer-bar {
+    height: 22px;
+    margin-bottom: 6px;
   }
 
   .options-grid {
-    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .option-button {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+    min-height: 38px;
+  }
+
+  .turn-indicator {
+    font-size: 0.8rem;
+    padding: 4px;
+    margin-top: 6px;
+  }
+
+  .power-progress-tracker {
+    padding: 6px;
+  }
+
+  .power-tracker-emoji {
+    font-size: 0.9rem;
+  }
+
+  .power-tracker-name {
+    font-size: 0.8rem;
+  }
+
+  .power-progress-label {
+    font-size: 0.65rem;
+  }
+
+  .power-progress-bar {
+    height: 14px;
   }
 
   .fighter-avatar {

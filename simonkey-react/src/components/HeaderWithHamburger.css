@@ -51,13 +51,19 @@
   padding: 8px;
   border-radius: 6px;
   transition: all 0.2s ease;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
+  color: white;
 }
 
 .hamburger-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.hamburger-btn svg {
+  font-size: 20px;
+  color: white;
 }
 
 /* Botón de pantalla completa */
@@ -758,12 +764,22 @@
   overflow: hidden;
   transform: translateX(-10px);
   transition: all 0.3s ease;
+  display: none;
 }
 
 .sidebar-expanded .sidebar-icon-btn span {
   opacity: 1;
   width: auto;
   transform: translateX(0);
+  display: inline-block;
+}
+
+/* Mostrar texto cuando el sidebar está abierto en móvil */
+.sidebar-nav.mobile-open .sidebar-icon-btn span {
+  opacity: 1 !important;
+  width: auto !important;
+  transform: translateX(0) !important;
+  display: inline-block !important;
 }
 
 .sidebar-icon-btn.disabled {
@@ -838,7 +854,8 @@
   box-sizing: border-box;
 }
 
-.sidebar-expanded .user-avatar-container {
+.sidebar-expanded .user-avatar-container,
+.sidebar-nav.mobile-open .user-avatar-container {
   justify-content: flex-start;
   padding: 0.5rem;
   align-items: center;
@@ -880,7 +897,8 @@
   padding: 0 !important;
 }
 
-.sidebar-expanded .user-info {
+.sidebar-expanded .user-info,
+.sidebar-nav.mobile-open .user-info {
   opacity: 1;
   width: auto;
   transform: translateX(0);
@@ -1002,16 +1020,20 @@
 }
 
 .user-menu-header {
-  padding: 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  padding: 1rem !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  background: white !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .user-avatar-large {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary-color, #6147FF), #7c3aed);
   color: white;
@@ -1019,12 +1041,16 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
+}
+
+.user-details {
+  text-align: center;
 }
 
 .user-details h4 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #374151;
   font-family: 'Poppins', sans-serif;
@@ -1032,30 +1058,38 @@
 
 .user-details p {
   margin: 0.25rem 0 0 0;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #6b7280;
   font-family: 'Poppins', sans-serif;
 }
 
 .user-menu-options {
-  padding: 0.5rem;
+  padding: 0.5rem !important;
+  background: white !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
 }
 
 .user-menu-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-  font-size: 0.85rem;
-  color: #374151;
-  font-family: 'Poppins', sans-serif;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+  padding: 0.75rem !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  text-align: left !important;
+  font-size: 0.85rem !important;
+  color: #374151 !important;
+  font-family: 'Poppins', sans-serif !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .user-menu-btn:hover:not(.disabled) {
@@ -1069,10 +1103,20 @@
 }
 
 .user-menu-btn svg {
-  width: 16px;
-  font-size: 0.9rem;
-  text-align: center;
-  margin-right: 12px;
+  width: 16px !important;
+  height: 16px !important;
+  font-size: 0.9rem !important;
+  text-align: center !important;
+  margin-right: 12px !important;
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.user-menu-btn span {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .user-menu-btn span {
@@ -1106,27 +1150,35 @@
 
 /* Popup externo del menú de usuario */
 .user-menu-popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2000;
-  pointer-events: all;
-  background-color: transparent;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 99999 !important;
+  pointer-events: all !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .user-menu-popup-external {
-  position: fixed;
-  bottom: 90px;
-  left: 70px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e5e7eb;
-  z-index: 2001;
-  pointer-events: all;
-  width: 240px;
+  position: relative !important;
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid #e5e7eb !important;
+  z-index: 100000 !important;
+  pointer-events: all !important;
+  width: 90% !important;
+  max-width: 320px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* Header del menú lateral */
@@ -1928,5 +1980,177 @@ body .header-with-hamburger .logo2-title-group h1 * {
   }
   100% {
     color: white;
+  }
+}
+
+/* Estilos móviles para el botón hamburguesa y sidebar */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: flex !important;
+}
+
+/* Overlay móvil */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 997;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Media queries para móvil */
+@media (max-width: 768px) {
+  /* Mostrar botón hamburguesa solo en móvil */
+  .mobile-only {
+    display: flex !important;
+  }
+  
+  /* Ocultar botón de pantalla completa en móvil */
+  .desktop-only {
+    display: none !important;
+  }
+  
+  /* Sidebar oculto por defecto en móvil */
+  .sidebar-nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    transform: translateX(-250px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999;
+    width: 250px !important; /* Ancho completo en móvil */
+  }
+  
+  /* Sidebar visible cuando está abierto en móvil */
+  .sidebar-nav.mobile-open {
+    transform: translateX(0) !important;
+  }
+  
+  /* Expandir sidebar automáticamente en móvil cuando está abierto */
+  .sidebar-nav.mobile-open .sidebar-logo-text,
+  .sidebar-nav.mobile-open .sidebar-icon-btn span,
+  .sidebar-nav.mobile-open .user-info {
+    display: flex !important;
+    opacity: 1 !important;
+  }
+  
+  /* Mostrar overlay cuando sidebar está abierto */
+  .mobile-sidebar-open .mobile-overlay {
+    display: block !important;
+  }
+  
+  /* Ajustar header cuando no hay sidebar en móvil */
+  .limited-header {
+    left: 0 !important;
+  }
+  
+  /* Ajustar contenido cuando no hay sidebar en móvil */
+  .content-wrapper {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  
+  /* Ajustar el título de la página en móvil */
+  .page-title-limited {
+    font-size: 1.1rem;
+  }
+  
+  /* Ajustar padding del header en móvil */
+  .header-content-limited {
+    padding: 0 1rem;
+  }
+  
+  /* Asegurar que el botón hamburguesa sea visible */
+  .hamburger-btn {
+    display: flex !important;
+  }
+  
+  /* Asegurar que el sidebar expandido muestre el texto */
+  .sidebar-nav.mobile-open {
+    width: 250px !important;
+  }
+  
+  .sidebar-nav.mobile-open .sidebar-expanded {
+    width: 250px !important;
+  }
+  
+  /* Forzar que el sidebar muestre los textos en móvil */
+  .sidebar-nav.mobile-open .sidebar-icon-btn {
+    justify-content: flex-start !important;
+  }
+  
+  .sidebar-nav.mobile-open .sidebar-icon-btn span {
+    display: inline-block !important;
+    opacity: 1 !important;
+    margin-left: 0.5rem;
+  }
+  
+  /* Mostrar el texto del logo en móvil */
+  .sidebar-nav.mobile-open .sidebar-logo-text {
+    opacity: 1 !important;
+    width: auto !important;
+    transform: translateX(0) !important;
+    display: inline-flex !important;
+  }
+  
+  /* Mostrar la información del usuario en móvil */
+  .sidebar-nav.mobile-open .user-info {
+    display: flex !important;
+    opacity: 1 !important;
+    width: auto !important;
+    transform: translateX(0) !important;
+    margin-left: 0.5rem !important;
+  }
+  
+  .sidebar-nav.mobile-open .user-name {
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  
+  
+  /* Hacer clickeable el área del usuario en móvil */
+  .sidebar-nav.mobile-open .user-avatar-container {
+    cursor: pointer !important;
+    width: 100% !important;
+  }
+  
+  /* Forzar visibilidad del popup en móvil */
+  .user-menu-popup-overlay {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .user-menu-popup-external {
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .user-menu-popup-external * {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Asegurar layout vertical en móvil */
+  .user-menu-header {
+    width: 100% !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .user-menu-options {
+    width: 100% !important;
+    flex: 1 !important;
   }
 } 

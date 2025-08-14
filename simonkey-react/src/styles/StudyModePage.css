@@ -870,29 +870,32 @@
 /* Mobile dropdown adjustments */
 @media (max-width: 768px) {
   .notebook-dropdown {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 400px;
-    max-height: 70vh;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    z-index: 1001;
-    animation: fadeInScale 0.3s ease-out;
-    overflow-y: auto;
-    background: var(--bg-white);
+    position: absolute !important;
+    top: calc(100% + 0.5rem) !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 50vh !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    z-index: 1001 !important;
+    animation: slideDown 0.2s ease-out !important;
+    overflow-y: auto !important;
+    background: var(--bg-white) !important;
+    margin: 0 !important;
+    border: 1px solid var(--border-light) !important;
   }
   
-  @keyframes fadeInScale {
+  @keyframes slideDown {
     from {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.9);
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: translateY(0);
     }
   }
   
@@ -1408,7 +1411,7 @@
     box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
     order: 0; /* Appears before medal module */
     z-index: auto !important;
-    background: linear-gradient(135deg, #6147ff 0%, #764ba2 100%);
+    background: #f8f9fa !important;
     border-radius: var(--radius-md);
     display: flex;
     flex-direction: row;
@@ -1460,11 +1463,25 @@
     margin: 0 auto 1.5rem;
     padding: 0.75rem 1rem !important;
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, #764ba2 0%, #6147ff 100%);
-    box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
+    background: #f8f9fa !important;
+    box-shadow: none !important;
+    border: none !important;
     order: 1; /* Appears first */
     z-index: auto !important;
     display: block;
+  }
+  
+  /* Fix text colors for light background */
+  .study-mode-container .corner-medal-module .corner-medal-label {
+    color: #6b7280 !important;
+  }
+  
+  .study-mode-container .corner-medal-module .corner-medal-division {
+    color: #1f2937 !important;
+  }
+  
+  .study-mode-container .corner-medal-module .corner-medal-progress {
+    color: #4b5563 !important;
   }
   
   /* Ensure dropdown header comes after medal module */
@@ -1568,6 +1585,8 @@
   .study-functions {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
+    margin-bottom: 3rem !important;
+    padding-bottom: 1rem !important;
   }
   
   .study-function-card {
@@ -2318,6 +2337,121 @@
   
   .modal-header h3 {
     font-size: 1.125rem;
+  }
+}
+
+/* Mobile specific styles for study module header */
+@media (max-width: 768px) {
+  .study-module-header {
+    flex-direction: column !important;
+    gap: 1rem !important;
+    padding: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+  
+  /* Medal module in header on mobile */
+  .study-module-header .corner-medal-module {
+    width: 100% !important;
+    min-width: unset !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0.875rem !important;
+    background: #f8f9fa !important;
+    border-radius: 10px;
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .study-module-header .corner-medal-header {
+    justify-content: center !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .study-module-header .corner-medal-center {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  
+  .study-module-header .corner-medal-icon {
+    font-size: 1.5rem !important;
+  }
+  
+  .study-module-header .corner-medal-content {
+    text-align: center !important;
+  }
+  
+  .study-module-header .corner-medal-label {
+    font-size: 0.75rem !important;
+    color: #6b7280 !important;
+    display: block !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .study-module-header .corner-medal-division {
+    font-size: 1.125rem !important;
+    font-weight: 700 !important;
+    color: #1f2937 !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .study-module-header .corner-medal-progress {
+    font-size: 0.8rem !important;
+    color: #4b5563 !important;
+  }
+  
+  /* Dropdown wrapper on mobile */
+  .study-module-header .notebook-dropdown-wrapper {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  
+  .study-module-header .notebook-dropdown-container {
+    width: 100% !important;
+    min-width: unset !important;
+    position: relative !important;
+  }
+  
+  .study-module-header .notebook-dropdown-btn {
+    width: 100% !important;
+    padding: 0.875rem !important;
+    font-size: 0.875rem !important;
+    background: white !important;
+    border: 2px solid #6147FF !important;
+  }
+  
+  .study-module-header .notebook-dropdown-btn span {
+    font-size: 0.875rem !important;
+  }
+  
+  .study-module-header .notebook-dropdown-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  /* Score content on mobile */
+  .study-module-header .study-score-content {
+    width: 100% !important;
+    padding: 0.875rem !important;
+    background: #f8f9fa !important;
+    border-radius: 10px !important;
+    min-width: unset !important;
+    border: 1px solid #e5e7eb !important;
+  }
+  
+  .study-module-header .study-score-value {
+    font-size: 1.75rem !important;
+    color: #6147FF !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .study-module-header .study-score-label {
+    font-size: 0.8rem !important;
+    white-space: normal !important;
+    color: #6b7280 !important;
   }
 }
 

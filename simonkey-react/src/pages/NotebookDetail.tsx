@@ -25,6 +25,7 @@ import {
 import { generateConcepts, prepareFilesForGeneration } from '../services/firebaseFunctions';
 import { MaterialService } from '../services/materialService';
 import '../styles/NotebookDetail.css';
+import '../styles/ModalOverride.css';
 import ReactDOM from 'react-dom';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 

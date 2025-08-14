@@ -48,6 +48,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [maxCombo, setMaxCombo] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pointsAwarded, setPointsAwarded] = useState(false);
+  const [touchStartFragment, setTouchStartFragment] = useState<Fragment | null>(null);
+  const [touchTargetPosition, setTouchTargetPosition] = useState<number | null>(null);
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
@@ -286,6 +288,59 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     checkPuzzleCompletion(newFragments);
   };
 
+  // Touch event handlers for mobile
+  const handleTouchStart = (fragment: Fragment, e: React.TouchEvent) => {
+    setTouchStartFragment(fragment);
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    if (element && element.classList.contains('fragment-slot')) {
+      const position = element.getAttribute('data-position');
+      if (position) {
+        setTouchTargetPosition(parseInt(position));
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.currentTarget.style.opacity = '1';
+    
+    if (!touchStartFragment || touchTargetPosition === null) {
+      setTouchStartFragment(null);
+      setTouchTargetPosition(null);
+      return;
+    }
+
+    const targetFragment = fragments.find(f => f.currentPosition === touchTargetPosition);
+    if (!targetFragment) {
+      setTouchStartFragment(null);
+      setTouchTargetPosition(null);
+      return;
+    }
+
+    // Swap positions
+    const newFragments = fragments.map(f => {
+      if (f.id === touchStartFragment.id) {
+        return { ...f, currentPosition: touchTargetPosition };
+      } else if (f.id === targetFragment.id) {
+        return { ...f, currentPosition: touchStartFragment.currentPosition };
+      }
+      return f;
+    });
+
+    setFragments(newFragments);
+    setTouchStartFragment(null);
+    setTouchTargetPosition(null);
+
+    // Check if any puzzle is complete
+    checkPuzzleCompletion(newFragments);
+  };
+
   const checkPuzzleCompletion = (currentFragments: Fragment[]) => {
     const newCorrectPuzzles: string[] = [];
 
@@ -476,6 +531,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
                     <div
                       key={`slot-${absolutePosition}`}
                       className="fragment-slot"
+                      data-position={absolutePosition}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, absolutePosition)}
                     >
@@ -484,6 +540,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
                           className={`fragment ${fragment.conceptId === concept.id ? 'correct-concept' : 'wrong-concept'}`}
                           draggable={!correctPuzzles.includes(fragment.conceptId)}
                           onDragStart={() => handleDragStart(fragment)}
+                          onTouchStart={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchStart(fragment, e)}
+                          onTouchMove={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchMove(e)}
+                          onTouchEnd={(e) => !correctPuzzles.includes(fragment.conceptId) && handleTouchEnd(e)}
                         >
                           <span>{fragment.text}</span>
                         </div>

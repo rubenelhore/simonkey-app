@@ -1241,10 +1241,16 @@
   .daily-metrics {
     flex-direction: column;
     gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+    padding: 0 1rem;
   }
   
   .metric-card {
     min-width: auto;
+    width: 100%;
+    max-width: 350px;
+    justify-content: center;
   }
   
   .quick-access-grid {

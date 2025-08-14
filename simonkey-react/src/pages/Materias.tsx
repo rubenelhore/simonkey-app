@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import '../styles/Materias.css';
 import '../styles/AdminMaterias.css';
+import '../styles/ModalOverride.css';
 import { useUserType } from '../hooks/useUserType';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';

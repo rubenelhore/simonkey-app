@@ -439,6 +439,24 @@
   font-size: 2rem;
   color: #1f2937;
   margin-bottom: 8px;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .game-completed-modal h2 {
+    font-size: 1.5rem !important;
+    margin-top: 0.75rem !important;
+    padding-top: 0.25rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-completed-modal h2 {
+    font-size: 1.25rem !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.25rem !important;
+  }
 }
 
 .game-completed-modal > .modal-content > p {
@@ -528,41 +546,170 @@
   }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .puzzle-header {
-    flex-direction: column;
-    gap: 16px;
+/* Additional mobile styles for small screens */
+@media (max-width: 480px) {
+  .puzzle-game-container {
+    padding: 8px;
   }
 
   .game-title h1 {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
+  }
+
+  .game-title h1 svg {
+    display: none; /* Hide icon on very small screens */
+  }
+
+  .game-title p {
+    display: none; /* Hide subtitle on very small screens */
+  }
+
+  .game-stats {
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+
+  .stat {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    min-width: 80px;
+  }
+
+  .puzzle-board {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .puzzle-row {
+    padding: 12px;
+  }
+
+  .concept-term h3 {
+    font-size: 1rem;
+  }
+
+  .fragment {
+    padding: 10px 8px;
+  }
+
+  .fragment span {
+    font-size: 0.8rem;
+  }
+
+  .fragment-slot {
+    min-height: 45px;
+  }
+
+  .check-icon {
+    font-size: 1.2rem;
+    top: -8px;
+    right: -8px;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .puzzle-game-container {
+    padding: 10px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .puzzle-header {
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+  }
+
+  .game-title {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .game-title h1 {
+    font-size: 1.5rem;
+  }
+
+  .game-title p {
+    font-size: 0.9rem;
+  }
+
+  .back-button,
+  .reset-button {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    font-size: 1rem;
+  }
+
+  .reset-button {
+    width: auto;
+    padding: 8px 12px;
+  }
+
+  .game-stats {
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .stat {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .stat svg {
+    font-size: 0.9rem;
+  }
+
+  .puzzle-board {
+    padding: 15px;
+    margin: 0 auto;
   }
 
   .puzzle-row {
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
   }
 
   .concept-term {
     width: 100%;
   }
 
+  .concept-term h3 {
+    font-size: 1.1rem;
+    padding: 8px;
+  }
+
   .fragments-container {
     grid-template-columns: 1fr !important; /* Stack fragments vertically on mobile */
+    gap: 8px;
   }
 
   .fragment-slot {
-    min-height: 60px;
+    min-height: 50px;
+    border-width: 2px;
   }
 
-  .game-stats {
-    gap: 10px;
+  .fragment {
+    padding: 12px 10px;
+    touch-action: none; /* Enable touch dragging */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
-  .stat {
-    padding: 8px 16px;
-    font-size: 1rem;
+  .fragment span {
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+
+  /* Make fragments easier to drag on mobile */
+  .fragment:active {
+    transform: scale(1.02);
+    opacity: 0.9;
   }
 }
 

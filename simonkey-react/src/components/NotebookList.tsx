@@ -7,6 +7,7 @@ import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { createNotebook } from '../services/notebookService';
 import '../styles/Notebooks.css';
+import '../styles/ModalOverride.css';
 import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import FreezeModal from './FreezeModal';

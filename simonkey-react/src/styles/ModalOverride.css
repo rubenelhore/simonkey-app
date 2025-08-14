@@ -1,0 +1,311 @@
+/* OVERRIDE PARA MODALES DE CREAR - MÁXIMA PRIORIDAD */
+
+/* Desktop */
+.modal-content.create-materia-modal-new,
+div.modal-content.create-materia-modal-new,
+.create-materia-modal-new.modal-content,
+.modal-content.create-notebook-modal-new,
+div.modal-content.create-notebook-modal-new,
+.create-notebook-modal-new.modal-content {
+  max-width: 600px !important;
+  width: 600px !important;
+  height: auto !important;
+  min-height: auto !important;
+  max-height: 90vh !important;
+  min-width: unset !important;
+  padding: 0 !important;
+}
+
+/* Mobile */
+@media screen and (max-width: 768px) {
+  .modal-content.create-materia-modal-new,
+  div.modal-content.create-materia-modal-new,
+  .create-materia-modal-new.modal-content,
+  body .modal-overlay .modal-content.create-materia-modal-new,
+  html body div.modal-content.create-materia-modal-new,
+  .modal-content.create-notebook-modal-new,
+  div.modal-content.create-notebook-modal-new,
+  .create-notebook-modal-new.modal-content,
+  body .modal-overlay .modal-content.create-notebook-modal-new,
+  html body div.modal-content.create-notebook-modal-new {
+    max-width: 260px !important;
+    width: 260px !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-height: 80vh !important;
+    min-width: unset !important;
+    padding: 0 !important;
+  }
+}
+
+/* Ultra específico para móvil */
+@media only screen and (max-width: 768px) {
+  html body div.modal-overlay div.modal-content.create-materia-modal-new,
+  html body div.modal-overlay div.modal-content.create-notebook-modal-new {
+    width: 260px !important;
+    max-width: 260px !important;
+    height: fit-content !important;
+    min-height: unset !important;
+    max-height: 80vh !important;
+    min-width: unset !important;
+  }
+  
+  /* Estilos de contenido para notebook modal */
+  .create-notebook-modal-new .modal-main-content {
+    padding: 0 0.5rem 0.5rem 0.5rem !important;
+  }
+  
+  .create-notebook-modal-new .modal-icon i {
+    font-size: 1.5rem !important;
+  }
+  
+  .create-notebook-modal-new .modal-title {
+    font-size: 1rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .create-notebook-modal-new .modal-subtitle {
+    font-size: 0.7rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  
+  .create-notebook-modal-new .modal-input {
+    padding: 0.5rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .create-notebook-modal-new .color-label {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .create-notebook-modal-new .color-option {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  
+  .create-notebook-modal-new .modal-actions .btn-cancel,
+  .create-notebook-modal-new .modal-actions .btn-create,
+  .modal-content.create-notebook-modal-new .btn-cancel,
+  .modal-content.create-notebook-modal-new .btn-create {
+    height: 52px !important;
+    min-height: 52px !important;
+    font-size: 1rem !important;
+    padding: 0 1.5rem !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .create-notebook-modal-new .modal-actions {
+    gap: 0.75rem !important;
+    margin-top: 1.25rem !important;
+    display: flex !important;
+    width: 100% !important;
+  }
+  
+  .create-notebook-modal-new .modal-actions {
+    flex-direction: row !important;
+    gap: 0.5rem !important;
+    justify-content: center !important;
+  }
+  
+  .create-notebook-modal-new .btn-cancel {
+    flex: 0 0 auto !important;
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 85px !important;
+    background: #f8f9fa !important;
+    color: #6b7280 !important;
+    border: 1.5px solid #e5e7eb !important;
+    padding: 0 0.5rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .create-notebook-modal-new .btn-create {
+    flex: 0 0 auto !important;
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+    background: #6147FF !important;
+    color: white !important;
+    border: none !important;
+    padding: 0 0.5rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .create-notebook-modal-new .btn-create i {
+    font-size: 0.75rem !important;
+    margin-right: 0.3rem !important;
+  }
+  
+  .create-notebook-modal-new .btn-create i {
+    font-size: 0.9rem !important;
+    margin-right: 0.5rem !important;
+  }
+}
+
+/* ULTRA ESPECÍFICO PARA BOTONES EN MÓVIL */
+@media screen and (max-width: 768px) {
+  body .modal-overlay .modal-content.create-notebook-modal-new .modal-actions button,
+  body .modal-overlay .modal-content.create-materia-modal-new .modal-actions button,
+  html body div.modal-content.create-notebook-modal-new button.btn-cancel,
+  html body div.modal-content.create-notebook-modal-new button.btn-create,
+  html body div.modal-content.create-materia-modal-new button.btn-cancel,
+  html body div.modal-content.create-materia-modal-new button.btn-create {
+    height: 52px !important;
+    min-height: 52px !important;
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* MODAL ADD CONCEPTS - MOBILE FRIENDLY */
+@media screen and (max-width: 768px) {
+  .modal-content.add-concepts-modal-new,
+  div.modal-content.add-concepts-modal-new,
+  .add-concepts-modal-new.modal-content,
+  body .modal-overlay .modal-content.add-concepts-modal-new,
+  html body div.modal-content.add-concepts-modal-new,
+  html body .modal-overlay .modal-content.add-concepts-modal-new {
+    max-width: 280px !important;
+    width: 280px !important;
+    min-width: unset !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-height: 85vh !important;
+    padding: 0 !important;
+    margin: auto !important;
+    position: relative !important;
+  }
+  
+  .add-concepts-modal-new .modal-header-simple {
+    padding: 0.5rem !important;
+  }
+  
+  .add-concepts-modal-new .close-button-simple {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .add-concepts-modal-new .modal-main-content {
+    padding: 0 0.75rem 0.5rem 0.75rem !important;
+  }
+  
+  .add-concepts-modal-new .modal-icon {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .add-concepts-modal-new .modal-icon i {
+    font-size: 1.5rem !important;
+  }
+  
+  .add-concepts-modal-new .modal-title {
+    font-size: 1.1rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .add-concepts-modal-new .modal-subtitle {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  .add-concepts-modal-new .modal-tabs-new {
+    display: flex !important;
+    gap: 0.25rem !important;
+    padding: 0 !important;
+    margin: 0 0.75rem 0.75rem 0.75rem !important;
+  }
+  
+  .add-concepts-modal-new .tab-btn {
+    flex: 1 !important;
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.7rem !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    min-height: 36px !important;
+  }
+  
+  .add-concepts-modal-new .tab-btn i {
+    font-size: 0.75rem !important;
+  }
+  
+  .add-concepts-modal-new .modal-content-body {
+    padding: 0 0.75rem 0.75rem 0.75rem !important;
+  }
+  
+  .add-concepts-modal-new .upload-container {
+    padding: 0 !important;
+    gap: 0.5rem !important;
+  }
+  
+  .add-concepts-modal-new .file-input-label {
+    padding: 1.25rem 0.75rem !important;
+    border-radius: 10px !important;
+    border-width: 1.5px !important;
+  }
+  
+  .add-concepts-modal-new .file-input-content {
+    gap: 0.25rem !important;
+  }
+  
+  .add-concepts-modal-new .file-input-content i {
+    font-size: 1.75rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .add-concepts-modal-new .file-input-content p {
+    font-size: 0.85rem !important;
+    margin: 0.25rem 0 !important;
+    font-weight: 600 !important;
+  }
+  
+  .add-concepts-modal-new .file-input-content span {
+    font-size: 0.7rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .add-concepts-modal-new .generate-button {
+    height: 42px !important;
+    font-size: 0.85rem !important;
+    padding: 0 0.75rem !important;
+    border-radius: 8px !important;
+    margin-top: 0.75rem !important;
+    width: 100% !important;
+    font-weight: 600 !important;
+  }
+  
+  /* Hacer el modal scrolleable si es necesario */
+  .add-concepts-modal-new {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Ajustes para el formulario de conceptos */
+  .add-concepts-modal-new .concept-form {
+    gap: 0.75rem !important;
+  }
+  
+  .add-concepts-modal-new .concept-form input,
+  .add-concepts-modal-new .concept-form textarea {
+    font-size: 0.85rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  .add-concepts-modal-new .concept-form label {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+}

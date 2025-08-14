@@ -64,10 +64,17 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const [runnerFrame, setRunnerFrame] = useState(0);
   const [backgroundOffset, setBackgroundOffset] = useState(0);
   
-  const HURDLE_SPEED = 1.5; // Speed of hurdles moving left to right (reduced by half again)
-  const COLLISION_ZONE = 750; // X position where collision occurs (near runner)
+  // Detect mobile device
+  const isMobile = window.innerWidth <= 768;
+  
+  // Calculate actual screen width for mobile collision zone
+  const screenWidth = window.innerWidth;
+  const runnerPositionFromRight = isMobile ? 20 : 80; // Runner is 20px from right on mobile
+  
+  const HURDLE_SPEED = isMobile ? 0.5 : 1.5; // Much slower speed on mobile for full track visibility
+  const COLLISION_ZONE = isMobile ? (screenWidth - runnerPositionFromRight - 40) : 750; // Dynamic collision based on screen width
   const SPAWN_POSITION = -150; // Starting position for hurdles (off screen left)
-  const SPAWN_FREQUENCY = 4500; // Milliseconds between spawns
+  const SPAWN_FREQUENCY = isMobile ? 7000 : 4500; // Much more time between spawns on mobile
   const MAX_QUESTIONS = 8; // Total questions per game
 
   useEffect(() => {
@@ -231,10 +238,11 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         position: hurdle.position + HURDLE_SPEED
       }));
       
-      // Check for collisions
+      // Check for collisions - adjust detection range based on speed
+      const detectionRange = isMobile ? 20 : 40; // Even smaller range for mobile for precise detection
       const hurdlesInCollisionZone = updated.filter(hurdle => 
-        hurdle.position >= COLLISION_ZONE - 40 && 
-        hurdle.position <= COLLISION_ZONE + 40 &&
+        hurdle.position >= COLLISION_ZONE - detectionRange && 
+        hurdle.position <= COLLISION_ZONE + detectionRange &&
         hurdle.lane === runnerLane
       );
       
@@ -298,6 +306,19 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     if (e.key === 'ArrowUp' && runnerLane > 0) {
       setRunnerLane(runnerLane - 1);
     } else if (e.key === 'ArrowDown' && runnerLane < 2) {
+      setRunnerLane(runnerLane + 1);
+    }
+  };
+
+  // Touch handlers for mobile
+  const handleMobileLaneUp = () => {
+    if (runnerLane > 0 && gameStarted && !gameOver) {
+      setRunnerLane(runnerLane - 1);
+    }
+  };
+
+  const handleMobileLaneDown = () => {
+    if (runnerLane < 2 && gameStarted && !gameOver) {
       setRunnerLane(runnerLane + 1);
     }
   };
@@ -471,12 +492,43 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         </div>
       </div>
 
+      {/* Mobile Controls */}
+      {gameStarted && !gameOver && (
+        <div className="mobile-controls">
+          <button 
+            className={`lane-control-btn up ${runnerLane === 0 ? 'disabled' : ''}`}
+            onClick={handleMobileLaneUp}
+            disabled={runnerLane === 0}
+          >
+            <i className="fas fa-chevron-up"></i>
+          </button>
+          <div className="lane-indicator">
+            <span className={`lane-dot ${runnerLane === 0 ? 'active' : ''}`}></span>
+            <span className={`lane-dot ${runnerLane === 1 ? 'active' : ''}`}></span>
+            <span className={`lane-dot ${runnerLane === 2 ? 'active' : ''}`}></span>
+          </div>
+          <button 
+            className={`lane-control-btn down ${runnerLane === 2 ? 'disabled' : ''}`}
+            onClick={handleMobileLaneDown}
+            disabled={runnerLane === 2}
+          >
+            <i className="fas fa-chevron-down"></i>
+          </button>
+        </div>
+      )}
+
       {!gameStarted && !gameOver && (
         <div className="game-start-modal">
           <h2>¡Carrera de Conceptos!</h2>
           <p>Lee la definición y alinéate con el concepto correcto</p>
-          <ul>
+          <ul className="desktop-instructions">
             <li>↑↓ Cambiar de carril</li>
+            <li>Los conceptos se acercan hacia ti</li>
+            <li>Colócate en el carril del concepto correcto</li>
+            <li>Evita chocar con conceptos incorrectos</li>
+          </ul>
+          <ul className="mobile-instructions">
+            <li>Usa los botones para cambiar de carril</li>
             <li>Los conceptos se acercan hacia ti</li>
             <li>Colócate en el carril del concepto correcto</li>
             <li>Evita chocar con conceptos incorrectos</li>

@@ -2111,19 +2111,44 @@ body.modal-open .notebooks-hamburger-btn {
     margin-left: 0 !important;
   }
   
+  .notebook-list-header {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+  }
+  
+  .notebook-list-header .back-button-notebooks {
+    order: 1 !important;
+    flex: 0 0 auto !important;
+  }
+  
+  .notebook-list-header .create-notebook-button {
+    order: 2 !important;
+    flex: 1 !important;
+    margin-left: 0.5rem !important;
+  }
+  
   .notebook-list-header .search-container {
     margin-left: 0 !important;
-    width: 244.23px !important;
-    max-width: 244.23px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+    order: 3 !important;
+    margin-top: 0.75rem !important;
+    border: 2px solid #e5e7eb !important;
+    padding: 0 !important;
   }
   
   .notebook-list-header .search-input {
-    padding-left: 2rem;
+    padding-left: 2.5rem;
     font-size: 0.9rem;
-    width: 244.23px !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
+    border: 2px solid #e5e7eb !important;
+    background: #f9fafb !important;
+    border-radius: 10px !important;
   }
   
   .notebook-list-header .search-icon {
@@ -2134,8 +2159,8 @@ body.modal-open .notebooks-hamburger-btn {
   .search-input {
     margin-left: 0 !important;
     padding-left: 2.5rem !important;
-    width: 244.23px !important;
-    max-width: 244.23px !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 

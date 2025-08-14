@@ -4,7 +4,7 @@
 }
 
 .contact-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6147FF 0%, #6147FF 100%);
   padding: 16px 0;
   text-align: center;
   position: relative;
@@ -52,10 +52,12 @@
   color: rgba(255, 255, 255, 0.9);
   max-width: 1000px;
   margin: 0 auto;
+  padding: 0 1rem;
   position: relative;
   z-index: 1;
-  white-space: nowrap;
+  white-space: normal;
   text-align: center;
+  line-height: 1.6;
 }
 
 .contact-content {
@@ -108,7 +110,7 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #4F46E5;
+  border-color: #6147FF;
 }
 
 .form-group textarea {
@@ -164,7 +166,7 @@
 
 .method-detail {
   font-weight: 600;
-  color: #4F46E5;
+  color: #6147FF;
   margin-bottom: 5px;
 }
 
@@ -220,7 +222,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #4F46E5;
+  background: #6147FF;
   border-radius: 50%;
   font-size: 1.25rem;
   text-decoration: none;
@@ -229,12 +231,20 @@
 
 .social-links-contact a:hover {
   transform: translateY(-3px);
-  background: #3730A3;
+  background: #5139e5;
 }
 
 @media (max-width: 768px) {
   .contact-title {
     font-size: 2rem;
+    padding: 0 1rem;
+  }
+  
+  .contact-subtitle {
+    font-size: 1rem;
+    padding: 0 1.5rem;
+    white-space: normal;
+    line-height: 1.5;
   }
   
   .contact-content {
