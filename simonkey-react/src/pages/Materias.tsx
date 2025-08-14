@@ -1113,11 +1113,6 @@ const Materias: React.FC = () => {
                             "La educación es el arma más poderosa que puedes usar para cambiar el mundo"
                           </p>
                           <p className="message-author">- Nelson Mandela</p>
-                          <div className="message-divider"></div>
-                          <p className="message-text">
-                            Mientras esperas la asignación de tus materias, prepárate para transformar vidas. 
-                            Cada concepto que enseñes será una semilla de conocimiento que florecerá en tus estudiantes.
-                          </p>
                         </div>
                       </div>
                     )}
