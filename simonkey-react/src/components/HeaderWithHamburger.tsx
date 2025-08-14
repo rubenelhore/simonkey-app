@@ -139,29 +139,44 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     fetchTodayEvents();
   }, [user]);
 
-  // Cargar notebooks del usuario
+  // Cargar notebooks del usuario (solo para estudiantes)
   useEffect(() => {
     if (!user) return;
+    
+    // No cargar notebooks para profesores o administradores escolares
+    if (isSchoolTeacher || isSchoolAdmin) {
+      setNotebooks([]);
+      return;
+    }
+    
     const loadNotebooks = async () => {
-      const userId = user.uid;
-      const notebooksQuery = query(
-        collection(db, 'notebooks'),
-        where('userId', '==', userId)
-      );
-      const snapshot = await getDocs(notebooksQuery);
-      const userNotebooks: Notebook[] = [];
-      snapshot.forEach(doc => {
-        userNotebooks.push({ id: doc.id, ...doc.data() } as Notebook);
-      });
-      setNotebooks(userNotebooks);
+      try {
+        const userId = user.uid;
+        const notebooksQuery = query(
+          collection(db, 'notebooks'),
+          where('userId', '==', userId)
+        );
+        const snapshot = await getDocs(notebooksQuery);
+        const userNotebooks: Notebook[] = [];
+        snapshot.forEach(doc => {
+          userNotebooks.push({ id: doc.id, ...doc.data() } as Notebook);
+        });
+        setNotebooks(userNotebooks);
+      } catch (error) {
+        console.error('Error cargando notebooks:', error);
+        setNotebooks([]);
+      }
     };
     loadNotebooks();
-  }, [user]);
+  }, [user, isSchoolTeacher, isSchoolAdmin]);
 
   // Buscar estudios inteligentes disponibles hoy
   useEffect(() => {
     async function fetchSmartEvents() {
       if (!user || notebooks.length === 0) return;
+      
+      // No buscar estudios inteligentes para profesores o administradores
+      if (isSchoolTeacher || isSchoolAdmin) return;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const userId = user.uid;

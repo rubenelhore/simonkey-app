@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserType } from './useUserType';
 import { 
   checkUserMigrationStatus, 
   migrateUserNotebooksToDefaultMateria 
@@ -7,12 +8,23 @@ import {
 
 export const useAutoMigration = () => {
   const { user, isAuthenticated } = useAuth();
+  const { isSchoolTeacher, isSchoolAdmin, loading: userTypeLoading } = useUserType();
   const [migrationStatus, setMigrationStatus] = useState<'checking' | 'migrating' | 'completed' | 'error' | null>(null);
   const [migrationMessage, setMigrationMessage] = useState<string>('');
 
   useEffect(() => {
     const runAutoMigration = async () => {
       if (!user?.uid || !isAuthenticated) return;
+      
+      // Esperar a que se cargue el tipo de usuario
+      if (userTypeLoading) return;
+      
+      // No ejecutar migración para profesores o administradores escolares
+      // Solo estudiantes y usuarios normales necesitan migración
+      if (isSchoolTeacher || isSchoolAdmin) {
+        console.log('👨‍🏫 Saltando migración para profesor/admin escolar');
+        return;
+      }
 
       // Verificar si ya se ejecutó la migración en esta sesión
       const migrationKey = `migration_checked_${user.uid}`;
@@ -76,7 +88,7 @@ export const useAutoMigration = () => {
     };
 
     runAutoMigration();
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, isSchoolTeacher, isSchoolAdmin, userTypeLoading]);
 
   return {
     migrationStatus,
