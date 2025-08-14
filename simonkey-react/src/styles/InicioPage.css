@@ -48,6 +48,7 @@
   color: #1e293b;
   margin: 0;
   padding: 0 0 0.75rem 0;
+  margin-bottom: 0.5rem;
   line-height: 1;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   -webkit-background-clip: text;
