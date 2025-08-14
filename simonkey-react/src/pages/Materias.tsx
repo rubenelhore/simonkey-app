@@ -103,6 +103,7 @@ const Materias: React.FC = () => {
       console.log('  - user:', user?.uid);
       console.log('  - isSchoolTeacher:', isSchoolTeacher);
       console.log('  - isSchoolStudent:', isSchoolStudent);
+      console.log('  - isSchoolAdmin:', isSchoolAdmin);
       
       if (!user) {
         console.log('  ❌ No hay usuario, saliendo');
@@ -117,6 +118,12 @@ const Materias: React.FC = () => {
         console.log('  ❌ Es profesor escolar, saliendo (las materias se cargan desde schoolSubjects)');
         // Para profesores escolares, las materias se cargan desde otro lugar
         // No establecer loading aquí porque se maneja en el efecto específico del profesor
+        return;
+      }
+      if (isSchoolAdmin) {
+        console.log('  ❌ Es administrador escolar, saliendo');
+        // Los administradores escolares no tienen materias propias
+        setLoading(false);
         return;
       }
       
@@ -179,7 +186,7 @@ const Materias: React.FC = () => {
       }
     };
     loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent, isSchoolTeacher]);
+  }, [user, refreshTrigger, isSchoolStudent, isSchoolTeacher, isSchoolAdmin]);
 
   // Log para debugging
   console.log('🔍 Materias - Estado actual del componente:', {
