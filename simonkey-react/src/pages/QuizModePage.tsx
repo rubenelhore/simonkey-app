@@ -1266,62 +1266,84 @@ const QuizModePage: React.FC = () => {
 
     const correctAnswers = responses.filter(r => r.isCorrect).length;
     const totalTime = quizSession.totalTime || 0;
+    const accuracy = Math.round((correctAnswers / questions.length) * 100);
+    const isNewRecord = finalScore > highestScore;
 
     return (
-      <div className="quiz-results">
-        <div className="results-header">
-          <i className="fas fa-trophy"></i>
-          <h2>¡Quiz completado!</h2>
-        </div>
-        
-        <div className="results-stats">
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-star"></i>
-            </div>
-            <div className="stat-value">{finalScore}</div>
-            <div className="stat-label">Puntuación final</div>
-          </div>
-          
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-check-circle"></i>
-            </div>
-            <div className="stat-value">{correctAnswers}/{questions.length}</div>
-            <div className="stat-label">Respuestas correctas</div>
-          </div>
-          
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-percentage"></i>
-            </div>
-            <div className="stat-value">{Math.round((correctAnswers / questions.length) * 100)}%</div>
-            <div className="stat-label">Precisión</div>
-          </div>
-          
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-clock"></i>
-            </div>
-            <div className="stat-value">{Math.round(totalTime)}s</div>
-            <div className="stat-label">Tiempo total</div>
-          </div>
-          
-          <div className="stat-item bonus">
-            <div className="stat-icon">
+      <div className="quiz-results-modern">
+        <div className="results-container">
+          {/* Celebración animada */}
+          <div className="celebration-section">
+            <div className="trophy-animation">
               <i className="fas fa-trophy"></i>
             </div>
-            <div className="stat-value">{Math.max(highestScore, finalScore)}</div>
-            <div className="stat-label">Score más alto</div>
+            <h2 className="results-title">Quiz Completado</h2>
+          </div>
+
+          {/* Estadísticas compactas */}
+          <div className="results-grid">
+            <div className="result-card">
+              <i className="fas fa-check-circle"></i>
+              <div className="result-info">
+                <span className="result-value">{correctAnswers}/{questions.length}</span>
+                <span className="result-label">Correctas</span>
+              </div>
+            </div>
+            
+            <div className="result-card">
+              <i className="fas fa-chart-line"></i>
+              <div className="result-info">
+                <span className="result-value">{accuracy}%</span>
+                <span className="result-label">Precisión</span>
+              </div>
+            </div>
+            
+            <div className="result-card">
+              <i className="fas fa-clock"></i>
+              <div className="result-info">
+                <span className="result-value">{Math.floor(totalTime / 60)}:{String(Math.round(totalTime % 60)).padStart(2, '0')}</span>
+                <span className="result-label">Tiempo</span>
+              </div>
+            </div>
+            
+            <div className="result-card highlight">
+              <i className="fas fa-medal"></i>
+              <div className="result-info">
+                <span className="result-value">{Math.max(highestScore, finalScore)}</span>
+                <span className="result-label">Mejor Score</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mensaje motivacional */}
+          <div className="motivation-message">
+            {accuracy >= 80 ? (
+              <p>¡Excelente trabajo! Dominas muy bien estos conceptos.</p>
+            ) : accuracy >= 60 ? (
+              <p>¡Buen trabajo! Sigue practicando para mejorar aún más.</p>
+            ) : (
+              <p>¡No te rindas! La práctica constante te llevará al éxito.</p>
+            )}
+          </div>
+
+          {/* Botones de acción */}
+          <div className="results-actions">
+            <button 
+              className="action-btn secondary"
+              onClick={() => window.location.reload()}
+            >
+              <i className="fas fa-redo"></i>
+              Repetir Quiz
+            </button>
+            <button 
+              className="action-btn primary"
+              onClick={() => navigate('/study')}
+            >
+              <i className="fas fa-arrow-left"></i>
+              Volver a Estudio
+            </button>
           </div>
         </div>
-        
-        <button 
-          className="back-to-study-btn"
-          onClick={() => navigate('/study')}
-        >
-          Regresar a estudio
-        </button>
       </div>
     );
   };
