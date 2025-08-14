@@ -868,6 +868,14 @@
 
   .calendar-nav {
     justify-content: center;
+    gap: 1.5rem;
+  }
+
+  /* Reducir tamaño de flechas de navegación en móvil */
+  .nav-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
   }
 
   .view-buttons {
@@ -877,6 +885,7 @@
 
   .calendar-title {
     font-size: 1.25rem;
+    min-width: 180px;
   }
 
   .view-buttons {
@@ -932,6 +941,34 @@
 }
 
 @media (max-width: 480px) {
+  /* Ajustes adicionales para pantallas muy pequeñas */
+  .calendar-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .calendar-nav {
+    gap: 1rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Reducir aún más el tamaño de las flechas en pantallas pequeñas */
+  .nav-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+  
+  .calendar-title {
+    font-size: 1.1rem;
+    min-width: 150px;
+  }
+  
+  .view-buttons {
+    transform: scale(0.9);
+  }
+  
   .calendar-day {
     min-height: 60px;
   }
