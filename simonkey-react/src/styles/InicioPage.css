@@ -272,7 +272,7 @@
 
 .horizontal-module {
   flex: 1;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 1.5rem;
@@ -291,7 +291,7 @@
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
   border-color: #cbd5e1;
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  background: #f8fafc;
 }
 
 .module-content {
