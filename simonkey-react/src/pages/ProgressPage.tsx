@@ -1373,7 +1373,7 @@ const ProgressPage: React.FC = () => {
 
   return (
     <>
-      <HeaderWithHamburger title="Progreso" />
+      <HeaderWithHamburger title="Mi Progreso" />
       <div className="progress-layout">
         <div className="progress-modules-row">
           {isSchoolUser && (

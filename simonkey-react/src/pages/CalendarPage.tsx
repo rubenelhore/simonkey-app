@@ -157,7 +157,7 @@ const CalendarPage: React.FC = () => {
   if (loading) {
     return (
       <div>
-        <HeaderWithHamburger title="Calendario" />
+        <HeaderWithHamburger title="Mi Calendario" />
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -174,7 +174,7 @@ const CalendarPage: React.FC = () => {
 
   return (
     <div>
-      <HeaderWithHamburger title="Calendario" />
+      <HeaderWithHamburger title="Mi Calendario" />
       <div style={{ 
         padding: '2rem',
         maxWidth: '1200px',

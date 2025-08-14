@@ -24,6 +24,7 @@ import { useUserType } from '../hooks/useUserType';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
 import { rankingUpdateService } from '../services/rankingUpdateService';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
@@ -61,9 +62,6 @@ const QuizModePage: React.FC = () => {
   
   // Estado de UI
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [showFeedback, setShowFeedback] = useState<boolean>(false);
-  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
-  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [showQuizIntro, setShowQuizIntro] = useState<boolean>(false);
   
   // Estado para el ID efectivo del usuario (para usuarios escolares)
@@ -664,18 +662,10 @@ const QuizModePage: React.FC = () => {
     if (isCorrect) {
       setScore(prev => prev + 1);
       createConfettiEffect(); // Añadir efecto de confeti
-      setFeedbackMessage('¡Correcto! 🎉');
-      setFeedbackType('success');
-    } else {
-      setFeedbackMessage(`Incorrecto. La respuesta correcta era: ${correctOption.term}`);
-      setFeedbackType('error');
     }
-
-    setShowFeedback(true);
 
     // Avanzar a la siguiente pregunta después de 2 segundos
     setTimeout(() => {
-      setShowFeedback(false);
       setSelectedOption(null);
       
       if (currentQuestionIndex < questions.length - 1) {
@@ -1155,7 +1145,7 @@ const QuizModePage: React.FC = () => {
           <div className="intro-actions">
             <button
               className="action-button secondary"
-              onClick={() => setShowQuizIntro(false)}
+              onClick={() => navigate('/study')}
             >
               <i className="fas fa-times"></i>
               Cancelar
@@ -1182,61 +1172,64 @@ const QuizModePage: React.FC = () => {
 
     return (
       <div className="quiz-session-container">
-        {/* Header con progreso y timer */}
-        <div className="quiz-header">
-          <div className="quiz-progress">
-            <div className="question-counter">
-              <span className="current-question">{currentQuestionIndex + 1}</span>
-              <span className="separator"> de </span>
-              <span className="total-questions">{questions.length}</span>
+        {/* Header moderno y compacto */}
+        <div className="quiz-header-modern">
+          <div className="quiz-header-content">
+            {/* Progreso de preguntas */}
+            <div className="quiz-progress-modern">
+              <div className="progress-text-horizontal">
+                Pregunta {currentQuestionIndex + 1}/{questions.length}
+              </div>
             </div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${progress}%` }}
-              ></div>
+
+            {/* Módulos de respuestas correctas e incorrectas */}
+            <div className="quiz-stats-modern">
+              <div className="stat-item-correct">
+                <div className="stat-icon">
+                  <i className="fas fa-check"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-value">{responses.filter(r => r.isCorrect).length}</span>
+                </div>
+              </div>
+              
+              <div className="stat-item-incorrect">
+                <div className="stat-icon">
+                  <i className="fas fa-times"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-value">{responses.filter(r => !r.isCorrect).length}</span>
+                </div>
+              </div>
             </div>
+            
+            {/* Timer con diseño moderno */}
+            <div className={`quiz-timer-modern ${timerClass}`}>
+              <div className="timer-icon">
+                <i className="fas fa-clock"></i>
+              </div>
+              <div className="timer-info">
+                <span className="timer-value">{formattedTime}</span>
+              </div>
+            </div>
+            
           </div>
           
-          {/* Timer */}
-          <div className={`quiz-timer ${timerClass}`}>
-            <div className="timer-display">
-              <i className="fas fa-clock"></i>
-              <span className="timer-text">{formattedTime}</span>
-            </div>
-            <div className="timer-progress">
-              <div 
-                className="timer-progress-fill" 
-                style={{ 
-                  width: `${progress}%`,
-                  backgroundColor: timerColor
-                }}
-              ></div>
-            </div>
-          </div>
-          
-          <div className="quiz-score">
-            <span className="score-label">Puntuación:</span>
-            <span className={`score-value ${score >= 0 ? 'positive' : 'negative'}`}>
-              {score >= 0 ? '+' : ''}{score}
-            </span>
-          </div>
         </div>
 
         {/* Pregunta */}
         <div className="quiz-question-container">
           <div className="question-definition">
-            <h3>Definición:</h3>
+            <h3>Pregunta:</h3>
             <p>{question.definition}</p>
             <div className="question-source">
               <span>Fuente: {question.source}</span>
             </div>
           </div>
-        </div>
 
-        {/* Opciones de respuesta */}
-        <div className="quiz-options-container">
-          {question.options.map((option) => (
+          {/* Opciones de respuesta */}
+          <div className="quiz-options-container">
+            {question.options.map((option) => (
             <button
               key={option.id}
               className={`quiz-option ${
@@ -1244,7 +1237,9 @@ const QuizModePage: React.FC = () => {
                   ? option.isCorrect 
                     ? 'correct' 
                     : 'incorrect'
-                  : ''
+                  : selectedOption && option.isCorrect
+                    ? 'correct-answer'
+                    : ''
               } ${selectedOption ? 'disabled' : ''}`}
               onClick={() => handleAnswerSelection(option.id)}
               disabled={selectedOption !== null}
@@ -1253,17 +1248,14 @@ const QuizModePage: React.FC = () => {
               {selectedOption === option.id && (
                 <i className={`fas ${option.isCorrect ? 'fa-check' : 'fa-times'}`}></i>
               )}
+              {selectedOption && selectedOption !== option.id && option.isCorrect && (
+                <i className="fas fa-check correct-icon"></i>
+              )}
             </button>
           ))}
+          </div>
         </div>
 
-        {/* Feedback */}
-        {showFeedback && (
-          <div className={`quiz-feedback ${feedbackType}`}>
-            <i className={`fas ${feedbackType === 'success' ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
-            <span>{feedbackMessage}</span>
-          </div>
-        )}
       </div>
     );
   };
@@ -1345,55 +1337,36 @@ const QuizModePage: React.FC = () => {
   });
 
   return (
-    <div className="quiz-mode-container">
-      {/* Pantalla de introducción al Quiz */}
-      {showQuizIntro && renderQuizIntro()}
-      
-      <header className="quiz-mode-header">
-        <div className="header-content">
-          <button
-            className="back-button"
-            onClick={() => {
-              if (sessionActive) {
-                if (window.confirm("⚠️ ¿Estás seguro de que quieres salir?\n\nSi cierras el quiz ahora, no podrás hacer otro quiz hasta la próxima semana. Tu progreso actual se perderá.\n\n¿Quieres continuar con el quiz?")) {
-                  navigate('/study');
-                }
-              } else {
-                navigate('/study');
-              }
-            }}
-          >
-            {sessionActive ? <i className="fas fa-times"></i> : <i className="fas fa-arrow-left"></i>}
-          </button>
-          
-          <h1>
-            {selectedNotebook ? selectedNotebook.title : 'Quiz'}
-          </h1>
-          
-          <div className="header-spacer"></div>
-        </div>
-      </header>
-      
-      <main className="quiz-mode-main">
-        {loading || isAutoStarting ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Iniciando quiz...</p>
-          </div>
-        ) : (
-          <>
-            {sessionActive && renderCurrentQuestion()}
-            {sessionComplete && renderQuizResults()}
-            {!sessionActive && !sessionComplete && (
-              <div className="loading-container">
-                <div className="loading-spinner"></div>
-                <p>Preparando quiz...</p>
-              </div>
-            )}
-          </>
-        )}
-      </main>
-    </div>
+    <>
+      <HeaderWithHamburger 
+        title="Quiz"
+        subtitle={selectedNotebook ? selectedNotebook.title : ''}
+      />
+      <div className="quiz-mode-container with-header-sidebar">
+        {/* Pantalla de introducción al Quiz */}
+        {showQuizIntro && renderQuizIntro()}
+        
+        <main className="quiz-mode-main">
+          {loading || isAutoStarting ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Iniciando quiz...</p>
+            </div>
+          ) : (
+            <>
+              {sessionActive && renderCurrentQuestion()}
+              {sessionComplete && renderQuizResults()}
+              {!sessionActive && !sessionComplete && (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <p>Preparando quiz...</p>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
+    </>
   );
 };
 
