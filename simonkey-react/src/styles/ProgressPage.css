@@ -1,5 +1,41 @@
 /* Progress Page Layout */
 
+/* Loading State - Homologado con StudyModePage */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E5E5EA;
+  border-top-color: #6147FF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-container p {
+  color: #8E8E93;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.progress-container {
+  min-height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
 .progress-layout {
   min-height: calc(100vh - 70px);
   background-color: white;
@@ -22,11 +58,23 @@
   flex: 0 0 320px;
 }
 
+/* Cuando no hay side module (usuarios no escolares) */
+.progress-module-col.no-side-module {
+  flex: 0 0 auto;  /* Solo ocupa el espacio del Score Global */
+  width: 320px;
+}
+
 .progress-modules-right {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* Para usuarios no escolares - ocupa todo el ancho cuando no hay side module */
+.progress-modules-right.full-width {
+  width: 100%;
+  max-width: 100%;
 }
 
 .progress-modules-right-row {
@@ -47,12 +95,108 @@
   background: white !important;
 }
 
+/* Corner Medal Module */
+.corner-medal-module {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 120px;
+  flex: 1 1 0;
+  max-width: 25%;
+  position: relative;
+}
+
+.corner-medal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.corner-medal-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.corner-medal-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.corner-medal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.corner-medal-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-height: 1rem;
+}
+
+.corner-medal-division {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.corner-medal-progress {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* Division Navigation Arrows */
+.division-nav-arrow {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.division-nav-arrow:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #6147FF;
+}
+
+.division-nav-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.division-nav-arrow.left {
+  margin-right: 8px;
+}
+
+.division-nav-arrow.right {
+  margin-left: 8px;
+}
+
 /* KPI Modules */
 .progress-module {
   background: white !important;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  border: none;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -506,6 +650,10 @@
   .progress-modules-right-row .progress-module.kpi-module {
     max-width: 100%;
   }
+  
+  .corner-medal-module {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
@@ -531,6 +679,20 @@
   .progress-modules-right-row .progress-module.kpi-module {
     max-width: 100%;
     width: 100%;
+  }
+  
+  .corner-medal-module {
+    max-width: 100%;
+    width: 100%;
+    padding: 16px;
+  }
+  
+  .corner-medal-icon {
+    font-size: 2rem;
+  }
+  
+  .corner-medal-division {
+    font-size: 1.25rem;
   }
 
   .kpi-module {

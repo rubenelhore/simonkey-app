@@ -833,6 +833,9 @@ const InicioPage: React.FC = () => {
         <section className="row-2">
           <div className="horizontal-modules-container">
             <div className="horizontal-module materias-dominio-module">
+              <div className="metric-info-icon" data-tooltip="Materias ordenadas por menor dominio">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="module-content">
                 <div className="module-header">
                   <h3>Materias</h3>
@@ -892,6 +895,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="horizontal-module study-modes-module">
+              <div className="metric-info-icon" data-tooltip="Selecciona tu modo de estudio preferido">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="module-content">
                 <div className="module-header">
                   <h3>Modos de Estudio</h3>
@@ -942,6 +948,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="horizontal-module progress-module">
+              <div className="metric-info-icon" data-tooltip="Resumen de tu progreso académico">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="module-content">
                 <div className="module-header">
                   <h3>Progreso</h3>
@@ -984,6 +993,9 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="horizontal-module calendar-module">
+              <div className="metric-info-icon" data-tooltip="Eventos y actividades programadas">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="module-content">
                 <div className="module-header">
                   <h3>Calendario</h3>

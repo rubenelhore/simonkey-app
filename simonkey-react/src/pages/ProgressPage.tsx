@@ -2,7 +2,9 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faChevronDown, 
+  faChevronDown,
+  faChevronLeft,
+  faChevronRight, 
   faTrophy, 
   faClock, 
   faBrain, 
@@ -25,7 +27,23 @@ import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from '
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { getPositionHistory } from '../utils/createPositionHistory';
 import ChartLoadingPlaceholder from '../components/Charts/ChartLoadingPlaceholder';
+import { useUserType } from '../hooks/useUserType';
 import '../styles/ProgressPage.css';
+
+// Division levels configuration - matching StudyModePage
+const DIVISION_LEVELS = {
+  WOOD: { name: 'Madera', icon: '🪵', min: 0, max: 24 },
+  STONE: { name: 'Piedra', icon: '⛰️', min: 25, max: 74 },
+  BRONZE: { name: 'Bronce', icon: '🥉', min: 75, max: 169 },
+  SILVER: { name: 'Plata', icon: '🥈', min: 170, max: 329 },
+  GOLD: { name: 'Oro', icon: '🥇', min: 330, max: 599 },
+  RUBY: { name: 'Rubí', icon: '💎', min: 600, max: 1399 },
+  JADE: { name: 'Jade', icon: '💚', min: 1400, max: 2799 },
+  CRYSTAL: { name: 'Cristal', icon: '💙', min: 2800, max: 5399 },
+  COSMIC: { name: 'Cósmico', icon: '💜', min: 5400, max: 9999 },
+  VOID: { name: 'Vacío', icon: '⚫', min: 10000, max: 19999 },
+  LEGEND: { name: 'Leyenda', icon: '⭐', min: 20000, max: Infinity }
+};
 
 // Lazy load de los componentes de gráficos
 const PositionHistoryChart = lazy(() => import('../components/Charts/PositionHistoryChart'));
@@ -62,6 +80,7 @@ interface CuadernoData {
 }
 
 const ProgressPage: React.FC = () => {
+  const { isSchoolUser, isSchoolStudent, isSchoolTeacher, isSchoolAdmin } = useUserType();
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1140,6 +1159,8 @@ const ProgressPage: React.FC = () => {
   const [positionHistoryData, setPositionHistoryData] = useState<PositionData[]>([]);
 
   const [studyTimeData, setStudyTimeData] = useState<StudyTimeData[]>([]);
+  const [viewingDivision, setViewingDivision] = useState<keyof typeof DIVISION_LEVELS>('WOOD');
+  const [conceptsLearned, setConceptsLearned] = useState(0);
 
   // Ya no necesitamos datos de ejemplo, usamos cuadernosReales
 
@@ -1148,6 +1169,61 @@ const ProgressPage: React.FC = () => {
   const globalPercentil = kpisData?.global?.percentilPromedioGlobal || 0;
   const globalStudyTime = kpisData?.global?.tiempoEstudioGlobal || 0;
   const globalSmartStudies = kpisData?.global?.estudiosInteligentesGlobal || 0;
+  
+  // Load concepts learned with minimum repetitions
+  useEffect(() => {
+    const loadConceptsLearned = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        const effectiveUserData = await getEffectiveUserId();
+        const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        // Get concepts with at least 2 repetitions (same as StudyModePage)
+        const conceptsWithMinReps = await kpiService.getConceptsWithMinRepetitions(userId, 2);
+        setConceptsLearned(conceptsWithMinReps);
+        
+        console.log('[ProgressPage] Concepts with min repetitions:', conceptsWithMinReps);
+      } catch (error) {
+        console.error('[ProgressPage] Error loading concepts learned:', error);
+      }
+    };
+    
+    loadConceptsLearned();
+  }, []);
+  const getCurrentDivision = (concepts: number): keyof typeof DIVISION_LEVELS => {
+    for (const [key, level] of Object.entries(DIVISION_LEVELS)) {
+      if (concepts >= level.min && concepts <= level.max) {
+        return key as keyof typeof DIVISION_LEVELS;
+      }
+    }
+    return 'WOOD';
+  };
+  const currentDivision = getCurrentDivision(conceptsLearned);
+  
+  // Division navigation
+  const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEVELS)[];
+  
+  const navigateToPreviousDivision = () => {
+    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
+    if (currentIndex > 0) {
+      setViewingDivision(DIVISION_KEYS[currentIndex - 1]);
+    }
+  };
+  
+  const navigateToNextDivision = () => {
+    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
+    if (currentIndex < DIVISION_KEYS.length - 1) {
+      setViewingDivision(DIVISION_KEYS[currentIndex + 1]);
+    }
+  };
+  
+  // Update viewing division when current division changes
+  useEffect(() => {
+    if (currentDivision) {
+      setViewingDivision(currentDivision);
+    }
+  }, [currentDivision]);
   
   // Métricas adicionales de los KPIs
 
@@ -1285,24 +1361,13 @@ const ProgressPage: React.FC = () => {
 
   if (loading && !kpisData) {
     return (
-      <>
+      <div className="progress-container">
         <HeaderWithHamburger title="Progreso" />
-        <div className="progress-layout">
-          <div className="loading-container" style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '100%', maxWidth: 400, margin: '0 auto', position: 'relative', height: 60 }}>
-              {/* Mono morado */}
-              <div style={{ position: 'absolute', left: `calc(${progress}% - 32px)`, top: -38, transition: 'left 0.12s linear', zIndex: 2, fontSize: 32 }}>
-                <span role="img" aria-label="mono" style={{ filter: 'hue-rotate(230deg)' }}>🐒</span>
-              </div>
-              {/* Barra de progreso */}
-              <div style={{ width: '100%', height: 18, background: '#ede9fe', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(97,71,255,0.07)' }}>
-                <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%)', borderRadius: 12, transition: 'width 0.12s linear' }} />
-              </div>
-            </div>
-            <p style={{ marginTop: 2, color: '#6b7280', fontWeight: 500 }}>Cargando tus datos de progreso...</p>
-          </div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando...</p>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -1311,7 +1376,8 @@ const ProgressPage: React.FC = () => {
       <HeaderWithHamburger title="Progreso" />
       <div className="progress-layout">
         <div className="progress-modules-row">
-          <div className="progress-module-col">
+          {isSchoolUser && (
+          <div className={`progress-module-col ${!isSchoolUser ? 'no-side-module' : ''}`}>
             {/* Módulo 1: Score Global */}
             <div className="progress-module kpi-module">
               <div className="kpi-icon icon-trophy">
@@ -1324,8 +1390,8 @@ const ProgressPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Módulo Lateral: Selector de Materias y Ranking */}
-            <div className="progress-side-module">
+            {/* Módulo Lateral: Selector de Materias y Ranking - Solo para usuarios escolares */}
+              <div className="progress-side-module">
               {materias.length === 0 ? (
                 <div className="no-materias-message">
                   <p>No hay materias disponibles. Crea cuadernos y asígnalos a materias para ver el progreso.</p>
@@ -1399,9 +1465,47 @@ const ProgressPage: React.FC = () => {
               )}
             </div>
           </div>
+          )}
 
-          <div className="progress-modules-right">
+          <div className={`progress-modules-right ${!isSchoolUser ? 'full-width' : ''}`}>
             <div className="progress-modules-right-row">
+              {/* Medal Module */}
+              <div className="corner-medal-module">
+                <button 
+                  className="division-nav-arrow left"
+                  onClick={navigateToPreviousDivision}
+                  disabled={DIVISION_KEYS.indexOf(viewingDivision) === 0}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} />
+                </button>
+                <div className="corner-medal-header">
+                  <div className="corner-medal-center">
+                    <div className="corner-medal-icon">
+                      {DIVISION_LEVELS[viewingDivision].icon}
+                    </div>
+                    <div className="corner-medal-content">
+                      <div className="corner-medal-label">
+                        {viewingDivision === currentDivision ? 'Tu división actual' : '\u00A0'}
+                      </div>
+                      <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
+                      <div className="corner-medal-progress">
+                        {viewingDivision === currentDivision 
+                          ? `${conceptsLearned} conceptos`
+                          : `${DIVISION_LEVELS[viewingDivision].min}-${DIVISION_LEVELS[viewingDivision].max === Infinity ? '∞' : DIVISION_LEVELS[viewingDivision].max} conceptos`
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  className="division-nav-arrow right"
+                  onClick={navigateToNextDivision}
+                  disabled={DIVISION_KEYS.indexOf(viewingDivision) === DIVISION_KEYS.length - 1}
+                >
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </button>
+              </div>
+              
               {/* Módulo 2: Percentil Promedio Global */}
               <div className="progress-module kpi-module">
                 <div className="kpi-icon icon-percentil">

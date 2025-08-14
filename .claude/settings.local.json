@@ -51,8 +51,10 @@
       "Bash(gcloud auth:*)",
       "Bash(gcloud resource-manager org-policies list:*)",
       "Bash(gcloud resource-manager org-policies describe:*)",
-      "Bash(gcloud resource-manager org-policies set-policy:*)"
+      "Bash(gcloud resource-manager org-policies set-policy:*)",
+      "Bash(git revert:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

@@ -26,6 +26,7 @@
   background: white;
   border-radius: 16px;
   padding: 1.5rem;
+  padding-bottom: 0.5rem;
   box-shadow: none;
   min-height: 100px;
   overflow: visible;
@@ -55,7 +56,6 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  border-bottom: 2px solid #e5e7eb;
   display: inline-block;
 }
 
@@ -111,7 +111,6 @@
   gap: 1rem;
   overflow: visible;
   padding: 1rem;
-  border-bottom: 1px solid #e5e7eb;
   padding-bottom: 0;
 }
 
@@ -288,7 +287,7 @@
   align-items: stretch;
   transition: all 0.3s ease;
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
@@ -298,6 +297,79 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
   border-color: #cbd5e1;
   background: #ffffff;
+}
+
+.horizontal-module .metric-info-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  cursor: help;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.horizontal-module:hover .metric-info-icon {
+  opacity: 0.6;
+}
+
+.horizontal-module .metric-info-icon:hover {
+  opacity: 1 !important;
+  color: #6366f1;
+}
+
+.horizontal-module .metric-info-icon[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-weight: normal;
+  font-style: normal;
+  font-family: 'Poppins', sans-serif;
+}
+
+.horizontal-module .metric-info-icon[data-tooltip]::after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e293b;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 99999;
+}
+
+.horizontal-module .metric-info-icon[data-tooltip]:hover::before,
+.horizontal-module .metric-info-icon[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Ajuste específico para el primer módulo (Materias) */
+.materias-dominio-module .metric-info-icon[data-tooltip]::before {
+  left: 30%;
+}
+
+.materias-dominio-module .metric-info-icon[data-tooltip]::after {
+  left: 30%;
 }
 
 .module-content {

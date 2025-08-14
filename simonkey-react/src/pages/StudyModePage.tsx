@@ -344,30 +344,43 @@ const StudyModePage = () => {
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
     let currentDivision = 'WOOD';
-    let nextMilestone = 5;
+    let nextMilestone = 20;
     
-    // Find current division
-    for (const [key, data] of Object.entries(DIVISION_LEVELS)) {
-      const maxInDivision = Math.max(...data.ranges);
-      if (concepts >= maxInDivision) {
-        continue;
-      } else {
-        currentDivision = key;
-        // Find next milestone in this division
-        for (const milestone of data.ranges) {
-          if (concepts < milestone) {
-            nextMilestone = milestone;
-            break;
-          }
-        }
-        break;
-      }
-    }
-    
-    // If beyond the highest division, stay at legend max
-    if (concepts >= 50000) {
+    // Determine division based on minimum threshold for each division
+    // Using the minimum value of each division's ranges
+    if (concepts >= 20000) {
       currentDivision = 'LEGEND';
       nextMilestone = 50000;
+    } else if (concepts >= 10000) {
+      currentDivision = 'VOID';
+      nextMilestone = 20000;
+    } else if (concepts >= 5400) {
+      currentDivision = 'COSMIC';
+      nextMilestone = 10000;
+    } else if (concepts >= 2800) {
+      currentDivision = 'CRYSTAL';
+      nextMilestone = 5400;
+    } else if (concepts >= 1400) {
+      currentDivision = 'JADE';
+      nextMilestone = 2800;
+    } else if (concepts >= 600) {
+      currentDivision = 'RUBY';
+      nextMilestone = 1400;
+    } else if (concepts >= 330) {
+      currentDivision = 'GOLD';
+      nextMilestone = 600;
+    } else if (concepts >= 170) {
+      currentDivision = 'SILVER';
+      nextMilestone = 330;
+    } else if (concepts >= 75) {
+      currentDivision = 'BRONZE';
+      nextMilestone = 170;
+    } else if (concepts >= 25) {
+      currentDivision = 'STONE';
+      nextMilestone = 75;
+    } else {
+      currentDivision = 'WOOD';
+      nextMilestone = 25;
     }
     
     setDivisionData({
@@ -996,26 +1009,25 @@ const StudyModePage = () => {
         <div className="main-study-module">
           {/* Study Module Header */}
           <div className="study-module-header">
-            {/* Medal Module */}
-            <div className="corner-medal-module">
-              <div className="corner-medal-header">
-                <div className="corner-medal-center">
-                  <div className="corner-medal-icon">
-                    {DIVISION_LEVELS[viewingDivision].icon}
-                  </div>
-                  <div className="corner-medal-content">
-                    {viewingDivision === divisionData.current && (
-                      <div className="corner-medal-label">Tu división actual</div>
-                    )}
-                    <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
-                    <div className="corner-medal-progress">{conceptsLearned} conceptos</div>
+            {/* Dropdown with Score and Medal */}
+            <div className="notebook-dropdown-wrapper">
+              {/* Medal Module */}
+              <div className="corner-medal-module">
+                <div className="corner-medal-header">
+                  <div className="corner-medal-center">
+                    <div className="corner-medal-icon">
+                      {DIVISION_LEVELS[viewingDivision].icon}
+                    </div>
+                    <div className="corner-medal-content">
+                      {viewingDivision === divisionData.current && (
+                        <div className="corner-medal-label">Tu división actual</div>
+                      )}
+                      <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
+                      <div className="corner-medal-progress">{conceptsLearned} conceptos</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Dropdown with Score */}
-            <div className="notebook-dropdown-wrapper">
               <div className="notebook-dropdown-container">
             <button 
                 className={`notebook-dropdown-btn ${showNotebookError ? 'error' : ''}`}
@@ -1115,6 +1127,9 @@ const StudyModePage = () => {
               {selectedNotebook && (
                 <div className="study-count-badge">#{smartStudyCount || 0}</div>
               )}
+              <div className="function-info-icon" data-tooltip="Repasa conceptos con algoritmo adaptativo">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faBrain} />
               </div>
@@ -1161,6 +1176,9 @@ const StudyModePage = () => {
               {selectedNotebook && maxQuizScore > 0 && (
                 <div className="quiz-score-badge">Max: {maxQuizScore}</div>
               )}
+              <div className="function-info-icon" data-tooltip="Evalúa tu conocimiento con preguntas">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faQuestion} />
               </div>
@@ -1188,6 +1206,9 @@ const StudyModePage = () => {
               {selectedNotebook && (
                 <div className="free-study-badge">#{freeStudyCount || 0}</div>
               )}
+              <div className="function-info-icon" data-tooltip="Practica a tu propio ritmo">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faBook} />
               </div>
@@ -1211,6 +1232,9 @@ const StudyModePage = () => {
               {selectedNotebook && (
                 <div className="game-points-badge">Pts: {gamePoints || 0}</div>
               )}
+              <div className="function-info-icon" data-tooltip="Aprende jugando de forma divertida">
+                <i className="fas fa-info-circle"></i>
+              </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faGamepad} />
               </div>
@@ -1232,6 +1256,9 @@ const StudyModePage = () => {
             >
               <div className="coming-soon-tag">
                 Próximamente
+              </div>
+              <div className="function-info-icon" data-tooltip="Simulacro de examen personalizado">
+                <i className="fas fa-info-circle"></i>
               </div>
               <div className="function-icon">
                 <FontAwesomeIcon icon={faMedal} />

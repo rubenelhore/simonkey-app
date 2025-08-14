@@ -881,22 +881,13 @@ const Materias: React.FC = () => {
   if (loading || authLoading || (isSchoolStudent && schoolLoading)) {
     console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading, isSchoolTeacher });
     return (
-      <>
-        <HeaderWithHamburger
-          title="Mis Materias"
-        />
-        <div className="loading-container" style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 'calc(100vh - 64px)',
-          gap: '1rem'
-        }}>
-          <FontAwesomeIcon icon={faSpinner} spin size="3x" style={{ color: '#6b7280' }} />
-          <p style={{ fontSize: '1.1rem', margin: 0, color: '#6b7280' }}>Cargando materias...</p>
+      <div className="materias-container">
+        <HeaderWithHamburger title="Mis Materias" />
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando...</p>
         </div>
-      </>
+      </div>
     );
   }
 
