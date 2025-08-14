@@ -273,7 +273,7 @@
 .horizontal-module {
   flex: 1;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
@@ -284,13 +284,12 @@
   cursor: pointer;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .horizontal-module:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-  border-color: #cbd5e1;
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
 }
 
