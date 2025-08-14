@@ -1286,7 +1286,7 @@ const ProgressPage: React.FC = () => {
   if (loading && !kpisData) {
     return (
       <>
-        <HeaderWithHamburger title="Progreso" />
+        <HeaderWithHamburger title="Mi Progreso" />
         <div className="progress-layout">
           <div className="loading-container" style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '100%', maxWidth: 400, margin: '0 auto', position: 'relative', height: 60 }}>
@@ -1308,7 +1308,7 @@ const ProgressPage: React.FC = () => {
 
   return (
     <>
-      <HeaderWithHamburger title="Progreso" />
+      <HeaderWithHamburger title="Mi Progreso" />
       <div className="progress-layout">
         <div className="progress-modules-row">
           <div className="progress-module-col">
