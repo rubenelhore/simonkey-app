@@ -110,7 +110,7 @@
   overflow: visible;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 1.5rem;
+  padding-bottom: 0;
 }
 
 .metric-card {
