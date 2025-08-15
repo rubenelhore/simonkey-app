@@ -1,5 +1,6 @@
 import { teacherKpiService } from '../services/teacherKpiService';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Wrapper para obtener las métricas del profesor de forma correcta
@@ -16,14 +17,37 @@ export async function getTeacherMetricsWithProfile(userProfile: any) {
     const teacherUid = userProfile.id;
     console.log('[getTeacherMetrics] Teacher UID (del perfil):', teacherUid);
     console.log('[getTeacherMetrics] Current user UID:', auth.currentUser?.uid);
-    console.log('[getTeacherMetrics] UserProfile completo:', JSON.stringify(userProfile, null, 2));
-    console.log('[getTeacherMetrics] Campos del UserProfile:');
-    Object.keys(userProfile).forEach(key => {
-      console.log(`  - ${key}:`, userProfile[key]);
-    });
-    console.log('[getTeacherMetrics] ID Institución (idInstitucion):', userProfile.idInstitucion);
-    console.log('[getTeacherMetrics] ID Escuela (idEscuela):', userProfile.idEscuela);
-    console.log('[getTeacherMetrics] School Data:', userProfile.schoolData);
+    
+    // Si el profesor no tiene idInstitucion pero tiene idAdmin, obtenerla del admin
+    let effectiveInstitutionId = userProfile.idInstitucion;
+    
+    if (!effectiveInstitutionId && userProfile.idAdmin) {
+      console.log('[getTeacherMetrics] Profesor sin idInstitucion, buscando del admin:', userProfile.idAdmin);
+      
+      // Buscar el documento del admin
+      const adminDoc = await getDoc(doc(db, 'users', userProfile.idAdmin));
+      
+      if (adminDoc.exists()) {
+        const adminData = adminDoc.data();
+        effectiveInstitutionId = adminData.idInstitucion;
+        
+        if (effectiveInstitutionId) {
+          console.log('[getTeacherMetrics] ID Institución encontrado del admin:', effectiveInstitutionId);
+          
+          // Actualizar el profesor con la institución
+          await updateDoc(doc(db, 'users', teacherUid), {
+            idInstitucion: effectiveInstitutionId
+          });
+          
+          console.log('[getTeacherMetrics] Profesor actualizado con idInstitucion');
+          
+          // Actualizar el userProfile local
+          userProfile.idInstitucion = effectiveInstitutionId;
+        }
+      }
+    }
+    
+    console.log('[getTeacherMetrics] ID Institución final:', effectiveInstitutionId);
     console.log('[getTeacherMetrics] ID Admin:', userProfile.idAdmin);
 
     // Primero intentar obtener métricas existentes
@@ -32,7 +56,12 @@ export async function getTeacherMetricsWithProfile(userProfile: any) {
     if (!metrics) {
       console.log('[getTeacherMetrics] No hay métricas, creando nuevas...');
       
-      // Pasar el userProfile para que use el ID correcto en las consultas
+      // Asegurarse de que el userProfile tenga la institución
+      if (effectiveInstitutionId && !userProfile.idInstitucion) {
+        userProfile.idInstitucion = effectiveInstitutionId;
+      }
+      
+      // Pasar el userProfile actualizado para que use el ID correcto en las consultas
       await teacherKpiService.updateTeacherMetrics(teacherUid, userProfile);
       
       // Obtener las métricas recién creadas
