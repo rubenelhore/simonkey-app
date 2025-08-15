@@ -26,26 +26,35 @@ export class UnifiedNotebookService {
    * Obtiene un notebook por ID, buscando primero en notebooks y luego en schoolNotebooks
    */
   static async getNotebook(notebookId: string): Promise<Notebook | null> {
-    // Primero buscar en notebooks regulares
-    const regularDoc = await getDoc(doc(db, 'notebooks', notebookId));
-    if (regularDoc.exists()) {
-      const data = regularDoc.data();
-      return {
-        id: regularDoc.id,
-        type: data.type || 'personal', // Si no tiene type, asumimos que es personal
-        ...data
-      } as Notebook;
+    // Primero intentar en schoolNotebooks si el ID parece ser de un notebook escolar
+    // o si sabemos que el usuario es escolar
+    try {
+      const schoolDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+      if (schoolDoc.exists()) {
+        const data = schoolDoc.data();
+        return {
+          id: schoolDoc.id,
+          type: 'school',
+          ...data
+        } as Notebook;
+      }
+    } catch (error) {
+      console.log('No se pudo acceder a schoolNotebooks, intentando notebooks regulares...');
     }
     
-    // Si no existe, buscar en schoolNotebooks
-    const schoolDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-    if (schoolDoc.exists()) {
-      const data = schoolDoc.data();
-      return {
-        id: schoolDoc.id,
-        type: 'school',
-        ...data
-      } as Notebook;
+    // Si no existe en schoolNotebooks, buscar en notebooks regulares
+    try {
+      const regularDoc = await getDoc(doc(db, 'notebooks', notebookId));
+      if (regularDoc.exists()) {
+        const data = regularDoc.data();
+        return {
+          id: regularDoc.id,
+          type: data.type || 'personal', // Si no tiene type, asumimos que es personal
+          ...data
+        } as Notebook;
+      }
+    } catch (error) {
+      console.log('No se pudo acceder a notebooks regulares');
     }
     
     return null;
@@ -81,9 +90,9 @@ export class UnifiedNotebookService {
    * Obtiene notebooks escolares para un profesor
    */
   static async getTeacherNotebooks(materiaIds: string[], teacherId?: string): Promise<Notebook[]> {
-    console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
-    console.log('  - materiaIds:', materiaIds);
-    console.log('  - teacherId:', teacherId);
+    // console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
+    // console.log('  - materiaIds:', materiaIds);
+    // console.log('  - teacherId:', teacherId);
     
     if (!materiaIds || materiaIds.length === 0) {
       console.log('  ❌ No hay materiaIds, retornando array vacío');
@@ -112,16 +121,16 @@ export class UnifiedNotebookService {
       ...constraints
     );
     
-    console.log('  📖 Ejecutando query en schoolNotebooks');
-    console.log('     Query: where idMateria in', materiaIds);
-    if (teacherId) {
-      console.log('     Query: where idProfesor ==', teacherId);
-    }
+    // console.log('  📖 Ejecutando query en schoolNotebooks');
+    // console.log('     Query: where idMateria in', materiaIds);
+    // if (teacherId) {
+    //   console.log('     Query: where idProfesor ==', teacherId);
+    // }
     
     let schoolSnapshot;
     try {
       schoolSnapshot = await getDocs(schoolQuery);
-      console.log('  📊 Documentos encontrados con query compuesto:', schoolSnapshot.size);
+      // console.log('  📊 Documentos encontrados con query compuesto:', schoolSnapshot.size);
     } catch (error) {
       console.error('  ❌ Error con query compuesto:', error);
       console.log('  🔄 Intentando query alternativo...');
@@ -155,7 +164,9 @@ export class UnifiedNotebookService {
       return notebooks;
     }
     
-    // Debug: buscar TODOS los notebooks para ver qué hay ANTES de procesar
+    // Debug desactivado para evitar logs excesivos
+    // Si necesitas debug, descomentar las siguientes líneas:
+    /*
     console.log('  🔍 DEBUG: Buscando TODOS los notebooks en schoolNotebooks...');
     const allNotebooks = await getDocs(collection(db, 'schoolNotebooks'));
     console.log('  🔍 TOTAL notebooks en schoolNotebooks:', allNotebooks.size);
@@ -175,13 +186,14 @@ export class UnifiedNotebookService {
       }
     });
     console.log(`  📊 Total que deberían coincidir: ${matchingCount}`);
+    */
     
     schoolSnapshot.forEach(doc => {
       const data = doc.data();
-      console.log(`  📓 Notebook encontrado: ${doc.id}`);
-      console.log(`     - title: ${data.title}`);
-      console.log(`     - idMateria: ${data.idMateria}`);
-      console.log(`     - idProfesor: ${data.idProfesor}`);
+      // console.log(`  📓 Notebook encontrado: ${doc.id}`);
+      // console.log(`     - title: ${data.title}`);
+      // console.log(`     - idMateria: ${data.idMateria}`);
+      // console.log(`     - idProfesor: ${data.idProfesor}`);
       notebooks.push({
         id: doc.id,
         type: 'school',
@@ -189,7 +201,7 @@ export class UnifiedNotebookService {
       } as Notebook);
     });
     
-    console.log('  ✅ Total notebooks retornados:', notebooks.length);
+    // console.log('  ✅ Total notebooks retornados:', notebooks.length);
     return notebooks;
   }
   

@@ -125,10 +125,16 @@ const QuizModePage: React.FC = () => {
   useEffect(() => {
     const loadEffectiveUserId = async () => {
       if (auth.currentUser) {
-        const effectiveUserData = await getEffectiveUserId();
-        const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-        setEffectiveUserId(userId);
-        console.log('[QuizModePage] Effective userId loaded:', userId);
+        try {
+          const effectiveUserData = await getEffectiveUserId();
+          const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+          setEffectiveUserId(userId);
+          console.log('[QuizModePage] Effective userId loaded:', userId);
+        } catch (error) {
+          // Si falla, usar el UID de Firebase como fallback
+          console.log('[QuizModePage] Using Firebase UID as fallback');
+          setEffectiveUserId(auth.currentUser.uid);
+        }
       }
     };
     loadEffectiveUserId();

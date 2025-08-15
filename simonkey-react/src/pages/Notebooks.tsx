@@ -857,7 +857,7 @@ const Notebooks: React.FC = () => {
     );
   }
 
-  if (!isSchoolStudent && notebooksError) {
+  if (!isSchoolStudent && !isSchoolAdmin && !isSchoolTeacher && notebooksError) {
     console.error('Error loading notebooks:', notebooksError);
     return (
       <div className="error-container">
@@ -934,7 +934,7 @@ const Notebooks: React.FC = () => {
             onColorChange={isSchoolStudent ? undefined : handleColorChange}
             onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
             onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
-            showCreateButton={!isSchoolStudent}
+            showCreateButton={!isSchoolStudent && !isSchoolAdmin}
             isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}

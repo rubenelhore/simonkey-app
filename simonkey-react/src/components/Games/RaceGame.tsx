@@ -121,38 +121,115 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   }, [gameStarted, gameOver, concepts, conceptsRef.current]);
 
   const loadConcepts = async () => {
-    console.log('⏳ Iniciando carga de conceptos mock para race game...');
+    console.log('⏳ Iniciando carga de conceptos del cuaderno:', notebookId);
     setLoading(true);
     
-    // Usar conceptos mock para testing rápido
-    const mockConcepts: Concept[] = [
-      { id: '1', term: 'React', definition: 'Una biblioteca de JavaScript para construir interfaces de usuario' },
-      { id: '2', term: 'Estado', definition: 'Datos que pueden cambiar a lo largo del tiempo en un componente' },
-      { id: '3', term: 'Props', definition: 'Propiedades que se pasan de un componente padre a un componente hijo' },
-      { id: '4', term: 'JSX', definition: 'Una extensión de sintaxis para JavaScript que permite escribir HTML en React' },
-      { id: '5', term: 'Hook', definition: 'Funciones especiales que te permiten usar estado y otras características de React' },
-      { id: '6', term: 'Componente', definition: 'Una función o clase que devuelve elementos de React' },
-      { id: '7', term: 'Virtual DOM', definition: 'Una representación en memoria del DOM real mantenida por React' },
-      { id: '8', term: 'useEffect', definition: 'Un Hook que te permite realizar efectos secundarios en componentes funcionales' },
-      { id: '9', term: 'useState', definition: 'Un Hook que te permite añadir estado a componentes funcionales' },
-      { id: '10', term: 'Renderizado', definition: 'El proceso de convertir componentes de React en elementos del DOM' }
-    ];
+    try {
+      if (!auth.currentUser) {
+        console.error('No hay usuario autenticado');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
 
-    console.log('🚀 Usando conceptos mock para race game:', mockConcepts.length);
-    
-    // Guardar en ref para persistencia
-    conceptsRef.current = mockConcepts;
-    setConcepts(mockConcepts);
-    
-    // Verificar que los conceptos se guardaron correctamente
-    setTimeout(() => {
-      console.log('🔍 Verificando conceptos después de setConcepts:');
-      console.log('  - State concepts.length:', concepts.length);
-      console.log('  - Ref conceptsRef.current.length:', conceptsRef.current.length);
-    }, 100);
-    
-    console.log('✅ Conceptos cargados, finalizando loading');
-    setLoading(false);
+      // Si ya tenemos conceptos cacheados, usarlos
+      if (cachedConcepts && cachedConcepts.length > 0) {
+        console.log('📚 Usando conceptos cacheados:', cachedConcepts.length);
+        console.log('📚 Primer concepto cacheado:', cachedConcepts[0]);
+        const gameConcepts = cachedConcepts.map(c => ({
+          id: c.id,
+          term: c.término || c.termino || c.term || '',
+          definition: c.definición || c.definicion || c.definition || ''
+        }));
+        console.log('🎮 Conceptos mapeados para el juego:', gameConcepts);
+        
+        conceptsRef.current = gameConcepts;
+        setConcepts(gameConcepts);
+        setLoading(false);
+        return;
+      }
+
+      // Determinar la colección según el tipo de usuario
+      const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      const notebookField = isSchoolStudent ? 'idCuaderno' : 'cuadernoId';
+      
+      console.log('🔍 Buscando conceptos en:', conceptsCollection, 'para cuaderno:', notebookId);
+      console.log('🔍 Usando campo:', notebookField);
+      
+      // Primero intentar con el campo esperado
+      let conceptsQuery = query(
+        collection(db, conceptsCollection),
+        where(notebookField, '==', notebookId)
+      );
+      
+      let conceptsSnapshot = await getDocs(conceptsQuery);
+      
+      // Si no encuentra conceptos y es estudiante escolar, intentar con cuadernoId como fallback
+      if (conceptsSnapshot.empty && isSchoolStudent) {
+        console.log('⚠️ No se encontraron conceptos con idCuaderno, intentando con cuadernoId...');
+        conceptsQuery = query(
+          collection(db, conceptsCollection),
+          where('cuadernoId', '==', notebookId)
+        );
+        conceptsSnapshot = await getDocs(conceptsQuery);
+      }
+      
+      if (conceptsSnapshot.empty) {
+        console.log('❌ No se encontraron conceptos para el cuaderno');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
+      
+      const loadedConcepts: Concept[] = [];
+      conceptsSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Manejar tanto el formato de conceptos regulares como escolares
+        if (data.conceptos && Array.isArray(data.conceptos)) {
+          // Formato de documento con array de conceptos
+          data.conceptos.forEach((concept: any) => {
+            loadedConcepts.push({
+              id: concept.id || doc.id + '_' + loadedConcepts.length,
+              term: concept.término || concept.termino || concept.term || '',
+              definition: concept.definición || concept.definicion || concept.definition || ''
+            });
+          });
+        } else {
+          // Formato de concepto individual
+          loadedConcepts.push({
+            id: doc.id,
+            term: data.término || data.termino || data.term || '',
+            definition: data.definición || data.definicion || data.definition || ''
+          });
+        }
+      });
+      
+      if (loadedConcepts.length === 0) {
+        console.log('❌ No hay conceptos válidos en el cuaderno');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ Conceptos cargados del cuaderno:', loadedConcepts.length);
+      
+      // Guardar en ref para persistencia
+      conceptsRef.current = loadedConcepts;
+      setConcepts(loadedConcepts);
+      
+      // Verificar que los conceptos se guardaron correctamente
+      setTimeout(() => {
+        console.log('🔍 Verificando conceptos después de setConcepts:');
+        console.log('  - State concepts.length:', concepts.length);
+        console.log('  - Ref conceptsRef.current.length:', conceptsRef.current.length);
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Error cargando conceptos:', error);
+      setNoReviewedConcepts(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const spawnNewQuestion = () => {
@@ -161,6 +238,10 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     console.log('  - concepts.length:', concepts.length);
     console.log('  - conceptsRef.current.length:', conceptsRef.current.length);
     console.log('  - usando:', currentConcepts.length);
+    
+    if (currentConcepts.length > 0) {
+      console.log('  - Primer concepto:', currentConcepts[0]);
+    }
     
     if (currentConcepts.length < 3) {
       console.log('❌ No hay suficientes conceptos (mínimo 3)');
@@ -174,6 +255,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     // Select a random concept for the correct answer
     const correctIndex = Math.floor(Math.random() * currentConcepts.length);
     const correct = currentConcepts[correctIndex];
+    console.log('  - Concepto correcto seleccionado:', correct);
     
     // Get two wrong answers
     const wrongConcepts = currentConcepts.filter((_, index) => index !== correctIndex);
@@ -503,10 +585,10 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
             <div className="empty-state">
-              <i className="fas fa-graduation-cap"></i>
-              <h2>¡Primero necesitas estudiar!</h2>
-              <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
-              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <i className="fas fa-book-open"></i>
+              <h2>¡No hay conceptos en este cuaderno!</h2>
+              <p>Este cuaderno no tiene conceptos disponibles para jugar.</p>
+              <p>Asegúrate de que el cuaderno tenga conceptos agregados antes de jugar.</p>
               <button className="primary-button" onClick={onBack}>
                 Volver
               </button>

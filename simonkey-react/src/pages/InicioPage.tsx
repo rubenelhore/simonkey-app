@@ -297,9 +297,14 @@ const InicioPage: React.FC = () => {
         try {
           // Para usuarios escolares, usar una lógica diferente
           let domainProgress;
-          if (isSchoolStudent || isSchoolTeacher) {
-            // Para usuarios escolares, calcular dominio basado en notebooks de la materia
-            console.log(`📊 Calculando dominio para materia escolar: ${materiaDoc.id}`);
+          if (isSchoolStudent) {
+            // Los estudiantes escolares no tienen notebooks personales,
+            // así que no calculamos progreso de dominio
+            console.log(`📊 Saltando cálculo de dominio para estudiante escolar`);
+            domainProgress = { total: 0, dominated: 0, learning: 0, notStarted: 0 };
+          } else if (isSchoolTeacher) {
+            // Los profesores pueden tener un cálculo diferente si es necesario
+            console.log(`📊 Calculando dominio para profesor escolar: ${materiaDoc.id}`);
             domainProgress = await getDomainProgressForMateria(materiaDoc.id);
           } else {
             domainProgress = await getDomainProgressForMateria(materiaDoc.id);

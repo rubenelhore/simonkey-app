@@ -44,10 +44,18 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
       console.log('🔍 Cargando usuarios de la escuela:', schoolId);
       const usersList: UserCredential[] = [];
       
-      // 1. Obtener estudiantes de la escuela
+      // Obtener el adminId del usuario actual
+      const adminId = auth.currentUser?.uid;
+      if (!adminId) {
+        console.error('No hay usuario autenticado');
+        setLoading(false);
+        return;
+      }
+      
+      // 1. Obtener estudiantes de la escuela (buscar por idAdmin del admin actual)
       const studentsQuery = query(
         collection(db, 'users'),
-        where('idInstitucion', '==', schoolId),
+        where('idAdmin', '==', adminId),
         where('schoolRole', '==', 'student')
       );
       
@@ -68,78 +76,37 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
         });
       }
       
-      // 2. Obtener el admin de la escuela para buscar profesores
-      const adminQuery = query(
+      // 2. Obtener profesores directamente con el adminId actual
+      console.log(`👨‍💼 Usando admin ID: ${adminId}`);
+      
+      // 3. Obtener profesores (tienen idAdmin)
+      const teachersQuery = query(
         collection(db, 'users'),
-        where('idInstitucion', '==', schoolId),
-        where('schoolRole', '==', 'admin')
+        where('idAdmin', '==', adminId),
+        where('schoolRole', '==', 'teacher')
       );
       
-      const adminSnap = await getDocs(adminQuery);
+      const teachersSnap = await getDocs(teachersQuery);
+      console.log(`👨‍🏫 Profesores encontrados: ${teachersSnap.size}`);
       
-      if (!adminSnap.empty) {
-        const adminId = adminSnap.docs[0].id;
-        console.log(`👨‍💼 Admin encontrado: ${adminId}`);
-        
-        // 3. Obtener profesores (tienen idAdmin)
-        const teachersQuery = query(
-          collection(db, 'users'),
-          where('idAdmin', '==', adminId),
-          where('schoolRole', '==', 'teacher')
-        );
-        
-        const teachersSnap = await getDocs(teachersQuery);
-        console.log(`👨‍🏫 Profesores encontrados: ${teachersSnap.size}`);
-        
-        for (const teacherDoc of teachersSnap.docs) {
-          const teacherData = teacherDoc.data();
-          usersList.push({
-            userId: teacherDoc.id,
-            email: teacherData.email,
-            userName: teacherData.displayName || teacherData.nombre || 'Sin nombre',
-            userRole: 'teacher',
-            temporaryPassword: '',
-            emailSent: false,
-            firstLogin: teacherData.lastLogin ? true : false,
-            createdAt: teacherData.createdAt?.toDate() || new Date()
-          });
-        }
+      for (const teacherDoc of teachersSnap.docs) {
+        const teacherData = teacherDoc.data();
+        usersList.push({
+          userId: teacherDoc.id,
+          email: teacherData.email,
+          userName: teacherData.displayName || teacherData.nombre || 'Sin nombre',
+          userRole: 'teacher',
+          temporaryPassword: '',
+          emailSent: false,
+          firstLogin: teacherData.lastLogin ? true : false,
+          createdAt: teacherData.createdAt?.toDate() || new Date()
+        });
       }
       
-      // 4. Obtener tutores (tienen idAlumnos array)
-      const tutorsQuery = query(
-        collection(db, 'users'),
-        where('schoolRole', '==', 'tutor')
-      );
-      
-      const tutorsSnap = await getDocs(tutorsQuery);
-      const studentIds = new Set(studentsSnap.docs.map(doc => doc.id));
+      // 4. Obtener tutores - Por ahora no incluimos tutores ya que requeriría permisos adicionales
+      // Los tutores se pueden gestionar por separado si es necesario
       let tutorCount = 0;
-      
-      for (const tutorDoc of tutorsSnap.docs) {
-        const tutorData = tutorDoc.data();
-        
-        // Verificar si el tutor tiene alumnos de esta escuela
-        if (tutorData.idAlumnos && Array.isArray(tutorData.idAlumnos)) {
-          const belongsToSchool = tutorData.idAlumnos.some(studentId => 
-            studentIds.has(studentId)
-          );
-          
-          if (belongsToSchool) {
-            tutorCount++;
-            usersList.push({
-              userId: tutorDoc.id,
-              email: tutorData.email,
-              userName: tutorData.displayName || tutorData.nombre || 'Sin nombre',
-              userRole: 'tutor',
-              temporaryPassword: '',
-              emailSent: false,
-              firstLogin: tutorData.lastLogin ? true : false,
-              createdAt: tutorData.createdAt?.toDate() || new Date()
-            });
-          }
-        }
-      }
+      console.log(`👨‍👩‍👧‍👦 Tutores: Función temporalmente deshabilitada`);
       
       console.log(`👨‍👩‍👧‍👦 Tutores encontrados: ${tutorCount}`);
       console.log(`✅ Total usuarios: ${usersList.length}`);

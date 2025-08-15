@@ -95,7 +95,7 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
     };
 
     loadNotebooksForMateria();
-  }, [selectedMateriaId, notebooks]);
+  }, [selectedMateriaId]);
 
   // Calcular total de conceptos cuando cambian los cuadernos seleccionados
   useEffect(() => {
@@ -220,6 +220,8 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         notebookIds: examData.selectedNotebooks,
         percentageQuestions: examData.percentageQuestions,
         timePerConcept: examData.timePerConcept,
+        duration: examData.timePerConcept * examData.totalConcepts, // Duración total en segundos
+        questions: [], // Array vacío de preguntas (se generarán dinámicamente)
         totalConcepts: examData.totalConcepts,
         questionsPerStudent: examData.questionsPerStudent,
         createdAt: serverTimestamp() as any,
@@ -238,16 +240,30 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         idProfesor: newExam.idProfesor,
         idEscuela: newExam.idEscuela,
         notebookIds: newExam.notebookIds,
+        duration: newExam.duration,
+        questions: newExam.questions,
         isActive: newExam.isActive
       });
 
       const docRef = await addDoc(collection(db, 'schoolExams'), newExam);
       console.log('✅ Examen creado exitosamente con ID:', docRef.id);
+      
+      // Verificar que el documento se creó correctamente
+      const verifyDoc = await getDoc(doc(db, 'schoolExams', docRef.id));
+      if (!verifyDoc.exists()) {
+        console.error('⚠️ El examen se creó pero no se puede verificar');
+      } else {
+        console.log('✅ Examen verificado exitosamente');
+      }
+      
       onExamCreated();
       
       // Preguntar si quiere ver el dashboard del examen
       if (window.confirm('¿Deseas ver el dashboard del examen creado?')) {
-        window.location.href = `/exam/${docRef.id}/dashboard`;
+        // Usar navigate en lugar de window.location.href para mejor manejo del routing
+        setTimeout(() => {
+          window.location.href = `/exam/${docRef.id}/dashboard`;
+        }, 500); // Pequeño delay para asegurar que el documento esté completamente sincronizado
       }
       
       onClose();

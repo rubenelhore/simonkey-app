@@ -139,12 +139,12 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     fetchTodayEvents();
   }, [user]);
 
-  // Cargar notebooks del usuario (solo para estudiantes)
+  // Cargar notebooks del usuario (solo para usuarios no escolares)
   useEffect(() => {
     if (!user) return;
     
-    // No cargar notebooks para profesores o administradores escolares
-    if (isSchoolTeacher || isSchoolAdmin) {
+    // No cargar notebooks para usuarios escolares (profesores, administradores y estudiantes)
+    if (isSchoolTeacher || isSchoolAdmin || isSchoolStudent) {
       setNotebooks([]);
       return;
     }
@@ -168,7 +168,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       }
     };
     loadNotebooks();
-  }, [user, isSchoolTeacher, isSchoolAdmin]);
+  }, [user, isSchoolTeacher, isSchoolAdmin, isSchoolStudent]);
 
   // Buscar estudios inteligentes disponibles hoy
   useEffect(() => {

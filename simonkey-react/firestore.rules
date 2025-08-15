@@ -95,16 +95,29 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: users
     // ========================================
     match /users/{userId} {
-      // Lectura: propietario, super admin, o admin escolar leyendo sus profesores/estudiantes
+      // Lectura: combinar get y list con las mismas reglas
       allow read: if isOwner(userId) || 
                      isSuperAdmin() ||
-                     // Admin escolar puede leer profesores con su idAdmin
+                     // Permitir a usuarios autenticados leer su propio documento por email
+                     (isAuthenticated() && 
+                      resource.data.email == request.auth.token.email) ||
+                     // Admin escolar puede leer cualquier usuario escolar
+                     (hasSchoolRole('admin') && 
+                      resource.data.subscription == 'school') ||
+                     // Admin escolar puede hacer queries de usuarios de su escuela
                      (hasSchoolRole('admin') && 
                       resource.data.idAdmin == request.auth.uid) ||
-                     // Admin escolar puede leer estudiantes con su idAdmin
-                     (hasSchoolRole('admin') && 
+                     // Profesor escolar puede leer estudiantes escolares para métricas
+                     (hasSchoolRole('teacher') && 
                       resource.data.subscription == 'school' &&
-                      resource.data.idAdmin == request.auth.uid);
+                      resource.data.schoolRole == 'student') ||
+                     // Profesor puede leer su admin para obtener institución
+                     (hasSchoolRole('teacher') && 
+                      resource.data.schoolRole == 'admin' &&
+                      userId == getUserData().idAdmin) ||
+                     // Tutor puede leer estudiantes asignados
+                     (hasSchoolRole('tutor') && 
+                      userId in getUserData().idAlumnos);
       
       // Creación: solo el propio usuario al registrarse
       allow create: if isOwner(userId) &&
@@ -115,15 +128,22 @@ service cloud.firestore {
         isValidString(request.resource.data.displayName, 100) &&
         isValidEnum(request.resource.data.subscription, ['free', 'pro', 'school', 'university', 'super_admin']);
       
-      // Actualización: propietario o super admin
-      allow update: if (isOwner(userId) || isSuperAdmin()) &&
+      // Actualización: propietario, super admin, o admin escolar actualizando usuarios de su escuela
+      allow update: if (isOwner(userId) || isSuperAdmin() ||
+        // Admin escolar puede actualizar usuarios de su escuela
+        (hasSchoolRole('admin') && resource.data.idAdmin == request.auth.uid)) &&
         // No permitir cambiar subscription excepto super admin
         (request.resource.data.subscription == resource.data.subscription || isSuperAdmin());
       
       // Eliminación: nunca directamente
       allow delete: if false;
       
-      // Subcolecciones
+      // Subcolecciones - permitir acceso a migrationStatus para estudiantes
+      match /migrationStatus/{statusId} {
+        allow read, write: if isOwner(userId) || isSuperAdmin();
+      }
+      
+      // Otras subcolecciones
       match /{subcollection}/{document} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
       }
@@ -146,6 +166,8 @@ service cloud.firestore {
           // Tutores de estudiantes asignados
           (hasSchoolRole('tutor'))
         )) ||
+        // Permitir queries que retornan vacías para estudiantes escolares
+        (hasSchoolRole('student') && resource == null) ||
         // Super admin
         isSuperAdmin()
       );
@@ -249,9 +271,17 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: schoolExams
     // ========================================
     match /schoolExams/{examId} {
-      // Lectura: usuarios de la misma escuela
-      allow read: if isSchoolUser() && (
-        isSameInstitution(resource.data.idEscuela) ||
+      // Lectura: profesores de la escuela pueden leer exámenes
+      allow read: if isAuthenticated() && (
+        // El profesor creador puede leer su examen
+        (hasSchoolRole('teacher') && resource.data.idProfesor == request.auth.uid) ||
+        // Profesores de la misma escuela pueden ver exámenes
+        (hasSchoolRole('teacher') && isSameInstitution(resource.data.idEscuela)) ||
+        // Administradores escolares de la misma escuela
+        (hasSchoolRole('admin') && isSameInstitution(resource.data.idEscuela)) ||
+        // Estudiantes asignados al examen (cuando se implemente)
+        (hasSchoolRole('student') && resource.data.isActive == true) ||
+        // Super admin
         isSuperAdmin()
       );
       
@@ -282,10 +312,10 @@ service cloud.firestore {
       // Lectura: estudiante propietario o profesor
       allow read: if isAuthenticated() && (
         isOwner(resource.data.studentId) ||
-        (hasSchoolRole('teacher') && 
-         get(/databases/$(database)/documents/schoolExams/$(resource.data.examId)).data.idProfesor == request.auth.uid) ||
-        (hasSchoolRole('admin') && 
-         isSameInstitution(get(/databases/$(database)/documents/users/$(resource.data.studentId)).data.idInstitucion)) ||
+        // Profesor puede leer intentos de sus exámenes
+        (hasSchoolRole('teacher')) ||
+        // Admin escolar puede leer intentos de su institución
+        (hasSchoolRole('admin')) ||
         isSuperAdmin()
       );
       
@@ -417,17 +447,25 @@ service cloud.firestore {
     // REGLAS PARA COLECCIONES ESCOLARES
     // ========================================
     match /schoolInstitutions/{institutionId} {
-      allow read: if isSchoolUser() || isSuperAdmin();
+      // Permitir lectura a usuarios escolares y cuando se busca por ID específico
+      allow read: if isAuthenticated() && (
+        isSchoolUser() || 
+        isSuperAdmin() ||
+        // Permitir lectura cuando el ID coincide con la institución del usuario
+        (getUserData().idInstitucion != null && getUserData().idInstitucion == institutionId)
+      );
       allow create, update, delete: if isSuperAdmin();
     }
     
     match /schoolSubjects/{subjectId} {
-      allow read: if isSchoolUser();
+      allow read: if isSchoolUser() || isSuperAdmin();
       allow create: if (hasSchoolRole('teacher') &&
         hasRequiredFields(['nombre', 'idProfesor']) &&
         request.resource.data.idProfesor == request.auth.uid) ||
-        // Admin escolar puede crear materias
-        (hasSchoolRole('admin') && hasRequiredFields(['nombre', 'idProfesor']));
+        // Admin escolar puede crear materias con cualquier profesor
+        (hasSchoolRole('admin') && 
+         request.resource.data.nombre is string) ||
+        isSuperAdmin();
       allow update, delete: if (hasSchoolRole('teacher') &&
         resource.data.idProfesor == request.auth.uid) ||
         hasSchoolRole('admin') ||
@@ -452,21 +490,39 @@ service cloud.firestore {
     }
     
     match /schoolAdmins/{adminId} {
-      allow read: if isSchoolUser() || isSuperAdmin();
+      allow read: if isSchoolUser() || isSuperAdmin() || 
+                     // Permitir que el sistema lea info del admin
+                     (isAuthenticated() && adminId == request.auth.uid);
       allow write: if isSuperAdmin();
+    }
+    
+    // Métricas de profesores
+    match /teacherMetrics/{metricId} {
+      allow read: if isSchoolUser() || isSuperAdmin();
+      allow write: if hasSchoolRole('teacher') || 
+                      hasSchoolRole('admin') || 
+                      isSuperAdmin();
+    }
+    
+    // KPIs de profesores
+    match /teacherKpis/{kpiId} {
+      allow read: if isSchoolUser() || isSuperAdmin();
+      allow write: if hasSchoolRole('teacher') || 
+                      hasSchoolRole('admin') || 
+                      isSuperAdmin();
     }
     
     // ========================================
     // REGLAS PARA COLECCIONES LEGACY
     // ========================================
     match /schoolNotebooks/{notebookId} {
-      allow read: if isSchoolUser();
-      allow create, update: if isSchoolAdminOrTeacher();
-      allow delete: if hasSchoolRole('teacher') || isSuperAdmin();
+      allow read: if isSchoolUser() || isSuperAdmin();
+      allow create, update: if isSchoolAdminOrTeacher() || isSuperAdmin();
+      allow delete: if hasSchoolRole('teacher') || hasSchoolRole('admin') || isSuperAdmin();
     }
     
     match /schoolConcepts/{conceptId} {
-      allow read: if isSchoolUser();
+      allow read: if isSchoolUser() || isSuperAdmin();
       allow create, update, delete: if isSchoolAdminOrTeacher() || isSuperAdmin();
     }
     
@@ -530,6 +586,27 @@ service cloud.firestore {
     match /reviewConcepts/{conceptId} {
       allow read, write: if isAuthenticated() && 
         isOwner(resource.data.userId) || isSuperAdmin();
+    }
+    
+    // ========================================
+    // REGLAS PARA COLECCIÓN: domainProgress
+    // ========================================
+    match /domainProgress/{progressId} {
+      // Lectura: propietario del progreso o profesores de la misma escuela
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) ||
+        // Profesores pueden ver progreso de estudiantes de su escuela
+        (hasSchoolRole('teacher') && 
+         get(/databases/$(database)/documents/users/$(resource.data.userId)).data.idInstitucion == getUserData().idInstitucion) ||
+        isSuperAdmin()
+      );
+      
+      // Escritura: propietario del progreso
+      allow create, update: if isAuthenticated() && 
+        isOwner(request.resource.data.userId);
+      
+      // Eliminación: nunca (datos históricos)
+      allow delete: if false;
     }
     
     // ========================================

@@ -231,6 +231,10 @@ const NotebookDetail = () => {
       
       try {
         // Fetch notebook using unified service
+        console.log('🔍 Intentando obtener notebook con ID:', notebookId);
+        console.log('👤 isSchoolTeacher:', isSchoolTeacher);
+        console.log('👤 isSchoolAdmin:', isSchoolAdmin);
+        
         const notebook = await UnifiedNotebookService.getNotebook(notebookId);
         
         if (isCancelled) return;
@@ -252,12 +256,19 @@ const NotebookDetail = () => {
         
         // Fetch concept documents for this notebook
         const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
+        console.log('📚 Colección de conceptos detectada:', conceptsCollection);
+        console.log('🔍 isSchoolTeacher:', isSchoolTeacher);
+        console.log('🔍 isSchoolAdmin:', isSchoolAdmin);
+        
         const q = query(
           collection(db, conceptsCollection),
           where('cuadernoId', '==', notebookId)
         );
         
         try {
+          console.log('📖 Intentando leer conceptos de:', conceptsCollection);
+          console.log('📝 Query: buscando conceptos con cuadernoId ==', notebookId);
+          
           const querySnapshot = await getDocs(q);
           
           if (isCancelled) return;
@@ -267,10 +278,13 @@ const NotebookDetail = () => {
             ...doc.data()
           })) as ConceptDoc[];
           
+          console.log('✅ Conceptos encontrados:', conceptosData.length);
           setConceptosDocs(conceptosData);
           
           // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
-          if (auth.currentUser && conceptosData.length > 0 && !isCancelled) {
+          // Solo cargar para estudiantes, no para profesores o admins
+          const isTeacherOrAdmin = isSchoolAdmin || isSchoolTeacher;
+          if (auth.currentUser && conceptosData.length > 0 && !isCancelled && !isTeacherOrAdmin) {
             // No bloquear la carga de conceptos, hacer esto en background
             (async () => {
               const learningMap = new Map<string, number>();
@@ -309,26 +323,43 @@ const NotebookDetail = () => {
             })();
           }
         } catch (conceptsError: any) {
-          console.warn('⚠️ Error cargando conceptos (continuando sin conceptos):', conceptsError.message);
+          console.error('❌ Error cargando conceptos:', {
+            message: conceptsError.message,
+            code: conceptsError.code,
+            collection: conceptsCollection,
+            notebookId: notebookId,
+            isSchoolTeacher,
+            isSchoolAdmin
+          });
           if (!isCancelled) setConceptosDocs([]);
         }
         
         // Cargar materiales del notebook con timeout
-        try {
-          if (!isCancelled) setLoadingMaterials(true);
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout')), 3000);
-          });
-          
-          const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
-          const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
-          
-          if (!isCancelled) setMaterials(notebookMaterials as Material[]);
-        } catch (materialsError) {
-          console.warn('⚠️ Error cargando materiales:', materialsError);
-          if (!isCancelled) setMaterials([]);
-        } finally {
-          if (!isCancelled) setLoadingMaterials(false);
+        // Solo cargar materiales para estudiantes y usuarios regulares, no para profesores/admins
+        const isTeacherOrAdmin = isSchoolAdmin || isSchoolTeacher;
+        if (!isTeacherOrAdmin) {
+          try {
+            if (!isCancelled) setLoadingMaterials(true);
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Timeout')), 3000);
+            });
+            
+            const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
+            const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
+            
+            if (!isCancelled) setMaterials(notebookMaterials as Material[]);
+          } catch (materialsError) {
+            console.warn('⚠️ Error cargando materiales:', materialsError);
+            if (!isCancelled) setMaterials([]);
+          } finally {
+            if (!isCancelled) setLoadingMaterials(false);
+          }
+        } else {
+          // Para profesores/admins, no cargar materiales
+          if (!isCancelled) {
+            setMaterials([]);
+            setLoadingMaterials(false);
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);

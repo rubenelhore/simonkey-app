@@ -29,7 +29,7 @@ const GamesPage: React.FC = () => {
   const [learningDataLoaded, setLearningDataLoaded] = useState(false);
   const { points, loading: pointsLoading, refresh: refreshPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
-  const studyService = useStudyService();
+  const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
 
   // Verificar si el cuaderno está congelado
   useEffect(() => {

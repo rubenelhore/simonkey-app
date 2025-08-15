@@ -1103,20 +1103,31 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
       try {
         // Use the isSchoolStudent from hook initialization
         const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
-        // IMPORTANTE: Ambas colecciones usan 'cuadernoId'
-        const notebookField = 'cuadernoId';
+        // IMPORTANTE: Las colecciones usan campos diferentes
+        const notebookField = isSchoolStudent ? 'idCuaderno' : 'cuadernoId';
         
         console.log('🔍 getAllConceptsFromNotebook - isSchoolStudent:', isSchoolStudent);
         console.log('🔍 getAllConceptsFromNotebook - collectionName:', collectionName);
         console.log('🔍 getAllConceptsFromNotebook - notebookField:', notebookField);
         console.log('🔍 getAllConceptsFromNotebook - notebookId:', notebookId);
         
-        const conceptsQuery = query(
+        let conceptsQuery = query(
           collection(db, collectionName),
           where(notebookField, '==', notebookId)
         );
         
-        const conceptDocs = await getDocs(conceptsQuery);
+        let conceptDocs = await getDocs(conceptsQuery);
+        
+        // Si no encuentra conceptos y es estudiante escolar, intentar con cuadernoId como fallback
+        if (conceptDocs.empty && isSchoolStudent) {
+          console.log('⚠️ No se encontraron conceptos con idCuaderno, intentando con cuadernoId...');
+          conceptsQuery = query(
+            collection(db, collectionName),
+            where('cuadernoId', '==', notebookId)
+          );
+          conceptDocs = await getDocs(conceptsQuery);
+        }
+        
         console.log('🔍 getAllConceptsFromNotebook - documentos encontrados:', conceptDocs.size);
         
         const allConcepts: Concept[] = [];

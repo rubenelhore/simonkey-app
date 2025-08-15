@@ -61,15 +61,99 @@ const ExamDashboardPage: React.FC = () => {
     
     setLoading(true);
     try {
+      console.log('📄 Intentando cargar documento del examen...');
+      console.log('  - Collection: schoolExams');
+      console.log('  - Document ID:', examId);
+      console.log('  - User ID:', auth.currentUser.uid);
+      
+      // Primero, intentar obtener el perfil del usuario para verificar su rol
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('👤 Datos del usuario:', {
+            schoolRole: userData.schoolRole,
+            email: userData.email,
+            idInstitucion: userData.idInstitucion
+          });
+        } else {
+          console.error('❌ No se encontró el documento del usuario');
+        }
+      } catch (userError) {
+        console.error('❌ Error obteniendo datos del usuario:', userError);
+      }
+      
+      // DEBUG: Listar todos los exámenes para verificar
+      try {
+        console.log('🔍 DEBUG: Listando todos los exámenes...');
+        const { getDocs, collection: firestoreCollection, query: firestoreQuery } = await import('firebase/firestore');
+        const examsSnapshot = await getDocs(firestoreCollection(db, 'schoolExams'));
+        console.log(`📊 Total de exámenes en la colección: ${examsSnapshot.size}`);
+        examsSnapshot.forEach(doc => {
+          console.log(`  - ID: ${doc.id}, Profesor: ${doc.data().idProfesor}, Título: ${doc.data().title}`);
+        });
+      } catch (debugError) {
+        console.error('❌ Error en debug de exámenes:', debugError);
+      }
+      
       // Cargar datos del examen
-      const examDoc = await getDoc(doc(db, 'schoolExams', examId));
-      if (!examDoc.exists()) {
-        alert('Examen no encontrado');
+      console.log('🔍 Intentando getDoc...');
+      
+      // SOLUCIÓN ALTERNATIVA: Usar query en lugar de getDoc  
+      let examData: SchoolExam | null = null;
+      
+      try {
+        console.log('🔄 Intentando con query alternativo...');
+        const { getDocs, collection: firestoreCollection, query: firestoreQuery, where } = await import('firebase/firestore');
+        const examQuery = firestoreQuery(
+          firestoreCollection(db, 'schoolExams'),
+          where('__name__', '==', examId)
+        );
+        const examSnapshot = await getDocs(examQuery);
+        
+        if (!examSnapshot.empty) {
+          console.log('✅ Examen encontrado con query alternativo');
+          const examDoc = examSnapshot.docs[0];
+          examData = { id: examDoc.id, ...examDoc.data() } as SchoolExam;
+        } else {
+          console.error('❌ Examen no encontrado con query alternativo');
+        }
+      } catch (queryError) {
+        console.error('❌ Error con query alternativo:', queryError);
+      }
+      
+      // Si no funcionó el query, intentar getDoc
+      if (!examData) {
+        console.log('🔄 Intentando con getDoc original...');
+        try {
+          const examRef = doc(db, 'schoolExams', examId);
+          console.log('📍 Referencia del documento:', examRef.path);
+          
+          const examDoc = await getDoc(examRef);
+          if (!examDoc.exists()) {
+            alert('Examen no encontrado');
+            navigate(-1);
+            return;
+          }
+          
+          examData = { id: examDoc.id, ...examDoc.data() } as SchoolExam;
+        } catch (getDocError) {
+          console.error('❌ Error con getDoc:', getDocError);
+          alert('Error al cargar el examen');
+          navigate(-1);
+          return;
+        }
+      }
+      
+      // Verificar que tenemos los datos del examen
+      if (!examData) {
+        console.error('❌ No se pudo cargar el examen');
+        alert('Error al cargar el examen');
         navigate(-1);
         return;
       }
       
-      const examData = { id: examDoc.id, ...examDoc.data() } as SchoolExam;
+      // Establecer los datos del examen
       setExam(examData);
       setEditedExam({
         title: examData.title,
@@ -82,12 +166,57 @@ const ExamDashboardPage: React.FC = () => {
       // Cargar estudiantes de la materia
       console.log('📚 Buscando estudiantes de la materia...');
       console.log('idMateria:', examData.idMateria);
+      console.log('idEscuela:', examData.idEscuela);
       
-      const studentsSnapshot = await getDocs(
-        query(collection(db, 'users'), 
-        where('schoolRole', '==', 'student'),
-        where('subjectIds', 'array-contains', examData.idMateria))
-      );
+      // Primero intentar con idMaterias (campo correcto para estudiantes escolares)
+      let studentsSnapshot;
+      try {
+        studentsSnapshot = await getDocs(
+          query(collection(db, 'users'), 
+          where('schoolRole', '==', 'student'),
+          where('idMaterias', 'array-contains', examData.idMateria))
+        );
+        console.log(`📊 Estudiantes encontrados con idMaterias: ${studentsSnapshot.size}`);
+      } catch (error) {
+        console.log('⚠️ No se pudo buscar con idMaterias, intentando con subjectIds...');
+        // Fallback: intentar con subjectIds
+        try {
+          studentsSnapshot = await getDocs(
+            query(collection(db, 'users'), 
+            where('schoolRole', '==', 'student'),
+            where('subjectIds', 'array-contains', examData.idMateria))
+          );
+          console.log(`📊 Estudiantes encontrados con subjectIds: ${studentsSnapshot.size}`);
+        } catch (error2) {
+          console.log('⚠️ No se pudo buscar con subjectIds, obteniendo todos los estudiantes de la escuela...');
+          // Último intento: obtener todos los estudiantes de la escuela y filtrar manualmente
+          studentsSnapshot = await getDocs(
+            query(collection(db, 'users'), 
+            where('schoolRole', '==', 'student'),
+            where('idInstitucion', '==', examData.idEscuela))
+          );
+          console.log(`📊 Total estudiantes de la escuela: ${studentsSnapshot.size}`);
+          
+          // Filtrar manualmente por materia
+          const filteredDocs: any[] = [];
+          studentsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const materias = data.idMaterias || data.subjectIds || [];
+            if (materias.includes(examData.idMateria)) {
+              filteredDocs.push(doc);
+            }
+          });
+          
+          // Crear un snapshot-like object con los documentos filtrados
+          studentsSnapshot = {
+            ...studentsSnapshot,
+            docs: filteredDocs,
+            size: filteredDocs.length
+          } as any;
+          
+          console.log(`📊 Estudiantes filtrados por materia: ${filteredDocs.length}`);
+        }
+      }
       
       console.log(`📊 Estudiantes encontrados: ${studentsSnapshot.size}`);
       

@@ -8,7 +8,7 @@ import {
 
 export const useAutoMigration = () => {
   const { user, isAuthenticated } = useAuth();
-  const { isSchoolTeacher, isSchoolAdmin, loading: userTypeLoading } = useUserType();
+  const { isSchoolTeacher, isSchoolAdmin, isSchoolStudent, loading: userTypeLoading } = useUserType();
   const [migrationStatus, setMigrationStatus] = useState<'checking' | 'migrating' | 'completed' | 'error' | null>(null);
   const [migrationMessage, setMigrationMessage] = useState<string>('');
 
@@ -19,10 +19,10 @@ export const useAutoMigration = () => {
       // Esperar a que se cargue el tipo de usuario
       if (userTypeLoading) return;
       
-      // No ejecutar migración para profesores o administradores escolares
-      // Solo estudiantes y usuarios normales necesitan migración
-      if (isSchoolTeacher || isSchoolAdmin) {
-        console.log('👨‍🏫 Saltando migración para profesor/admin escolar');
+      // No ejecutar migración para usuarios escolares (profesores, administradores y estudiantes)
+      // Solo usuarios normales necesitan migración
+      if (isSchoolTeacher || isSchoolAdmin || isSchoolStudent) {
+        console.log('🏫 Saltando migración para usuario escolar');
         return;
       }
 
@@ -88,7 +88,7 @@ export const useAutoMigration = () => {
     };
 
     runAutoMigration();
-  }, [user, isAuthenticated, isSchoolTeacher, isSchoolAdmin, userTypeLoading]);
+  }, [user, isAuthenticated, isSchoolTeacher, isSchoolAdmin, isSchoolStudent, userTypeLoading]);
 
   return {
     migrationStatus,

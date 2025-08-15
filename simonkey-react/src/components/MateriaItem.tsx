@@ -359,7 +359,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
             overflow: 'hidden'
           }}
         >
-          {!isAdminView && (
+          {(
             <button 
               onClick={(e) => {
                 e.stopPropagation();

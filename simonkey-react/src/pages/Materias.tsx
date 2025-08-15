@@ -300,18 +300,13 @@ const Materias: React.FC = () => {
                 console.log(`  📊 Total de conceptos para ${subject.nombre}: ${totalConceptCount}`);
               }
               
-              // Calcular el progreso de dominio para la materia
-              let domainProgress = {
+              // Para estudiantes escolares, no calcular progreso de dominio
+              // ya que no tienen notebooks personales y usan un sistema diferente
+              const domainProgress = {
                 total: totalConceptCount,
                 dominated: 0,
                 learning: 0,
                 notStarted: totalConceptCount
-              };
-              
-              try {
-                domainProgress = await getDomainProgressForMateria(subject.id);
-              } catch (error) {
-                console.error(`Error calculating domain progress for materia ${subject.id}:`, error);
               }
               
               return {
@@ -441,15 +436,18 @@ const Materias: React.FC = () => {
       if (!isSchoolStudent || !userProfile) return;
       
       try {
-        // Buscar información del admin usando el idAdmin del estudiante
-        if (userProfile.idAdmin) {
-          const adminDoc = await getDoc(doc(db, 'users', userProfile.idAdmin));
-          if (adminDoc.exists()) {
-            const adminData = adminDoc.data();
-            // Buscar el nombre de la institución en el perfil del admin
-            const institutionName = adminData.institutionName || adminData.schoolName || adminData.institucionName || adminData.nombre || 'Institución Educativa';
-            setInstitutionName(institutionName);
+        // Si el estudiante tiene idInstitucion, buscar en schoolInstitutions
+        if (userProfile.idInstitucion) {
+          const institutionDoc = await getDoc(doc(db, 'schoolInstitutions', userProfile.idInstitucion));
+          if (institutionDoc.exists()) {
+            const institutionData = institutionDoc.data();
+            setInstitutionName(institutionData.name || institutionData.nombre || 'Institución Educativa');
+          } else {
+            setInstitutionName('Institución Educativa');
           }
+        } else {
+          // Si no tiene idInstitucion, usar el nombre genérico
+          setInstitutionName('Institución Educativa');
         }
       } catch (error) {
         console.error('Error loading institution info:', error);
@@ -696,19 +694,28 @@ const Materias: React.FC = () => {
       // Si es admin escolar, también necesitamos eliminar la referencia de la materia de los estudiantes
       if (isSchoolAdmin) {
         console.log('🗑️ Eliminando referencias de materia de los estudiantes...');
+        // Obtener todos los estudiantes del admin
+        const adminId = userProfile?.id || user.uid;
         const studentsQuery = query(
           collection(db, 'users'),
-          where('subjectIds', 'array-contains', id)
+          where('idAdmin', '==', adminId),
+          where('schoolRole', '==', 'student')
         );
         const studentsSnapshot = await getDocs(studentsQuery);
         
+        // Filtrar localmente los que tienen esta materia
         for (const studentDoc of studentsSnapshot.docs) {
           const studentData = studentDoc.data();
-          const updatedSubjectIds = (studentData.subjectIds || []).filter((subId: string) => subId !== id);
-          await updateDoc(doc(db, 'users', studentDoc.id), {
-            subjectIds: updatedSubjectIds
-          });
-          console.log(`Materia removida del estudiante ${studentDoc.id}`);
+          const subjectIds = studentData.subjectIds || [];
+          
+          // Solo actualizar si el estudiante tiene esta materia
+          if (subjectIds.includes(id)) {
+            const updatedSubjectIds = subjectIds.filter((subId: string) => subId !== id);
+            await updateDoc(doc(db, 'users', studentDoc.id), {
+              subjectIds: updatedSubjectIds
+            });
+            console.log(`Materia removida del estudiante ${studentDoc.id}`);
+          }
         }
       }
       

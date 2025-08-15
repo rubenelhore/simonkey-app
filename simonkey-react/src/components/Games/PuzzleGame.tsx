@@ -97,35 +97,124 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     console.log('🎯 loadConcepts llamado, conceptsLoaded:', conceptsLoaded);
     if (conceptsLoaded) return;
 
-    console.log('⏳ Iniciando carga de conceptos mock...');
+    console.log('⏳ Iniciando carga de conceptos del cuaderno:', notebookId);
     setLoading(true);
     setConceptsLoaded(true);
     
-    // Usar conceptos mock para testing rápido
-    const mockConcepts: Concept[] = [
-      { id: '1', term: 'React', definition: 'Una biblioteca de JavaScript para construir interfaces de usuario' },
-      { id: '2', term: 'Estado', definition: 'Datos que pueden cambiar a lo largo del tiempo en un componente' },
-      { id: '3', term: 'Props', definition: 'Propiedades que se pasan de un componente padre a un componente hijo' },
-      { id: '4', term: 'JSX', definition: 'Una extensión de sintaxis para JavaScript que permite escribir HTML en React' },
-      { id: '5', term: 'Hook', definition: 'Funciones especiales que te permiten usar estado y otras características de React' },
-      { id: '6', term: 'Componente', definition: 'Una función o clase que devuelve elementos de React' },
-      { id: '7', term: 'Virtual DOM', definition: 'Una representación en memoria del DOM real mantenida por React' },
-      { id: '8', term: 'useEffect', definition: 'Un Hook que te permite realizar efectos secundarios en componentes funcionales' },
-      { id: '9', term: 'useState', definition: 'Un Hook que te permite añadir estado a componentes funcionales' },
-      { id: '10', term: 'Renderizado', definition: 'El proceso de convertir componentes de React en elementos del DOM' }
-    ];
+    try {
+      if (!auth.currentUser) {
+        console.error('No hay usuario autenticado');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
 
-    console.log('🚀 Usando conceptos mock para testing:', mockConcepts.length);
-    setConcepts(mockConcepts);
-    
-    // Start with 3 random concepts
-    if (mockConcepts.length >= 3) {
-      console.log('🎲 Iniciando nueva ronda con conceptos mock');
-      startNewRound(mockConcepts);
+      // Si ya tenemos conceptos cacheados, usarlos
+      if (cachedConcepts && cachedConcepts.length > 0) {
+        console.log('📚 Usando conceptos cacheados:', cachedConcepts.length);
+        console.log('📚 Primer concepto cacheado:', cachedConcepts[0]);
+        const gameConcepts = cachedConcepts.map(c => ({
+          id: c.id,
+          term: c.término || c.termino || c.term || '',
+          definition: c.definición || c.definicion || c.definition || ''
+        }));
+        console.log('🎮 Conceptos mapeados para el juego:', gameConcepts);
+        
+        setConcepts(gameConcepts);
+        
+        // Start with 3 random concepts
+        if (gameConcepts.length >= 3) {
+          console.log('🎲 Iniciando nueva ronda con conceptos del cuaderno');
+          startNewRound(gameConcepts);
+        } else {
+          console.log('❌ No hay suficientes conceptos (mínimo 3)');
+          setNoReviewedConcepts(true);
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Determinar la colección según el tipo de usuario
+      const conceptsCollection = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
+      const notebookField = isSchoolStudent ? 'idCuaderno' : 'cuadernoId';
+      
+      console.log('🔍 Buscando conceptos en:', conceptsCollection, 'para cuaderno:', notebookId);
+      console.log('🔍 Usando campo:', notebookField);
+      
+      // Cargar conceptos del cuaderno
+      let conceptsQuery = query(
+        collection(db, conceptsCollection),
+        where(notebookField, '==', notebookId)
+      );
+      
+      let conceptsSnapshot = await getDocs(conceptsQuery);
+      
+      // Si no encuentra conceptos y es estudiante escolar, intentar con cuadernoId como fallback
+      if (conceptsSnapshot.empty && isSchoolStudent) {
+        console.log('⚠️ No se encontraron conceptos con idCuaderno, intentando con cuadernoId...');
+        conceptsQuery = query(
+          collection(db, conceptsCollection),
+          where('cuadernoId', '==', notebookId)
+        );
+        conceptsSnapshot = await getDocs(conceptsQuery);
+      }
+      
+      if (conceptsSnapshot.empty) {
+        console.log('❌ No se encontraron conceptos para el cuaderno');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
+      
+      const loadedConcepts: Concept[] = [];
+      conceptsSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Manejar tanto el formato de conceptos regulares como escolares
+        if (data.conceptos && Array.isArray(data.conceptos)) {
+          // Formato de documento con array de conceptos
+          data.conceptos.forEach((concept: any) => {
+            loadedConcepts.push({
+              id: concept.id || doc.id + '_' + loadedConcepts.length,
+              term: concept.término || concept.termino || concept.term || '',
+              definition: concept.definición || concept.definicion || concept.definition || ''
+            });
+          });
+        } else {
+          // Formato de concepto individual
+          loadedConcepts.push({
+            id: doc.id,
+            term: data.término || data.termino || data.term || '',
+            definition: data.definición || data.definicion || data.definition || ''
+          });
+        }
+      });
+      
+      if (loadedConcepts.length === 0) {
+        console.log('❌ No hay conceptos válidos en el cuaderno');
+        setNoReviewedConcepts(true);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ Conceptos cargados del cuaderno:', loadedConcepts.length);
+      setConcepts(loadedConcepts);
+      
+      // Start with 3 random concepts
+      if (loadedConcepts.length >= 3) {
+        console.log('🎲 Iniciando nueva ronda con conceptos del cuaderno');
+        startNewRound(loadedConcepts);
+      } else {
+        console.log('❌ No hay suficientes conceptos para el juego (mínimo 3)');
+        setNoReviewedConcepts(true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error cargando conceptos:', error);
+      setNoReviewedConcepts(true);
+    } finally {
+      setLoading(false);
     }
-    
-    console.log('✅ Conceptos cargados, finalizando loading');
-    setLoading(false);
   };
 
   const fragmentDefinition = (definition: string, conceptId: string): Fragment[] => {
@@ -448,10 +537,10 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
             <div className="empty-state">
-              <i className="fas fa-graduation-cap"></i>
-              <h2>¡Primero necesitas estudiar!</h2>
-              <p>Para jugar, necesitas haber repasado al menos 3 conceptos en el estudio inteligente.</p>
-              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <i className="fas fa-book-open"></i>
+              <h2>¡No hay suficientes conceptos!</h2>
+              <p>Este cuaderno necesita al menos 3 conceptos para poder jugar.</p>
+              <p>Asegúrate de que el cuaderno tenga conceptos agregados antes de jugar.</p>
               <button className="primary-button" onClick={onBack}>
                 Volver
               </button>
