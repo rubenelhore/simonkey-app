@@ -464,17 +464,17 @@
   background: white;
   border-radius: 24px;
   padding: 20px;
-  width: 600px !important;
-  height: 700px !important;
-  max-width: 600px !important;
-  max-height: 700px !important;
+  width: 500px !important;
+  height: auto !important;
+  max-width: 500px !important;
+  max-height: 85vh !important;
   text-align: center;
   animation: slideIn 0.5s ease;
   transform-origin: center center;
   will-change: transform, opacity;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 

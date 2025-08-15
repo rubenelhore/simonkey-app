@@ -492,10 +492,10 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background: white;
-  padding: 40px;
-  border-radius: 24px;
-  max-width: 500px;
-  width: 90%;
+  padding: 24px;
+  border-radius: 16px;
+  max-width: 300px;
+  width: 300px;
   text-align: center;
   z-index: 300;
   animation: gameOverAppear 0.5s ease;
@@ -513,9 +513,9 @@
 }
 
 .game-over-modal .trophy-icon {
-  font-size: 4rem;
+  font-size: 3rem;
   color: #f59e0b;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   animation: bounce 1s ease infinite;
 }
 
@@ -525,22 +525,22 @@
 }
 
 .game-over-modal h2 {
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: #1f2937;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .final-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 30px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .final-stat {
   background: #f3f4f6;
-  padding: 16px;
-  border-radius: 12px;
+  padding: 12px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -574,17 +574,17 @@
   background: #6147ff !important;
   border: none;
   color: white !important;
-  padding: 24px 40px;
-  border-radius: 12px;
-  font-size: 1.125rem;
-  font-weight: 700;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0 auto;
-  min-width: 220px;
+  min-width: 180px;
   justify-content: center;
 }
 
@@ -931,8 +931,8 @@
   
   .game-start-modal,
   .game-over-modal {
-    width: 95%;
-    max-width: 400px;
+    width: 90%;
+    max-width: 300px;
     padding: 20px;
   }
   

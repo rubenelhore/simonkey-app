@@ -801,14 +801,156 @@ const ProgressPage: React.FC = () => {
       const ranking = await rankingService.getSubjectRanking(institutionId, selectedMateria);
       
       if (!ranking) {
-        console.log('[ProgressPage] No se encontró ranking pre-calculado');
-        // Si no hay ranking pre-calculado, mostrar solo al usuario actual
-        const userScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
-        setRankingData([{ 
-          posicion: 1, 
-          nombre: 'Tú', 
-          score: Math.ceil(userScore) 
-        }]);
+        console.log('[ProgressPage] No se encontró ranking pre-calculado, calculando en tiempo real...');
+        console.log(`[ProgressPage] Usuario actual tiene KPIs con ID: ${userId}`);
+        
+        // Calcular ranking en tiempo real
+        try {
+          // Obtener todos los estudiantes de la institución
+          const studentsQuery = query(
+            collection(db, 'users'),
+            where('idInstitucion', '==', institutionId),
+            where('schoolRole', '==', 'student')
+          );
+          
+          const studentsSnapshot = await getDocs(studentsQuery);
+          console.log(`[ProgressPage] =====================================`);
+          console.log(`[ProgressPage] INFORMACIÓN DEL USUARIO ACTUAL:`);
+          console.log(`[ProgressPage] - ID efectivo: ${userId}`);
+          console.log(`[ProgressPage] - Score en materia ${selectedMateria}: ${kpisData?.materias?.[selectedMateria]?.scoreMateria || 0}`);
+          console.log(`[ProgressPage] - KPIs cargados desde: users/${userId}/kpis/dashboard`);
+          console.log(`[ProgressPage] =====================================`);
+          console.log(`[ProgressPage] Estudiantes encontrados en la institución: ${studentsSnapshot.size}`);
+          
+          const studentScores = [];
+          
+          // Obtener KPIs de cada estudiante
+          for (const studentDoc of studentsSnapshot.docs) {
+            const studentData = studentDoc.data();
+            const studentDocId = studentDoc.id;
+            let effectiveStudentId = studentDocId; // Declarar fuera del try
+            
+            // Skip si es el usuario actual para evitar duplicados
+            if (studentDocId === userId) {
+              console.log(`[ProgressPage] Saltando usuario actual (${studentDocId})`);
+              continue;
+            }
+            
+            console.log(`[ProgressPage] =====================================`);
+            console.log(`[ProgressPage] PROCESANDO ESTUDIANTE:`);
+            console.log(`[ProgressPage] - Document ID: ${studentDocId}`);
+            console.log(`[ProgressPage] - Email: ${studentData.email}`);
+            console.log(`[ProgressPage] - Nombre: ${studentData.displayName || studentData.nombre}`);
+            
+            try {
+              // Para usuarios escolares, usar directamente el ID del documento
+              // Este es el mismo formato que usamos para el usuario actual
+              effectiveStudentId = studentDocId;
+              console.log(`[ProgressPage] Usando ID del documento: ${effectiveStudentId}`);
+              
+              // Para usuarios escolares, los KPIs están en una subcolección
+              // Primero intentar con la subcolección (formato nuevo)
+              let kpiDoc = await getDoc(doc(db, 'users', effectiveStudentId, 'kpis', 'dashboard'));
+              console.log(`[ProgressPage] Buscando KPIs en subcolección users/${effectiveStudentId}/kpis/dashboard, encontrado: ${kpiDoc.exists()}`);
+              
+              // Si no existe en subcolección, intentar en colección userKPIs (formato antiguo)
+              if (!kpiDoc.exists()) {
+                console.log(`[ProgressPage] No encontrado en subcolección, intentando en userKPIs/${effectiveStudentId}`);
+                kpiDoc = await getDoc(doc(db, 'userKPIs', effectiveStudentId));
+                console.log(`[ProgressPage] Buscando KPIs en userKPIs con ID: ${effectiveStudentId}, encontrado: ${kpiDoc.exists()}`);
+                
+                // Si no existe y no tiene el prefijo school_, intentar con él
+                if (!kpiDoc.exists() && !effectiveStudentId.startsWith('school_')) {
+                  const schoolId = `school_${effectiveStudentId}`;
+                  console.log(`[ProgressPage] Intentando con ID school_ en userKPIs: ${schoolId}`);
+                  kpiDoc = await getDoc(doc(db, 'userKPIs', schoolId));
+                  
+                  if (kpiDoc.exists()) {
+                    console.log(`[ProgressPage] KPIs encontrados en userKPIs con ID school_${effectiveStudentId}`);
+                  }
+                }
+              }
+              
+              if (kpiDoc.exists()) {
+                const studentKpis = kpiDoc.data();
+                console.log(`[ProgressPage] KPIs encontrados para ${effectiveStudentId}:`, {
+                  tieneMaterias: !!studentKpis.materias,
+                  materiasKeys: studentKpis.materias ? Object.keys(studentKpis.materias) : [],
+                  materiaSeleccionada: selectedMateria
+                });
+                
+                const materiaScore = studentKpis.materias?.[selectedMateria]?.scoreMateria || 0;
+                console.log(`[ProgressPage] Score de ${effectiveStudentId} en materia ${selectedMateria}: ${materiaScore}`);
+                
+                if (materiaScore >= 0) { // Cambiado de > 0 a >= 0 para incluir estudiantes con 0 puntos
+                  studentScores.push({
+                    id: effectiveStudentId,
+                    nombre: studentData.displayName || studentData.email || 'Estudiante',
+                    score: Math.ceil(materiaScore),
+                    isCurrentUser: effectiveStudentId === userId
+                  });
+                  console.log(`[ProgressPage] Estudiante agregado al ranking: ${studentData.displayName} con score ${materiaScore}`);
+                }
+              } else {
+                console.log(`[ProgressPage] No se encontraron KPIs para estudiante ${effectiveStudentId}`);
+              }
+            } catch (error) {
+              console.log(`[ProgressPage] Error obteniendo KPIs de estudiante ${effectiveStudentId}:`, error);
+            }
+          }
+          
+          // Agregar al usuario actual si no está ya incluido
+          const currentUserScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+          console.log(`[ProgressPage] Score del usuario actual: ${currentUserScore}`);
+          
+          // Verificar si el usuario actual ya está en la lista
+          const currentUserInList = studentScores.some(s => s.id === userId);
+          if (!currentUserInList && currentUserScore >= 0) {
+            studentScores.push({
+              id: userId,
+              nombre: 'Tú',
+              score: Math.ceil(currentUserScore),
+              isCurrentUser: true
+            });
+            console.log(`[ProgressPage] Usuario actual agregado al ranking con score ${currentUserScore}`);
+          }
+          
+          // Ordenar por score descendente
+          studentScores.sort((a, b) => b.score - a.score);
+          
+          // Asignar posiciones
+          const rankingToShow = studentScores.map((student, index) => ({
+            posicion: index + 1,
+            nombre: student.isCurrentUser ? 'Tú' : student.nombre,
+            score: student.score,
+            isCurrentUser: student.isCurrentUser
+          }));
+          
+          console.log(`[ProgressPage] Ranking calculado con ${rankingToShow.length} estudiantes`);
+          
+          // Si hay datos, mostrar el ranking
+          if (rankingToShow.length > 0) {
+            setRankingData(rankingToShow.slice(0, 10)); // Mostrar top 10
+          } else {
+            // Si no hay datos de otros estudiantes, mostrar solo al usuario actual
+            const userScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+            setRankingData([{ 
+              posicion: 1, 
+              nombre: 'Tú', 
+              score: Math.ceil(userScore) 
+            }]);
+          }
+        } catch (error) {
+          console.error('[ProgressPage] Error calculando ranking en tiempo real:', error);
+          // En caso de error, mostrar solo al usuario actual
+          const userScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+          setRankingData([{ 
+            posicion: 1, 
+            nombre: 'Tú', 
+            score: Math.ceil(userScore) 
+          }]);
+        }
+        
         return;
       }
 

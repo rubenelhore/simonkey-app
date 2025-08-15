@@ -50,31 +50,11 @@ export class ExamService {
         materiaId
       });
       
-      // Get the school ID from the materia instead of the student
-      const materiaDoc = await getDoc(doc(db, 'schoolSubjects', materiaId));
-      if (!materiaDoc.exists()) {
-        console.error('❌ Materia no encontrada');
-        return [];
-      }
-      
-      const materiaData = materiaDoc.data();
-      const schoolId = materiaData.idEscuela;
-      
-      console.log('🏫 Escuela de la materia:', {
-        idEscuela: schoolId,
-        materiaId: materiaId
-      });
-      
-      if (!schoolId) {
-        console.error('❌ Materia sin escuela asignada');
-        return [];
-      }
-      
-      // Query exams for the school and subject
+      // SIMPLIFICADO: Solo buscar exámenes activos de la materia
+      // Si el estudiante tiene la materia asignada, puede ver sus exámenes
       console.log('📋 Consultando exámenes con filtros:', {
         collection: 'schoolExams',
         idMateria: materiaId,
-        idEscuela: schoolId,
         isActive: true
       });
       
@@ -92,21 +72,19 @@ export class ExamService {
       for (const doc of snapshot.docs) {
         const examData = doc.data() as SchoolExam;
         
-        // Filtrar manualmente por escuela
-        if (examData.idEscuela === schoolId) {
-          console.log('📄 Examen encontrado:', {
-            id: doc.id,
-            title: examData.title,
-            isActive: examData.isActive,
-            idMateria: examData.idMateria,
-            idEscuela: examData.idEscuela,
-            idProfesor: examData.idProfesor
-          });
-          exams.push({
-            ...examData,
-            id: doc.id
-          });
-        }
+        console.log('📄 Examen encontrado:', {
+          id: doc.id,
+          title: examData.title,
+          isActive: examData.isActive,
+          idMateria: examData.idMateria,
+          idEscuela: examData.idEscuela,
+          idProfesor: examData.idProfesor
+        });
+        
+        exams.push({
+          ...examData,
+          id: doc.id
+        });
       }
       
       console.log(`📝 Total exámenes activos para estudiante:`, exams.length);

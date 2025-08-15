@@ -101,23 +101,17 @@ service cloud.firestore {
                      // Permitir a usuarios autenticados leer su propio documento por email
                      (isAuthenticated() && 
                       resource.data.email == request.auth.token.email) ||
+                     // SIMPLIFICADO: Profesores pueden leer CUALQUIER usuario escolar
+                     hasSchoolRole('teacher') ||
                      // Admin escolar puede leer cualquier usuario escolar
-                     (hasSchoolRole('admin') && 
-                      resource.data.subscription == 'school') ||
-                     // Admin escolar puede hacer queries de usuarios de su escuela
-                     (hasSchoolRole('admin') && 
-                      resource.data.idAdmin == request.auth.uid) ||
-                     // Profesor escolar puede leer estudiantes escolares para métricas
-                     (hasSchoolRole('teacher') && 
-                      resource.data.subscription == 'school' &&
-                      resource.data.schoolRole == 'student') ||
-                     // Profesor puede leer su admin para obtener institución
-                     (hasSchoolRole('teacher') && 
-                      resource.data.schoolRole == 'admin' &&
-                      userId == getUserData().idAdmin) ||
+                     hasSchoolRole('admin') ||
                      // Tutor puede leer estudiantes asignados
                      (hasSchoolRole('tutor') && 
-                      userId in getUserData().idAlumnos);
+                      userId in getUserData().idAlumnos) ||
+                     // Estudiantes pueden leer otros estudiantes de la misma institución (para ranking)
+                     (hasSchoolRole('student') && 
+                      resource.data.schoolRole == 'student' &&
+                      resource.data.idInstitucion == getUserData().idInstitucion);
       
       // Creación: solo el propio usuario al registrarse
       allow create: if isOwner(userId) &&
@@ -319,18 +313,13 @@ service cloud.firestore {
         isSuperAdmin()
       );
       
-      // Creación: estudiante tomando el examen
+      // Creación: estudiante tomando el examen (simplificado)
       allow create: if hasSchoolRole('student') &&
-        isOwner(request.resource.data.studentId) &&
-        hasRequiredFields(['examId', 'studentId', 'startTime']) &&
-        // Verificar que el examen está activo
-        get(/databases/$(database)/documents/schoolExams/$(request.resource.data.examId)).data.isActive == true;
+        request.resource.data.studentId == request.auth.uid;
       
       // Actualización: estudiante completando el examen
       allow update: if hasSchoolRole('student') &&
-        isOwner(resource.data.studentId) &&
-        resource.data.completed == false &&
-        request.resource.data.completed == true;
+        isOwner(resource.data.studentId);
       
       // Eliminación: nunca
       allow delete: if false;
@@ -408,8 +397,10 @@ service cloud.firestore {
     // ========================================
     match /userKPIs/{userId} {
       allow read: if isOwner(userId) || 
-        (hasSchoolRole('teacher') && 
-         get(/databases/$(database)/documents/users/$(userId)).data.idInstitucion == getUserData().idInstitucion) ||
+        // Profesores pueden leer KPIs de cualquier usuario de su institución
+        (hasSchoolRole('teacher') && isSchoolUser()) ||
+        // Estudiantes pueden leer KPIs de cualquier usuario de su institución (para ranking)
+        (hasSchoolRole('student') && isSchoolUser()) ||
         isSuperAdmin();
       allow write: if isOwner(userId) || isSuperAdmin();
     }
@@ -607,6 +598,29 @@ service cloud.firestore {
       
       // Eliminación: nunca (datos históricos)
       allow delete: if false;
+    }
+    
+    // ========================================
+    // REGLAS PARA COLECCIÓN: institutionRankings
+    // ========================================
+    match /institutionRankings/{institutionId} {
+      // Permitir lectura a usuarios escolares de la misma institución
+      allow read: if isAuthenticated() && (
+        isSameInstitution(institutionId) ||
+        isSuperAdmin()
+      );
+      
+      // Solo el sistema puede escribir (mediante Cloud Functions o admin SDK)
+      allow write: if false;
+      
+      // Subcolección de rankings
+      match /rankings/{rankingId} {
+        allow read: if isAuthenticated() && (
+          isSameInstitution(institutionId) ||
+          isSuperAdmin()
+        );
+        allow write: if false;
+      }
     }
     
     // ========================================

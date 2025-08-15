@@ -137,47 +137,8 @@ const ExamResultsPage: React.FC = () => {
             <div className="stat-label">Tiempo Promedio</div>
           </div>
 
-          <div className="stat-card">
-            <div className="stat-icon percentage">
-              <i className="fas fa-percentage"></i>
-            </div>
-            <div className="stat-value">
-              {Math.round((correctAnswers / attempt.answers.length) * 100)}%
-            </div>
-            <div className="stat-label">Precisión</div>
-          </div>
         </div>
 
-        <div className="results-details">
-          <h2>Detalles del Examen</h2>
-          
-          <div className="details-grid">
-            <div className="detail-item">
-              <span className="detail-label">Fecha:</span>
-              <span className="detail-value">
-                {attempt.completedAt ? 
-                  formatDistanceToNow(attempt.completedAt.toDate(), { 
-                    addSuffix: true, 
-                    locale: es 
-                  }) : 'Hace un momento'}
-              </span>
-            </div>
-            
-            <div className="detail-item">
-              <span className="detail-label">Tiempo total:</span>
-              <span className="detail-value">
-                {formatTime(exam.timePerConcept * attempt.assignedConcepts.length - attempt.timeRemaining)}
-              </span>
-            </div>
-            
-            {(attempt.tabSwitches || 0) > 0 && (
-              <div className="detail-item warning">
-                <span className="detail-label">Cambios de pestaña:</span>
-                <span className="detail-value">{attempt.tabSwitches}</span>
-              </div>
-            )}
-          </div>
-        </div>
 
         <div className="answer-review">
           <h2>Revisión de Respuestas</h2>

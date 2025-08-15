@@ -171,51 +171,100 @@ const ExamDashboardPage: React.FC = () => {
       // Primero intentar con idMaterias (campo correcto para estudiantes escolares)
       let studentsSnapshot;
       try {
+        console.log('🔍 Intentando buscar estudiantes con idMaterias...');
         studentsSnapshot = await getDocs(
           query(collection(db, 'users'), 
           where('schoolRole', '==', 'student'),
           where('idMaterias', 'array-contains', examData.idMateria))
         );
         console.log(`📊 Estudiantes encontrados con idMaterias: ${studentsSnapshot.size}`);
-      } catch (error) {
-        console.log('⚠️ No se pudo buscar con idMaterias, intentando con subjectIds...');
-        // Fallback: intentar con subjectIds
-        try {
-          studentsSnapshot = await getDocs(
-            query(collection(db, 'users'), 
-            where('schoolRole', '==', 'student'),
-            where('subjectIds', 'array-contains', examData.idMateria))
-          );
-          console.log(`📊 Estudiantes encontrados con subjectIds: ${studentsSnapshot.size}`);
-        } catch (error2) {
-          console.log('⚠️ No se pudo buscar con subjectIds, obteniendo todos los estudiantes de la escuela...');
-          // Último intento: obtener todos los estudiantes de la escuela y filtrar manualmente
-          studentsSnapshot = await getDocs(
-            query(collection(db, 'users'), 
-            where('schoolRole', '==', 'student'),
-            where('idInstitucion', '==', examData.idEscuela))
-          );
-          console.log(`📊 Total estudiantes de la escuela: ${studentsSnapshot.size}`);
-          
-          // Filtrar manualmente por materia
-          const filteredDocs: any[] = [];
-          studentsSnapshot.forEach(doc => {
-            const data = doc.data();
-            const materias = data.idMaterias || data.subjectIds || [];
-            if (materias.includes(examData.idMateria)) {
-              filteredDocs.push(doc);
-            }
-          });
-          
-          // Crear un snapshot-like object con los documentos filtrados
-          studentsSnapshot = {
-            ...studentsSnapshot,
-            docs: filteredDocs,
-            size: filteredDocs.length
-          } as any;
-          
-          console.log(`📊 Estudiantes filtrados por materia: ${filteredDocs.length}`);
+        
+        // FORZAR ANÁLISIS: Si no encuentra estudiantes, buscar TODOS para debug
+        if (studentsSnapshot.size === 0) {
+          console.log('⚠️ No se encontraron estudiantes con idMaterias, analizando TODOS los estudiantes...');
+          throw new Error('No students found with idMaterias, forcing fallback');
         }
+      } catch (error) {
+        console.log('⚠️ No se pudo buscar con idMaterias, obteniendo TODOS los estudiantes para análisis...');
+        
+        // Obtener TODOS los estudiantes escolares para ver qué estructura tienen
+        studentsSnapshot = await getDocs(
+          query(collection(db, 'users'), 
+          where('schoolRole', '==', 'student'))
+        );
+        
+        console.log(`📊 Total estudiantes escolares encontrados: ${studentsSnapshot.size}`);
+        
+        // Analizar la estructura de los primeros estudiantes
+        let studentCount = 0;
+        studentsSnapshot.forEach(doc => {
+          if (studentCount < 3) {  // Solo mostrar los primeros 3 para debug
+            const data = doc.data();
+            console.log(`📍 Estudiante ${studentCount + 1}:`, {
+              id: doc.id,
+              email: data.email,
+              displayName: data.displayName,
+              idMaterias: data.idMaterias,
+              subjectIds: data.subjectIds,
+              idInstitucion: data.idInstitucion,
+              idEscuela: data.idEscuela,
+              schoolId: data.schoolId,
+              idAdmin: data.idAdmin
+            });
+            studentCount++;
+          }
+        });
+        
+        // Filtrar manualmente por escuela Y materia
+        const filteredDocs: any[] = [];
+        studentsSnapshot.forEach(doc => {
+          const data = doc.data();
+          
+          // Debug: ver campos de escuela
+          const schoolFields = {
+            idInstitucion: data.idInstitucion,
+            idEscuela: data.idEscuela,
+            schoolId: data.schoolId,
+            idAdmin: data.idAdmin
+          };
+          
+          // Verificar que pertenece a la misma escuela (más flexible)
+          const sameSchool = data.idInstitucion === examData.idEscuela || 
+                            data.idEscuela === examData.idEscuela ||
+                            data.schoolId === examData.idEscuela ||
+                            data.idAdmin === auth.currentUser?.uid;  // Si el profesor es el admin
+          
+          // Verificar que está en la materia (buscar en todos los campos posibles)
+          const materias = data.idMaterias || data.subjectIds || data.materiaIds || [];
+          const inMateria = materias.includes(examData.idMateria);
+          
+          // Debug para el primer estudiante que no coincide
+          if (studentCount < 5 && !inMateria) {
+            console.log(`❌ Estudiante ${data.email} NO está en la materia:`, {
+              buscando: examData.idMateria,
+              materias: materias,
+              escuela: schoolFields,
+              examEscuela: examData.idEscuela
+            });
+            studentCount++;
+          }
+          
+          if (sameSchool && inMateria) {
+            filteredDocs.push(doc);
+            console.log(`  ✅ Estudiante incluido: ${data.displayName || data.email}`);
+          } else if (sameSchool && !inMateria) {
+            console.log(`  ⚠️ Estudiante ${data.displayName || data.email} está en la escuela pero NO en la materia`);
+          }
+        });
+        
+        // Crear un snapshot-like object con los documentos filtrados
+        studentsSnapshot = {
+          ...studentsSnapshot,
+          docs: filteredDocs,
+          size: filteredDocs.length
+        } as any;
+        
+        console.log(`📊 Estudiantes filtrados por escuela y materia: ${filteredDocs.length}`);
       }
       
       console.log(`📊 Estudiantes encontrados: ${studentsSnapshot.size}`);
@@ -544,16 +593,6 @@ const ExamDashboardPage: React.FC = () => {
             <div className="stat-content">
               <div className="stat-value">{stats.averageScore}</div>
               <div className="stat-label">Puntuación Promedio</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">
-              <i className="fas fa-percentage"></i>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.averageCorrect}%</div>
-              <div className="stat-label">Precisión Promedio</div>
             </div>
           </div>
 

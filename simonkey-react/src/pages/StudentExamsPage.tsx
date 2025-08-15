@@ -53,12 +53,34 @@ const StudentExamsPage: React.FC = () => {
     setLoading(true);
     try {
       console.log('📝 Cargando exámenes para estudiante...');
+      console.log('👤 Perfil del estudiante:', {
+        email: userProfile.email,
+        idMaterias: userProfile.idMaterias,
+        subjectIds: userProfile.subjectIds,
+        idCuadernos: userProfile.idCuadernos,
+        schoolRole: userProfile.schoolRole
+      });
       
-      // Get all subject IDs from student's notebooks
+      // Get all subject IDs from student's profile
       const studentSubjectIds = new Set<string>();
       
-      if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
-        // Get subject IDs from student's notebooks
+      // Primero intentar con idMaterias directo del perfil
+      if (userProfile.idMaterias && userProfile.idMaterias.length > 0) {
+        console.log('📚 Usando idMaterias del perfil:', userProfile.idMaterias);
+        userProfile.idMaterias.forEach((materiaId: string) => {
+          studentSubjectIds.add(materiaId);
+        });
+      } 
+      // Si no tiene idMaterias, intentar con subjectIds
+      else if (userProfile.subjectIds && userProfile.subjectIds.length > 0) {
+        console.log('📚 Usando subjectIds del perfil:', userProfile.subjectIds);
+        userProfile.subjectIds.forEach((materiaId: string) => {
+          studentSubjectIds.add(materiaId);
+        });
+      }
+      // Como último recurso, obtener de los notebooks
+      else if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
+        console.log('📚 Obteniendo materias desde notebooks...');
         for (const notebookId of userProfile.idCuadernos) {
           try {
             const notebookDoc = await getDocs(

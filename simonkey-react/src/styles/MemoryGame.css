@@ -574,11 +574,11 @@
   border-radius: 24px;
   padding: 28px;
   width: 500px !important;
-  height: 500px !important;
+  height: auto !important;
   max-width: 500px !important;
-  max-height: 500px !important;
+  max-height: 85vh !important;
   min-width: 500px !important;
-  min-height: 500px !important;
+  min-height: auto !important;
   text-align: center;
   position: relative;
   margin: 0 auto;
@@ -1043,11 +1043,11 @@
 
   .modal-content {
     width: 500px !important;
-    height: 500px !important;
+    height: auto !important;
     max-width: 500px !important;
-    max-height: 500px !important;
+    max-height: 85vh !important;
     min-width: 500px !important;
-    min-height: 500px !important;
+    min-height: auto !important;
     padding: 24px;
   }
 }

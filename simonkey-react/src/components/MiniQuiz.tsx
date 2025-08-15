@@ -164,10 +164,9 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   // Versi\u00f3n s\u00edncrona para carga inmediata
   const generateMiniQuizQuestionsSync = (notebookConcepts?: Concept[]): QuizQuestion[] => {
     try {
-      // Usar TODOS los conceptos del cuaderno para las preguntas, no solo los de sesión
-      const allConcepts = notebookConcepts || allNotebookConcepts;
-      console.log(`[MINI QUIZ] Debug - conceptos disponibles: ${allConcepts.length}, sessionConcepts: ${sessionConcepts?.length || 0}`);
-      const conceptsForQuestions = allConcepts.length > 0 ? allConcepts : (sessionConcepts || []);
+      // Usar conceptos disponibles de forma más eficiente
+      const conceptsForQuestions = notebookConcepts || sessionConcepts || allNotebookConcepts || [];
+      console.log(`[MINI QUIZ] Conceptos disponibles: ${conceptsForQuestions.length}`);
       
       if (!conceptsForQuestions || conceptsForQuestions.length === 0) {
         console.log('[MINI QUIZ] No hay conceptos de sesi\u00f3n para generar preguntas');
@@ -177,17 +176,26 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
       const QUESTION_COUNT = 5; // Número de preguntas del mini quiz
       console.log(`[MINI QUIZ] Generando ${QUESTION_COUNT} preguntas de ${conceptsForQuestions.length} conceptos del cuaderno`);
       
-      // Seleccionar 5 conceptos aleatorios del cuaderno completo
-      const shuffled = [...conceptsForQuestions].sort(() => 0.5 - Math.random());
-      const selectedConcepts = shuffled.slice(0, Math.min(QUESTION_COUNT, conceptsForQuestions.length));
+      // Seleccionar conceptos aleatorios más eficientemente
+      const selectedConcepts: Concept[] = [];
+      const indices = Array.from({length: conceptsForQuestions.length}, (_, i) => i)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.min(QUESTION_COUNT, conceptsForQuestions.length));
+      
+      indices.forEach(i => selectedConcepts.push(conceptsForQuestions[i]));
       
       // Generar preguntas con distractores simples
       const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
         // Usar otros conceptos de la sesi\u00f3n como distractores
-        const otherConcepts = allConcepts.filter(c => c.id !== concept.id);
-        const distractors = otherConcepts
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 3);
+        const otherConcepts = conceptsForQuestions.filter(c => c.id !== concept.id);
+        let distractors: Concept[] = [];
+        
+        if (otherConcepts.length >= 3) {
+          const shuffled = otherConcepts.sort(() => 0.5 - Math.random());
+          distractors = shuffled.slice(0, 3);
+        } else {
+          distractors = [...otherConcepts];
+        }
         
         // Si no hay suficientes, crear distractores gen\u00e9ricos
         while (distractors.length < 3) {
@@ -236,117 +244,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     }
   };
 
-  const generateMiniQuizQuestions = useCallback(async (): Promise<QuizQuestion[]> => {
-    try {
-      if (!auth.currentUser) {
-        throw new Error('Usuario no autenticado');
-      }
-
-      let quizConcepts: Concept[] = [];
-
-      // Si se proporcionaron conceptos de la sesión, usarlos para el quiz
-      if (sessionConcepts && sessionConcepts.length > 0) {
-        console.log('[MINI QUIZ] Usando conceptos de la sesión actual:', sessionConcepts.length);
-        quizConcepts = [...sessionConcepts];
-      } else {
-        // Fallback: usar conceptos cacheados del cuaderno
-        console.log('[MINI QUIZ] No hay conceptos de sesión, usando conceptos cacheados del cuaderno');
-        quizConcepts = [...allNotebookConcepts];
-      }
-
-      if (quizConcepts.length === 0) {
-        throw new Error('No hay conceptos disponibles para el mini quiz');
-      }
-
-      // Seleccionar 5 conceptos aleatorios de los conceptos repasados (o todos si hay menos de 5)
-      const maxQuestions = Math.min(5, quizConcepts.length);
-      const shuffledConcepts = quizConcepts.sort(() => 0.5 - Math.random());
-      const selectedConcepts = shuffledConcepts.slice(0, maxQuestions);
-
-      // Crear pool de todos los conceptos disponibles para distractores
-      const conceptsMap = new Map();
-      
-      // Añadir conceptos del quiz
-      quizConcepts.forEach(concept => conceptsMap.set(concept.id, concept));
-      
-      // Añadir conceptos del cuaderno (sin duplicar)
-      allNotebookConcepts.forEach(concept => conceptsMap.set(concept.id, concept));
-      
-      const allAvailableConcepts = Array.from(conceptsMap.values());
-
-      console.log(`[MINI QUIZ] Pool de conceptos para distractores: ${allAvailableConcepts.length} conceptos`);
-
-      // Generar preguntas
-      const quizQuestions: QuizQuestion[] = selectedConcepts.map((concept, index) => {
-        // Seleccionar 3 distractores aleatorios de TODOS los conceptos disponibles
-        const otherConcepts = allAvailableConcepts.filter(c => c.id !== concept.id);
-        let distractors = otherConcepts
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 3);
-
-        console.log(`[MINI QUIZ] Conceptos disponibles para distractores: ${otherConcepts.length}, distractores seleccionados: ${distractors.length}`);
-
-        // Si aún no hay suficientes distractores, usar los conceptos restantes del quiz
-        if (distractors.length < 3) {
-          const remainingQuizConcepts = selectedConcepts.filter(c => c.id !== concept.id && !distractors.find(d => d.id === c.id));
-          distractors = [...distractors, ...remainingQuizConcepts].slice(0, 3);
-        }
-
-        // Solo como último recurso, crear distractores genéricos
-        while (distractors.length < 3) {
-          const fakeDistractor = {
-            id: `fake-${index}-${distractors.length}`,
-            término: `Término ${Math.floor(Math.random() * 1000)}`,  // Términos más realistas
-            definición: 'Concepto alternativo',
-            fuente: concept.fuente, // Usar la misma fuente
-            usuarioId: auth.currentUser!.uid,
-            docId: 'generated',
-            index: distractors.length,
-            notasPersonales: '',
-            reviewId: '',
-            dominado: false
-          } as Concept;
-          distractors.push(fakeDistractor);
-        }
-
-        console.log(`[MINI QUIZ] Pregunta ${index + 1}: "${concept.término}" con distractores: [${distractors.map(d => d.término).join(', ')}]`);
-
-        // Crear opciones (siempre 4: 1 correcta + 3 distractores)
-        const options: QuizOption[] = [
-          {
-            id: `option-${index}-correct`,
-            term: concept.término,
-            isCorrect: true,
-            conceptId: concept.id
-          },
-          ...distractors.map((distractor, distractorIndex) => ({
-            id: `option-${index}-${distractorIndex}`,
-            term: distractor.término,
-            isCorrect: false,
-            conceptId: distractor.id
-          }))
-        ];
-
-        // Mezclar las opciones aleatoriamente
-        const shuffledOptions = options.sort(() => 0.5 - Math.random());
-
-        console.log(`[MINI QUIZ] Opciones para "${concept.término}":`, shuffledOptions.map(o => `${o.term} (${o.isCorrect ? 'correcta' : 'incorrecta'})`));
-
-        return {
-          id: `question-${index}`,
-          definition: concept.definición,
-          correctAnswer: concept,
-          options: shuffledOptions,
-          source: concept.fuente
-        };
-      });
-
-      return quizQuestions;
-    } catch (error) {
-      console.error('Error generating mini quiz questions:', error);
-      throw error;
-    }
-  }, [notebookId, sessionConcepts, isSchoolStudent, allNotebookConcepts]);
+  // Función asíncrona eliminada para mejorar rendimiento - ahora solo usamos la versión síncrona
 
   // Cargar y cachear conceptos del cuaderno - OPTIMIZADO
   // Este useEffect ya no es necesario porque se carga directamente en startMiniQuiz
@@ -397,30 +295,34 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   }, [notebookId, isSchoolStudent, conceptsCached]);
   */
 
-  // Iniciar mini quiz - OPTIMIZADO
+  // Iniciar mini quiz - SUPER OPTIMIZADO
   const startMiniQuiz = async () => {
     try {
       console.log('[MINI QUIZ] Preparando mini quiz...');
       setLoading(true);
       
-      // SIEMPRE cargar conceptos del cuaderno primero para tener mejores distractores
+      // PRIORIZAR: Si tenemos conceptos de sesión, usar directamente sin cargar del cuaderno
+      if (sessionConcepts && sessionConcepts.length >= 5) {
+        console.log('[MINI QUIZ] Usando SOLO conceptos de sesión (rápido):', sessionConcepts.length);
+        const quizQuestions = generateMiniQuizQuestionsSync(sessionConcepts);
+        setupQuizState(quizQuestions);
+        return;
+      }
+      
+      // Solo cargar del cuaderno si no hay suficientes conceptos de sesión
       let loadedConcepts: Concept[] = [];
       if (!conceptsCached) {
-        console.log('[MINI QUIZ] Cargando conceptos del cuaderno para distractores...');
+        console.log('[MINI QUIZ] Cargando conceptos del cuaderno (limitado)...');
         loadedConcepts = await loadConceptsDirectly();
       } else {
         loadedConcepts = allNotebookConcepts;
       }
       
-      // Ahora generar preguntas con todos los conceptos disponibles
-      if (sessionConcepts && sessionConcepts.length > 0) {
-        console.log('[MINI QUIZ] Usando conceptos de sesión, generando preguntas con distractores del cuaderno...');
-      } else {
-        console.log('[MINI QUIZ] No hay conceptos de sesión, usando conceptos del cuaderno...');
-      }
+      // Combinar conceptos de sesión con conceptos del cuaderno si es necesario
+      const combinedConcepts = sessionConcepts ? [...sessionConcepts, ...loadedConcepts] : loadedConcepts;
       
-      // Generar preguntas con los conceptos del cuaderno cargados
-      const quizQuestions = generateMiniQuizQuestionsSync(loadedConcepts);
+      // Generar preguntas con los conceptos disponibles
+      const quizQuestions = generateMiniQuizQuestionsSync(combinedConcepts);
       setupQuizState(quizQuestions);
       return;
     } catch (error) {
@@ -454,26 +356,29 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     setLoading(false);
   };
 
-  // Función para cargar conceptos directamente sin espera activa
+  // Función para cargar conceptos directamente - OPTIMIZADA
   const loadConceptsDirectly = async (): Promise<Concept[]> => {
     try {
       const collectionName = isSchoolStudent ? 'schoolConcepts' : 'conceptos';
       const conceptsQuery = query(
         collection(db, collectionName),
-        where('cuadernoId', '==', notebookId)
+        where('cuadernoId', '==', notebookId),
+        limit(50) // OPTIMIZACIÓN: Limitar a 50 conceptos máximo para mejor rendimiento
       );
       
       const conceptDocs = await getDocs(conceptsQuery);
       const concepts: Concept[] = [];
       
-      // Procesar TODOS los conceptos del cuaderno para tener mejores distractores
-      for (const doc of conceptDocs.docs) {
+      // Procesar conceptos de forma más eficiente
+      conceptDocs.docs.forEach(doc => {
         const conceptosData = doc.data().conceptos || [];
         
-        // Cargar TODOS los conceptos, no solo los primeros 5
-        conceptosData.forEach((concepto: any, index: number) => {
+        // Limitar conceptos por documento y procesar de forma más eficiente
+        const limitedConcepts = conceptosData.slice(0, 20); // Máximo 20 conceptos por documento
+        
+        limitedConcepts.forEach((concepto: any, index: number) => {
           // Solo agregar conceptos válidos con término y definición
-          if (concepto.término && concepto.definición) {
+          if (concepto.término && concepto.definición && concepts.length < 30) {
             concepts.push({
               id: concepto.id || `${doc.id}-${index}`,
               término: concepto.término,
@@ -482,19 +387,19 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
               usuarioId: concepto.usuarioId,
               docId: doc.id,
               index,
-              notasPersonales: concepto.notasPersonales,
-              reviewId: concepto.reviewId
+              notasPersonales: concepto.notasPersonales || '',
+              reviewId: concepto.reviewId || ''
             });
           }
         });
-      }
+      });
       
-      console.log(`[MINI QUIZ] ${concepts.length} conceptos totales cargados del cuaderno para usar como distractores`);
+      console.log(`[MINI QUIZ] ${concepts.length} conceptos cargados (optimizado) del cuaderno para distractores`);
       setAllNotebookConcepts(concepts);
       setConceptsCached(true);
-      return concepts; // Retornar los conceptos cargados
+      return concepts;
     } catch (error) {
-      console.error("[MINI QUIZ] Error al preparar mini quiz:", error);
+      console.error("[MINI QUIZ] Error al cargar conceptos:", error);
       setLoading(false);
       return [];
     }
@@ -983,46 +888,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           </h2>
         </div>
         
-        <div className="results-stats">
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-star"></i>
-            </div>
-            <div className="stat-value">{finalScore}/10</div>
-            <div className="stat-label">Calificación</div>
-          </div>
-          
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-check-circle"></i>
-            </div>
-            <div className="stat-value">
-              {correctAnswers}/{questionsAnswered}
-              {wasTimeUp && <span style={{
-                fontSize: '0.75em',
-                color: '#fb923c',
-                fontWeight: 600,
-                display: 'inline-block',
-                marginLeft: '0.25rem',
-                padding: '0.1rem 0.4rem',
-                background: 'rgba(251, 146, 60, 0.1)',
-                borderRadius: '4px',
-                border: '1px solid rgba(251, 146, 60, 0.2)'
-              }}> (de {totalQuestions})</span>}
-            </div>
-            <div className="stat-label">Respuestas correctas</div>
-          </div>
-          
-          <div className="stat-item">
-            <div className="stat-icon">
-              <i className="fas fa-percentage"></i>
-            </div>
-            <div className="stat-value">
-              {questionsAnswered > 0 ? Math.round((correctAnswers / questionsAnswered) * 100) : 0}%
-            </div>
-            <div className="stat-label">Precisión</div>
-          </div>
-        </div>
 
         <div className="results-message">
           {wasTimeUp ? (
