@@ -1132,6 +1132,274 @@
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
 }
 
+/* Modal de Introducción de Memorama */
+.memory-intro-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(5px);
+}
+
+.memory-intro-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 1rem;
+  width: 650px;
+  height: 724px;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.intro-header {
+  text-align: center;
+  margin-bottom: 12px !important;
+  border-bottom: none;
+}
+
+.intro-icon {
+  font-size: 3rem;
+  color: #667eea;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.intro-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.intro-content {
+  margin-bottom: 0;
+}
+
+.intro-section {
+  margin-bottom: 1.5rem;
+}
+
+.intro-section:first-child {
+  margin-bottom: 0.5rem;
+  width: 570px;
+  height: 220px;
+}
+
+.intro-section:last-child {
+  margin-bottom: 0;
+}
+
+.intro-section h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.intro-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.intro-section li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.intro-section li i {
+  color: #667eea;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.difficulty-card {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  position: relative;
+  width: 170px;
+  height: 160px;
+}
+
+.difficulty-card:hover:not(.disabled) {
+  background: linear-gradient(135deg, #667eea15, #764ba215);
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.difficulty-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+.difficulty-card.selected {
+  background: linear-gradient(135deg, #667eea25, #764ba225);
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.difficulty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.difficulty-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.difficulty-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.difficulty-details span {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.insufficient-text {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
+.intro-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.action-button {
+  padding: 0.4375rem 2rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.action-button.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.action-button.primary:hover:not(.disabled) {
+  transform: translateY(-2px);
+}
+
+.action-button.primary.disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.action-button.primary.disabled:hover {
+  transform: none;
+}
+
+.action-button.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.action-button.secondary:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+/* Responsive para el modal */
+@media (max-width: 768px) {
+  .memory-intro-modal {
+    padding: 1.5rem;
+    margin: 1rem;
+    height: auto;
+    max-height: 90vh;
+  }
+  
+  .intro-icon {
+    font-size: 2.5rem;
+  }
+  
+  .intro-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .difficulty-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .difficulty-card {
+    padding: 1rem;
+  }
+  
+  .intro-actions {
+    flex-direction: column;
+  }
+  
+  .action-button {
+    width: 100%;
+  }
+}
+
 /* Difficulty Selection Modal */
 .difficulty-options {
   display: flex;

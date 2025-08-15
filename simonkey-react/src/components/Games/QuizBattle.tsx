@@ -7,6 +7,7 @@ import { useGamePoints } from '../../hooks/useGamePoints';
 import { useStudyService } from '../../hooks/useStudyService';
 import { useUserType } from '../../hooks/useUserType';
 import { getEffectiveUserId } from '../../utils/getEffectiveUserId';
+import HeaderWithHamburger from '../HeaderWithHamburger';
 import '../../styles/QuizBattle.css';
 
 interface Concept {
@@ -782,38 +783,55 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
 
   if (loading) {
     return (
-      <div className="quiz-battle-container">
-        <div className="loading-container">
-          <div className="loading-circle"></div>
-          <p className="loading-text">Cargando</p>
+      <>
+        <HeaderWithHamburger 
+          title="Quiz Battle"
+          subtitle={notebookTitle}
+        />
+        <div className="quiz-battle-container with-header-sidebar">
+          <div className="loading-container">
+            <div className="loading-circle"></div>
+            <p className="loading-text">Cargando</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (noReviewedConcepts) {
     return (
-      <div className="quiz-battle-container">
-        <div className="no-concepts-message">
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-          </button>
-          <div className="empty-state">
-            <i className="fas fa-graduation-cap"></i>
-            <h2>¡Primero necesitas estudiar!</h2>
-            <p>Para jugar, necesitas haber repasado al menos 4 conceptos en el estudio inteligente.</p>
-            <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
-            <button className="primary-button" onClick={onBack}>
-              Volver
+      <>
+        <HeaderWithHamburger 
+          title="Quiz Battle"
+          subtitle={notebookTitle}
+        />
+        <div className="quiz-battle-container with-header-sidebar">
+          <div className="no-concepts-message">
+            <button className="back-button" onClick={onBack}>
+              <FontAwesomeIcon icon={faArrowLeft} />
             </button>
+            <div className="empty-state">
+              <i className="fas fa-graduation-cap"></i>
+              <h2>¡Primero necesitas estudiar!</h2>
+              <p>Para jugar, necesitas haber repasado al menos 4 conceptos en el estudio inteligente.</p>
+              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <button className="primary-button" onClick={onBack}>
+                Volver
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="quiz-battle-container">
+    <>
+      <HeaderWithHamburger 
+        title="Quiz Battle"
+        subtitle={`${notebookTitle} - Ronda ${round}/3`}
+      />
+      <div className="quiz-battle-container with-header-sidebar">
       <div className="battle-header">
         <button className="back-button" onClick={onBack}>
           <FontAwesomeIcon icon={faArrowLeft} />
@@ -1004,18 +1022,54 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
 
       {/* Game Start Modal */}
       {!gameStarted && !gameOver && !showCharacterSelection && (
-        <div className="game-modal">
-          <h2>¡Quiz Battle!</h2>
-          <p>Derrota a 3 oponentes respondiendo correctamente</p>
-          <ul>
-            <li>Cada respuesta correcta hace daño</li>
-            <li>Los combos aumentan el daño</li>
-            <li>Cada personaje tiene un poder único</li>
-            <li>¡Batallas rápidas de 60 HP!</li>
-          </ul>
-          <button className="start-button" onClick={startGame}>
-            ¡Elegir Personaje!
-          </button>
+        <div className="quiz-intro-overlay">
+          <div className="quiz-intro-modal">
+            <div className="intro-header">
+              <FontAwesomeIcon icon={faFistRaised} className="intro-icon" />
+              <h2>Quiz Battle</h2>
+            </div>
+            
+            <div className="intro-content">
+              <div className="intro-section">
+                <h3>¿Cómo jugar?</h3>
+                <ul>
+                  <li><i className="fas fa-fist-raised"></i> Derrota a 3 oponentes respondiendo correctamente</li>
+                  <li><i className="fas fa-bolt"></i> Cada respuesta correcta hace daño al enemigo</li>
+                  <li><i className="fas fa-fire"></i> Los combos aumentan tu daño</li>
+                  <li><i className="fas fa-star"></i> Cada personaje tiene un poder único</li>
+                </ul>
+              </div>
+              
+              <div className="intro-section">
+                <h3>Sistema de batalla</h3>
+                <div className="scoring-info">
+                  <div className="score-item">
+                    <span className="score-points">60 HP</span>
+                    <span>Vida inicial</span>
+                  </div>
+                  <div className="score-item">
+                    <span className="score-points">3</span>
+                    <span>Rondas totales</span>
+                  </div>
+                  <div className="score-item">
+                    <span className="score-points">10s</span>
+                    <span>Por pregunta</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="intro-actions">
+              <button className="action-button secondary" onClick={onBack}>
+                <FontAwesomeIcon icon={faArrowLeft} />
+                Cancelar
+              </button>
+              <button className="action-button primary" onClick={startGame}>
+                <FontAwesomeIcon icon={faFistRaised} />
+                ¡Elegir Personaje!
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1122,7 +1176,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
