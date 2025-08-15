@@ -218,16 +218,41 @@ export class TeacherKpiService {
         console.log(`[TeacherKpiService] Estudiantes escolares totales encontrados: ${studentsSnap.size}`);
       }
 
-      // Filtrar estudiantes que tienen cuadernos del profesor
+      // Filtrar estudiantes que tienen materias del profesor
       for (const studentDoc of studentsSnap.docs) {
         const studentData = studentDoc.data();
         const studentNotebooks = studentData.idCuadernos || [];
+        const studentSubjects = studentData.idMaterias || studentData.subjectIds || [];
         
-        // Verificar si el estudiante tiene algún cuaderno del profesor
-        let hasTeacherNotebook = false;
+        console.log(`[TeacherKpiService] Estudiante ${studentDoc.id}:`);
+        console.log(`  - idCuadernos: ${studentNotebooks}`);
+        console.log(`  - idMaterias/subjectIds: ${studentSubjects}`);
+        
+        // Verificar si el estudiante tiene alguna materia del profesor
+        let hasTeacherSubject = false;
+        
+        // Primero verificar por materias
+        for (const subjectId of subjectIds) {
+          if (studentSubjects.includes(subjectId)) {
+            hasTeacherSubject = true;
+            console.log(`  - ✅ Tiene materia del profesor: ${subjectId}`);
+            
+            // Si tiene la materia, agregar a todos los cuadernos de esa materia
+            const subjectNotebooks = notebooksBySubject.get(subjectId) || [];
+            for (const notebookId of subjectNotebooks) {
+              if (!studentsByNotebook.has(notebookId)) {
+                studentsByNotebook.set(notebookId, []);
+              }
+              studentsByNotebook.get(notebookId)!.push(studentDoc.id);
+            }
+          }
+        }
+        
+        // También verificar si tiene cuadernos directamente (compatibilidad)
         for (const notebook of allNotebooks) {
           if (studentNotebooks.includes(notebook.id)) {
-            hasTeacherNotebook = true;
+            hasTeacherSubject = true;
+            console.log(`  - ✅ Tiene cuaderno directo del profesor: ${notebook.id}`);
             
             // Agregar estudiante a la lista del cuaderno
             if (!studentsByNotebook.has(notebook.id)) {
@@ -237,8 +262,9 @@ export class TeacherKpiService {
           }
         }
         
-        if (hasTeacherNotebook) {
+        if (hasTeacherSubject) {
           studentIds.add(studentDoc.id);
+          console.log(`  - Agregado a la lista de estudiantes del profesor`);
         }
       }
 

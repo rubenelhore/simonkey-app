@@ -292,22 +292,27 @@ const SchoolTeacherAnalyticsPage: React.FC = () => {
         const studentData = studentDoc.data();
         const studentNotebooks = studentData.idCuadernos || [];
         
+        // Obtener las materias del estudiante (puede estar en diferentes campos)
+        const studentSubjects = studentData.idMaterias || studentData.subjectIds || 
+                               (studentData.idMateria ? [studentData.idMateria] : []);
+        
         console.log(`[TeacherAnalytics] Procesando estudiante ${studentDoc.id}:`, {
           nombre: studentData.nombre,
           email: studentData.email,
           cuadernos: studentNotebooks.length,
           idCuadernos: studentNotebooks,
-          idMateria: studentData.idMateria
+          materias: studentSubjects
         });
         
         // Verificar si el estudiante tiene algún cuaderno de esta materia
         const hasNotebookFromSubject = notebookIds.some(id => studentNotebooks.includes(id));
         
-        // También verificar si el estudiante tiene la misma materia directamente
-        const hasSubjectDirect = studentData.idMateria === selectedMateria;
+        // Verificar si el estudiante tiene la materia asignada
+        const hasSubjectDirect = studentSubjects.includes(selectedMateria);
         
         console.log(`[TeacherAnalytics] Estudiante tiene cuaderno de la materia: ${hasNotebookFromSubject}`);
-        console.log(`[TeacherAnalytics] Estudiante tiene idMateria directa: ${hasSubjectDirect}`);
+        console.log(`[TeacherAnalytics] Estudiante tiene materia asignada: ${hasSubjectDirect}`);
+        console.log(`[TeacherAnalytics] Materias del estudiante: ${studentSubjects.join(', ')}`);
         
         if (hasNotebookFromSubject || hasSubjectDirect) {
           try {

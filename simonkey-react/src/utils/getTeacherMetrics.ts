@@ -51,21 +51,32 @@ export async function getTeacherMetricsWithProfile(userProfile: any) {
     console.log('[getTeacherMetrics] ID Admin:', userProfile.idAdmin);
 
     // Primero intentar obtener métricas existentes
+    console.log('[getTeacherMetrics] Obteniendo métricas existentes...');
     let metrics = await teacherKpiService.getTeacherMetrics(teacherUid);
+    console.log('[getTeacherMetrics] Métricas existentes:', metrics);
     
-    if (!metrics) {
-      console.log('[getTeacherMetrics] No hay métricas, creando nuevas...');
+    // Si no hay métricas o están vacías, crear nuevas
+    const needsUpdate = !metrics || 
+                       !metrics.materias || 
+                       Object.keys(metrics.materias).length === 0;
+    
+    if (needsUpdate) {
+      console.log('[getTeacherMetrics] Necesita actualización - creando/actualizando métricas...');
       
       // Asegurarse de que el userProfile tenga la institución
-      if (effectiveInstitutionId && !userProfile.idInstitucion) {
+      if (effectiveInstitutionId) {
         userProfile.idInstitucion = effectiveInstitutionId;
+        console.log('[getTeacherMetrics] UserProfile actualizado con institución:', effectiveInstitutionId);
       }
       
       // Pasar el userProfile actualizado para que use el ID correcto en las consultas
+      console.log('[getTeacherMetrics] Llamando updateTeacherMetrics con userProfile:', userProfile);
       await teacherKpiService.updateTeacherMetrics(teacherUid, userProfile);
       
       // Obtener las métricas recién creadas
+      console.log('[getTeacherMetrics] Obteniendo métricas actualizadas...');
       metrics = await teacherKpiService.getTeacherMetrics(teacherUid);
+      console.log('[getTeacherMetrics] Métricas actualizadas:', metrics);
     }
 
     return metrics;
