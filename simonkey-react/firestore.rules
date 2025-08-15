@@ -137,6 +137,19 @@ service cloud.firestore {
         allow read, write: if isOwner(userId) || isSuperAdmin();
       }
       
+      // Subcolección KPIs - permitir a estudiantes de la misma institución leer KPIs
+      match /kpis/{kpiId} {
+        allow read: if isOwner(userId) || 
+          isSuperAdmin() ||
+          // Profesores pueden leer KPIs de estudiantes de su institución
+          (hasSchoolRole('teacher') && 
+           get(/databases/$(database)/documents/users/$(userId)).data.idInstitucion == getUserData().idInstitucion) ||
+          // Estudiantes pueden leer KPIs de otros estudiantes de su institución (para ranking)
+          (hasSchoolRole('student') && 
+           get(/databases/$(database)/documents/users/$(userId)).data.idInstitucion == getUserData().idInstitucion);
+        allow write: if isOwner(userId) || isSuperAdmin();
+      }
+      
       // Otras subcolecciones
       match /{subcollection}/{document} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
