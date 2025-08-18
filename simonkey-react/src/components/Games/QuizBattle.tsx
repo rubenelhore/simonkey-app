@@ -247,39 +247,26 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      // Obtener TODOS los conceptos del cuaderno primero
+      // Obtener TODOS los conceptos del cuaderno
       let allConcepts: any[] = await studyService.getAllConceptsFromNotebook(userId, notebookId);
       console.log('⚔️ Total de conceptos en el cuaderno:', allConcepts.length);
       
-      // Obtener datos de aprendizaje para filtrar solo conceptos repasados
-      const learningData = await studyService.getLearningDataForNotebook(userId, notebookId);
-      console.log('📚 Datos de aprendizaje encontrados:', learningData.length);
-      
-      // Crear un Set con los IDs de conceptos que tienen datos de aprendizaje (han sido repasados)
-      const reviewedConceptIds = new Set(learningData.map(data => data.conceptId));
-      
-      // Filtrar solo los conceptos que han sido repasados
-      const reviewedConcepts = allConcepts.filter(concept => 
-        reviewedConceptIds.has(concept.id)
-      );
-      
-      console.log('🎯 Conceptos repasados disponibles para el juego:', reviewedConcepts.length);
-      
-      if (reviewedConcepts.length < 4) {
-        console.log('⚠️ No hay suficientes conceptos repasados para el juego (mínimo 4)');
+      // Verificar que haya al menos 4 conceptos para jugar
+      if (allConcepts.length < 4) {
+        console.log('⚠️ No hay suficientes conceptos en el cuaderno (mínimo 4)');
         setNoReviewedConcepts(true);
         setLoading(false);
         return false;
       }
       
       // Convertir al formato que espera el juego
-      const conceptsList: Concept[] = reviewedConcepts.map(concept => ({
+      const conceptsList: Concept[] = allConcepts.map(concept => ({
         id: concept.id,
         term: concept.término || '',
         definition: concept.definición || ''
       }));
 
-      console.log('🎯 Total de conceptos repasados para el juego:', conceptsList.length);
+      console.log('🎯 Total de conceptos disponibles para el juego:', conceptsList.length);
       setConcepts(conceptsList);
       setLoading(false);
       return true;
@@ -823,10 +810,10 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
             <div className="empty-state">
-              <i className="fas fa-graduation-cap"></i>
-              <h2>¡Primero necesitas estudiar!</h2>
-              <p>Para jugar, necesitas haber repasado al menos 4 conceptos en el estudio inteligente.</p>
-              <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
+              <i className="fas fa-book-open"></i>
+              <h2>¡No hay suficientes conceptos!</h2>
+              <p>Este cuaderno necesita tener al menos 4 conceptos para poder jugar.</p>
+              <p>Agrega más conceptos al cuaderno para poder iniciar la batalla.</p>
               <button className="primary-button" onClick={onBack}>
                 Volver
               </button>
