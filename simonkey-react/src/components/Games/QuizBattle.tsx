@@ -107,7 +107,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(10);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState<'correct' | 'wrong' | null>(null);
@@ -196,9 +196,10 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     { name: 'Maestro Sabio', accuracy: 0.9, thinkTime: 1000, avatar: '🧙‍♂️' }
   ];
 
-  useEffect(() => {
-    loadConcepts();
-  }, [notebookId]);
+  // No cargar conceptos automáticamente al montar el componente
+  // useEffect(() => {
+  //   loadConcepts();
+  // }, [notebookId]);
 
   // Timer effect - runs for both player and enemy turns but pauses during power effects
   useEffect(() => {
@@ -237,8 +238,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     }
   }, [playerHP, selectedCharacter, robotPowerUsed, gameStarted, gameOver, isPowerEffectActive]);
 
-  const loadConcepts = async () => {
-    if (!auth.currentUser) return;
+  const loadConcepts = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
 
     setLoading(true);
     try {
@@ -268,7 +269,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         console.log('⚠️ No hay suficientes conceptos repasados para el juego (mínimo 4)');
         setNoReviewedConcepts(true);
         setLoading(false);
-        return;
+        return false;
       }
       
       // Convertir al formato que espera el juego
@@ -281,9 +282,11 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       console.log('🎯 Total de conceptos repasados para el juego:', conceptsList.length);
       setConcepts(conceptsList);
       setLoading(false);
+      return true;
     } catch (error) {
       console.error('Error loading concepts:', error);
       setLoading(false);
+      return false;
     }
   };
 
@@ -305,8 +308,17 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     };
   };
 
-  const startGame = () => {
-    setShowCharacterSelection(true);
+  const startGame = async () => {
+    // Cargar conceptos antes de mostrar selección de personaje
+    setLoading(true);
+    const hasEnoughConcepts = await loadConcepts();
+    setLoading(false);
+    
+    // Si hay suficientes conceptos, mostrar selección de personaje
+    if (hasEnoughConcepts) {
+      setShowCharacterSelection(true);
+    }
+    // Si no hay suficientes conceptos, loadConcepts ya actualizó noReviewedConcepts
   };
 
   const selectCharacter = (character: Character) => {
@@ -825,6 +837,69 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     );
   }
 
+  // Si el juego no ha comenzado, solo mostrar el modal de introducción
+  if (!gameStarted && !showCharacterSelection && !noReviewedConcepts) {
+    return (
+      <>
+        <HeaderWithHamburger 
+          title="Quiz Battle"
+          subtitle={notebookTitle}
+        />
+        <div className="quiz-battle-container with-header-sidebar">
+          <div className="quiz-intro-overlay">
+            <div className="quiz-intro-modal">
+              <div className="intro-header">
+                <FontAwesomeIcon icon={faFistRaised} className="intro-icon" />
+                <h2>Quiz Battle</h2>
+              </div>
+              
+              <div className="intro-content">
+                <div className="intro-section">
+                  <h3>¿Cómo jugar?</h3>
+                  <ul>
+                    <li><i className="fas fa-fist-raised"></i> Derrota a 3 oponentes respondiendo correctamente</li>
+                    <li><i className="fas fa-bolt"></i> Cada respuesta correcta hace daño al enemigo</li>
+                    <li><i className="fas fa-fire"></i> Los combos aumentan tu daño</li>
+                    <li><i className="fas fa-star"></i> Cada personaje tiene un poder único</li>
+                  </ul>
+                </div>
+                
+                <div className="intro-section">
+                  <h3>Sistema de batalla</h3>
+                  <div className="scoring-info">
+                    <div className="score-item">
+                      <span className="score-points">60 HP</span>
+                      <span>Vida inicial</span>
+                    </div>
+                    <div className="score-item">
+                      <span className="score-points">3</span>
+                      <span>Rondas totales</span>
+                    </div>
+                    <div className="score-item">
+                      <span className="score-points">10s</span>
+                      <span>Por pregunta</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="intro-actions">
+                <button className="action-button secondary" onClick={onBack}>
+                  <FontAwesomeIcon icon={faArrowLeft} />
+                  Cancelar
+                </button>
+                <button className="action-button primary" onClick={startGame}>
+                  <FontAwesomeIcon icon={faFistRaised} />
+                  ¡Elegir Personaje!
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <HeaderWithHamburger 
@@ -1020,58 +1095,6 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         </div>
       )}
 
-      {/* Game Start Modal */}
-      {!gameStarted && !gameOver && !showCharacterSelection && (
-        <div className="quiz-intro-overlay">
-          <div className="quiz-intro-modal">
-            <div className="intro-header">
-              <FontAwesomeIcon icon={faFistRaised} className="intro-icon" />
-              <h2>Quiz Battle</h2>
-            </div>
-            
-            <div className="intro-content">
-              <div className="intro-section">
-                <h3>¿Cómo jugar?</h3>
-                <ul>
-                  <li><i className="fas fa-fist-raised"></i> Derrota a 3 oponentes respondiendo correctamente</li>
-                  <li><i className="fas fa-bolt"></i> Cada respuesta correcta hace daño al enemigo</li>
-                  <li><i className="fas fa-fire"></i> Los combos aumentan tu daño</li>
-                  <li><i className="fas fa-star"></i> Cada personaje tiene un poder único</li>
-                </ul>
-              </div>
-              
-              <div className="intro-section">
-                <h3>Sistema de batalla</h3>
-                <div className="scoring-info">
-                  <div className="score-item">
-                    <span className="score-points">60 HP</span>
-                    <span>Vida inicial</span>
-                  </div>
-                  <div className="score-item">
-                    <span className="score-points">3</span>
-                    <span>Rondas totales</span>
-                  </div>
-                  <div className="score-item">
-                    <span className="score-points">10s</span>
-                    <span>Por pregunta</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="intro-actions">
-              <button className="action-button secondary" onClick={onBack}>
-                <FontAwesomeIcon icon={faArrowLeft} />
-                Cancelar
-              </button>
-              <button className="action-button primary" onClick={startGame}>
-                <FontAwesomeIcon icon={faFistRaised} />
-                ¡Elegir Personaje!
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Character Selection Modal */}
       {showCharacterSelection && (
