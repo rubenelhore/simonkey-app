@@ -160,23 +160,14 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: notebooks
     // ========================================
     match /notebooks/{notebookId} {
-      // Lectura
+      // Lectura - SIMPLIFICADA: propietario siempre puede leer
       allow read: if isAuthenticated() && (
-        // Notebooks personales: solo propietario (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && isOwner(resource.data.userId)) ||
-        // Notebooks escolares
-        (resource.data.type == 'school' && (
-          // Profesores y admins de la misma escuela
-          (isSchoolAdminOrTeacher() && isSameInstitution(resource.data.idEscuela)) ||
-          // Estudiantes asignados
-          (hasSchoolRole('student') && notebookId in getUserData().idCuadernos) ||
-          // Tutores de estudiantes asignados
-          (hasSchoolRole('tutor'))
-        )) ||
-        // Permitir queries que retornan vacías para estudiantes escolares
-        (hasSchoolRole('student') && resource == null) ||
+        // El propietario siempre puede leer su notebook
+        isOwner(resource.data.userId) ||
         // Super admin
-        isSuperAdmin()
+        isSuperAdmin() ||
+        // Permitir queries que retornan vacías
+        resource == null
       );
       
       // Creación - Funcional con validaciones básicas
@@ -185,31 +176,20 @@ service cloud.firestore {
         request.resource.data.title is string &&
         request.resource.data.title.size() <= 100;
       
-      // Actualización
+      // Actualización - SIMPLIFICADA: propietario siempre puede actualizar
       allow update: if isAuthenticated() && (
-        // Notebooks personales: propietario (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && isOwner(resource.data.userId)) ||
-        // Notebooks escolares: profesor creador
-        (resource.data.type == 'school' && 
-         hasSchoolRole('teacher') && 
-         resource.data.idProfesor == request.auth.uid) ||
+        // El propietario siempre puede actualizar
+        isOwner(resource.data.userId) ||
         // Super admin
         isSuperAdmin()
       ) &&
-      // No permitir cambiar tipo o propietario
-      (request.resource.data.type == null || request.resource.data.type == resource.data.type) &&
-      (resource.data.userId == null || request.resource.data.userId == resource.data.userId);
+      // No permitir cambiar el propietario
+      request.resource.data.userId == resource.data.userId;
       
       // Eliminación
       allow delete: if isAuthenticated() && (
-        // Notebooks personales: propietario con permisos (sin type o type == 'personal')
-        ((resource.data.type == null || resource.data.type == 'personal') && 
-         isOwner(resource.data.userId) &&
-         (getUserSubscription() != 'free' || resource.data.conceptCount == null || resource.data.conceptCount == 0)) ||
-        // Notebooks escolares: profesor creador
-        (resource.data.type == 'school' && 
-         hasSchoolRole('teacher') && 
-         resource.data.idProfesor == request.auth.uid) ||
+        // Propietario puede eliminar
+        isOwner(resource.data.userId) ||
         // Super admin
         isSuperAdmin()
       );
@@ -521,7 +501,9 @@ service cloud.firestore {
     // ========================================
     match /schoolNotebooks/{notebookId} {
       allow read: if isSchoolUser() || isSuperAdmin();
-      allow create, update: if isSchoolAdminOrTeacher() || isSuperAdmin();
+      allow create: if isSchoolAdminOrTeacher() || isSuperAdmin();
+      // Actualización permitida para profesores y admins
+      allow update: if (isSchoolAdminOrTeacher() || isSuperAdmin());
       allow delete: if hasSchoolRole('teacher') || hasSchoolRole('admin') || isSuperAdmin();
     }
     
@@ -531,11 +513,39 @@ service cloud.firestore {
     }
     
     match /materias/{materiaId} {
-      allow read: if isAuthenticated() && 
-        (isOwner(resource.data.userId) || isSuperAdmin());
+      // Lectura simplificada - usuario autenticado puede leer sus materias
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        isSuperAdmin() ||
+        resource == null  // Para queries que retornan vacío
+      );
       allow create: if isAuthenticated() && 
         isOwner(request.resource.data.userId);
       allow update, delete: if isOwner(resource.data.userId) || isSuperAdmin();
+      
+      // Subcolección de notebooks dentro de materias
+      match /notebooks/{notebookId} {
+        // El propietario de la materia puede leer y modificar sus notebooks
+        allow read: if isAuthenticated() && (
+          isOwner(get(/databases/$(database)/documents/materias/$(materiaId)).data.userId) ||
+          isSuperAdmin() ||
+          resource == null
+        );
+        
+        allow create: if isAuthenticated() &&
+          isOwner(get(/databases/$(database)/documents/materias/$(materiaId)).data.userId) &&
+          request.resource.data.title is string;
+        
+        allow update: if isAuthenticated() && (
+          isOwner(get(/databases/$(database)/documents/materias/$(materiaId)).data.userId) ||
+          isSuperAdmin()
+        );
+        
+        allow delete: if isAuthenticated() && (
+          isOwner(get(/databases/$(database)/documents/materias/$(materiaId)).data.userId) ||
+          isSuperAdmin()
+        );
+      }
     }
     
     match /usuarios/{userId} {

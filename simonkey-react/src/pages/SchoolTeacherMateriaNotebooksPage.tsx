@@ -387,7 +387,7 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
     }
   };
 
-  const handleFreezeNotebook = async (id: string, type: 'now' | 'scheduled', scheduledDate?: Date) => {
+  const handleFreezeNotebook = async (id: string, type: 'now' | 'scheduled' = 'now', scheduledDate?: Date) => {
     try {
       const notebook = notebooks.find(n => n.id === id);
       if (!notebook) return;
@@ -465,9 +465,14 @@ const SchoolTeacherMateriaNotebooksPage: React.FC = () => {
         } : n
       ));
       
-      console.log('✅ Notebook freeze state updated successfully');
+      console.log('✅ Notebook freeze state updated successfully', {
+        id,
+        wasFrozen: notebook.isFrozen,
+        isNowFrozen: !notebook.isFrozen,
+        calculatedScore
+      });
     } catch (error) {
-      console.error("Error updating notebook freeze state:", error);
+      console.error("❌ Error updating notebook freeze state:", error);
       alert('Error al actualizar el estado del cuaderno. Por favor, intenta de nuevo.');
     }
   };

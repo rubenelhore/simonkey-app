@@ -12,12 +12,16 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-.freeze-modal-content {
+.freeze-modal-overlay .freeze-modal-content {
   background: white;
   border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
+  width: 380px !important;
+  max-width: 90vw !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   animation: slideUp 0.3s ease-out;
 }
 
@@ -25,7 +29,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -61,16 +65,16 @@
 }
 
 .freeze-modal-body {
-  padding: 1.5rem;
+  padding: 1.25rem;
 }
 
 .notebook-name {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 500;
   color: #4a5568;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   text-align: center;
-  padding: 0.75rem;
+  padding: 0.625rem;
   background: #f7fafc;
   border-radius: 8px;
 }
@@ -170,23 +174,23 @@
 .freeze-modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: 0.75rem;
+  padding: 1.25rem;
   border-top: 1px solid #e5e7eb;
 }
 
 .btn-cancel,
 .btn-confirm {
-  padding: 0.75rem 1.5rem;
+  padding: 0.625rem 1.25rem;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .btn-cancel {
@@ -221,11 +225,11 @@
 
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
+    transform: translate(-50%, -48%) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translate(-50%, -50%) scale(1);
     opacity: 1;
   }
 }
@@ -243,9 +247,8 @@
 
 /* Responsive */
 @media (max-width: 640px) {
-  .freeze-modal-content {
-    width: 95%;
-    margin: 1rem;
+  .freeze-modal-overlay .freeze-modal-content {
+    width: 95vw !important;
   }
   
   .schedule-inputs {
@@ -261,4 +264,16 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Freeze confirmation styles */
+.freeze-confirmation {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.confirmation-message {
+  font-size: 0.95rem;
+  color: #4a5568;
+  line-height: 1.5;
 }

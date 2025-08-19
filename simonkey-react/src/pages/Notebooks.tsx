@@ -6,7 +6,7 @@ import { useNotebooks } from '../hooks/useNotebooks';
 import NotebookList from '../components/NotebookList';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import '../styles/Notebooks.css';
 import { decodeMateriaName, parseMateriaNameWithId } from '../utils/urlUtils';
 import StreakTracker from '../components/StreakTracker';
@@ -667,6 +667,93 @@ const Notebooks: React.FC = () => {
     }
   };
 
+  const handleFreezeNotebook = async (id: string, type: 'now' | 'scheduled' = 'now', scheduledDate?: Date) => {
+    try {
+      console.log('🔄 Starting freeze/unfreeze for notebook:', id);
+      const notebook = effectiveNotebooks.find(n => n.id === id);
+      if (!notebook) {
+        console.error('❌ Notebook not found in local state:', id);
+        return;
+      }
+
+      console.log('📋 Notebook data:', {
+        id: notebook.id,
+        userId: notebook.userId,
+        currentUserId: user?.uid,
+        isOwner: notebook.userId === user?.uid,
+        isFrozen: notebook.isFrozen
+      });
+
+      // Intentar primero un test simple de lectura
+      console.log('🔍 Testing Firestore access...');
+      console.log('📍 MateriaId:', materiaId);
+      
+      // Determinar la referencia correcta del documento
+      let notebookRef;
+      let docSnap;
+      
+      // Primero intentar en la colección notebooks normal
+      notebookRef = doc(db, 'notebooks', id);
+      console.log('📖 Attempting to read from notebooks collection...');
+      docSnap = await getDoc(notebookRef);
+      
+      // Si no existe en notebooks, intentar en la subcolección de materias
+      if (!docSnap.exists() && materiaId) {
+        console.log('🔄 Not found in notebooks, trying materias subcollection...');
+        notebookRef = doc(db, 'materias', materiaId, 'notebooks', id);
+        docSnap = await getDoc(notebookRef);
+      }
+      
+      // Si aún no existe, intentar en schoolNotebooks
+      if (!docSnap.exists()) {
+        console.log('🔄 Not found, trying schoolNotebooks collection...');
+        notebookRef = doc(db, 'schoolNotebooks', id);
+        docSnap = await getDoc(notebookRef);
+      }
+      
+      if (!docSnap.exists()) {
+        console.error('❌ Document does not exist in any collection');
+        alert('El cuaderno no existe en la base de datos');
+        return;
+      }
+      
+      console.log('✅ Document found in:', notebookRef.path);
+      
+      const currentData = docSnap.data();
+      console.log('📄 Current document data:', currentData);
+      
+      const newFrozenState = !notebook.isFrozen;
+      const updateData: any = {
+        isFrozen: newFrozenState
+      };
+      
+      if (newFrozenState) {
+        updateData.frozenAt = Timestamp.now();
+      } else {
+        updateData.frozenAt = null;
+      }
+      
+      console.log('🔐 Attempting to update with:', updateData);
+      console.log('📝 Updating document at path:', notebookRef.path);
+      
+      await updateDoc(notebookRef, updateData);
+      
+      console.log('✅ Notebook freeze state updated successfully');
+      
+      // Mostrar mensaje de éxito
+      const message = newFrozenState 
+        ? '🔒 Cuaderno congelado exitosamente' 
+        : '🔓 Cuaderno descongelado exitosamente';
+      alert(message);
+      
+      // Recargar la página para actualizar el estado
+      window.location.reload();
+    } catch (error) {
+      console.error("❌ Error toggling freeze state:", error);
+      alert("Error al cambiar el estado de congelación del cuaderno");
+    }
+  };
+
   const handleAddConcept = (notebookId: string) => {
     // Navegar a la página de detalles del cuaderno con parámetro para abrir modal automáticamente
     if (materiaName) {
@@ -934,6 +1021,7 @@ const Notebooks: React.FC = () => {
             onColorChange={isSchoolStudent ? undefined : handleColorChange}
             onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
             onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
+            onFreezeNotebook={handleFreezeNotebook}
             showCreateButton={!isSchoolStudent && !isSchoolAdmin}
             isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}

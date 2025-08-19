@@ -7,7 +7,8 @@ export const firebaseConfig = {
   projectId: "simonkey-5c78f",
   storageBucket: "simonkey-5c78f.appspot.com",
   messagingSenderId: "235501879490",
-  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b"
+  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b",
+  measurementId: "G-JECV0QEPBW"
 };
 
 // Configuración específica para desarrollo local
@@ -17,7 +18,8 @@ export const firebaseConfigDev = {
   projectId: "simonkey-5c78f",
   storageBucket: "simonkey-5c78f.appspot.com",
   messagingSenderId: "235501879490",
-  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b"
+  appId: "1:235501879490:web:05fea6dae9c63b2a827b5b",
+  measurementId: "G-JECV0QEPBW"
 };
 
 // Configuración para diferentes entornos
