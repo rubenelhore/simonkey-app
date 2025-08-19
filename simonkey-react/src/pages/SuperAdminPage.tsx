@@ -27,6 +27,7 @@ import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
 import SchoolMigrationTool from '../components/SchoolMigrationTool';
 import StudyLogicVerification from '../components/StudyLogicVerification';
 import DashboardVerification from '../components/DashboardVerification';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import UniversityUsersTab from '../components/UniversityUsersTab';
 import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
@@ -98,7 +99,8 @@ const SuperAdminPage: React.FC = () => {
       icon: 'fas fa-clipboard-check',
       subcategories: {
         studyLogic: { title: 'Lógica de Estudio', icon: 'fas fa-brain' },
-        dashboardLogic: { title: 'Lógica de Dashboards', icon: 'fas fa-chart-pie' }
+        dashboardLogic: { title: 'Lógica de Dashboards', icon: 'fas fa-chart-pie' },
+        analytics: { title: 'Analytics', icon: 'fas fa-chart-line' }
       }
     },
     users: {
@@ -1482,6 +1484,13 @@ const SuperAdminPage: React.FC = () => {
                 </p>
               </div>
               <DashboardVerification />
+            </div>
+          )}
+
+          {/* Tab de Analytics */}
+          {activeTab === 'analytics' && (
+            <div className="analytics-tab">
+              <AnalyticsDashboard />
             </div>
           )}
 

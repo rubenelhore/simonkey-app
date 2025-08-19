@@ -248,40 +248,42 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos */}
-            <button 
-              className="materia-menu-button"
-              onClick={handleMenuClick}
-              title="Opciones"
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.2s ease',
-                zIndex: 2
-              }}
-            >
-              <i 
-                className="fas fa-ellipsis-v" 
-                style={{ 
-                  fontSize: '14px', 
-                  color: '#666',
-                  transform: 'rotate(0deg)'
+            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares */}
+            {!isSchoolStudent && (
+              <button 
+                className="materia-menu-button"
+                onClick={handleMenuClick}
+                title="Opciones"
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease',
+                  zIndex: 2
                 }}
-              ></i>
-            </button>
+              >
+                <i 
+                  className="fas fa-ellipsis-v" 
+                  style={{ 
+                    fontSize: '14px', 
+                    color: '#666',
+                    transform: 'rotate(0deg)'
+                  }}
+                ></i>
+              </button>
+            )}
 
-            <h3 style={{ paddingRight: '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: isSchoolStudent ? '8px' : '40px' }}>{editableTitle}</h3>
             {isAdminView ? (
               <div className="materia-admin-info">
                 <span className="materia-teacher">

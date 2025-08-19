@@ -174,9 +174,17 @@ const StudentExamsPage: React.FC = () => {
 
   const handleExamClick = (examId: string) => {
     const attempt = examAttempts.get(examId);
+    const exam = exams.find(e => e.id === examId);
+    
     if (attempt && attempt.status === 'completed') {
-      // Navigate to results page if already completed
-      navigate(`/exam/${examId}/results`);
+      // Navigate to results page if already completed, passing required state
+      navigate(`/exam/${examId}/results`, {
+        state: {
+          attemptId: attempt.id,
+          score: attempt.score,
+          materiaId: exam?.idMateria
+        }
+      });
     } else {
       // Navigate to exam page to start/continue
       navigate(`/exam/${examId}`);
@@ -326,7 +334,13 @@ const StudentExamsPage: React.FC = () => {
                   </div>
                   
                   <div className="exam-card-footer">
-                    <button className={`exam-action-btn ${getStatusClass(status)}`}>
+                    <button 
+                      className={`exam-action-btn ${getStatusClass(status)}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExamClick(exam.id);
+                      }}
+                    >
                       {status === 'completed' ? (
                         <>
                           <i className="fas fa-eye"></i>
