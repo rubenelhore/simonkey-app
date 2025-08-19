@@ -36,6 +36,7 @@ import { runCompleteReplicaTest } from '../utils/testReplicaSystem';
 // Importar funciones de adminUtils para que estén disponibles globalmente
 import '../utils/adminUtils';
 import '../styles/SuperAdminPage.css';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 
 interface User {
   id: string;
@@ -67,7 +68,9 @@ interface ContactMessage {
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, userProfile, loading: userTypeLoading } = useUserType();
+  const [activeCategory, setActiveCategory] = useState('school');
   const [activeTab, setActiveTab] = useState('schoolLinking');
+  const [showSubcategories, setShowSubcategories] = useState(false);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
@@ -78,6 +81,41 @@ const SuperAdminPage: React.FC = () => {
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [schools, setSchools] = useState<any[]>([]);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Configuración de categorías y subcategorías
+  const categories = {
+    school: {
+      title: '🏢 Gestión Escolar',
+      icon: 'fas fa-school',
+      subcategories: {
+        schoolLinking: { title: 'Vinculación Escolar', icon: 'fas fa-link' },
+        schoolCreation: { title: 'Creación Escolar', icon: 'fas fa-plus-circle' },
+        schoolVerification: { title: 'Verificación de Vinculación', icon: 'fas fa-search' }
+      }
+    },
+    verification: {
+      title: '🔍 Verificación del Sistema',
+      icon: 'fas fa-clipboard-check',
+      subcategories: {
+        studyLogic: { title: 'Lógica de Estudio', icon: 'fas fa-brain' },
+        dashboardLogic: { title: 'Lógica de Dashboards', icon: 'fas fa-chart-pie' }
+      }
+    },
+    users: {
+      title: '👥 Gestión de Usuarios',
+      icon: 'fas fa-users',
+      subcategories: {
+        university: { title: 'Usuarios Universitarios', icon: 'fas fa-graduation-cap' }
+      }
+    },
+    communication: {
+      title: '📨 Comunicación',
+      icon: 'fas fa-comments',
+      subcategories: {
+        messages: { title: 'Mensajes', icon: 'fas fa-envelope' }
+      }
+    }
+  };
 
   console.log('SuperAdminPage - Component loaded - FULL VERSION');
   console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
@@ -792,92 +830,53 @@ const SuperAdminPage: React.FC = () => {
   console.log('SuperAdminPage - Rendering full component');
 
   return (
-    <div className="super-admin-container">
-      <header className="super-admin-header">
-        <div className="header-content">
-          <h1>🛡️ Panel de Control - Súper Admin</h1>
-          <button className="back-button" onClick={() => navigate('/notebooks')} title="Volver">
-            <i className="fas fa-arrow-left"></i>
-          </button>
-        </div>
-      </header>
-
-      <div className="super-admin-content">
+    <>
+      <HeaderWithHamburger title="🛡️ Panel de Control - Súper Admin" />
+      <div className="super-admin-container with-header-sidebar">
         <nav className="admin-tabs">
-          {/* Ocultado por ahora - gestión directa en Firebase
-          <button 
-            className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            <i className="fas fa-users"></i> Usuarios
-          </button>
-          */}
-          <button 
-            className={`tab-button ${activeTab === 'schoolLinking' ? 'active' : ''}`}
-            onClick={() => setActiveTab('schoolLinking')}
-          >
-            <i className="fas fa-link"></i> Vinculación Escolar
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'schoolCreation' ? 'active' : ''}`}
-            onClick={() => setActiveTab('schoolCreation')}
-          >
-            <i className="fas fa-plus-circle"></i> Creación Escolar
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'messages' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('messages');
-              // Marcar mensajes como leídos cuando se abre la pestaña
-              messages.filter(m => !m.read && selectedMessage?.id === m.id).forEach(m => {
-                handleMarkAsRead(m.id);
-              });
-            }}
-          >
-            <i className="fas fa-envelope"></i> 
-            Mensajes
-            {unreadCount > 0 && (
-              <span className="unread-badge">{unreadCount}</span>
-            )}
-          </button>
-          {/* Temporalmente oculto
-          <button 
-            className={`tab-button ${activeTab === 'schoolSync' ? 'active' : ''}`}
-            onClick={() => setActiveTab('schoolSync')}
-          >
-            <i className="fas fa-sync-alt"></i>
-            Sync Escolar
-          </button>
-          */}
-          <button 
-            className={`tab-button ${activeTab === 'schoolVerification' ? 'active' : ''}`}
-            onClick={() => setActiveTab('schoolVerification')}
-          >
-            <i className="fas fa-search"></i>
-            Verificación de Vinculación
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'studyLogic' ? 'active' : ''}`}
-            onClick={() => setActiveTab('studyLogic')}
-          >
-            <i className="fas fa-brain"></i>
-            Verificación de Lógica de Estudio
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'dashboardLogic' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboardLogic')}
-          >
-            <i className="fas fa-chart-pie"></i>
-            Verificación de Lógica de Dashboards
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'university' ? 'active' : ''}`}
-            onClick={() => setActiveTab('university')}
-          >
-            <i className="fas fa-graduation-cap"></i>
-            Usuarios Universitarios
-          </button>
+          {/* Mostrar categorías principales siempre */}
+          {Object.entries(categories).map(([categoryKey, category]) => (
+            <button 
+              key={categoryKey}
+              className={`tab-button ${activeCategory === categoryKey ? 'active' : ''}`}
+              onClick={() => {
+                setActiveCategory(categoryKey);
+                setShowSubcategories(true);
+              }}
+            >
+              <i className={category.icon}></i> {category.title}
+            </button>
+          ))}
         </nav>
+
+        {/* Mostrar subcategorías debajo cuando hay una categoría seleccionada */}
+        {showSubcategories && (
+          <nav className="admin-subtabs">
+            {Object.entries(categories[activeCategory as keyof typeof categories].subcategories).map(([subKey, subcategory]) => {
+              const isMessages = subKey === 'messages';
+              return (
+                <button 
+                  key={subKey}
+                  className={`subtab-button ${activeTab === subKey ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveTab(subKey);
+                    if (isMessages) {
+                      // Marcar mensajes como leídos cuando se abre la pestaña
+                      messages.filter(m => !m.read && selectedMessage?.id === m.id).forEach(m => {
+                        handleMarkAsRead(m.id);
+                      });
+                    }
+                  }}
+                >
+                  <i className={subcategory.icon}></i> {subcategory.title}
+                  {isMessages && unreadCount > 0 && (
+                    <span className="unread-badge">{unreadCount}</span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         <div className="tab-content">
           {loading && (
@@ -1493,18 +1492,18 @@ const SuperAdminPage: React.FC = () => {
 
 
         </div>
-      </div>
 
-      {/* Notificación */}
-      {notification && (
-        <div className={`notification notification-${notification.type}`}>
-          <div className="notification-content">
-            <i className={`fas ${notification.type === 'success' ? 'fa-check-circle' : notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
-            <span>{notification.message}</span>
+        {/* Notificación */}
+        {notification && (
+          <div className={`notification notification-${notification.type}`}>
+            <div className="notification-content">
+              <i className={`fas ${notification.type === 'success' ? 'fa-check-circle' : notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
+              <span>{notification.message}</span>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
