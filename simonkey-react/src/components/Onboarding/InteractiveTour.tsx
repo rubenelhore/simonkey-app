@@ -23,7 +23,7 @@ const tourSteps: TourStep[] = [
   {
     id: 'welcome',
     title: '¡Bienvenido a Simonkey! 🐒',
-    description: 'Tu asistente de estudio inteligente que te ayudará a aprender de manera más eficiente. Te guiaremos paso a paso por cada módulo.',
+    description: 'Tu asistente de estudio inteligente que te ayudará a aprender de manera más eficiente.',
     position: 'center',
     action: 'none'
   },
@@ -41,7 +41,7 @@ const tourSteps: TourStep[] = [
     id: 'inicio-icon',
     title: 'Página Principal 🏠',
     description: 'Este es el módulo de inicio. Aquí verás un resumen de tu progreso y acceso rápido a tus materias.',
-    targetSelector: 'button[title="Pagina principal"]',
+    targetSelector: 'button[title="Inicio"]',
     position: 'right',
     action: 'highlight'
   },
@@ -187,10 +187,28 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
     } else {
       // En modo real, determinar qué página necesitamos según el paso actual
       const currentStepRequiredPage = (() => {
-        const previousStep = tourSteps[currentStepIndex - 1];
-        if (previousStep?.action === 'navigate' && previousStep.actionTarget) {
-          return previousStep.actionTarget;
+        // Para los pasos de contenido de materias, debería estar en /materias
+        if (currentStep.id === 'materias-content') {
+          return '/materias';
         }
+        // Para los pasos de contenido de estudio, debería estar en /study
+        if (currentStep.id === 'study-content') {
+          return '/study';
+        }
+        // Para los pasos de contenido de progreso, debería estar en /progress
+        if (currentStep.id === 'progress-content') {
+          return '/progress';
+        }
+        // Para los pasos de contenido de calendario, debería estar en /calendar
+        if (currentStep.id === 'calendar-content') {
+          return '/calendar';
+        }
+        
+        // Si el paso actual requiere navegación específica, usar esa página
+        if (currentStep.actionTarget) {
+          return currentStep.actionTarget;
+        }
+        
         return '/inicio'; // Por defecto
       })();
 
@@ -373,9 +391,46 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
     console.log(`✅ Avanzado a paso ${nextStepIndex + 1}: ${tourSteps[nextStepIndex].title}`);
   };
 
-  const handlePrevious = () => {
+  const handlePrevious = async () => {
     if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1);
+      const previousStepIndex = currentStepIndex - 1;
+      const previousStep = tourSteps[previousStepIndex];
+      
+      // Determinar qué página necesita el paso anterior
+      const requiredPage = (() => {
+        // Para pasos de contenido específicos
+        if (previousStep.id === 'materias-content') return '/materias';
+        if (previousStep.id === 'study-content') return '/study';
+        if (previousStep.id === 'progress-content') return '/progress';
+        if (previousStep.id === 'calendar-content') return '/calendar';
+        
+        // Si el paso anterior tenía navegación, usar esa página
+        if (previousStep.actionTarget) return previousStep.actionTarget;
+        
+        // Por defecto, inicio
+        return '/inicio';
+      })();
+      
+      // Navegar a la página requerida si no estamos ahí
+      if (window.location.pathname !== requiredPage) {
+        console.log(`🎯 [ANTERIOR] Navegando a página requerida: ${requiredPage}`);
+        navigate(requiredPage);
+        
+        // Esperar a que la navegación complete
+        let attempts = 0;
+        while (window.location.pathname !== requiredPage && attempts < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        
+        console.log(`✅ [ANTERIOR] Navegación completada a ${requiredPage}`);
+      }
+      
+      // Cambiar al paso anterior
+      setCurrentStepIndex(previousStepIndex);
+      setHasNavigated(false); // Resetear estado de navegación
+      
+      console.log(`⬅️ Retrocedido a paso ${previousStepIndex + 1}: ${previousStep.title}`);
     }
   };
 
@@ -417,6 +472,37 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
     }
   };
 
+  const getClipPathForSpotlight = (): string => {
+    if (!currentStep.targetSelector) return '';
+
+    const element = document.querySelector(currentStep.targetSelector);
+    if (!element) return '';
+
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Crear un clip-path que excluya el área del spotlight
+    const left = Math.max(0, rect.left - 6);
+    const top = Math.max(0, rect.top - 6);
+    const right = Math.min(viewportWidth, rect.right + 6);
+    const bottom = Math.min(viewportHeight, rect.bottom + 6);
+
+    // Crear un polygon que cubra toda la pantalla excepto el área del spotlight
+    return `polygon(
+      0% 0%, 
+      0% 100%, 
+      ${left}px 100%, 
+      ${left}px ${top}px, 
+      ${right}px ${top}px, 
+      ${right}px ${bottom}px, 
+      ${left}px ${bottom}px, 
+      ${left}px 100%, 
+      100% 100%, 
+      100% 0%
+    )`;
+  };
+
   const getSpotlightPosition = (): React.CSSProperties => {
     if (!currentStep.targetSelector) return {};
 
@@ -429,6 +515,8 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
       left: rect.left - 6,
       width: rect.width + 12,
       height: rect.height + 12,
+      background: 'transparent',
+      backgroundColor: 'transparent',
     };
   };
 
@@ -477,7 +565,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
       case 'right':
         // Ajuste especial para paso 3 que se corta arriba
         const adjustedTop = currentStep.id === 'inicio-icon' ? 
-          Math.max(rect.top + rect.height / 2, 120) : // Mínimo 120px desde arriba
+          Math.max(rect.top + rect.height / 2, 200) : // Mínimo 200px desde arriba
           rect.top + rect.height / 2;
         
         return {
@@ -525,8 +613,13 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
         e.stopPropagation();
       }}
     >
-      {/* Fondo oscuro */}
-      <div className="tour-backdrop" />
+      {/* Fondo oscuro con recorte para el spotlight */}
+      <div 
+        className="tour-backdrop"
+        style={currentStep.targetSelector ? {
+          clipPath: getClipPathForSpotlight()
+        } : {}}
+      />
       
       {/* Spotlight que "recorta" el overlay oscuro */}
       <div 
@@ -598,7 +691,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
         </div>
 
         {/* Flecha del tooltip */}
-        <div className={`tour-arrow ${currentStep.position}`} />
+        <div className={`tour-arrow ${currentStep.position} ${currentStep.id === 'inicio-icon' ? 'inicio-icon-arrow' : ''}`} />
       </div>
     </div>
   );

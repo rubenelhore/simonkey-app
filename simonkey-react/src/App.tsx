@@ -23,6 +23,7 @@ import VoiceSettingsPage from './pages/VoiceSettingsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
 import InteractiveTour from './components/Onboarding/InteractiveTour';
+import OnboardingComponent from './components/Onboarding/OnboardingComponent';
 import MobileNavigation from './components/Mobile/MobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
 import StudyModePage from './pages/StudyModePage';
@@ -394,11 +395,21 @@ const AppContent: React.FC = () => {
 
   // Mostrar mensaje de ayuda en consola
   useEffect(() => {
+    // Función para resetear el tutorial (solo para testing)
+    (window as any).resetTutorial = () => {
+      console.log('🔄 Reseteando tutorial para testing...');
+      localStorage.removeItem('hasCompletedOnboarding');
+      localStorage.removeItem('tourStep');
+      setHasCompletedOnboarding(false);
+      console.log('✅ Tutorial reseteado - recarga la página para verlo');
+    };
+    
     console.log('🔧 === SIMONKEY - AYUDA DE DIAGNÓSTICO ===');
     console.log('💡 Si tienes problemas de autenticación, ejecuta en la consola:');
     console.log('   window.quickFix() - Solución rápida');
     console.log('   window.diagnoseAuthIssues() - Diagnóstico completo');
     console.log('   window.fixOrphanUser() - Arreglar usuario huérfano');
+    console.log('   window.resetTutorial() - Resetear tutorial para testing');
     console.log('==========================================');
   }, []);
 
@@ -567,17 +578,7 @@ const AppContent: React.FC = () => {
                 ) : (
                   <EmailVerificationGuard>
                     <PasswordChangeGuard>
-                      <>
-                        <InicioPage />
-                        {/* Tutorial deshabilitado temporalmente
-                        {!hasCompletedOnboarding && (
-                          <InteractiveTour onComplete={() => {
-                            setHasCompletedOnboarding(true);
-                            localStorage.setItem('hasCompletedOnboarding', 'true');
-                          }} />
-                        )}
-                        */}
-                      </>
+                      <InicioPage />
                     </PasswordChangeGuard>
                   </EmailVerificationGuard>
                 )
@@ -995,6 +996,16 @@ const AppContent: React.FC = () => {
             }
           />
         </Routes>
+        
+        {/* Tutorial interactivo - persiste en todas las rutas */}
+        {isAuthenticated && !isUniversityUser && !hasCompletedOnboarding && (
+          <InteractiveTour onComplete={() => {
+            console.log('🎯 InteractiveTour completado - marcando como completado permanentemente');
+            setHasCompletedOnboarding(true);
+            localStorage.setItem('hasCompletedOnboarding', 'true');
+          }} />
+        )}
+        
         {showMobileNav && location.pathname !== '/super-admin' ? <MobileNavigation /> : null}
         {/* Sistema de gestión de cookies - siempre visible */}
         <CookieManager />

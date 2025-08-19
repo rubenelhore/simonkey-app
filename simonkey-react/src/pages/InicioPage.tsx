@@ -6,10 +6,10 @@ import { useUserType } from '../hooks/useUserType';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faFire, faClock, faChartLine, faGift, faMedal, faTrophy,
-  faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar
+  faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar, faRedo
 } from '@fortawesome/free-solid-svg-icons';
 import { StudyStreakService } from '../services/studyStreakService';
-import { db, collection, query, where, getDocs, getDoc, doc, Timestamp } from '../services/firebase';
+import { db, collection, query, where, getDocs, getDoc, doc, Timestamp, updateDoc } from '../services/firebase';
 import { getDomainProgressForMateria } from '../utils/domainProgress';
 import { CacheManager } from '../utils/cacheManager';
 import '../styles/InicioPage.css';
@@ -765,7 +765,9 @@ const InicioPage: React.FC = () => {
         {/* 🟪 FILA 1: Bienvenida y resumen diario */}
         <section className="row-1">
           <div className="welcome-section">
-            <h1 className="welcome-greeting">Hola, {userName}</h1>
+            <div className="welcome-content">
+              <h1 className="welcome-greeting">Hola, {userName}</h1>
+            </div>
           </div>
           
           <div className="daily-metrics">

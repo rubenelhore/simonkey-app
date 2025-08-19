@@ -979,6 +979,35 @@ const ProfilePage: React.FC = () => {
                     </button>
                   </div>
                   
+                  <div className="security-item">
+                    <div className="security-info">
+                      <i className="fas fa-graduation-cap"></i>
+                      <div>
+                        <h4>Tutorial de introducción</h4>
+                        <p>Volver a ver el tutorial de bienvenida de Simonkey</p>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-outline security-action-btn"
+                      onClick={() => {
+                        // Reiniciar InteractiveTour
+                        localStorage.removeItem('hasCompletedOnboarding');
+                        localStorage.removeItem('tourStep'); // Resetear el paso del tour al paso 1
+                        if (user) {
+                          updateDoc(doc(db, 'users', user.uid), {
+                            hasCompletedOnboarding: false,
+                            updatedAt: new Date()
+                          }).then(() => {
+                            // Recargar la página para activar el tour interactivo
+                            window.location.reload();
+                          });
+                        }
+                      }}
+                    >
+                      Reiniciar Tutorial
+                    </button>
+                  </div>
+                  
                   <div className="security-item danger-item">
                     <div className="security-info">
                       <i className="fas fa-exclamation-triangle"></i>
