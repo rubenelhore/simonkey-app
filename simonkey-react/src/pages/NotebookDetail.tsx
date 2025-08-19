@@ -241,9 +241,18 @@ const NotebookDetail = () => {
         
         if (notebook) {
           setCuaderno(notebook);
-          // Guardar el materiaId si existe
-          if (notebook.idMateria) {
-            setMateriaId(notebook.idMateria || null);
+          console.log('📚 Notebook loaded:', {
+            id: notebook.id,
+            idMateria: notebook.idMateria,
+            materiaId: notebook.materiaId,
+            type: notebook.type,
+            title: notebook.title
+          });
+          // Guardar el materiaId si existe (puede venir como idMateria o materiaId)
+          const matId = notebook.idMateria || notebook.materiaId;
+          if (matId) {
+            console.log('📌 Setting materiaId to:', matId);
+            setMateriaId(matId);
           }
         } else {
           console.error("No such notebook!");
@@ -1344,13 +1353,48 @@ const NotebookDetail = () => {
                   onClick={() => {
                     // Si es profesor escolar, ir a su página de notebooks
                     if (isSchoolTeacher) {
+                      console.log('👨‍🏫 School teacher navigation');
+                      console.log('Current pathname:', window.location.pathname);
+                      console.log('Referrer:', document.referrer);
+                      console.log('materiaId from state:', materiaId);
+                      
+                      // Primero verificar si venimos de una URL de materias
+                      const referrer = document.referrer;
+                      const referrerMateriaMatch = referrer.match(/\/materias\/([^\/]+)\/notebooks/);
+                      if (referrerMateriaMatch) {
+                        const materiaUrlPart = referrerMateriaMatch[1];
+                        console.log('✅ Found materia in referrer, navigating back to:', `/materias/${materiaUrlPart}/notebooks`);
+                        navigate(`/materias/${materiaUrlPart}/notebooks`);
+                        return;
+                      }
+                      
+                      // Si tenemos materiaId del cuaderno, usar eso
+                      if (materiaId) {
+                        // Intentar obtener el nombre de la materia del cuaderno
+                        if (cuaderno && cuaderno.nombreMateria) {
+                          const materiaUrl = `${cuaderno.nombreMateria}-${materiaId}`;
+                          console.log('✅ Using notebook materia name:', `/materias/${materiaUrl}/notebooks`);
+                          navigate(`/materias/${materiaUrl}/notebooks`);
+                          return;
+                        }
+                        // Si no hay nombre, usar Biología como fallback
+                        console.log('📌 Using materiaId with default name:', materiaId);
+                        navigate(`/materias/Biología-${materiaId}/notebooks`);
+                        return;
+                      }
+                      
+                      // Verificar si estamos en una URL de school/teacher/materias
                       const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
                       if (teacherMateriaMatch) {
                         const materiaId = teacherMateriaMatch[1];
+                        console.log('✅ Found materia in teacher URL:', materiaId);
                         navigate(`/school/teacher/materias/${materiaId}/notebooks`);
-                      } else {
-                        navigate('/school/teacher');
+                        return;
                       }
+                      
+                      // Fallback para profesores
+                      console.log('🏠 Fallback to /materias');
+                      navigate('/materias');
                       return;
                     }
 
@@ -1419,11 +1463,45 @@ const NotebookDetail = () => {
                     }
                     
                     // Para usuarios regulares
+                    console.log('🔙 Back button clicked - Debug info:', {
+                      pathname: window.location.pathname,
+                      materiaId,
+                      referrer: document.referrer,
+                      isSchoolStudent,
+                      isSchoolTeacher
+                    });
+                    
                     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
                     if (materiaMatch) {
                       const urlMateriaId = materiaMatch[1];
+                      console.log('✅ Found materia in URL, navigating to:', `/materias/${urlMateriaId}/notebooks`);
                       navigate(`/materias/${urlMateriaId}/notebooks`);
+                    } else if (window.location.pathname.includes('/school/notebooks/')) {
+                      // Estamos en una URL de school notebooks
+                      console.log('📚 In school notebooks URL');
+                      
+                      // Intentar obtener el nombre de la materia del referrer
+                      const referrer = document.referrer;
+                      console.log('📍 Referrer:', referrer);
+                      
+                      // Extraer el nombre de la materia del referrer si es posible
+                      const referrerMatch = referrer.match(/\/materias\/([^\/]+)\/notebooks/);
+                      if (referrerMatch) {
+                        const materiaUrl = referrerMatch[1];
+                        console.log('✅ Found materia in referrer, navigating to:', `/materias/${materiaUrl}/notebooks`);
+                        navigate(`/materias/${materiaUrl}/notebooks`);
+                      } else if (materiaId) {
+                        // Si tenemos materiaId, usar el formato conocido
+                        const materiaUrl = `Biología-${materiaId}`;
+                        console.log('✅ Using materiaId, navigating to:', `/materias/${materiaUrl}/notebooks`);
+                        navigate(`/materias/${materiaUrl}/notebooks`);
+                      } else {
+                        // Último recurso: intentar con Biología-W0ysd7X2NKwLhKhQPwkC directamente
+                        console.log('⚠️ No materiaId found, trying hardcoded value');
+                        navigate('/materias/Biología-W0ysd7X2NKwLhKhQPwkC/notebooks');
+                      }
                     } else {
+                      console.log('🏠 Default navigation to /notebooks');
                       navigate('/notebooks');
                     }
                   }}

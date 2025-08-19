@@ -1,6 +1,7 @@
 // src/services/firebase.ts
 
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from 'firebase/analytics';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { 
   getFirestore,
@@ -32,8 +33,14 @@ const firebaseConfig = getFirebaseConfig();
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Exportar la app para uso en diagnósticos
-export { app };
+// Inicializar Analytics si está disponible
+let analytics;
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app);
+}
+
+// Exportar la app y analytics para uso en diagnósticos
+export { app, analytics };
 
 // Exportar servicios de Firebase
 export const auth = getAuth(app);

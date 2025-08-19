@@ -847,6 +847,20 @@ const StudyModePage = () => {
     }
   };
 
+  // Handle AI Chat
+  const handleAIChat = () => {
+    if (!selectedNotebook) return;
+    // TODO: Implement AI chat navigation
+    console.log('Opening AI Chat for notebook:', selectedNotebook.title);
+  };
+
+  // Handle AI Practice
+  const handleAIPractice = () => {
+    if (!selectedNotebook) return;
+    // TODO: Implement AI practice navigation
+    console.log('Opening AI Practice for notebook:', selectedNotebook.title);
+  };
+
   // Handle study mode selection
   const handleStudyMode = (mode: string) => {
     if (!selectedNotebook) {
@@ -1223,21 +1237,52 @@ const StudyModePage = () => {
                 </>
               )}
             </div>
+          </div>
 
-            <div 
-              className="study-function-card disabled coming-soon"
-            >
-              <div className="coming-soon-tag">
-                Próximamente
+          {/* AI-Powered Study Section */}
+          <div className="ai-study-section">
+            <div className="ai-section-header">
+              <div className="ai-badge">
+                <span>Potenciado con IA</span>
               </div>
-              <div className="function-info-icon" data-tooltip="Simulacro de examen personalizado">
-                <i className="fas fa-info-circle"></i>
+            </div>
+            
+            <div className="ai-study-functions">
+              <div className="ai-function-card coming-soon">
+                <div className="coming-soon-tag">Próximamente</div>
+                <div className="function-info-icon" data-tooltip="Chat con IA especializada en tu material de estudio">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <div className="ai-function-icon">
+                  <i className="fas fa-comments"></i>
+                </div>
+                <h3>Chat Inteligente</h3>
+                <p className="function-status">IA lista para ayudarte</p>
               </div>
-              <div className="function-icon">
-                <FontAwesomeIcon icon={faMedal} />
+
+              <div className="ai-function-card coming-soon">
+                <div className="coming-soon-tag">Próximamente</div>
+                <div className="function-info-icon" data-tooltip="Práctica personalizada con ejercicios generados por IA">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <div className="ai-function-icon">
+                  <i className="fas fa-flask"></i>
+                </div>
+                <h3>Práctica Adaptativa</h3>
+                <p className="function-status">Ejercicios personalizados</p>
               </div>
-              <h3>Prueba de examen</h3>
-              <p className="function-status">Evaluaciones personalizadas</p>
+
+              <div className="ai-function-card coming-soon">
+                <div className="coming-soon-tag">Próximamente</div>
+                <div className="function-info-icon" data-tooltip="Tutor IA que analiza tu progreso y crea planes de estudio">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <div className="ai-function-icon">
+                  <i className="fas fa-graduation-cap"></i>
+                </div>
+                <h3>Tutor Personal IA</h3>
+                <p className="function-status">Planes de estudio personalizados</p>
+              </div>
             </div>
           </div>
         </div>

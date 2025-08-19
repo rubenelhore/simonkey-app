@@ -35,9 +35,10 @@ const StudySessionPage = () => {
   const [sessionReviewQueue, setSessionReviewQueue] = useState<Concept[]>([]);
   const [sessionReviewedConcepts, setSessionReviewedConcepts] = useState<Concept[]>([]);
   const [sessionMultiplier, setSessionMultiplier] = useState<number>(1.5);
-  const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.PROGRESS);
+  const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.WARM_UP);
   const [totalNotebookConcepts, setTotalNotebookConcepts] = useState<number>(0);
-  const [availableSmartConcepts, setAvailableSmartConcepts] = useState<number>(0);
+  const [availableSmartConcepts, setAvailableSmartConcepts] = useState<number>(6);
+  const [loadingConceptsData, setLoadingConceptsData] = useState<boolean>(true);
   
   // State for metrics
   const [metrics, setMetrics] = useState<StudySessionMetrics>({
@@ -89,12 +90,12 @@ const StudySessionPage = () => {
     }
   }, [notebookId, mode, navigate]);
 
-  // Set default values for buttons to work
+  // Set default values immediately to show the modal quickly
   useEffect(() => {
-    setTotalNotebookConcepts(11);
-    setStudyIntensity(StudyIntensity.PROGRESS);
-    setLoading(false); // Important: Set loading to false so intro screen shows
-  }, [notebookId]);
+    // Show the modal immediately with default values
+    setLoading(false);
+    setLoadingConceptsData(true);
+  }, []);
 
   // COMMENTED OUT THE PROBLEMATIC USEEFFECT
   /*
@@ -154,7 +155,7 @@ const StudySessionPage = () => {
   }, [notebookId]);
   */
 
-  // Load available concepts for SMART mode
+  // Load available concepts for SMART mode - Now runs after modal is visible
   useEffect(() => {
     let mounted = true;
     
@@ -162,6 +163,7 @@ const StudySessionPage = () => {
       if (!notebookId || !auth.currentUser || !mounted) return;
       
       try {
+        setLoadingConceptsData(true);
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         
@@ -218,12 +220,20 @@ const StudySessionPage = () => {
         }
       } catch (error) {
         console.error('Error loading available concepts:', error);
+      } finally {
+        if (mounted) {
+          setLoadingConceptsData(false);
+        }
       }
     };
     
-    loadAvailableConceptsForMode();
+    // Delay the loading slightly to ensure modal is visible first
+    const timer = setTimeout(() => {
+      loadAvailableConceptsForMode();
+    }, 100);
     
     return () => {
+      clearTimeout(timer);
       mounted = false;
     };
   }, [notebookId, studyMode]);
@@ -697,26 +707,33 @@ const StudySessionPage = () => {
               
               {/* Intensity Selector */}
               <div className="intensity-section-compact">
-                <h3 className="section-title-compact">Intensidad</h3>
+                <h3 className="section-title-compact">
+                  Intensidad
+                  {loadingConceptsData && (
+                    <span style={{ marginLeft: '10px', fontSize: '0.8em', opacity: 0.7 }}>
+                      <i className="fas fa-spinner fa-spin"></i>
+                    </span>
+                  )}
+                </h3>
                 
-                {availableSmartConcepts < 1 && (
+                {!loadingConceptsData && availableSmartConcepts < 1 && (
                   <div className="intensity-warning-compact">
                     <i className="fas fa-exclamation-triangle"></i>
                     <span>No tienes conceptos disponibles para repasar hoy.</span>
                   </div>
                 )}
                 
-                <div className="intensity-options-horizontal">
+                <div className="intensity-options-horizontal" style={{ opacity: loadingConceptsData ? 0.6 : 1 }}>
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${availableSmartConcepts < 1 ? 'disabled' : ''}`}
-                    onClick={() => availableSmartConcepts >= 1 && setStudyIntensity(StudyIntensity.WARM_UP)}
-                    title={availableSmartConcepts < 1 ? `No hay conceptos para repasar` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${!loadingConceptsData && availableSmartConcepts < 1 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableSmartConcepts >= 1 && setStudyIntensity(StudyIntensity.WARM_UP)}
+                    title={!loadingConceptsData && availableSmartConcepts < 1 ? `No hay conceptos para repasar` : ''}
                   >
                     <i className="fas fa-coffee"></i>
                     <div className="intensity-content">
                       <h4>Warm-Up</h4>
                       <span>5 conceptos</span>
-                      {availableSmartConcepts < 1 && (
+                      {!loadingConceptsData && availableSmartConcepts < 1 && (
                         <div className="requirement-text">Sin conceptos disponibles</div>
                       )}
                     </div>
@@ -724,15 +741,15 @@ const StudySessionPage = () => {
                   </div>
                   
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${availableSmartConcepts < 10 ? 'disabled' : ''}`}
-                    onClick={() => availableSmartConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
-                    title={availableSmartConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${!loadingConceptsData && availableSmartConcepts < 10 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableSmartConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
+                    title={!loadingConceptsData && availableSmartConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
                   >
                     <i className="fas fa-chart-line"></i>
                     <div className="intensity-content">
                       <h4>Progreso</h4>
                       <span>10 conceptos</span>
-                      {availableSmartConcepts < 10 && (
+                      {!loadingConceptsData && availableSmartConcepts < 10 && (
                         <div className="requirement-text">Requiere 10+ conceptos</div>
                       )}
                     </div>
@@ -740,15 +757,15 @@ const StudySessionPage = () => {
                   </div>
                   
                   <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${availableSmartConcepts < 20 ? 'disabled' : ''}`}
-                    onClick={() => availableSmartConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
-                    title={availableSmartConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${!loadingConceptsData && availableSmartConcepts < 20 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableSmartConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
+                    title={!loadingConceptsData && availableSmartConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableSmartConcepts} disponibles)` : ''}
                   >
                     <i className="fas fa-rocket"></i>
                     <div className="intensity-content">
                       <h4>Rocket</h4>
                       <span>20 conceptos</span>
-                      {availableSmartConcepts < 20 && (
+                      {!loadingConceptsData && availableSmartConcepts < 20 && (
                         <div className="requirement-text">Requiere 20+ conceptos</div>
                       )}
                     </div>
@@ -770,7 +787,7 @@ const StudySessionPage = () => {
               <button
                 className="action-button-compact primary"
                 onClick={beginStudySession}
-                disabled={availableSmartConcepts < 1 || loading}
+                disabled={(!loadingConceptsData && availableSmartConcepts < 1) || loading}
               >
                 {loading ? (
                   <>

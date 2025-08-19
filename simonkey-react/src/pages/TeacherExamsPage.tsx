@@ -491,14 +491,6 @@ const TeacherExamsPage: React.FC = () => {
                     Dashboard
                   </button>
                   <button 
-                    className="exam-action-btn duplicate-btn"
-                    onClick={() => handleDuplicateExam(exam)}
-                    title="Duplicar examen"
-                  >
-                    <i className="fas fa-copy"></i>
-                    Duplicar
-                  </button>
-                  <button 
                     className="exam-action-btn delete-btn"
                     onClick={() => handleDeleteExam(exam.id, exam.title)}
                     title="Eliminar examen"

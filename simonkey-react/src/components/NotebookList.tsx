@@ -83,6 +83,12 @@ const NotebookList: React.FC<NotebookListProps> = ({
   examButtonDisabled = false,
   examButtonTitle = ""
 }) => {
+  console.log('🎯 NotebookList props received:', { 
+    onFreezeNotebook, 
+    isSchoolNotebook,
+    hasOnFreezeNotebook: !!onFreezeNotebook,
+    typeOfOnFreezeNotebook: typeof onFreezeNotebook 
+  });
   // console.log('🔍 DEBUG - NotebookList renderizando con:', {
   //   notebooksCount: notebooks?.length || 0,
   //   notebooks: notebooks,
@@ -428,9 +434,11 @@ const NotebookList: React.FC<NotebookListProps> = ({
   };
   
   // Función para confirmar congelación/descongelación
-  const handleFreezeConfirm = (type: 'now' | 'scheduled', scheduledDate?: Date) => {
+  const handleFreezeConfirm = () => {
+    console.log('🔄 FreezeModal confirmed', { freezeModalData, onFreezeNotebook });
     if (freezeModalData && onFreezeNotebook) {
-      onFreezeNotebook(freezeModalData.notebookId, type, scheduledDate);
+      console.log('📤 Calling onFreezeNotebook with:', freezeModalData.notebookId);
+      onFreezeNotebook(freezeModalData.notebookId, 'now');
     }
     setShowFreezeModal(false);
     setFreezeModalData(null);
