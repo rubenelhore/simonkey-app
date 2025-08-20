@@ -141,13 +141,12 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: materias
     // ========================================
     match /materias/{materiaId} {
-      // Lectura: propietario, estudiantes inscritos, o super admin
+      // Lectura: propietario, super admin, o queries generales
       allow read: if isAuthenticated() && (
+        resource == null ||  // Para queries que retornan vacío
         isOwner(resource.data.userId) || 
-        isSuperAdmin() ||
-        // Permitir lectura a estudiantes inscritos
-        exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + materiaId)) ||
-        resource == null  // Para queries que retornan vacío
+        isSuperAdmin()
+        // Los estudiantes inscritos acceden a través de enrollments query
       );
       
       // Creación: usuario autenticado (profesor o regular)

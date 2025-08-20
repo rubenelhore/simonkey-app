@@ -69,7 +69,7 @@ export const useUserType = () => {
     // TODO: Eliminar estos campos después de actualizar todos los componentes
     schoolRole: undefined,
     isSchoolUser: false,
-    isSchoolTeacher: isTeacherUser, // Mapear al nuevo isTeacher
+    isSchoolTeacher: false, // Ya no mapear - sistema escolar eliminado
     isSchoolStudent: false,
     isSchoolAdmin: false,
     isSchoolTutor: false,

@@ -119,23 +119,8 @@ const Materias: React.FC = () => {
         console.log('  ❌ No hay usuario, saliendo');
         return;
       }
-      if (isSchoolStudent) {
-        console.log('  ❌ Es estudiante escolar, saliendo');
-        // Para estudiantes escolares, no cargar materias regulares
-        return;
-      }
-      if (isSchoolTeacher) {
-        console.log('  ❌ Es profesor escolar, saliendo (las materias se cargan desde schoolSubjects)');
-        // Para profesores escolares, las materias se cargan desde otro lugar
-        // No establecer loading aquí porque se maneja en el efecto específico del profesor
-        return;
-      }
-      if (isSchoolAdmin) {
-        console.log('  ❌ Es administrador escolar, saliendo');
-        // Los administradores escolares no tienen materias propias
-        setLoading(false);
-        return;
-      }
+      // Ya no verificamos isSchoolStudent, isSchoolTeacher, isSchoolAdmin
+      // porque el sistema escolar fue migrado
       
       console.log('  ✅ Cargando materias para usuario regular (no escolar)');
       setLoading(true);
