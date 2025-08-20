@@ -885,7 +885,15 @@ const InicioPage: React.FC = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="no-materias">
+                    <div 
+                      className={`no-materias ${!isSchoolStudent ? 'clickable' : ''}`}
+                      onClick={() => {
+                        if (!isSchoolStudent) {
+                          navigate('/materias');
+                        }
+                      }}
+                      style={{ cursor: !isSchoolStudent ? 'pointer' : 'default' }}
+                    >
                       <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
                       <p style={{ margin: 0, fontWeight: 600 }}>
                         {isSchoolStudent ? 'No tienes materias asignadas' : 'No tienes materias creadas'}

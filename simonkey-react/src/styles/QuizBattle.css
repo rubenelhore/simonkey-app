@@ -971,50 +971,56 @@
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
   border: 3px solid #3b82f6;
   border-radius: 24px;
-  padding: 32px;
-  max-width: 90vw;
+  padding: 32px 50px;
+  width: 1400px;
+  height: 760px;
+  max-width: 95vw;
   max-height: 90vh;
   overflow-y: auto;
   text-align: center;
   box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+  display: flex;
+  flex-direction: column;
 }
 
 .character-selection-content h2 {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 800;
   color: #3b82f6;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
 .selection-subtitle {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: #9ca3af;
-  margin: 0 0 32px 0;
+  margin: 0 0 20px 0;
   font-weight: 500;
 }
 
 .characters-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
   margin-top: 24px;
   max-width: 100%;
+  flex: 1;
+  align-content: start;
+  padding: 0 30px;
 }
 
 .character-card {
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(59, 130, 246, 0.3);
   border-radius: 20px;
-  padding: 20px 16px;
+  padding: 28px;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  flex: 1;
-  min-width: 180px;
-  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  height: 320px;
 }
 
 .character-card:hover {
@@ -1029,22 +1035,22 @@
 }
 
 .character-emoji {
-  font-size: 4rem;
-  margin-bottom: 12px;
+  font-size: 4.5rem;
+  margin-bottom: 14px;
 }
 
 .character-name {
   font-size: 1.5rem;
   font-weight: 700;
   color: #f3f4f6;
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
 }
 
 .character-description {
   font-size: 0.95rem;
   color: #9ca3af;
-  margin: 0 0 20px 0;
-  line-height: 1.4;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
 }
 
 .character-power {
@@ -1052,27 +1058,28 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 12px;
   padding: 16px;
-  margin-top: 16px;
+  margin-top: auto;
 }
 
 .power-name {
   font-size: 1.1rem;
   font-weight: 700;
   color: #60a5fa;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .power-description {
   font-size: 0.9rem;
   color: #d1d5db;
   margin-bottom: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .power-condition {
   font-size: 0.85rem;
   color: #9ca3af;
-  line-height: 1.3;
+  line-height: 1.5;
 }
 
 .condition-label {
@@ -1438,16 +1445,19 @@
   .character-selection-content {
     padding: 24px 16px;
     margin: 10px;
+    width: auto;
+    height: auto;
   }
   
   .characters-grid {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
   
   .character-card {
     padding: 16px 12px;
     max-width: none;
+    height: auto;
   }
   
   .character-emoji {

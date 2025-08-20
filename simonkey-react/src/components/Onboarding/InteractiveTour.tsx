@@ -434,12 +434,37 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ onComplete, demoMode 
     }
   };
 
-  const handleSkip = () => {
-    console.log('🔄 Usuario saltó el tour - CERRANDO INMEDIATAMENTE');
-    // Cerrar inmediatamente sin llamar completeTour
-    setTourClosed(true);
-    setIsVisible(false);
-    onComplete();
+  const handleSkip = async () => {
+    try {
+      console.log('🔄 Usuario saltó el tour - marcando como completado');
+      setTourClosed(true);
+      setIsVisible(false);
+      
+      if (demoMode) {
+        console.log('🔄 Tour demo saltado - cerrando tour');
+        onComplete();
+        return;
+      }
+
+      // Marcar como completado permanentemente en localStorage y Firebase
+      localStorage.removeItem('tourStep');
+      console.log('🎯 Tour saltado - marcando como completado permanentemente');
+
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await setDoc(userDocRef, { hasCompletedOnboarding: true }, { merge: true });
+        console.log('✅ Estado de onboarding actualizado en Firebase');
+      }
+      
+      onComplete();
+      navigate('/inicio');
+    } catch (error) {
+      console.error('Error al saltar el tour:', error);
+      // Aún así marcar como completado localmente
+      setTourClosed(true);
+      setIsVisible(false);
+      onComplete();
+    }
   };
 
   const completeTour = async () => {

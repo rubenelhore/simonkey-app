@@ -24,6 +24,7 @@ import SuperAdminPage from './pages/SuperAdminPage';
 // Nuevas importaciones
 import InteractiveTour from './components/Onboarding/InteractiveTour';
 import OnboardingComponent from './components/Onboarding/OnboardingComponent';
+import ProfileCompletionModal from './components/ProfileCompletion/ProfileCompletionModal';
 import MobileNavigation from './components/Mobile/MobileNavigation';
 // Importamos también las nuevas páginas referenciadas en las rutas
 import StudyModePage from './pages/StudyModePage';
@@ -356,6 +357,9 @@ const AppContent: React.FC = () => {
     return completed;
   });
   
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  
   // Sincronizar con el perfil de usuario cuando esté disponible
   useEffect(() => {
     console.log('🎯 Verificando estado de onboarding...', { 
@@ -404,12 +408,19 @@ const AppContent: React.FC = () => {
       console.log('✅ Tutorial reseteado - recarga la página para verlo');
     };
     
+    // Función para mostrar el modal de completar perfil
+    (window as any).showProfileModal = () => {
+      console.log('📝 Mostrando modal de completar perfil...');
+      setShowProfileCompletion(true);
+    };
+    
     console.log('🔧 === SIMONKEY - AYUDA DE DIAGNÓSTICO ===');
     console.log('💡 Si tienes problemas de autenticación, ejecuta en la consola:');
     console.log('   window.quickFix() - Solución rápida');
     console.log('   window.diagnoseAuthIssues() - Diagnóstico completo');
     console.log('   window.fixOrphanUser() - Arreglar usuario huérfano');
     console.log('   window.resetTutorial() - Resetear tutorial para testing');
+    console.log('   window.showProfileModal() - Mostrar modal de completar perfil');
     console.log('==========================================');
   }, []);
 
@@ -1003,8 +1014,23 @@ const AppContent: React.FC = () => {
             console.log('🎯 InteractiveTour completado - marcando como completado permanentemente');
             setHasCompletedOnboarding(true);
             localStorage.setItem('hasCompletedOnboarding', 'true');
+            
+            // Mostrar modal de completar perfil después del tutorial
+            setTimeout(() => {
+              setShowProfileCompletion(true);
+            }, 1000);
           }} />
         )}
+        
+        {/* Modal de completar perfil */}
+        <ProfileCompletionModal
+          isOpen={showProfileCompletion}
+          onClose={() => setShowProfileCompletion(false)}
+          onComplete={(data) => {
+            console.log('✅ Perfil completado con data:', data);
+            setShowProfileCompletion(false);
+          }}
+        />
         
         {showMobileNav && location.pathname !== '/super-admin' ? <MobileNavigation /> : null}
         {/* Sistema de gestión de cookies - siempre visible */}
