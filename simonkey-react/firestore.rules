@@ -150,6 +150,18 @@ service cloud.firestore {
         allow write: if isOwner(userId) || isSuperAdmin();
       }
       
+      // Subcolección de quiz results
+      match /quizResults/{quizId} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow write: if isOwner(userId);
+      }
+      
+      // Subcolección de mini quiz results
+      match /miniQuizResults/{quizId} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow write: if isOwner(userId);
+      }
+      
       // Otras subcolecciones
       match /{subcollection}/{document} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
@@ -644,6 +656,74 @@ service cloud.firestore {
         );
         allow write: if false;
       }
+    }
+    
+    // ========================================
+    // REGLAS ESPECIALES PARA SUPER ADMIN ANALYTICS
+    // ========================================
+    // Permitir al super admin leer todas las colecciones para analytics
+    match /learningData/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /quizStats/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /examAttempts/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /schoolExams/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /positionHistory/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /gamePoints/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /gameSessions/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /userTickets/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /userStreaks/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /notebookPoints/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /conceptStats/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /reviewConcepts/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /userActivityBatch/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /systemLogs/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /passwordResets/{document=**} {
+      allow read: if isSuperAdmin();
+    }
+    
+    match /temporaryCredentials/{document=**} {
+      allow read: if isSuperAdmin();
     }
     
     // ========================================
