@@ -219,6 +219,86 @@
   background-color: white !important;
 }
 
+/* Subject Selector Module - Solo para usuarios FREE y PRO */
+.subject-selector-module {
+  background: white;
+  border-radius: 16px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 25%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.subject-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.subject-selector-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.subject-selector-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subject-selector-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subject-selector-dropdown {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.subject-selector-dropdown:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.subject-selector-dropdown:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .kpi-icon {
   width: 60px;
   height: 60px;
@@ -651,6 +731,11 @@
     max-width: 100%;
   }
   
+  .subject-selector-module {
+    max-width: 100%;
+    width: 100%;
+  }
+  
   .corner-medal-module {
     max-width: 100%;
   }
@@ -700,6 +785,22 @@
     text-align: center;
     min-height: auto;
     padding: 20px;
+  }
+  
+  .subject-selector-module {
+    padding: 1rem;
+  }
+  
+  .subject-selector-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .subject-selector-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
   }
 
   .kpi-value {

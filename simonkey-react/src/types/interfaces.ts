@@ -312,7 +312,8 @@ export enum UserSubscriptionType {
 }
 
 /**
- * Roles para usuarios escolares
+ * @deprecated Este enum ya no se usa. Usar isTeacher en UserProfile en su lugar.
+ * Mantenido temporalmente para compatibilidad con código legacy.
  */
 export enum SchoolRole {
   ADMIN = 'admin',
@@ -336,19 +337,32 @@ export interface UserProfile {
   createdAt: Timestamp;
   subscription: UserSubscriptionType;
   notebookCount: number;
-  // Campos específicos para usuarios escolares
+  
+  // Campo para el nuevo sistema de profesores
+  isTeacher?: boolean;
+  
+  // DEPRECATED: Campos del sistema escolar antiguo - NO USAR
+  // TODO: Eliminar después de completar la migración
+  /** @deprecated */
   schoolRole?: SchoolRole;
+  /** @deprecated */
   schoolName?: string;
-  idNotebook?: string; // ID del cuaderno asignado al estudiante
+  /** @deprecated */
+  idNotebook?: string;
+  /** @deprecated */
   schoolData?: {
     idEscuela?: string;
     nombreEscuela?: string;
   };
-  // Campos para estudiantes escolares
+  /** @deprecated */
   subjectIds?: string[];
+  /** @deprecated */
   idCuadernos?: string[];
+  /** @deprecated */
   idInstitucion?: string;
+  /** @deprecated */
   idEscuela?: string;
+  /** @deprecated */
   idAdmin?: string;
   // Límites específicos por tipo de suscripción
   maxNotebooks?: number;
@@ -382,6 +396,10 @@ export interface UserProfile {
   weeklyGoal?: number;
   achievementsCount?: number;
   averageSessionTime?: number;
+  // Campos para el nuevo sistema de profesores independientes (definido arriba en línea 342)
+  // isTeacher?: boolean; // Ya definido arriba
+  teacherRequestedAt?: Timestamp;
+  teacherApprovedAt?: Timestamp;
 }
 
 /**
@@ -570,4 +588,91 @@ export interface StudySession {
     reviewing: number;
     timeSpent: number;
   }
+}
+
+/**
+ * Estado de inscripción (enrollment) de estudiante en materia
+ */
+export enum EnrollmentStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  COMPLETED = 'completed'
+}
+
+/**
+ * Inscripción de estudiante en materia de profesor
+ */
+export interface Enrollment {
+  id: string;
+  studentId: string;
+  studentEmail?: string;
+  studentName?: string;
+  teacherId: string;
+  teacherEmail?: string;
+  teacherName?: string;
+  materiaId: string;
+  materiaName?: string;
+  enrolledAt: Timestamp;
+  status: EnrollmentStatus;
+  lastAccessedAt?: Timestamp;
+  completedAt?: Timestamp;
+  inviteCode?: string;
+  metadata?: {
+    source: 'invite_link' | 'direct_add' | 'migration' | 'school_import';
+    schoolId?: string;
+    schoolName?: string;
+  };
+}
+
+/**
+ * Perfil extendido para profesores independientes
+ */
+export interface TeacherProfile {
+  userId: string;
+  isActive: boolean;
+  bio?: string;
+  specialties?: string[];
+  institution?: string;
+  verifiedTeacher?: boolean;
+  approvedAt?: Timestamp;
+  approvedBy?: string;
+  maxStudents?: number;
+  currentStudents?: number;
+  maxMaterias?: number;
+  currentMaterias?: number;
+  inviteCodePrefix?: string;
+  settings?: {
+    allowPublicEnrollment?: boolean;
+    requireApproval?: boolean;
+    sendNotifications?: boolean;
+    showInDirectory?: boolean;
+  };
+  stats?: {
+    totalStudentsAllTime?: number;
+    totalMateriasCreated?: number;
+    totalExamsCreated?: number;
+    averageStudentScore?: number;
+    lastActiveAt?: Timestamp;
+  };
+}
+
+/**
+ * Código de invitación para materias
+ */
+export interface InviteCode {
+  id: string;
+  code: string;
+  teacherId: string;
+  materiaId: string;
+  materiaName: string;
+  createdAt: Timestamp;
+  expiresAt?: Timestamp;
+  maxUses?: number;
+  currentUses: number;
+  isActive: boolean;
+  metadata?: {
+    description?: string;
+    welcomeMessage?: string;
+  };
 }

@@ -11,12 +11,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
-import { diagnoseSchoolStudentKPIs } from './diagnoseSchoolStudentKPIs';
-import { forceUpdateSchoolKPIs } from './forceUpdateSchoolKPIs';
-import { analyzeSchoolNotebooksSubjects, assignSubjectToNotebook } from './fixSchoolNotebooksSubjects';
 import { syncStudentSubjects } from './syncStudentSubjects';
-import { migrateAllSchoolStudentKPIs, checkSchoolStudentsNeedingKPIs } from './migrateSchoolStudentKPIs';
-import { debugSchoolNotebookConcepts } from './debugSchoolNotebookConcepts';
 import { testRankingSystem, testNotebookRanking } from './testRankingSystem';
 import { initializeAllTeacherMetrics, checkTeacherMetricsById } from './initializeTeacherMetrics';
 import { updateTeacherMetrics, updateAllTeacherMetrics, checkTeacherMetricsStatus } from './updateTeacherMetrics';
@@ -237,14 +232,11 @@ if (typeof window !== 'undefined') {
   (window as any).checkAndFixCurrentUser = checkAndFixCurrentUser;
   (window as any).updateUserProfileWithNotebook = updateUserProfileWithNotebook;
   (window as any).completeNotebookAssignment = completeNotebookAssignment;
-  (window as any).diagnoseSchoolStudentKPIs = diagnoseSchoolStudentKPIs;
-  (window as any).forceUpdateSchoolKPIs = forceUpdateSchoolKPIs;
-  (window as any).analyzeSchoolNotebooksSubjects = analyzeSchoolNotebooksSubjects;
-  (window as any).assignSubjectToNotebook = assignSubjectToNotebook;
+  // (window as any).analyzeSchoolNotebooksSubjects = analyzeSchoolNotebooksSubjects; // removed
+  // (window as any).assignSubjectToNotebook = assignSubjectToNotebook; // removed
   (window as any).syncStudentSubjects = syncStudentSubjects;
-  (window as any).migrateAllSchoolStudentKPIs = migrateAllSchoolStudentKPIs;
-  (window as any).checkSchoolStudentsNeedingKPIs = checkSchoolStudentsNeedingKPIs;
-  (window as any).debugSchoolNotebookConcepts = debugSchoolNotebookConcepts;
+  // (window as any).migrateAllSchoolStudentKPIs = migrateAllSchoolStudentKPIs; // removed
+  // (window as any).checkSchoolStudentsNeedingKPIs = checkSchoolStudentsNeedingKPIs; // removed
   (window as any).testRankingSystem = testRankingSystem;
   (window as any).testNotebookRanking = testNotebookRanking;
   

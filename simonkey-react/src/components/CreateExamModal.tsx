@@ -220,8 +220,6 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         notebookIds: examData.selectedNotebooks,
         percentageQuestions: examData.percentageQuestions,
         timePerConcept: examData.timePerConcept,
-        duration: examData.timePerConcept * examData.totalConcepts, // Duración total en segundos
-        questions: [], // Array vacío de preguntas (se generarán dinámicamente)
         totalConcepts: examData.totalConcepts,
         questionsPerStudent: examData.questionsPerStudent,
         createdAt: serverTimestamp() as any,
@@ -240,8 +238,6 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         idProfesor: newExam.idProfesor,
         idEscuela: newExam.idEscuela,
         notebookIds: newExam.notebookIds,
-        duration: newExam.duration,
-        questions: newExam.questions,
         isActive: newExam.isActive
       });
 

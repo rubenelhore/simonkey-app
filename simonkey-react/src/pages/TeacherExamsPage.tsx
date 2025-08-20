@@ -507,8 +507,6 @@ const TeacherExamsPage: React.FC = () => {
             <i className="fas fa-file-alt" style={{ fontSize: '4rem', color: '#9ca3af', marginBottom: '1rem' }}></i>
             <h3>No hay exámenes {(() => {
               switch (filter) {
-                case 'draft': return 'en borrador';
-                case 'scheduled': return 'programados';
                 case 'active': return 'activos';
                 case 'finished': return 'finalizados';
                 default: return '';

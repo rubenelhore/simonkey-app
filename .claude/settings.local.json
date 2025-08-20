@@ -54,7 +54,12 @@
       "Bash(gcloud resource-manager org-policies set-policy:*)",
       "Bash(git revert:*)",
       "Bash(npx vite:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(firebase firestore:indexes:*)",
+      "Bash(firebase firestore:rules:get:*)",
+      "Bash(TSC_COMPILE_ON_ERROR=true npx vite build)",
+      "Bash(git rebase:*)",
+      "Bash(touch:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

@@ -4,7 +4,7 @@ import { db, auth } from '../services/firebase';
 import { Concept, Notebook, Material } from '../types/interfaces';
 import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
-import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+// import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import { decodeNotebookName } from '../utils/urlUtils';
 import { extractNotebookId } from '../utils/slugify';
@@ -119,7 +119,7 @@ const NotebookDetail = () => {
   const { isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
   
   // Usar el hook para obtener datos del estudiante escolar
-  const { schoolSubjects } = useSchoolStudentData();
+  const schoolSubjects: any[] = [];
   
   // Log para debug - comentado para evitar spam en consola
   // console.log('🎓 NotebookDetail - isSchoolStudent:', isSchoolStudent);
@@ -243,13 +243,13 @@ const NotebookDetail = () => {
           setCuaderno(notebook);
           console.log('📚 Notebook loaded:', {
             id: notebook.id,
-            idMateria: notebook.idMateria,
-            materiaId: notebook.materiaId,
+            idMateria: (notebook as any).idMateria,
+            materiaId: (notebook as any).materiaId,
             type: notebook.type,
             title: notebook.title
           });
           // Guardar el materiaId si existe (puede venir como idMateria o materiaId)
-          const matId = notebook.idMateria || notebook.materiaId;
+          const matId = (notebook as any).idMateria || (notebook as any).materiaId;
           if (matId) {
             console.log('📌 Setting materiaId to:', matId);
             setMateriaId(matId);
@@ -1371,8 +1371,8 @@ const NotebookDetail = () => {
                       // Si tenemos materiaId del cuaderno, usar eso
                       if (materiaId) {
                         // Intentar obtener el nombre de la materia del cuaderno
-                        if (cuaderno && cuaderno.nombreMateria) {
-                          const materiaUrl = `${cuaderno.nombreMateria}-${materiaId}`;
+                        if (cuaderno && (cuaderno as any).nombreMateria) {
+                          const materiaUrl = `${(cuaderno as any).nombreMateria}-${materiaId}`;
                           console.log('✅ Using notebook materia name:', `/materias/${materiaUrl}/notebooks`);
                           navigate(`/materias/${materiaUrl}/notebooks`);
                           return;

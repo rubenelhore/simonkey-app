@@ -31,7 +31,7 @@ interface ExamAttempt {
 
 const StudentExamsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { isSchoolStudent } = useUserType();
   
   const [exams, setExams] = useState<Exam[]>([]);
@@ -40,12 +40,15 @@ const StudentExamsPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'available' | 'completed'>('all');
 
   useEffect(() => {
+    // No navegar mientras se está cargando la autenticación
+    if (authLoading) return;
+    
     if (!user || !isSchoolStudent) {
       navigate('/materias');
       return;
     }
     loadStudentExams();
-  }, [user, isSchoolStudent, userProfile]);
+  }, [user, isSchoolStudent, userProfile, authLoading, navigate]);
 
   const loadStudentExams = async () => {
     if (!user || !userProfile) return;
@@ -55,7 +58,7 @@ const StudentExamsPage: React.FC = () => {
       console.log('📝 Cargando exámenes para estudiante...');
       console.log('👤 Perfil del estudiante:', {
         email: userProfile.email,
-        idMaterias: userProfile.idMaterias,
+        idMaterias: (userProfile as any).idMaterias,
         subjectIds: userProfile.subjectIds,
         idCuadernos: userProfile.idCuadernos,
         schoolRole: userProfile.schoolRole
@@ -65,9 +68,9 @@ const StudentExamsPage: React.FC = () => {
       const studentSubjectIds = new Set<string>();
       
       // Primero intentar con idMaterias directo del perfil
-      if (userProfile.idMaterias && userProfile.idMaterias.length > 0) {
-        console.log('📚 Usando idMaterias del perfil:', userProfile.idMaterias);
-        userProfile.idMaterias.forEach((materiaId: string) => {
+      if ((userProfile as any).idMaterias && (userProfile as any).idMaterias.length > 0) {
+        console.log('📚 Usando idMaterias del perfil:', (userProfile as any).idMaterias);
+        (userProfile as any).idMaterias.forEach((materiaId: string) => {
           studentSubjectIds.add(materiaId);
         });
       } 
@@ -245,15 +248,6 @@ const StudentExamsPage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="student-exams-loading">
-        <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
-        <p>Cargando exámenes...</p>
-      </div>
-    );
-  }
-
   const filteredExams = getFilteredExams();
 
   return (
@@ -266,8 +260,15 @@ const StudentExamsPage: React.FC = () => {
       <main className="notebooks-main notebooks-main-no-sidebar">
         <div className="notebooks-list-section notebooks-list-section-full">
           <div className="student-exams-page">
+        {(loading || authLoading) ? (
+          <div className="student-exams-loading-content">
+            <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
+            <p>Cargando exámenes...</p>
+          </div>
+        ) : (
+          <>
         {/* Filter controls */}
-        <div className="exams-filters">
+        <div className="exams-filters student-exams-filters">
           <button
             className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
             onClick={() => setFilter('all')}
@@ -305,16 +306,13 @@ const StudentExamsPage: React.FC = () => {
                   onClick={() => handleExamClick(exam.id)}
                 >
                   <div className="exam-card-header">
-                    <div className="exam-icon">
-                      <i className="fas fa-file-alt"></i>
-                    </div>
+                  </div>
+                  
+                  <div className="exam-card-body">
                     <div className={`exam-status ${getStatusClass(status)}`}>
                       <i className={`fas ${getStatusIcon(status)}`}></i>
                       {getStatusText(status)}
                     </div>
-                  </div>
-                  
-                  <div className="exam-card-body">
                     <h3 className="exam-title">{exam.title}</h3>
                     {exam.description && (
                       <p className="exam-description">{exam.description}</p>
@@ -413,6 +411,8 @@ const StudentExamsPage: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+        </>
         )}
           </div>
         </div>

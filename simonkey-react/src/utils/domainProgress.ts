@@ -82,12 +82,34 @@ export async function getDomainProgressForMateria(materiaId: string) {
   }
 
   try {
-    // Get all notebooks for this materia
-    const notebooksQuery = query(
-      collection(db, 'notebooks'),
+    // Primero verificar si el usuario está inscrito en esta materia
+    const enrollmentQuery = query(
+      collection(db, 'enrollments'),
+      where('studentId', '==', currentUser.uid),
       where('materiaId', '==', materiaId),
-      where('userId', '==', currentUser.uid)
+      where('status', '==', 'active')
     );
+    const enrollmentSnapshot = await getDocs(enrollmentQuery);
+    
+    let notebooksQuery;
+    
+    if (!enrollmentSnapshot.empty) {
+      // Si está inscrito, buscar notebooks del profesor
+      const teacherId = enrollmentSnapshot.docs[0].data().teacherId;
+      notebooksQuery = query(
+        collection(db, 'notebooks'),
+        where('materiaId', '==', materiaId),
+        where('userId', '==', teacherId)
+      );
+    } else {
+      // Si no está inscrito, buscar sus propios notebooks
+      notebooksQuery = query(
+        collection(db, 'notebooks'),
+        where('materiaId', '==', materiaId),
+        where('userId', '==', currentUser.uid)
+      );
+    }
+    
     const notebooksSnapshot = await getDocs(notebooksQuery);
     
     // Accumulate progress from all notebooks

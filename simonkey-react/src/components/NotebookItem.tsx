@@ -30,9 +30,10 @@ interface NotebookItemProps {
     notStarted: number;
   };
   isStudent?: boolean; // Para mostrar el progreso solo a estudiantes
+  isEnrolled?: boolean; // Para ocultar opciones en cuadernos de materias inscritas
 }
 
-const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent }) => {
+const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent, isEnrolled = false }) => {
   const { user } = useAuth();
   console.log('📝 NotebookItem recibió props:', {
     id,
@@ -342,8 +343,8 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - oculto para estudiantes */}
-            {!isStudent && (
+            {/* Botón de menú de 3 puntos - oculto para estudiantes y cuadernos de materias inscritas */}
+            {!isStudent && !isEnrolled && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}
@@ -377,7 +378,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               </button>
             )}
 
-            <h3 style={{ paddingRight: isStudent ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: (isStudent || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
             <div className="materia-info-container">
               <span className="materia-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}

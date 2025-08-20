@@ -7,32 +7,27 @@ import {
   canCreateNotebook, 
   canAddConcepts
 } from '../services/userService';
-import { UserProfile, SubscriptionLimits, UserSubscriptionType, SchoolRole } from '../types/interfaces';
+import { UserProfile, SubscriptionLimits, UserSubscriptionType } from '../types/interfaces';
 
 export const useUserType = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
-
-  // Logs para depuración - COMENTADOS PARA REDUCIR RUIDO
-  // console.log('useUserType - loading:', loading);
-  // console.log('useUserType - isAuthenticated:', isAuthenticated);
-  // if (!loading) {
-  //   console.log('useUserType - userProfile:', userProfile);
-  // }
 
   // Si no está autenticado, no necesitamos cargar el tipo de usuario
   if (!isAuthenticated) {
     return {
       isSuperAdmin: false,
+      isTeacher: false,
       subscription: undefined,
+      userProfile: null,
+      loading: false,
+      // Deprecated - mantener temporalmente para compatibilidad
       schoolRole: undefined,
       isSchoolUser: false,
       isSchoolTeacher: false,
       isSchoolStudent: false,
       isSchoolAdmin: false,
       isSchoolTutor: false,
-      isUniversityUser: false,
-      userProfile: null,
-      loading: false // Cambiado de true a false
+      isUniversityUser: false
     };
   }
 
@@ -40,62 +35,44 @@ export const useUserType = () => {
   if (loading || !userProfile) {
     return {
       isSuperAdmin: false,
+      isTeacher: false,
       subscription: undefined,
+      userProfile: null,
+      loading: true,
+      // Deprecated - mantener temporalmente para compatibilidad
       schoolRole: undefined,
       isSchoolUser: false,
       isSchoolTeacher: false,
       isSchoolStudent: false,
       isSchoolAdmin: false,
       isSchoolTutor: false,
-      isUniversityUser: false,
-      userProfile: null,
-      loading: true
+      isUniversityUser: false
     };
   }
 
   // Extraer datos del perfil
-  const { subscription, schoolRole, email } = userProfile;
+  const { subscription, email, isTeacher } = userProfile;
   
-  // Lógica mejorada para determinar si es superadmin
+  // Lógica para determinar si es superadmin
   const isSuperAdmin = email === 'ruben.elhore@gmail.com' || subscription === UserSubscriptionType.SUPER_ADMIN;
   
-  // Log específico para superadmin - COMENTADO PARA REDUCIR RUIDO
-  // console.log('useUserType - SuperAdmin check:');
-  // console.log('  - email:', email);
-  // console.log('  - subscription:', subscription);
-  // console.log('  - isSuperAdmin:', isSuperAdmin);
-
-  // Normalizar subscription a minúsculas para evitar bugs por mayúsculas/minúsculas
-  const normalizedSubscription = typeof subscription === 'string' ? subscription.toLowerCase() : subscription;
-  const normalizedSchoolRole = typeof schoolRole === 'string' ? schoolRole.toLowerCase() : schoolRole;
-  const isSchoolUser = normalizedSubscription === UserSubscriptionType.SCHOOL;
-  const isSchoolTeacher = isSchoolUser && normalizedSchoolRole === SchoolRole.TEACHER;
-  const isSchoolStudent = isSchoolUser && normalizedSchoolRole === SchoolRole.STUDENT;
-  const isSchoolAdmin = isSchoolUser && normalizedSchoolRole === SchoolRole.ADMIN;
-  const isSchoolTutor = isSchoolUser && normalizedSchoolRole === SchoolRole.TUTOR;
-  const isUniversityUser = normalizedSubscription === UserSubscriptionType.UNIVERSITY;
-  
-  // Log de los roles calculados - COMENTADO PARA REDUCIR RUIDO
-  // console.log('useUserType - Roles calculados:');
-  // console.log('  - isSchoolUser:', isSchoolUser);
-  // console.log('  - isSchoolTeacher:', isSchoolTeacher);
-  // console.log('  - isSchoolStudent:', isSchoolStudent);
-  // console.log('  - isSchoolAdmin:', isSchoolAdmin);
-  // console.log('  - isSchoolTutor:', isSchoolTutor);
-  // console.log('  - isUniversityUser:', isUniversityUser);
-  // console.log('  - schoolRole:', schoolRole);
+  // El nuevo sistema: isTeacher viene directamente del perfil
+  const isTeacherUser = isTeacher === true;
 
   return {
     isSuperAdmin,
+    isTeacher: isTeacherUser,
     subscription,
-    schoolRole,
-    isSchoolUser,
-    isSchoolTeacher,
-    isSchoolStudent,
-    isSchoolAdmin,
-    isSchoolTutor,
-    isUniversityUser,
     userProfile,
-    loading: false
+    loading: false,
+    // DEPRECATED: Mantener temporalmente para no romper código existente
+    // TODO: Eliminar estos campos después de actualizar todos los componentes
+    schoolRole: undefined,
+    isSchoolUser: false,
+    isSchoolTeacher: isTeacherUser, // Mapear al nuevo isTeacher
+    isSchoolStudent: false,
+    isSchoolAdmin: false,
+    isSchoolTutor: false,
+    isUniversityUser: false
   };
 }; 

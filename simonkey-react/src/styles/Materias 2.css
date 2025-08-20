@@ -611,30 +611,6 @@
   border-color: #e5e7eb;
 }
 
-/* Modal de invitaciones sin borde */
-.modal-content.invite-modal-content {
-  border: none !important;
-  border-width: 0 !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
-  outline: none !important;
-}
-
-/* Override para asegurar que no hay borde */
-.modal-overlay .invite-modal-content {
-  border: none !important;
-  border-width: 0 !important;
-  border-style: none !important;
-  outline: none !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Forzar sin borde con máxima especificidad */
-div.modal-overlay div.modal-content.invite-modal-content {
-  border: 0 !important;
-  border: none !important;
-  outline: none !important;
-}
-
 /* Modales */
 .modal-overlay {
   position: fixed;
@@ -646,7 +622,7 @@ div.modal-overlay div.modal-content.invite-modal-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 1000;
   backdrop-filter: blur(2px);
 }
 
@@ -658,22 +634,7 @@ div.modal-overlay div.modal-content.invite-modal-content {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  border: none;
-}
-
-/* Asegurar que los diálogos de Material-UI aparezcan por encima */
-.MuiDialog-root,
-.MuiModal-root,
-.MuiBackdrop-root {
-  z-index: 1300 !important;
-}
-
-.MuiDialog-container {
-  z-index: 1301 !important;
-}
-
-.MuiDialog-paper {
-  z-index: 1302 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 

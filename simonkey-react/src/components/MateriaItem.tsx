@@ -12,6 +12,7 @@ interface MateriaItemProps {
   onEdit?: (id: string, newTitle: string) => void;
   onColorChange?: (id: string, newColor: string) => void;
   onView: (id: string) => void;
+  onManageInvites?: (id: string, title: string) => void;
   showActions: boolean;
   onToggleActions: (materiaId: string) => void;
   teacherName?: string;
@@ -19,6 +20,9 @@ interface MateriaItemProps {
   isAdminView?: boolean;
   exams?: any[];
   isSchoolStudent?: boolean;
+  isSchoolTeacher?: boolean;
+  isTeacher?: boolean;
+  isEnrolled?: boolean;
   domainProgress?: {
     total: number;
     dominated: number;
@@ -38,6 +42,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   onEdit, 
   onColorChange, 
   onView,
+  onManageInvites,
   showActions, 
   onToggleActions,
   teacherName,
@@ -45,6 +50,9 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   isAdminView = false,
   exams = [],
   isSchoolStudent = false,
+  isSchoolTeacher = false,
+  isTeacher = false,
+  isEnrolled = false,
   domainProgress
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -248,8 +256,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares */}
-            {!isSchoolStudent && (
+            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares y materias inscritas */}
+            {!isSchoolStudent && !isEnrolled && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}
@@ -283,7 +291,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               </button>
             )}
 
-            <h3 style={{ paddingRight: isSchoolStudent ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: (isSchoolStudent || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
             {isAdminView ? (
               <div className="materia-admin-info">
                 <span className="materia-teacher">
@@ -294,37 +302,59 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                 </span>
               </div>
             ) : (
-              <div className="materia-info-container">
-                <span className="materia-info">
-                  {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
-                </span>
-                {domainProgress && domainProgress.total > 0 && (() => {
-                  const percentage = Math.round((domainProgress.dominated / domainProgress.total) * 100);
-                  let badgeColor = '#FF6B35'; // Naranja (0-30%)
-                  if (percentage > 30 && percentage <= 70) {
-                    badgeColor = '#FFD700'; // Amarillo (31-70%)
-                  } else if (percentage > 70) {
-                    badgeColor = '#10B981'; // Verde (71-100%)
-                  }
-                  
-                  return (
-                    <span 
-                      className="materia-exams-badge" 
-                      title={`${percentage}% dominio`}
-                      style={{ 
-                        backgroundColor: badgeColor,
-                        color: 'white',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: '600',
-                        marginLeft: '8px',
-                        cursor: 'help'
-                      }}>
-                      {percentage}%
-                    </span>
-                  );
-                })()}
+              <div className="materia-info-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                {teacherName && (
+                  <span className="materia-teacher" style={{
+                    fontSize: '0.85rem',
+                    color: '#666',
+                    fontWeight: '500',
+                    textAlign: 'left'
+                  }}>
+                    Profesor: {teacherName}
+                  </span>
+                )}
+                {(isTeacher || isSchoolTeacher) && studentCount !== undefined && (
+                  <span className="materia-students" style={{
+                    fontSize: '0.85rem',
+                    color: '#666',
+                    fontWeight: '500',
+                    textAlign: 'left'
+                  }}>
+                    {studentCount} estudiante{studentCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span className="materia-info" style={{ textAlign: 'left' }}>
+                    {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
+                  </span>
+                  {domainProgress && domainProgress.total > 0 && (() => {
+                    const percentage = Math.round((domainProgress.dominated / domainProgress.total) * 100);
+                    let badgeColor = '#FF6B35'; // Naranja (0-30%)
+                    if (percentage > 30 && percentage <= 70) {
+                      badgeColor = '#FFD700'; // Amarillo (31-70%)
+                    } else if (percentage > 70) {
+                      badgeColor = '#10B981'; // Verde (71-100%)
+                    }
+                    
+                    return (
+                      <span 
+                        className="materia-exams-badge" 
+                        title={`${percentage}% dominio`}
+                        style={{ 
+                          backgroundColor: badgeColor,
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          cursor: 'help',
+                          marginRight: '8px'
+                        }}>
+                        {percentage}%
+                      </span>
+                    );
+                  })()}
+                </div>
                 {isSchoolStudent && exams.length > 0 && (
                   <span className="materia-exams-badge" style={{ 
                     backgroundColor: materiaColor,
@@ -464,6 +494,41 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
             >
               <i className="fas fa-palette" style={{ width: '16px', textAlign: 'center' }}></i>
               <span>Cambiar color</span>
+            </button>
+          )}
+          {onManageInvites && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onManageInvites(id, title);
+              }}
+              className="dropdown-menu-item" 
+              title="Gestionar invitaciones"
+              disabled={hasError}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: hasError ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                color: hasError ? '#ccc' : '#333',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!hasError) {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <i className="fas fa-user-plus" style={{ width: '16px', textAlign: 'center' }}></i>
+              <span>Gestionar invitaciones</span>
             </button>
           )}
           {onDelete && (

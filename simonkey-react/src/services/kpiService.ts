@@ -202,7 +202,7 @@ export class KPIService {
           forEach: (callback: any) => notebooks.forEach(callback)
         };
       } else {
-        // Para usuarios regulares, buscar en notebooks
+        // Para usuarios regulares, buscar en notebooks propios y de profesores (materias inscritas)
         // Primero buscar por userId
         const notebooksQuery = query(
           collection(db, 'notebooks'),
@@ -210,8 +210,38 @@ export class KPIService {
         );
         const userNotebooksSnap = await getDocs(notebooksQuery);
         
-        // También buscar por idCuadernos si existe
+        // También buscar notebooks de materias inscritas
         const notebooks: any[] = [...userNotebooksSnap.docs];
+        
+        // Buscar enrollments activos del usuario
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', userId),
+          where('status', '==', 'active')
+        );
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        
+        // Para cada enrollment, obtener los notebooks del profesor
+        for (const enrollmentDoc of enrollmentsSnap.docs) {
+          const enrollmentData = enrollmentDoc.data();
+          const teacherId = enrollmentData.teacherId;
+          const materiaId = enrollmentData.materiaId;
+          
+          // Buscar notebooks del profesor para esta materia
+          const teacherNotebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', teacherId),
+            where('materiaId', '==', materiaId)
+          );
+          const teacherNotebooksSnap = await getDocs(teacherNotebooksQuery);
+          
+          // Agregar notebooks del profesor
+          teacherNotebooksSnap.docs.forEach(doc => {
+            if (!notebooks.find(nb => nb.id === doc.id)) {
+              notebooks.push(doc);
+            }
+          });
+        }
         
         if (userData && userData.idCuadernos && userData.idCuadernos.length > 0) {
           for (const cuadernoId of userData.idCuadernos) {

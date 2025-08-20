@@ -17,6 +17,7 @@ interface Materia {
   conceptCount?: number;
   teacherName?: string;
   studentCount?: number;
+  isEnrolled?: boolean;
   domainProgress?: {
     total: number;
     dominated: number;
@@ -33,6 +34,7 @@ interface MateriaListProps {
   onCreateMateria?: (title: string, color: string, category?: string) => void;
   onColorChange?: (id: string, color: string) => void;
   onViewMateria: (id: string) => void;
+  onManageInvites?: (id: string, title: string) => void;
   selectedCategory?: string | null;
   showCreateModal?: boolean;
   setShowCreateModal?: (show: boolean) => void;
@@ -43,6 +45,8 @@ interface MateriaListProps {
   isAdminView?: boolean;
   examsByMateria?: Record<string, any[]>;
   isSchoolStudent?: boolean;
+  isSchoolTeacher?: boolean;
+  isTeacher?: boolean;
 }
 
 const MateriaList: React.FC<MateriaListProps> = ({ 
@@ -53,6 +57,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
   onCreateMateria,
   onColorChange,
   onViewMateria,
+  onManageInvites,
   selectedCategory,
   showCreateModal = false,
   setShowCreateModal,
@@ -62,7 +67,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
   onRefreshCategories,
   isAdminView = false,
   examsByMateria = {},
-  isSchoolStudent = false
+  isSchoolStudent = false,
+  isSchoolTeacher = false,
+  isTeacher = false
 }) => {
   const { user } = useAuth();
   const [newMateriaTitle, setNewMateriaTitle] = useState('');
@@ -429,6 +436,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 onEdit={onEditMateria}
                 onColorChange={onColorChange}
                 onView={onViewMateria}
+                onManageInvites={onManageInvites}
                 showActions={openActionsId === materia.id}
                 onToggleActions={handleToggleActions}
                 teacherName={materia.teacherName}
@@ -436,6 +444,9 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 isAdminView={isAdminView}
                 exams={examsByMateria[materia.id] || []}
                 isSchoolStudent={isSchoolStudent}
+                isSchoolTeacher={isSchoolTeacher}
+                isTeacher={isTeacher}
+                isEnrolled={materia.isEnrolled}
                 domainProgress={materia.domainProgress}
               />
             ))}

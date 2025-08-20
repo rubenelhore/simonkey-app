@@ -9,6 +9,8 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 // Importar Firebase primero para asegurar que se inicializa correctamente
 import './services/firebase';
 
+// Importar utilidad de eliminación de cuentas escolares
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

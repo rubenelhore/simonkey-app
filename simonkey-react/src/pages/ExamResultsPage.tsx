@@ -5,6 +5,7 @@ import { db, auth } from '../services/firebase';
 import { SchoolExam, ExamAttempt } from '../types/exam.types';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import '../styles/ExamResultsPage.css';
 
 const ExamResultsPage: React.FC = () => {
@@ -86,24 +87,22 @@ const ExamResultsPage: React.FC = () => {
   );
 
   return (
-    <div className="exam-results-page">
-      <div className="exam-results-header">
-        <button 
-          className="back-to-study-btn"
-          onClick={() => navigate('/study', { state: { materiaId } })}
-        >
-          <i className="fas fa-arrow-left"></i>
-          Volver al estudio
-        </button>
-      </div>
-
-      <div className="exam-results-container">
+    <>
+      <HeaderWithHamburger
+        title="Resultados del Examen"
+        subtitle={exam.title}
+        themeColor="#6147FF"
+      />
+      <main className="notebooks-main notebooks-main-no-sidebar">
+        <div className="notebooks-list-section notebooks-list-section-full">
+          <div className="exam-results-page">
+            <div className="exam-results-container">
         <div className="results-hero">
           <div className="results-icon" style={{ color: getScoreColor(score || 0, 1000) }}>
             <i className="fas fa-trophy"></i>
           </div>
           
-          <h1 className="results-title">¡Examen Completado!</h1>
+          <h1 className="results-title">Examen Completado</h1>
           <p className="results-subtitle">{exam.title}</p>
           
           <div className="score-display" style={{ color: getScoreColor(score || 0, 1000) }}>
@@ -111,34 +110,6 @@ const ExamResultsPage: React.FC = () => {
             <div className="score-label">puntos</div>
           </div>
         </div>
-
-        <div className="results-stats">
-          <div className="stat-card">
-            <div className="stat-icon correct">
-              <i className="fas fa-check-circle"></i>
-            </div>
-            <div className="stat-value">{correctAnswers}</div>
-            <div className="stat-label">Respuestas Correctas</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon incorrect">
-              <i className="fas fa-times-circle"></i>
-            </div>
-            <div className="stat-value">{incorrectAnswers}</div>
-            <div className="stat-label">Respuestas Incorrectas</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon time">
-              <i className="fas fa-clock"></i>
-            </div>
-            <div className="stat-value">{formatTime(averageTimePerQuestion)}</div>
-            <div className="stat-label">Tiempo Promedio</div>
-          </div>
-
-        </div>
-
 
         <div className="answer-review">
           <h2>Revisión de Respuestas</h2>
@@ -210,7 +181,10 @@ const ExamResultsPage: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+          </div>
+        </div>
+      </main>
+    </>
   );
 };
 

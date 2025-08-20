@@ -6,7 +6,7 @@ import { useUserType } from '../hooks/useUserType';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faFire, faClock, faChartLine, faGift, faMedal, faTrophy,
-  faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar, faRedo
+  faBook, faGraduationCap, faChartBar, faCalendarAlt, faCalendar, faRedo,
 } from '@fortawesome/free-solid-svg-icons';
 import { StudyStreakService } from '../services/studyStreakService';
 import { db, collection, query, where, getDocs, getDoc, doc, Timestamp, updateDoc } from '../services/firebase';
@@ -216,71 +216,61 @@ const InicioPage: React.FC = () => {
     
     console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}`);
     
-    // Para estudiantes escolares, siempre forzar recarga en desarrollo
-    if (!forceRefresh && cacheValid && cachedMaterias.data && !isSchoolStudent) {
+    // TEMPORALMENTE deshabilitado el cache para debug de enrolled courses
+    if (false && !forceRefresh && cacheValid && cachedMaterias.data) {
       console.log('📦 Usando materias desde cache localStorage');
       setMateriasByDominio(cachedMaterias.data);
       materiasLoadedRef.current = true;
       return;
     }
     
-    if (isSchoolStudent) {
-      console.log('👩‍🎓 Estudiante escolar detectado, forzando recarga de materias desde servidor');
-    }
-    
     try {
       console.log('🚀 Iniciando carga de materias desde servidor...');
-      console.log('📚 Tipo de usuario - isSchoolStudent:', isSchoolStudent, 'isSchoolTeacher:', isSchoolTeacher);
       setMateriasLoading(true);
       
       let materiasSnapshot: any;
       
-      if (isSchoolStudent || isSchoolTeacher) {
-        // Para usuarios escolares, buscar materias asignadas
-        console.log('👩‍🎓 Buscando materias para usuario escolar');
+      // Para todos los usuarios - cargar materias propias y las inscritas
+      console.log('👤 Buscando materias para usuario');
+      
+      // 1. Obtener materias propias
+      const materiasQuery = query(
+        collection(db, 'materias'),
+        where('userId', '==', user.uid)
+      );
+      const ownMateriasSnapshot = await getDocs(materiasQuery);
+      
+      // 2. Obtener materias donde está inscrito
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('studentId', '==', user.uid),
+        where('status', '==', 'active')
+      );
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      
+      // 3. Combinar todas las materias
+      const allMateriasDocs = [...ownMateriasSnapshot.docs];
+      
+      // Para cada enrollment, obtener la materia del profesor
+      console.log(`📚 Found ${enrollmentsSnapshot.docs.length} active enrollments`);
+      for (const enrollmentDoc of enrollmentsSnapshot.docs) {
+        const enrollmentData = enrollmentDoc.data();
+        const materiaId = enrollmentData.materiaId;
+        console.log(`📖 Fetching enrolled materia: ${materiaId}`);
         
-        // Obtener datos del usuario
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (!userDoc.exists()) {
-          console.log('❌ No se encontró documento del usuario');
-          setMateriasByDominio([]);
-          return;
+        // Obtener la materia del profesor
+        const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+        if (materiaDoc.exists()) {
+          console.log(`✅ Found enrolled materia: ${materiaDoc.data().title || materiaDoc.data().nombre}`);
+          allMateriasDocs.push(materiaDoc);
         }
-        
-        const userData = userDoc.data();
-        const subjectIds = userData.subjectIds || [];
-        
-        console.log('📚 Subject IDs del usuario:', subjectIds);
-        
-        if (subjectIds.length === 0) {
-          console.log('⚠️ Usuario sin materias asignadas');
-          const emptyResult: MateriaWithDominio[] = [];
-          setMateriasByDominio(emptyResult);
-          setCachedData(`materias_${user.uid}`, emptyResult, Date.now());
-          return;
-        }
-        
-        // Obtener las materias de schoolSubjects
-        const materiasDocs: any[] = [];
-        for (const subjectId of subjectIds) {
-          const subjectDoc = await getDoc(doc(db, 'schoolSubjects', subjectId));
-          if (subjectDoc.exists()) {
-            materiasDocs.push(subjectDoc);
-          }
-        }
-        
-        materiasSnapshot = {
-          empty: materiasDocs.length === 0,
-          docs: materiasDocs
-        };
-      } else {
-        // Para usuarios regulares
-        const materiasQuery = query(
-          collection(db, 'materias'),
-          where('userId', '==', user.uid)
-        );
-        materiasSnapshot = await getDocs(materiasQuery);
       }
+      
+      console.log(`📊 Total materias (own + enrolled): ${allMateriasDocs.length}`);
+      materiasSnapshot = {
+        empty: allMateriasDocs.length === 0,
+        docs: allMateriasDocs
+      };
       
       if (materiasSnapshot.empty) {
         const emptyResult: MateriaWithDominio[] = [];
@@ -295,20 +285,8 @@ const InicioPage: React.FC = () => {
       for (const materiaDoc of materiasSnapshot.docs) {
         const materiaData = materiaDoc.data();
         try {
-          // Para usuarios escolares, usar una lógica diferente
-          let domainProgress;
-          if (isSchoolStudent) {
-            // Los estudiantes escolares no tienen notebooks personales,
-            // así que no calculamos progreso de dominio
-            console.log(`📊 Saltando cálculo de dominio para estudiante escolar`);
-            domainProgress = { total: 0, dominated: 0, learning: 0, notStarted: 0 };
-          } else if (isSchoolTeacher) {
-            // Los profesores pueden tener un cálculo diferente si es necesario
-            console.log(`📊 Calculando dominio para profesor escolar: ${materiaDoc.id}`);
-            domainProgress = await getDomainProgressForMateria(materiaDoc.id);
-          } else {
-            domainProgress = await getDomainProgressForMateria(materiaDoc.id);
-          }
+          // Calcular progreso de dominio para todas las materias
+          const domainProgress = await getDomainProgressForMateria(materiaDoc.id);
           
           const dominioPercentage = domainProgress.total > 0 
             ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
@@ -339,6 +317,11 @@ const InicioPage: React.FC = () => {
           });
         }
       }
+      
+      console.log(`📚 Total materias processed: ${materiasWithDominio.length}`);
+      materiasWithDominio.forEach(m => {
+        console.log(`  - ${m.title}: ${m.dominioPercentage}% (${m.dominatedConcepts}/${m.totalConcepts})`);
+      });
       
       // Sort by lowest dominio first, then by title alphabetically
       materiasWithDominio.sort((a, b) => {
@@ -525,11 +508,35 @@ const InicioPage: React.FC = () => {
           // Calcular tasa de éxito (usar percentil como indicador de éxito)
           const successRate = Math.round(kpisData.global?.percentilPromedioGlobal || 0);
           
-          // Contar cuadernos activos
-          const notebooksQuery = await import('../services/firebase').then(m => 
-            m.getDocs(m.query(m.collection(m.db, 'notebooks'), m.where('userId', '==', user.uid)))
+          // Contar cuadernos activos (propios y de profesores inscritos)
+          const firebase = await import('../services/firebase');
+          
+          // Cuadernos propios
+          const ownNotebooksQuery = await firebase.getDocs(
+            firebase.query(firebase.collection(firebase.db, 'notebooks'), firebase.where('userId', '==', user.uid))
           );
-          const activeNotebooks = notebooksQuery.size;
+          
+          // Cuadernos de materias inscritas
+          const enrollmentsQuery = await firebase.getDocs(
+            firebase.query(firebase.collection(firebase.db, 'enrollments'), 
+              firebase.where('studentId', '==', user.uid), 
+              firebase.where('status', '==', 'active'))
+          );
+          
+          let enrolledNotebooksCount = 0;
+          for (const enrollmentDoc of enrollmentsQuery.docs) {
+            const enrollmentData = enrollmentDoc.data();
+            const teacherNotebooksQuery = await firebase.getDocs(
+              firebase.query(
+                firebase.collection(firebase.db, 'notebooks'), 
+                firebase.where('userId', '==', enrollmentData.teacherId),
+                firebase.where('materiaId', '==', enrollmentData.materiaId)
+              )
+            );
+            enrolledNotebooksCount += teacherNotebooksQuery.size;
+          }
+          
+          const activeNotebooks = ownNotebooksQuery.size + enrolledNotebooksCount;
           
           const newProgressData = {
             conceptsDominated: conceptStats.conceptosDominados || 0,
@@ -867,8 +874,8 @@ const InicioPage: React.FC = () => {
                             className="materia-item"
                             style={{ '--materia-color': materia.color } as React.CSSProperties}
                             onClick={() => {
-                              const encodedName = encodeURIComponent(materia.title);
-                              navigate(`/materias/${encodedName}/notebooks`);
+                              const encodedNameWithId = `${encodeURIComponent(materia.title)}-${materia.id}`;
+                              navigate(`/materias/${encodedNameWithId}/notebooks`);
                             }}
                           >
                             <div className="materia-rank">#{index + 1}</div>
@@ -896,12 +903,10 @@ const InicioPage: React.FC = () => {
                     >
                       <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
                       <p style={{ margin: 0, fontWeight: 600 }}>
-                        {isSchoolStudent ? 'No tienes materias asignadas' : 'No tienes materias creadas'}
+                        No tienes materias
                       </p>
                       <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.7 }}>
-                        {isSchoolStudent 
-                          ? 'Contacta a tu profesor para que te asigne materias' 
-                          : 'Crea tu primera materia para empezar'}
+                        Crea tu primera materia o únete a una
                       </p>
                     </div>
                   )}

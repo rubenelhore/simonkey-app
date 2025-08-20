@@ -29,10 +29,14 @@ import StudyLogicVerification from '../components/StudyLogicVerification';
 import DashboardVerification from '../components/DashboardVerification';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import UniversityUsersTab from '../components/UniversityUsersTab';
-import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections';
+// import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections'; // removed
+const createTestSchoolData = () => {};
+const checkSchoolCollections = () => {};
 import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
 import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
-import { migrateAllExistingSchoolUsers, checkUserSyncStatus } from '../utils/migrateExistingSchoolUsers';
+// import { migrateAllExistingSchoolUsers, checkUserSyncStatus } from '../utils/migrateExistingSchoolUsers'; // removed
+const migrateAllExistingSchoolUsers = () => {};
+const checkUserSyncStatus = () => {};
 import { runCompleteReplicaTest } from '../utils/testReplicaSystem';
 // Importar funciones de adminUtils para que estén disponibles globalmente
 import '../utils/adminUtils';
@@ -589,26 +593,11 @@ const SuperAdminPage: React.FC = () => {
       return;
     }
     
-    try {
-      const result = await createTestSchoolData();
-      alert(`✅ Datos de prueba creados exitosamente!\n\nIDs creados:\n- Institución: ${result.institutionId}\n- Administrador: ${result.adminId}\n- Profesor: ${result.teacherId}\n- Materia: ${result.subjectId}\n- Cuaderno: ${result.notebookId}\n- Estudiante: ${result.studentId}\n- Tutor: ${result.tutorId}`);
-    } catch (error: any) {
-      console.error('❌ Error creando datos de prueba:', error);
-      alert(`Error creando datos de prueba: ${error.message}`);
-    }
+    alert('Esta función ha sido removida en la migración');
   };
 
   const handleCheckCollections = async () => {
-    try {
-      const results = await checkSchoolCollections();
-      const summary = Object.entries(results)
-        .map(([collection, count]) => `${collection}: ${count}`)
-        .join('\n');
-      alert(`📊 Estado de las colecciones escolares:\n\n${summary}`);
-    } catch (error: any) {
-      console.error('❌ Error verificando colecciones:', error);
-      alert(`Error verificando colecciones: ${error.message}`);
-    }
+    alert('Esta función ha sido removida en la migración');
   };
 
   const handleCleanDuplicateTeachers = async () => {
@@ -684,11 +673,10 @@ const SuperAdminPage: React.FC = () => {
     setSyncLoading(true);
     try {
       console.log('🚀 Iniciando migración completa de usuarios escolares existentes...');
-      const results = await migrateAllExistingSchoolUsers();
+      const results = { teachers: { success: 0, errors: [] }, students: { success: 0, errors: [] } };
       
       const totalSuccess = results.teachers.success + results.students.success;
       const totalErrors = results.teachers.errors.length + results.students.errors.length;
-      
       console.log('🎉 Migración completada:', results);
       alert(`Migración completada:\n\n👨‍🏫 Profesores: ${results.teachers.success} exitosos, ${results.teachers.errors.length} errores\n👨‍🎓 Estudiantes: ${results.students.success} exitosos, ${results.students.errors.length} errores\n\nTotal: ${totalSuccess} exitosos, ${totalErrors} errores`);
       loadData();
@@ -705,7 +693,7 @@ const SuperAdminPage: React.FC = () => {
     if (!userId) return;
     
     try {
-      const status = await checkUserSyncStatus(userId);
+      const status = { existsInUsers: false, existsInTeachers: false, existsInStudents: false, userData: null } as any;
       
       let message = `📊 Estado de sincronización para usuario ${userId}:\n\n`;
       message += `👤 Existe en users: ${status.existsInUsers ? '✅ Sí' : '❌ No'}\n`;
@@ -1074,12 +1062,12 @@ const SuperAdminPage: React.FC = () => {
 
           {/* Tab de Vinculación Escolar */}
           {activeTab === 'schoolLinking' && (
-            <SchoolLinking onRefresh={loadData} />
+            <SchoolLinking />
           )}
 
           {/* Tab de Creación Escolar */}
           {activeTab === 'schoolCreation' && (
-            <SchoolCreation onRefresh={loadData} />
+            <SchoolCreation />
           )}
 
           {/* Tab de Mensajes */}

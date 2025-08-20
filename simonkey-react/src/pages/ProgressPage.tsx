@@ -353,26 +353,56 @@ const ProgressPage: React.FC = () => {
         }
         console.log('[ProgressPage] Materias procesadas para usuario escolar:', materiasArray);
       } else {
-        // Para usuarios regulares, buscar en la colección materias
+        // Para usuarios regulares, buscar materias propias y materias inscritas
+        // 1. Buscar materias propias
         const materiasQuery = query(
           collection(db, 'materias'),
           where('userId', '==', userId)
         );
         const materiasSnap = await getDocs(materiasQuery);
         
-        console.log('[ProgressPage] Materias directas encontradas:', materiasSnap.size);
+        console.log('[ProgressPage] Materias propias encontradas:', materiasSnap.size);
         
-        if (materiasSnap.size > 0) {
-          // Si hay materias en la colección materias
-          materiasSnap.forEach((doc: any) => {
-            const data = doc.data();
-            console.log('[ProgressPage] Materia data:', { id: doc.id, data });
-            materiasArray.push({
-              id: doc.id,
-              nombre: data.nombre || data.title || 'Sin nombre'
-            });
+        // Agregar materias propias
+        materiasSnap.forEach((doc: any) => {
+          const data = doc.data();
+          console.log('[ProgressPage] Materia propia:', { id: doc.id, data });
+          materiasArray.push({
+            id: doc.id,
+            nombre: data.nombre || data.title || 'Sin nombre'
           });
-        } else {
+        });
+        
+        // 2. Buscar materias donde está inscrito
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', userId),
+          where('status', '==', 'active')
+        );
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        
+        console.log('[ProgressPage] Enrollments activos encontrados:', enrollmentsSnap.size);
+        
+        // Para cada enrollment, obtener la materia del profesor
+        for (const enrollmentDoc of enrollmentsSnap.docs) {
+          const enrollmentData = enrollmentDoc.data();
+          const materiaId = enrollmentData.materiaId;
+          
+          // Verificar que no esté ya en la lista (evitar duplicados)
+          if (!materiasArray.find(m => m.id === materiaId)) {
+            const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+            if (materiaDoc.exists()) {
+              const materiaData = materiaDoc.data();
+              console.log('[ProgressPage] Materia inscrita:', { id: materiaId, data: materiaData });
+              materiasArray.push({
+                id: materiaId,
+                nombre: materiaData.nombre || materiaData.title || 'Sin nombre'
+              });
+            }
+          }
+        }
+        
+        if (materiasArray.length === 0) {
           // Si no hay materias directas, intentar extraerlas de los cuadernos
           console.log('[ProgressPage] No hay materias directas, buscando en cuadernos...');
           
@@ -546,19 +576,50 @@ const ProgressPage: React.FC = () => {
           }
         }
       } else {
-        // Para usuarios regulares, obtener información de notebooks
-        const notebooksQuery = query(
+        // Para usuarios regulares, obtener información de notebooks propios y de profesores inscritos
+        
+        // 1. Notebooks propios
+        const ownNotebooksQuery = query(
           collection(db, 'notebooks'),
           where('userId', '==', userId)
         );
-        const notebooksSnap = await getDocs(notebooksQuery);
+        const ownNotebooksSnap = await getDocs(ownNotebooksQuery);
         
-        notebooksSnap.forEach((doc) => {
+        ownNotebooksSnap.forEach((doc) => {
           const notebookData = doc.data();
           notebookNames.set(doc.id, notebookData.title || 'Sin nombre');
           notebookMaterias.set(doc.id, notebookData.subjectId || notebookData.materiaId || '');
-          console.log(`[ProgressPage] Notebook ${doc.id}: ${notebookData.title}, materia: ${notebookData.subjectId || notebookData.materiaId}`);
+          console.log(`[ProgressPage] Notebook propio ${doc.id}: ${notebookData.title}, materia: ${notebookData.subjectId || notebookData.materiaId}`);
         });
+        
+        // 2. Notebooks de materias inscritas
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', userId),
+          where('status', '==', 'active')
+        );
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        
+        for (const enrollmentDoc of enrollmentsSnap.docs) {
+          const enrollmentData = enrollmentDoc.data();
+          const teacherId = enrollmentData.teacherId;
+          const materiaId = enrollmentData.materiaId;
+          
+          // Buscar notebooks del profesor para esta materia
+          const teacherNotebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', teacherId),
+            where('materiaId', '==', materiaId)
+          );
+          const teacherNotebooksSnap = await getDocs(teacherNotebooksQuery);
+          
+          teacherNotebooksSnap.forEach((doc) => {
+            const notebookData = doc.data();
+            notebookNames.set(doc.id, notebookData.title || 'Sin nombre');
+            notebookMaterias.set(doc.id, notebookData.materiaId || '');
+            console.log(`[ProgressPage] Notebook inscrito ${doc.id}: ${notebookData.title}, materia: ${notebookData.materiaId}`);
+          });
+        }
       }
       
       if (!selectedMateria || selectedMateria === 'general') {
@@ -1611,6 +1672,35 @@ const ProgressPage: React.FC = () => {
 
           <div className={`progress-modules-right ${!isSchoolUser ? 'full-width' : ''}`}>
             <div className="progress-modules-right-row">
+              {/* Subject Selector for FREE and PRO users only */}
+              {!isSchoolUser && materias.length > 0 && (
+                <div className="progress-module subject-selector-module">
+                  <div className="subject-selector-header">
+                    <div className="subject-selector-icon">
+                      <FontAwesomeIcon icon={faBook} />
+                    </div>
+                    <div className="subject-selector-content">
+                      <label htmlFor="subject-select" className="subject-selector-label">
+                        Materia
+                      </label>
+                      <select 
+                        id="subject-select"
+                        className="subject-selector-dropdown"
+                        value={selectedMateria}
+                        onChange={(e) => setSelectedMateria(e.target.value)}
+                      >
+                        <option value="">General</option>
+                        {materias.map((materia) => (
+                          <option key={materia.id} value={materia.id}>
+                            {materia.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Medal Module */}
               <div className="corner-medal-module">
                 <button 

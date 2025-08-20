@@ -15,7 +15,7 @@ import { useUserType } from '../hooks/useUserType';
 import UserTypeBadge from '../components/UserTypeBadge';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { useAuth } from '../contexts/AuthContext';
-import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+// import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import CategoryDropdown from '../components/CategoryDropdown';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
 import { getDomainProgressForNotebook } from '../utils/domainProgress';
@@ -26,7 +26,9 @@ const Notebooks: React.FC = () => {
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const { user, userProfile, loading: authLoading } = useAuth();
   const { notebooks, loading: notebooksLoading, error: notebooksError } = useNotebooks();
-  const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData();
+  // const { schoolNotebooks, loading: schoolNotebooksLoading } = useSchoolStudentData(); // deprecated
+  const schoolNotebooks: any[] = [];
+  const schoolNotebooksLoading = false;
   const [adminNotebooks, setAdminNotebooks] = useState<any[]>([]);
   const [adminNotebooksLoading, setAdminNotebooksLoading] = useState(false);
   const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
@@ -98,6 +100,9 @@ const Notebooks: React.FC = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [notebooksDomainProgress, setNotebooksDomainProgress] = useState<Map<string, any>>(new Map());
   const [notebookRefreshTrigger, setNotebookRefreshTrigger] = useState(0);
+  const [enrolledMateriaNotebooks, setEnrolledMateriaNotebooks] = useState<any[]>([]);
+  const [enrolledMateriaLoading, setEnrolledMateriaLoading] = useState(false);
+  const [isEnrolledMateria, setIsEnrolledMateria] = useState(false);
 
   // Effect to find materiaId by materiaName
   useEffect(() => {
@@ -267,6 +272,87 @@ const Notebooks: React.FC = () => {
     loadMateriaData();
   }, [materiaId, isSchoolAdmin, isSchoolTeacher]);
 
+  // Verificar si el usuario está inscrito en esta materia y cargar notebooks del profesor
+  useEffect(() => {
+    const checkEnrollmentAndLoadNotebooks = async () => {
+      if (!materiaId || !user || isSchoolAdmin || isSchoolTeacher || isSchoolStudent) return;
+      
+      console.log('🔍 Verificando si el usuario está inscrito en la materia:', materiaId);
+      setEnrolledMateriaLoading(true);
+      
+      try {
+        // Verificar si existe un enrollment activo para este usuario y materia
+        const enrollmentQuery = query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', user.uid),
+          where('materiaId', '==', materiaId),
+          where('status', '==', 'active')
+        );
+        
+        const enrollmentSnapshot = await getDocs(enrollmentQuery);
+        
+        if (!enrollmentSnapshot.empty) {
+          console.log('✅ Usuario inscrito en la materia, cargando notebooks del profesor');
+          setIsEnrolledMateria(true);
+          
+          const enrollmentData = enrollmentSnapshot.docs[0].data();
+          const teacherId = enrollmentData.teacherId;
+          
+          // Cargar notebooks del profesor para esta materia
+          const teacherNotebooksQuery = query(
+            collection(db, 'notebooks'),
+            where('userId', '==', teacherId),
+            where('materiaId', '==', materiaId)
+          );
+          
+          const notebooksSnapshot = await getDocs(teacherNotebooksQuery);
+          
+          const notebooksData = await Promise.all(
+            notebooksSnapshot.docs.map(async (doc) => {
+              const data = doc.data();
+              
+              // Contar conceptos del notebook
+              let conceptCount = 0;
+              try {
+                const conceptsQuery = query(
+                  collection(db, 'conceptos'),
+                  where('cuadernoId', '==', doc.id)
+                );
+                const conceptsSnapshot = await getDocs(conceptsQuery);
+                conceptCount = conceptsSnapshot.size;
+              } catch (error) {
+                console.error(`Error counting concepts for notebook ${doc.id}:`, error);
+              }
+              
+              return {
+                id: doc.id,
+                ...data,
+                conceptCount,
+                isFromTeacher: true, // Marcar que es del profesor
+                isEnrolled: true // Marcar como notebook de materia inscrita
+              };
+            })
+          );
+          
+          console.log('📚 Notebooks del profesor cargados:', notebooksData.length);
+          setEnrolledMateriaNotebooks(notebooksData);
+        } else {
+          console.log('❌ Usuario NO inscrito en la materia');
+          setIsEnrolledMateria(false);
+          setEnrolledMateriaNotebooks([]);
+        }
+      } catch (error) {
+        console.error('Error checking enrollment:', error);
+        setIsEnrolledMateria(false);
+        setEnrolledMateriaNotebooks([]);
+      } finally {
+        setEnrolledMateriaLoading(false);
+      }
+    };
+    
+    checkEnrollmentAndLoadNotebooks();
+  }, [materiaId, user, isSchoolAdmin, isSchoolTeacher, isSchoolStudent]);
+
   // Cargar notebooks para admin escolar y profesores
   useEffect(() => {
     const loadAdminNotebooks = async () => {
@@ -398,9 +484,20 @@ const Notebooks: React.FC = () => {
     }));
     isLoading = schoolNotebooksLoading;
   } else {
-    // Para usuarios regulares
-    effectiveNotebooks = notebooks || [];
-    isLoading = notebooksLoading;
+    // Para usuarios regulares, verificar si están inscritos en la materia
+    if (isEnrolledMateria && enrolledMateriaNotebooks.length > 0) {
+      console.log('📚 Usuario inscrito - Mostrando notebooks del profesor');
+      effectiveNotebooks = enrolledMateriaNotebooks.map(notebook => ({
+        ...notebook,
+        userId: notebook.userId || '',
+        conceptCount: notebook.conceptCount || 0
+      }));
+      isLoading = enrolledMateriaLoading;
+    } else {
+      // Mostrar sus propios notebooks
+      effectiveNotebooks = notebooks || [];
+      isLoading = notebooksLoading;
+    }
   }
   
   // Efecto para manejar la carga inicial y evitar el flash de contenido vacío
@@ -417,6 +514,12 @@ const Notebooks: React.FC = () => {
       return;
     }
     
+    // Si estamos cargando notebooks de materia inscrita
+    if (materiaId && enrolledMateriaLoading) {
+      setInitialLoadComplete(false);
+      return;
+    }
+    
     // Si tenemos materiaId pero aún no hemos cargado notebooks (para profesores/admins)
     if (materiaId && (isSchoolAdmin || isSchoolTeacher) && adminNotebooks.length === 0 && !adminNotebooksLoading) {
       // Esperar un poco por si los notebooks están por cargar
@@ -427,20 +530,21 @@ const Notebooks: React.FC = () => {
     }
     
     // Para otros casos, marcar como completo cuando termine de cargar
-    if (!isLoading && !adminNotebooksLoading) {
+    if (!isLoading && !adminNotebooksLoading && !enrolledMateriaLoading) {
       setInitialLoadComplete(true);
     }
-  }, [isLoading, materiaId, materiaName, adminNotebooksLoading, isSchoolAdmin, isSchoolTeacher, adminNotebooks.length]);
+  }, [isLoading, materiaId, materiaName, adminNotebooksLoading, enrolledMateriaLoading, isSchoolAdmin, isSchoolTeacher, adminNotebooks.length]);
   
   // Mostrar loading si:
   // 1. Estamos cargando auth
   // 2. O estamos buscando materiaId pero aún no lo tenemos (y sí tenemos materiaName)
-  // 3. O estamos cargando notebooks (regulares o admin)
+  // 3. O estamos cargando notebooks (regulares, admin o enrolled)
   // 4. O no hemos completado la carga inicial
   const shouldShowLoading = authLoading || 
     (materiaName && !materiaId) ||
     isLoading || 
     adminNotebooksLoading ||
+    enrolledMateriaLoading ||
     !initialLoadComplete;
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
@@ -478,7 +582,7 @@ const Notebooks: React.FC = () => {
       setNotebooksDomainProgress(progressMap);
     };
     calculateAllDomainProgress();
-  }, [notebooks?.length, schoolNotebooks?.length, adminNotebooks?.length, user?.uid, materiaId]);
+  }, [notebooks?.length, schoolNotebooks?.length, adminNotebooks?.length, enrolledMateriaNotebooks?.length, user?.uid, materiaId]);
   
   // Función temporal de debug
   useEffect(() => {
@@ -1014,15 +1118,16 @@ const Notebooks: React.FC = () => {
               isStudent: isSchoolStudent,
               isFrozen: notebook.isFrozen,
               frozenScore: notebook.frozenScore,
-              frozenAt: notebook.frozenAt
+              frozenAt: notebook.frozenAt,
+              isEnrolled: notebook.isEnrolled || false
             }))} 
-            onDeleteNotebook={isSchoolStudent ? undefined : handleDelete} 
-            onEditNotebook={isSchoolStudent ? undefined : handleEdit}
-            onColorChange={isSchoolStudent ? undefined : handleColorChange}
-            onCreateNotebook={isSchoolStudent ? undefined : handleCreate}
-            onAddConcept={isSchoolStudent ? undefined : handleAddConcept}
+            onDeleteNotebook={(isSchoolStudent || isEnrolledMateria) ? undefined : handleDelete} 
+            onEditNotebook={(isSchoolStudent || isEnrolledMateria) ? undefined : handleEdit}
+            onColorChange={(isSchoolStudent || isEnrolledMateria) ? undefined : handleColorChange}
+            onCreateNotebook={(isSchoolStudent || isEnrolledMateria) ? undefined : handleCreate}
+            onAddConcept={(isSchoolStudent || isEnrolledMateria) ? undefined : handleAddConcept}
             onFreezeNotebook={handleFreezeNotebook}
-            showCreateButton={!isSchoolStudent && !isSchoolAdmin}
+            showCreateButton={!isSchoolStudent && !isSchoolAdmin && !isEnrolledMateria}
             isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}

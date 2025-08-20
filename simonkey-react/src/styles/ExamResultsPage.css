@@ -1,9 +1,10 @@
 /* Página de Resultados del Examen - Diseño Mejorado */
 .exam-results-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   position: relative;
   overflow-x: hidden;
+  padding: 0;
+  width: 100%;
 }
 
 /* Partículas de fondo animadas */
@@ -130,7 +131,6 @@
   padding: 4rem 2rem;
   background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.95) 100%);
   border-radius: 30px;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
   animation: heroSlideIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
@@ -453,7 +453,6 @@
   backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 2.5rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   animation: reviewSlideIn 0.8s ease-out;
 }
 

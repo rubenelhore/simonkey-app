@@ -1,7 +1,7 @@
 // src/services/firebase.ts
 
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, Analytics } from 'firebase/analytics';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { 
   getFirestore,
@@ -34,9 +34,35 @@ const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 
 // Inicializar Analytics si está disponible
-let analytics;
+let analytics: Analytics | undefined;
 if (typeof window !== 'undefined') {
-  analytics = getAnalytics(app);
+  const initAnalytics = () => {
+    if (!analytics && navigator.onLine) {
+      try {
+        analytics = getAnalytics(app);
+        console.log('✅ Analytics inicializado correctamente');
+      } catch (error: any) {
+        // Solo mostrar advertencia si no es un error de instalación offline
+        if (!error?.message?.includes('app-offline')) {
+          console.warn('📊 Error al inicializar Analytics:', error);
+        }
+      }
+    }
+  };
+  
+  // Intentar inicializar Analytics
+  initAnalytics();
+  
+  // Reintentar cuando se recupere la conexión
+  window.addEventListener('online', () => {
+    console.log('🌐 Conexión recuperada, reintentando Analytics...');
+    initAnalytics();
+  });
+  
+  // Log cuando se pierda la conexión
+  window.addEventListener('offline', () => {
+    console.warn('📵 Conexión perdida');
+  });
 }
 
 // Exportar la app y analytics para uso en diagnósticos

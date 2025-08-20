@@ -156,7 +156,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isActive, setIsActive] = useState(false); // Tour inactivo por defecto
   const [isNavigating, setIsNavigating] = useState(false);
   const navigate = useNavigate();
-  const { userProfile, loading, user, refreshUserProfile } = useAuth();
+  const { userProfile, loading, user, refreshUserProfile, isEmailVerified } = useAuth();
 
   // Determinar si el tour debe estar activo basándose en el perfil del usuario
   useEffect(() => {
@@ -165,24 +165,27 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     
-    // Solo activar el tour si el usuario NO ha completado el onboarding
-    const shouldShowTour = userProfile.hasCompletedOnboarding === false;
+    // Solo activar el tour si:
+    // 1. El usuario NO ha completado el onboarding
+    // 2. El email YA está verificado (para evitar que se encime con la pantalla de verificación)
+    const shouldShowTour = userProfile.hasCompletedOnboarding === false && isEmailVerified === true;
     
     console.log('🎯 TourContext - Verificando si mostrar tour:', {
       hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
+      isEmailVerified,
       shouldShowTour,
       currentlyActive: isActive
     });
     
     if (shouldShowTour && !isActive) {
-      console.log('🎯 TourContext - Activando tour para usuario nuevo');
+      console.log('🎯 TourContext - Activando tour para usuario nuevo con email verificado');
       setIsActive(true);
       setCurrentStepIndex(0);
     } else if (!shouldShowTour && isActive) {
-      console.log('🎯 TourContext - Desactivando tour para usuario existente');
+      console.log('🎯 TourContext - Desactivando tour');
       setIsActive(false);
     }
-  }, [userProfile, loading, user]);
+  }, [userProfile, loading, user, isEmailVerified]);
 
   // Función para completar el tour y actualizar el perfil
   const completeTour = async () => {

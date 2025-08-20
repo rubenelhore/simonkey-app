@@ -365,7 +365,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   // Touch event handlers for mobile
   const handleTouchStart = (fragment: Fragment, e: React.TouchEvent) => {
     setTouchStartFragment(fragment);
-    e.currentTarget.style.opacity = '0.5';
+    (e.currentTarget as HTMLElement).style.opacity = '0.5';
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -382,7 +382,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    e.currentTarget.style.opacity = '1';
+    (e.currentTarget as HTMLElement).style.opacity = '1';
     
     if (!touchStartFragment || touchTargetPosition === null) {
       setTouchStartFragment(null);

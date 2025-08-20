@@ -1432,3 +1432,186 @@
     min-height: 400px;
   }
 }
+
+/* Estilos para solicitudes de profesor */
+.teacher-requests-container {
+  padding: 20px;
+}
+
+.teacher-requests-container .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.teacher-requests-container h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-requests-container .refresh-btn {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.teacher-requests-container .refresh-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.teacher-requests-container .refresh-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.teacher-requests-container .no-requests {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.teacher-requests-container .no-requests p {
+  margin-top: 16px;
+  font-size: 1.1rem;
+}
+
+.teacher-requests-container .requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+}
+
+.teacher-requests-container .request-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: box-shadow 0.2s;
+}
+
+.teacher-requests-container .request-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.teacher-requests-container .request-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.teacher-requests-container .request-header h3 {
+  margin: 0 0 4px 0;
+  color: #1f2937;
+  font-size: 1.2rem;
+}
+
+.teacher-requests-container .request-email {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.teacher-requests-container .request-body {
+  margin-bottom: 16px;
+}
+
+.teacher-requests-container .request-field {
+  margin-bottom: 12px;
+}
+
+.teacher-requests-container .request-field strong {
+  display: block;
+  color: #374151;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.teacher-requests-container .request-field p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.teacher-requests-container .specialties-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.teacher-requests-container .specialty-tag {
+  padding: 4px 12px;
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.teacher-requests-container .request-meta {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.teacher-requests-container .request-meta i {
+  margin-right: 4px;
+}
+
+.teacher-requests-container .request-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.teacher-requests-container .approve-btn,
+.teacher-requests-container .reject-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.teacher-requests-container .approve-btn {
+  background: #10b981;
+  color: white;
+}
+
+.teacher-requests-container .approve-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.teacher-requests-container .reject-btn {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.teacher-requests-container .reject-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}

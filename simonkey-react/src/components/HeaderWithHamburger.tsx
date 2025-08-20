@@ -26,8 +26,11 @@ import {
   faEnvelope,
   faFileAlt,
   faKey,
-  faBars
+  faBars,
+  faChalkboardTeacher
 } from '@fortawesome/free-solid-svg-icons';
+import TeacherRequestModal from './TeacherRequestModal';
+import { teacherService } from '../services/teacherService';
 
 interface HeaderWithHamburgerProps {
   title: string;
@@ -58,6 +61,9 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTeacherModal, setShowTeacherModal] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [teacherRequestPending, setTeacherRequestPending] = useState(false);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -269,6 +275,21 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       checkAndUpdateSuperAdmin();
     }
   }, [user]);
+
+  // Verificar estado de profesor
+  useEffect(() => {
+    const checkTeacherStatus = async () => {
+      if (!userProfile) return;
+      
+      setIsTeacher(userProfile.isTeacher === true);
+      setTeacherRequestPending(
+        !!userProfile.teacherRequestedAt && 
+        !userProfile.teacherApprovedAt
+      );
+    };
+    
+    checkTeacherStatus();
+  }, [userProfile]);
 
   // Logs de depuración (comentados para reducir spam en consola)
   // useEffect(() => {
@@ -707,6 +728,22 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           )}
         </div>
         
+        {/* Botón de Modo Profesor */}
+        {!isSchoolAdmin && !isSchoolTeacher && !isSchoolStudent && !isSchoolTutor && !isUniversityUser && !isTeacher && (
+          <button
+            className="sidebar-icon-btn"
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              setShowTeacherModal(true);
+            }}
+            disabled={teacherRequestPending}
+            title={teacherRequestPending ? 'Solicitud pendiente' : 'Modo Profesor'}
+          >
+            <FontAwesomeIcon icon={faChalkboardTeacher} />
+            {showSidebarText && <span>{teacherRequestPending ? 'Solicitud pendiente' : 'Modo Profesor'}</span>}
+          </button>
+        )}
+        
         {/* Sección de usuario al final */}
         <div className="sidebar-user-section">
           <div 
@@ -990,6 +1027,18 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       >
         {children}
       </div>
+      
+      {/* Modal de solicitud de profesor */}
+      {showTeacherModal && (
+        <TeacherRequestModal
+          isOpen={showTeacherModal}
+          onClose={() => setShowTeacherModal(false)}
+          onSuccess={() => {
+            setTeacherRequestPending(true);
+            setShowTeacherModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

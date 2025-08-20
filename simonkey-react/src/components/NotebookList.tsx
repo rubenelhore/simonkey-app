@@ -34,6 +34,7 @@ interface Notebook {
     notStarted: number;
   };
   isStudent?: boolean;
+  isEnrolled?: boolean;
 }
 
 interface NotebookListProps {
@@ -823,6 +824,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 isTeacher={isSchoolTeacher}
                 domainProgress={notebook.domainProgress}
                 isStudent={notebook.isStudent}
+                isEnrolled={notebook.isEnrolled}
               />
             ))}
           </div>

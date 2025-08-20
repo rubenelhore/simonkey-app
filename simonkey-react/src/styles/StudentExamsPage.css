@@ -15,7 +15,18 @@
   gap: 1rem;
 }
 
-.student-exams-loading p {
+.student-exams-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+  padding: 4rem 2rem;
+}
+
+.student-exams-loading p,
+.student-exams-loading-content p {
   font-size: 1.1rem;
   color: #6b7280;
   margin: 0;
@@ -28,9 +39,25 @@
   margin-bottom: 5rem;
   background: white;
   padding: 1rem;
+  padding-bottom: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+/* Override conflicting styles with higher specificity */
+.student-exams-page .student-exams-filters {
+  display: flex !important;
+  gap: 1rem !important;
+  margin-bottom: 3rem !important;
+  background: transparent !important;
+  padding: 1.5rem !important;
+  padding-bottom: 2rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+  position: relative !important;
 }
 
 .filter-btn {
@@ -130,32 +157,33 @@
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  color: white;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }
 
 .exam-status.available {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
 }
 
 .exam-status.in-progress {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ffb74d;
 }
 
 .exam-status.completed {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: 1px solid #ba68c8;
 }
 
 /* Exam card body */
 .exam-card-body {
   padding: 1.5rem;
+  position: relative;
 }
 
 .exam-title {
@@ -164,6 +192,7 @@
   color: #1f2937;
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
+  padding-right: 140px; /* Space for status badge */
 }
 
 .exam-description {

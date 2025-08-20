@@ -9,7 +9,7 @@ import '../styles/StudyModePage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock } from '@fortawesome/free-solid-svg-icons';
 import { useUserType } from '../hooks/useUserType';
-import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+// import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { studyStreakService } from '../services/studyStreakService';
 import { useStudyService } from '../hooks/useStudyService';
@@ -38,7 +38,9 @@ const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEV
 const StudyModePage = () => {
   const navigate = useNavigate();
   const { isSchoolStudent, subscription } = useUserType();
-  const { schoolNotebooks, schoolSubjects } = useSchoolStudentData();
+  // const { schoolNotebooks, schoolSubjects } = useSchoolStudentData(); // deprecated
+  const schoolNotebooks: any[] = [];
+  const schoolSubjects: any[] = [];
   const studyService = useStudyService(subscription);
   
   // State
@@ -192,16 +194,44 @@ const StudyModePage = () => {
             nombre: subject.nombre
           }));
         } else {
+          // 1. Obtener materias propias
           const materiasQuery = query(
             collection(db, 'materias'),
             where('userId', '==', auth.currentUser.uid)
           );
           
           const materiasSnapshot = await getDocs(materiasQuery);
-          materiasData = materiasSnapshot.docs.map(doc => ({
+          const ownMaterias = materiasSnapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            isEnrolled: false
           }));
+          
+          // 2. Obtener materias donde está inscrito
+          const enrollmentsQuery = query(
+            collection(db, 'enrollments'),
+            where('studentId', '==', auth.currentUser.uid),
+            where('status', '==', 'active')
+          );
+          const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+          
+          // Para cada enrollment, obtener la materia del profesor
+          const enrolledMaterias = [];
+          for (const enrollmentDoc of enrollmentsSnapshot.docs) {
+            const enrollmentData = enrollmentDoc.data();
+            const materiaDoc = await getDoc(doc(db, 'materias', enrollmentData.materiaId));
+            if (materiaDoc.exists()) {
+              enrolledMaterias.push({
+                id: materiaDoc.id,
+                ...materiaDoc.data(),
+                isEnrolled: true,
+                teacherId: enrollmentData.teacherId
+              });
+            }
+          }
+          
+          // 3. Combinar ambas listas
+          materiasData = [...ownMaterias, ...enrolledMaterias];
         }
         
         setMaterias(materiasData);
@@ -250,24 +280,35 @@ const StudyModePage = () => {
             }
           });
         } else {
-          // Para usuarios regulares, hacer una sola consulta para TODOS los notebooks
-          const allNotebooksQuery = query(
-            collection(db, 'notebooks'),
-            where('userId', '==', auth.currentUser.uid)
-          );
-          
-          const notebooksSnapshot = await getDocs(allNotebooksQuery);
-          
-          // Agrupar notebooks por materia
-          materias.forEach(materia => {
+          // Para usuarios regulares, obtener notebooks propios y de profesores (para materias inscritas)
+          for (const materia of materias) {
+            let notebooksQuery;
+            
+            if (materia.isEnrolled && materia.teacherId) {
+              // Si está inscrito, buscar notebooks del profesor
+              notebooksQuery = query(
+                collection(db, 'notebooks'),
+                where('userId', '==', materia.teacherId),
+                where('materiaId', '==', materia.id)
+              );
+            } else {
+              // Si es propia, buscar sus propios notebooks
+              notebooksQuery = query(
+                collection(db, 'notebooks'),
+                where('userId', '==', auth.currentUser.uid),
+                where('materiaId', '==', materia.id)
+              );
+            }
+            
+            const notebooksSnapshot = await getDocs(notebooksQuery);
             const notebooksData = notebooksSnapshot.docs
-              .filter(doc => doc.data().materiaId === materia.id)
               .map(doc => ({
                 id: doc.id,
                 title: doc.data().title,
                 color: doc.data().color || '#6147FF',
                 type: doc.data().type || 'personal' as const,
-                materiaId: doc.data().materiaId
+                materiaId: doc.data().materiaId,
+                isEnrolled: materia.isEnrolled || false
               }))
               .sort((a, b) => a.title.localeCompare(b.title));
             
@@ -277,7 +318,7 @@ const StudyModePage = () => {
                 notebooks: notebooksData
               };
             }
-          });
+          }
         }
         
         setAllUserNotebooks(notebooksByMateria);
@@ -313,11 +354,23 @@ const StudyModePage = () => {
               frozenScore: notebook.frozenScore
             }));
         } else {
-          const notebooksQuery = query(
-            collection(db, 'notebooks'),
-            where('userId', '==', auth.currentUser.uid),
-            where('materiaId', '==', selectedMateria.id)
-          );
+          let notebooksQuery;
+          
+          if (selectedMateria.isEnrolled && selectedMateria.teacherId) {
+            // Si está inscrito, buscar notebooks del profesor
+            notebooksQuery = query(
+              collection(db, 'notebooks'),
+              where('userId', '==', selectedMateria.teacherId),
+              where('materiaId', '==', selectedMateria.id)
+            );
+          } else {
+            // Si es propia, buscar sus propios notebooks
+            notebooksQuery = query(
+              collection(db, 'notebooks'),
+              where('userId', '==', auth.currentUser.uid),
+              where('materiaId', '==', selectedMateria.id)
+            );
+          }
           
           const notebooksSnapshot = await getDocs(notebooksQuery);
           notebooksData = notebooksSnapshot.docs.map(doc => ({
@@ -325,7 +378,8 @@ const StudyModePage = () => {
             title: doc.data().title,
             color: doc.data().color || '#6147FF',
             type: doc.data().type || 'personal' as const,
-            materiaId: doc.data().materiaId
+            materiaId: doc.data().materiaId,
+            isEnrolled: selectedMateria.isEnrolled || false
           }));
         }
         

@@ -14,8 +14,10 @@ import { useAuth } from '../contexts/AuthContext';
 import CategoryDropdown from '../components/CategoryDropdown';
 import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
-import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
+// import { useSchoolStudentData } from '../hooks/useSchoolStudentData'; // deprecated
 import { getDomainProgressForMateria } from '../utils/domainProgress';
+import InviteCodeManager from '../components/InviteCodeManager';
+import EnrolledStudentsManager from '../components/EnrolledStudentsManager';
 
 interface Materia {
   id: string;
@@ -27,6 +29,9 @@ interface Materia {
   updatedAt: Date;
   notebookCount?: number;
   conceptCount?: number;
+  teacherName?: string;
+  studentCount?: number;
+  isEnrolled?: boolean;
   domainProgress?: {
     total: number;
     dominated: number;
@@ -57,7 +62,10 @@ const Materias: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
   const { migrationStatus, migrationMessage } = useAutoMigration();
-  const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData();
+  // const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData(); // deprecated
+  const schoolSubjects: any[] = [];
+  const schoolNotebooks: any[] = [];
+  const schoolLoading = false;
   
   console.log('📚 Materias.tsx - Estado actual:');
   console.log('  - isSchoolTeacher:', isSchoolTeacher);
@@ -90,6 +98,8 @@ const Materias: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [institutionName, setInstitutionName] = useState<string>('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedMateriaForInvite, setSelectedMateriaForInvite] = useState<{id: string, title: string} | null>(null);
   
   // Color presets para las materias
   const colorPresets = [
@@ -130,8 +140,11 @@ const Materias: React.FC = () => {
       console.log('  ✅ Cargando materias para usuario regular (no escolar)');
       setLoading(true);
       try {
-        // Cargar materias y notebooks en paralelo
-        const [materiasSnap, notebooksSnap] = await Promise.all([
+        // Verificar si el usuario es profesor (tiene isTeacher = true)
+        const isTeacher = userProfile?.isTeacher === true;
+        
+        // Cargar materias propias, notebooks y enrollments en paralelo
+        const [materiasSnap, notebooksSnap, enrollmentsSnap] = await Promise.all([
           getDocs(query(
             collection(db, 'materias'),
             where('userId', '==', user.uid)
@@ -139,6 +152,12 @@ const Materias: React.FC = () => {
           getDocs(query(
             collection(db, 'notebooks'),
             where('userId', '==', user.uid)
+          )),
+          // Cargar materias donde el usuario está inscrito como estudiante
+          getDocs(query(
+            collection(db, 'enrollments'),
+            where('studentId', '==', user.uid),
+            where('status', '==', 'active')
           ))
         ]);
 
@@ -151,17 +170,108 @@ const Materias: React.FC = () => {
           }
         });
 
-        // Construir las materias con su conteo de notebooks
-        const materiasData: Materia[] = materiasSnap.docs.map(docSnap => ({
-          id: docSnap.id,
-          title: docSnap.data().title,
-          color: docSnap.data().color || '#6147FF',
-          category: docSnap.data().category,
-          userId: docSnap.data().userId,
-          createdAt: docSnap.data().createdAt?.toDate() || new Date(),
-          updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-          notebookCount: notebookCountMap[docSnap.id] || 0
-        }));
+        // Construir las materias propias con su conteo de notebooks
+        const materiasData: Materia[] = await Promise.all(
+          materiasSnap.docs.map(async (docSnap) => {
+            const materiaData = {
+              id: docSnap.id,
+              title: docSnap.data().title,
+              color: docSnap.data().color || '#6147FF',
+              category: docSnap.data().category,
+              userId: docSnap.data().userId,
+              createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+              updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+              notebookCount: notebookCountMap[docSnap.id] || 0,
+              studentCount: 0
+            };
+            
+            // Si es profesor, contar estudiantes inscritos en esta materia
+            if (isTeacher) {
+              try {
+                const enrollmentsQuery = query(
+                  collection(db, 'enrollments'),
+                  where('teacherId', '==', user.uid),
+                  where('materiaId', '==', docSnap.id),
+                  where('status', '==', 'active')
+                );
+                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+                materiaData.studentCount = enrollmentsSnapshot.size;
+              } catch (error) {
+                console.error(`Error counting students for materia ${docSnap.id}:`, error);
+              }
+            }
+            
+            return materiaData;
+          })
+        );
+
+        // Agregar materias donde el usuario está inscrito como estudiante
+        for (const enrollmentDoc of enrollmentsSnap.docs) {
+          const enrollmentData = enrollmentDoc.data();
+          const materiaId = enrollmentData.materiaId;
+          const materiaName = enrollmentData.materiaName;
+          const teacherId = enrollmentData.teacherId;
+          
+          // No agregar si ya existe en las materias propias
+          if (!materiasData.find(m => m.id === materiaId)) {
+            try {
+              // Obtener la información real de la materia del profesor
+              const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+              
+              // Obtener información del profesor
+              let teacherName = '';
+              try {
+                const teacherDoc = await getDoc(doc(db, 'users', teacherId));
+                if (teacherDoc.exists()) {
+                  const teacherData = teacherDoc.data();
+                  teacherName = teacherData.displayName || teacherData.nombre || 'Profesor';
+                }
+              } catch (error) {
+                console.error(`Error loading teacher info for ${teacherId}:`, error);
+              }
+              
+              // Contar notebooks del PROFESOR para esta materia (no del estudiante)
+              const teacherNotebooksQuery = query(
+                collection(db, 'notebooks'),
+                where('userId', '==', teacherId),
+                where('materiaId', '==', materiaId)
+              );
+              const teacherNotebooksSnap = await getDocs(teacherNotebooksQuery);
+              
+              if (materiaDoc.exists()) {
+                const materiaData = materiaDoc.data();
+                materiasData.push({
+                  id: materiaId,
+                  title: materiaData.title || materiaName || 'Materia del profesor',
+                  color: materiaData.color || '#6147FF', // Usar el color real de la materia
+                  category: materiaData.category || 'enrolled',
+                  userId: teacherId, // El profesor es el dueño
+                  createdAt: materiaData.createdAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
+                  updatedAt: materiaData.updatedAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
+                  notebookCount: teacherNotebooksSnap.size, // Cuadernos del profesor, no del estudiante
+                  teacherName: teacherName, // Agregar nombre del profesor
+                  isEnrolled: true // Marcar como materia inscrita
+                });
+              } else {
+                // Si por alguna razón no existe la materia, usar datos del enrollment
+                materiasData.push({
+                  id: materiaId,
+                  title: materiaName || 'Materia del profesor',
+                  color: '#6147FF',
+                  category: 'enrolled',
+                  userId: teacherId,
+                  createdAt: enrollmentData.enrolledAt?.toDate() || new Date(),
+                  updatedAt: enrollmentData.enrolledAt?.toDate() || new Date(),
+                  notebookCount: 0,
+                  teacherName: teacherName, // Agregar nombre del profesor
+                  isEnrolled: true // Marcar como materia inscrita
+                });
+              }
+            } catch (error) {
+              console.error(`Error loading enrolled materia ${materiaId}:`, error);
+            }
+          }
+        }
 
         // Calcular el dominio para cada materia en paralelo
         const materiasWithProgress = await Promise.all(
@@ -695,7 +805,7 @@ const Materias: React.FC = () => {
       if (isSchoolAdmin) {
         console.log('🗑️ Eliminando referencias de materia de los estudiantes...');
         // Obtener todos los estudiantes del admin
-        const adminId = userProfile?.id || user.uid;
+        const adminId = userProfile?.id || user?.uid;
         const studentsQuery = query(
           collection(db, 'users'),
           where('idAdmin', '==', adminId),
@@ -822,6 +932,11 @@ const Materias: React.FC = () => {
       const encodedNameWithId = encodeURIComponent(`${materiaName}-${materiaId}`);
       navigate(`/materias/${encodedNameWithId}/notebooks`);
     }
+  };
+
+  const handleManageInvites = (materiaId: string, materiaTitle: string) => {
+    setSelectedMateriaForInvite({ id: materiaId, title: materiaTitle });
+    setShowInviteModal(true);
   };
 
   const handleCategorySelect = (category: string | null) => {
@@ -1006,6 +1121,7 @@ const Materias: React.FC = () => {
               onColorChange={handleColorChange}
               onCreateMateria={handleCreate}
               onViewMateria={handleView}
+              onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
               showCreateButton={!!selectedTeacher && selectedStudents.length > 0}
               selectedCategory={null}
               showCreateModal={showCreateModal}
@@ -1015,6 +1131,7 @@ const Materias: React.FC = () => {
               onClearSelectedCategory={() => {}}
               onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
               isAdminView={true}
+              isSchoolTeacher={isSchoolTeacher}
             />
             {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 && (
               <div className="no-materias-message">
@@ -1185,12 +1302,15 @@ const Materias: React.FC = () => {
               onColorChange={isSchoolStudent || isSchoolTeacher ? undefined : handleColorChange}
               onCreateMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleCreate}
               onViewMateria={handleView}
+              onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
               showCreateButton={!isSchoolStudent && !isSchoolTeacher}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
               examsByMateria={examsByMateria}
               isSchoolStudent={isSchoolStudent}
+              isSchoolTeacher={isSchoolTeacher}
+              isTeacher={userProfile?.isTeacher === true}
               showCategoryModal={showCategoryModal}
               onCloseCategoryModal={() => setShowCategoryModal(false)}
               onClearSelectedCategory={handleClearSelectedCategory}
@@ -1287,6 +1407,58 @@ const Materias: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal para gestionar invitaciones */}
+      {showInviteModal && selectedMateriaForInvite && (
+        <div className="modal-overlay" style={{ zIndex: 998 }} onClick={() => setShowInviteModal(false)}>
+          <div className="modal-content invite-modal-content" style={{ maxWidth: '900px', width: '90%', maxHeight: '90vh', overflow: 'auto', position: 'relative', border: 'none' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-simple">
+              <button 
+                className="close-button-simple" 
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setSelectedMateriaForInvite(null);
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-main-content" style={{ padding: '20px' }}>
+              <div className="modal-icon">
+                <i className="fas fa-user-plus" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+              </div>
+              <h2 className="modal-title">Gestionar Invitaciones</h2>
+              <p className="modal-subtitle">Materia: {selectedMateriaForInvite.title}</p>
+              
+              <div style={{ marginTop: '30px' }}>
+                <div style={{ marginBottom: '40px' }}>
+                  <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', color: '#333' }}>
+                    <i className="fas fa-link" style={{ marginRight: '8px', color: '#6147FF' }}></i>
+                    Códigos de Invitación
+                  </h3>
+                  <InviteCodeManager 
+                    materiaId={selectedMateriaForInvite.id}
+                    materiaName={selectedMateriaForInvite.title}
+                    showTitle={false}
+                  />
+                </div>
+                
+                <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: '40px' }}>
+                  <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', color: '#333' }}>
+                    <i className="fas fa-users" style={{ marginRight: '8px', color: '#6147FF' }}></i>
+                    Estudiantes Inscritos
+                  </h3>
+                  <EnrolledStudentsManager 
+                    materiaId={selectedMateriaForInvite.id}
+                    showTitle={false}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -236,8 +236,6 @@ const GamesPage: React.FC = () => {
       notebookId={notebookId} 
       notebookTitle={notebookTitle} 
       onBack={() => setSelectedGame(null)}
-      cachedConcepts={cachedConcepts}
-      cachedLearningData={cachedLearningData}
     />;
   }
 

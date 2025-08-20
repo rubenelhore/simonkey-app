@@ -4,6 +4,7 @@ import { db, auth } from '../../services/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { EmailService } from '../../services/emailService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import '../../utils/fixAdminUsers';
 import { 
   faKey, faEnvelope, faCheck, faTimes, faSync, 
   faExclamationTriangle, faUserGraduate, faPaperPlane,
@@ -124,22 +125,54 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
     
     try {
       console.log('📧 Enviando email de reseteo de contraseña a:', user.email);
-      await sendPasswordResetEmail(auth, user.email);
       
-      // Guardar en colección passwordResets
-      await setDoc(doc(db, 'passwordResets', user.userId), {
-        userId: user.userId,
-        email: user.email,
-        sent: true,
-        sentAt: new Date(),
-        schoolId: schoolId
-      });
+      // Primero intentar enviar el email de reseteo
+      try {
+        await sendPasswordResetEmail(auth, user.email);
+        console.log('✅ Email de reseteo enviado por Firebase Auth');
+      } catch (authError: any) {
+        console.error('Error en Firebase Auth:', authError);
+        
+        // Si el usuario no existe en Auth, informar claramente
+        if (authError.code === 'auth/user-not-found') {
+          throw new Error(`El usuario ${user.email} no existe en Firebase Auth. Necesita ser creado primero.`);
+        }
+        throw authError;
+      }
       
-      // Actualizar estado en Firebase
-      await updateDoc(doc(db, 'temporaryCredentials', user.userId), {
-        emailSent: true,
-        emailSentAt: new Date()
-      });
+      // Solo guardar en las colecciones si el email se envió exitosamente
+      try {
+        // Guardar en colección passwordResets
+        await setDoc(doc(db, 'passwordResets', user.userId), {
+          userId: user.userId,
+          email: user.email,
+          sent: true,
+          sentAt: new Date(),
+          schoolId: schoolId,
+          userName: user.userName,
+          userRole: user.userRole
+        });
+        console.log('✅ Guardado en passwordResets');
+      } catch (dbError) {
+        console.error('Error guardando en passwordResets:', dbError);
+      }
+      
+      // Intentar actualizar o crear en temporaryCredentials solo si es necesario
+      try {
+        await setDoc(doc(db, 'temporaryCredentials', user.userId), {
+          userId: user.userId,
+          email: user.email,
+          userName: user.userName,
+          userRole: user.userRole,
+          emailSent: true,
+          emailSentAt: new Date(),
+          schoolId: schoolId
+        }, { merge: true });
+        console.log('✅ Actualizado en temporaryCredentials');
+      } catch (dbError) {
+        console.error('Error actualizando temporaryCredentials (no crítico):', dbError);
+        // No es crítico si falla esta actualización
+      }
       
       // Actualizar estado local
       setUsers(prev => prev.map(u => 
@@ -148,14 +181,24 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
           : u
       ));
       
-      alert('✅ Email de reseteo de contraseña enviado exitosamente');
+      alert(`✅ Email de reseteo enviado exitosamente a ${user.email}`);
+      return true;
     } catch (error: any) {
       console.error('Error enviando email de reseteo:', error);
-      if (error.code === 'auth/user-not-found') {
-        alert('⚠️ Este usuario no existe en Firebase Auth. Puede que necesite ser creado primero.');
-      } else {
-        alert('❌ Error al enviar el email de reseteo: ' + error.message);
+      
+      let errorMessage = 'Error desconocido';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Este usuario no existe en Firebase Auth. Puede que necesite ser creado primero.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'El email no es válido.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Demasiadas solicitudes. Intenta más tarde.';
       }
+      
+      alert(`❌ Error: ${errorMessage}`);
+      return false;
     } finally {
       setSendingEmails(prev => {
         const newSet = new Set(prev);
@@ -183,15 +226,14 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
     let errorCount = 0;
     
     for (const user of usersToSend) {
-      try {
-        await sendPasswordReset(user);
+      const result = await sendPasswordReset(user);
+      if (result) {
         successCount++;
-        // Pequeña pausa entre emails para evitar límites
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error(`Error enviando a ${user.email}:`, error);
+      } else {
         errorCount++;
       }
+      // Pausa de 2 segundos entre emails para evitar rate limiting de Firebase
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
     alert(`✅ Enviados: ${successCount}\n❌ Errores: ${errorCount}`);
@@ -445,6 +487,54 @@ const PasswordStatusPanel: React.FC<PasswordStatusPanelProps> = ({ schoolId }) =
             ))}
           </tbody>
         </table>
+        {filteredUsers.length === 0 && !loading && (
+          <div className="no-users-message" style={{ 
+            padding: '2rem', 
+            textAlign: 'center',
+            backgroundColor: '#f9f9f9',
+            borderRadius: '8px',
+            margin: '2rem'
+          }}>
+            <FontAwesomeIcon icon={faUsers} style={{ fontSize: '3rem', color: '#ccc', marginBottom: '1rem' }} />
+            <h3>No se encontraron usuarios</h3>
+            <p style={{ marginBottom: '1rem' }}>
+              {roleFilter !== 'all' 
+                ? `No hay ${roleFilter === 'student' ? 'estudiantes' : roleFilter === 'teacher' ? 'profesores' : 'tutores'} registrados.`
+                : 'No hay usuarios registrados en tu institución.'}
+            </p>
+            <div style={{ 
+              backgroundColor: '#fff3cd', 
+              border: '1px solid #ffc107',
+              borderRadius: '4px',
+              padding: '1rem',
+              marginTop: '1rem'
+            }}>
+              <p style={{ margin: 0, fontWeight: 'bold' }}>💡 ¿No ves a tus usuarios?</p>
+              <p style={{ margin: '0.5rem 0' }}>Es posible que los usuarios no tengan asignado correctamente el ID del administrador.</p>
+              <p style={{ margin: '0.5rem 0' }}>Ejecuta en la consola del navegador (F12):</p>
+              <code style={{ 
+                display: 'block',
+                backgroundColor: '#f4f4f4',
+                padding: '0.5rem',
+                borderRadius: '4px',
+                margin: '0.5rem 0'
+              }}>
+                window.diagnoseAdminUsers()
+              </code>
+              <p style={{ margin: '0.5rem 0' }}>Para diagnosticar el problema, y luego:</p>
+              <code style={{ 
+                display: 'block',
+                backgroundColor: '#f4f4f4',
+                padding: '0.5rem',
+                borderRadius: '4px',
+                margin: '0.5rem 0'
+              }}>
+                window.fixAdminUsers()
+              </code>
+              <p style={{ margin: '0.5rem 0 0' }}>Para asignar automáticamente los usuarios de tu institución.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
