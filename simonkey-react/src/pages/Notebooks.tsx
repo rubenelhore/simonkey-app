@@ -320,12 +320,28 @@ const Notebooks: React.FC = () => {
               // Contar conceptos del notebook
               let conceptCount = 0;
               try {
+                // Buscar conceptos en la subcolección concepts del notebook
+                const subCollectionQuery = collection(db, 'notebooks', doc.id, 'concepts');
+                const subCollectionSnapshot = await getDocs(subCollectionQuery);
+                conceptCount += subCollectionSnapshot.size;
+                
+                // También buscar en la colección conceptos (legacy)
                 const conceptsQuery = query(
                   collection(db, 'conceptos'),
                   where('cuadernoId', '==', doc.id)
                 );
                 const conceptsSnapshot = await getDocs(conceptsQuery);
-                conceptCount = conceptsSnapshot.size;
+                
+                // Los documentos de conceptos legacy pueden tener arrays de conceptos
+                conceptsSnapshot.docs.forEach(conceptDoc => {
+                  const conceptData = conceptDoc.data();
+                  if (conceptData.conceptos && Array.isArray(conceptData.conceptos)) {
+                    conceptCount += conceptData.conceptos.length;
+                  } else {
+                    // Si es un concepto individual
+                    conceptCount += 1;
+                  }
+                });
               } catch (error) {
                 console.error(`Error counting concepts for notebook ${doc.id}:`, error);
               }
@@ -615,57 +631,46 @@ const Notebooks: React.FC = () => {
     }
     
     try {
-      // Determinar si es un notebook escolar o regular
-      if (isSchoolAdmin || isTeacher) {
-        // Crear notebook escolar
-        console.log('📝 Creando notebook escolar para profesor/admin');
-        console.log('  - materiaId:', materiaId);
-        console.log('  - userId:', user.uid);
-        
-        const newNotebook = {
-          title,
-          color,
-          idMateria: materiaId,
-          idProfesor: user.uid, // Importante: agregar idProfesor para profesores
-          userId: user.uid,
-          type: 'school', // Agregar type explícitamente
-          conceptCount: 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-        
-        console.log('📝 Datos del notebook a crear:', {
-          ...newNotebook,
-          createdAt: '[ServerTimestamp]',
-          updatedAt: '[ServerTimestamp]'
+      // TODOS los usuarios (incluidos profesores) crean notebooks en la colección regular 'notebooks'
+      // Ya no usamos schoolNotebooks porque está deprecated
+      console.log('📝 Creando notebook para usuario:', user.uid);
+      console.log('  - materiaId:', materiaId);
+      console.log('  - isTeacher:', isTeacher);
+      console.log('  - isSchoolAdmin:', isSchoolAdmin);
+      
+      const newNotebook = {
+        title,
+        color,
+        materiaId: materiaId,
+        userId: user.uid,
+        // Agregar metadata adicional para profesores
+        isTeacherNotebook: isTeacher || false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      console.log('📝 Datos del notebook a crear:', {
+        ...newNotebook,
+        createdAt: '[ServerTimestamp]',
+        updatedAt: '[ServerTimestamp]'
+      });
+      
+      const docRef = await addDoc(collection(db, 'notebooks'), newNotebook);
+      console.log('✅ Notebook creado con ID:', docRef.id);
+      
+      // Verificar que se creó correctamente
+      const verifyDoc = await getDoc(doc(db, 'notebooks', docRef.id));
+      if (verifyDoc.exists()) {
+        const data = verifyDoc.data();
+        console.log('✅ Verificación - Notebook creado con datos:', {
+          id: docRef.id,
+          materiaId: data.materiaId,
+          userId: data.userId,
+          title: data.title,
+          isTeacherNotebook: data.isTeacherNotebook
         });
-        
-        const docRef = await addDoc(collection(db, 'schoolNotebooks'), newNotebook);
-        console.log('✅ Notebook escolar creado con ID:', docRef.id);
-        
-        // Verificar que se creó correctamente
-        const verifyDoc = await getDoc(doc(db, 'schoolNotebooks', docRef.id));
-        if (verifyDoc.exists()) {
-          const data = verifyDoc.data();
-          console.log('✅ Verificación - Notebook creado con datos:', {
-            id: docRef.id,
-            idMateria: data.idMateria,
-            idProfesor: data.idProfesor,
-            title: data.title
-          });
-        } else {
-          console.error('❌ Error: El notebook no se encontró después de crearlo');
-        }
       } else {
-        // Crear notebook regular
-        await addDoc(collection(db, 'notebooks'), {
-          title,
-          color,
-          materiaId: materiaId,
-          userId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
+        console.error('❌ Error: El notebook no se encontró después de crearlo');
       }
       
       console.log("Notebook created successfully");
@@ -703,34 +708,31 @@ const Notebooks: React.FC = () => {
     console.log(`🗑️ Intentando eliminar notebook con id ${id}`);
     
     try {
-      // Si es profesor o admin escolar, eliminar de schoolNotebooks
-      if (isSchoolAdmin || isTeacher) {
-        // Verificar que el notebook pertenece al profesor actual
-        const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', id));
+      // TODOS los usuarios (incluidos profesores) eliminan de la colección regular 'notebooks'
+      // Primero verificar que el notebook existe y pertenece al usuario
+      const notebookDoc = await getDoc(doc(db, 'notebooks', id));
+      
+      if (notebookDoc.exists()) {
+        const notebookData = notebookDoc.data();
         
-        if (notebookDoc.exists()) {
-          const notebookData = notebookDoc.data();
+        // Solo permitir eliminar si es el dueño del notebook o super admin
+        if (notebookData.userId === user?.uid || isSchoolAdmin) {
+          await deleteDoc(doc(db, 'notebooks', id));
+          console.log(`✅ Notebook ${id} eliminado exitosamente`);
           
-          // Solo permitir eliminar si es el profesor dueño del notebook
-          if (notebookData.idProfesor === user?.uid || isSchoolAdmin) {
-            await deleteDoc(doc(db, 'schoolNotebooks', id));
-            console.log(`✅ Notebook escolar ${id} eliminado exitosamente`);
-            
-            // Recargar notebooks
+          // Recargar notebooks si es profesor
+          if (isTeacher || isSchoolAdmin) {
             const teacherId = isTeacher ? user?.uid : undefined;
             const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId!], teacherId);
             setAdminNotebooks(notebooksData);
-          } else {
-            console.error('❌ No tienes permisos para eliminar este notebook');
-            alert('No tienes permisos para eliminar este notebook');
           }
         } else {
-          console.error('❌ Notebook no encontrado');
+          console.error('❌ No tienes permisos para eliminar este notebook');
+          alert('No tienes permisos para eliminar este notebook');
         }
       } else {
-        // Para usuarios regulares, usar UnifiedNotebookService
-        await UnifiedNotebookService.deleteNotebook(id);
-        console.log(`✅ Notebook ${id} eliminado exitosamente`);
+        console.error('❌ Notebook no encontrado');
+        alert('El notebook no existe o ya fue eliminado');
       }
       
       // Forzar actualización de categorías y notebooks

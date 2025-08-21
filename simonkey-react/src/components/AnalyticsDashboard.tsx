@@ -52,8 +52,14 @@ const AnalyticsDashboard: React.FC = () => {
       setAnalyticsData(data);
       setLastRefresh(new Date());
     } catch (err) {
-      console.error('Error loading analytics:', err);
-      setError('Error al cargar los datos de analytics. Por favor, intenta de nuevo.');
+      // Solo mostrar error si no es un error de permisos esperado
+      if (err instanceof Error && !err.message.includes('Missing or insufficient permissions')) {
+        console.error('Error loading analytics:', err);
+        setError('Error al cargar los datos de analytics. Por favor, intenta de nuevo.');
+      } else {
+        // Para errores de permisos, cargar datos parciales disponibles
+        setAnalyticsData({});
+      }
     } finally {
       setLoading(false);
     }

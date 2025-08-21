@@ -90,15 +90,16 @@ const SuperAdminPage: React.FC = () => {
 
   // Configuración de categorías y subcategorías
   const categories = {
-    school: {
-      title: '🏢 Gestión Escolar',
-      icon: 'fas fa-school',
-      subcategories: {
-        schoolLinking: { title: 'Vinculación Escolar', icon: 'fas fa-link' },
-        schoolCreation: { title: 'Creación Escolar', icon: 'fas fa-plus-circle' },
-        schoolVerification: { title: 'Verificación de Vinculación', icon: 'fas fa-search' }
-      }
-    },
+    // Categoría 'school' comentada - ya no se usa el sistema escolar
+    // school: {
+    //   title: '🏢 Gestión Escolar',
+    //   icon: 'fas fa-school',
+    //   subcategories: {
+    //     schoolLinking: { title: 'Vinculación Escolar', icon: 'fas fa-link' },
+    //     schoolCreation: { title: 'Creación Escolar', icon: 'fas fa-plus-circle' },
+    //     schoolVerification: { title: 'Verificación de Vinculación', icon: 'fas fa-search' }
+    //   }
+    // },
     verification: {
       title: '🔍 Verificación del Sistema',
       icon: 'fas fa-clipboard-check',

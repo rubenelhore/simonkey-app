@@ -250,6 +250,38 @@ const Materias: React.FC = () => {
               );
               const teacherNotebooksSnap = await getDocs(teacherNotebooksQuery);
               
+              // Contar conceptos totales en todos los notebooks del profesor para esta materia
+              let totalConceptCount = 0;
+              for (const notebookDoc of teacherNotebooksSnap.docs) {
+                const notebookId = notebookDoc.id;
+                try {
+                  // Buscar conceptos en la subcolección concepts del notebook
+                  const conceptsQuery = collection(db, 'notebooks', notebookId, 'concepts');
+                  const conceptsSnapshot = await getDocs(conceptsQuery);
+                  totalConceptCount += conceptsSnapshot.size;
+                  
+                  // También buscar en la colección conceptos (legacy)
+                  const legacyConceptsQuery = query(
+                    collection(db, 'conceptos'),
+                    where('cuadernoId', '==', notebookId)
+                  );
+                  const legacyConceptsSnapshot = await getDocs(legacyConceptsQuery);
+                  
+                  // Los documentos de conceptos legacy pueden tener arrays de conceptos
+                  legacyConceptsSnapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.conceptos && Array.isArray(data.conceptos)) {
+                      totalConceptCount += data.conceptos.length;
+                    } else {
+                      // Si es un concepto individual
+                      totalConceptCount += 1;
+                    }
+                  });
+                } catch (error) {
+                  console.error(`Error counting concepts for notebook ${notebookId}:`, error);
+                }
+              }
+              
               if (materiaDoc.exists()) {
                 const materiaData = materiaDoc.data();
                 materiasData.push({
@@ -261,6 +293,7 @@ const Materias: React.FC = () => {
                   createdAt: materiaData.createdAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
                   updatedAt: materiaData.updatedAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
                   notebookCount: teacherNotebooksSnap.size, // Cuadernos del profesor, no del estudiante
+                  conceptCount: totalConceptCount, // Agregar conteo de conceptos
                   teacherName: teacherName, // Agregar nombre del profesor
                   isEnrolled: true // Marcar como materia inscrita
                 });
@@ -275,6 +308,7 @@ const Materias: React.FC = () => {
                   createdAt: enrollmentData.enrolledAt?.toDate() || new Date(),
                   updatedAt: enrollmentData.enrolledAt?.toDate() || new Date(),
                   notebookCount: 0,
+                  conceptCount: 0, // Agregar conteo de conceptos
                   teacherName: teacherName, // Agregar nombre del profesor
                   isEnrolled: true // Marcar como materia inscrita
                 });
@@ -740,11 +774,11 @@ const Materias: React.FC = () => {
     // Los estudiantes escolares no pueden eliminar materias
     if (isSchoolStudent) return;
     try {
-      // Determinar la colección correcta según el tipo de usuario
-      const isSchoolMateria = isSchoolAdmin || isTeacher;
-      const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
-      const notebooksCollection = isSchoolMateria ? 'schoolNotebooks' : 'notebooks';
-      const notebookField = isSchoolMateria ? 'idMateria' : 'materiaId';
+      // TODOS los usuarios (incluidos profesores) usan las colecciones regulares
+      // Ya no usamos schoolSubjects/schoolNotebooks porque están deprecated
+      const materiaCollection = 'materias';
+      const notebooksCollection = 'notebooks';
+      const notebookField = 'materiaId';
       
       // Verificar si hay notebooks en esta materia
       const notebooksQuery = query(
@@ -815,45 +849,22 @@ const Materias: React.FC = () => {
     if (!user) return;
     
     try {
-      if (isSchoolAdmin || isTeacher) {
-        // Para admin escolar o profesor: actualizar materia escolar
-        const adminId = userProfile?.idAdmin || userProfile?.id || user.uid;
-        
-        // Verificar si ya existe una materia escolar con ese nombre
-        const materiasQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idAdmin', '==', adminId),
-          where('nombre', '==', newTitle)
-        );
-        const snapshot = await getDocs(materiasQuery);
-        
-        if (!snapshot.empty && snapshot.docs[0].id !== id) {
-          throw new Error('Ya existe una materia con ese nombre');
-        }
-        
-        // Actualizar la materia escolar en la colección correcta
-        await updateDoc(doc(db, 'schoolSubjects', id), {
-          nombre: newTitle,
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        // Para usuarios regulares: actualizar materia regular
-        const materiasQuery = query(
-          collection(db, 'materias'),
-          where('userId', '==', user?.uid),
-          where('title', '==', newTitle)
-        );
-        const snapshot = await getDocs(materiasQuery);
-        
-        if (!snapshot.empty && snapshot.docs[0].id !== id) {
-          throw new Error('Ya existe una materia con ese nombre');
-        }
-        
-        await updateDoc(doc(db, 'materias', id), {
-          title: newTitle,
-          updatedAt: serverTimestamp()
-        });
+      // TODOS los usuarios (incluidos profesores) usan la colección regular 'materias'
+      const materiasQuery = query(
+        collection(db, 'materias'),
+        where('userId', '==', user?.uid),
+        where('title', '==', newTitle)
+      );
+      const snapshot = await getDocs(materiasQuery);
+      
+      if (!snapshot.empty && snapshot.docs[0].id !== id) {
+        throw new Error('Ya existe una materia con ese nombre');
       }
+      
+      await updateDoc(doc(db, 'materias', id), {
+        title: newTitle,
+        updatedAt: serverTimestamp()
+      });
       
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
@@ -868,10 +879,8 @@ const Materias: React.FC = () => {
     if (!user) return;
     
     try {
-      const isSchoolMateria = isSchoolAdmin || isTeacher;
-      const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
-      
-      await updateDoc(doc(db, materiaCollection, id), {
+      // TODOS los usuarios (incluidos profesores) usan la colección regular 'materias'
+      await updateDoc(doc(db, 'materias', id), {
         color: newColor,
         updatedAt: serverTimestamp()
       });
@@ -1273,7 +1282,7 @@ const Materias: React.FC = () => {
               onCreateMateria={isSchoolStudent ? undefined : handleCreate}
               onViewMateria={handleView}
               onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
-              showCreateButton={!isSchoolStudent && !isTeacher}
+              showCreateButton={!isSchoolStudent}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}

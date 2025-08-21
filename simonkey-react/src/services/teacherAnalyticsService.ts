@@ -161,7 +161,10 @@ export class TeacherAnalyticsService {
         }
       };
     } catch (error) {
-      console.error('Error fetching teacher analytics:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching teacher analytics:', error);
+      }
       
       // Return empty data structure on error
       return {

@@ -715,7 +715,10 @@ class AnalyticsService {
         }
       };
     } catch (error) {
-      console.error('Error fetching academic performance:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching academic performance:', error);
+      }
       throw error;
     }
   }
@@ -903,7 +906,10 @@ class AnalyticsService {
         subjectMetrics
       };
     } catch (error) {
-      console.error('Error fetching teacher analytics:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching teacher analytics:', error);
+      }
       throw error;
     }
   }
@@ -1055,7 +1061,10 @@ class AnalyticsService {
         }
       };
     } catch (error) {
-      console.error('Error fetching institution overview:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching institution overview:', error);
+      }
       throw error;
     }
   }
@@ -1234,7 +1243,10 @@ class AnalyticsService {
         }
       };
     } catch (error) {
-      console.error('Error fetching content analytics:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching content analytics:', error);
+      }
       throw error;
     }
   }
@@ -1418,7 +1430,10 @@ class AnalyticsService {
         technicalMonitoring
       };
     } catch (error) {
-      console.error('Error fetching all analytics:', error);
+      // Silenciar errores de permisos esperados
+      if (error instanceof Error && !error.message.includes('Missing or insufficient permissions')) {
+        console.error('Error fetching all analytics:', error);
+      }
       throw error;
     }
   }

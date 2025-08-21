@@ -1626,7 +1626,7 @@ const NotebookDetail = () => {
             
             {/* Barra de progreso de dominio */}
             {((isSchoolStudent && !cuaderno.isFrozen) || 
-              (!isSchoolStudent && !isSchoolAdmin && !isTeacher)) && 
+              (!isSchoolStudent && !isSchoolAdmin)) && 
               conceptosDocs.length > 0 && (
               <div className="dominio-progress-container">
                 {(() => {

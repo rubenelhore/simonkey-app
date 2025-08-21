@@ -326,6 +326,11 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <span className="materia-info" style={{ textAlign: 'left' }}>
                     {notebookCount} cuaderno{notebookCount !== 1 ? 's' : ''}
+                    {!isEnrolled && conceptCount !== undefined && conceptCount > 0 && (
+                      <span style={{ marginLeft: '8px', color: '#888' }}>
+                        • {conceptCount} concepto{conceptCount !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </span>
                   {domainProgress && domainProgress.total > 0 && (() => {
                     const percentage = Math.round((domainProgress.dominated / domainProgress.total) * 100);
