@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Logs</title>
+</head>
+<body>
+    <h1>Checking localStorage logs...</h1>
+    <pre id="output"></pre>
+    
+    <script>
+        // Check if there are any logs in localStorage
+        const logs = localStorage.getItem('notebookLogs');
+        const output = document.getElementById('output');
+        
+        if (logs) {
+            try {
+                const parsedLogs = JSON.parse(logs);
+                output.textContent = 'Found ' + parsedLogs.length + ' logs:\n\n' + JSON.stringify(parsedLogs, null, 2);
+            } catch (e) {
+                output.textContent = 'Error parsing logs: ' + e.message + '\n\nRaw logs:\n' + logs;
+            }
+        } else {
+            output.textContent = 'No logs found in localStorage';
+        }
+        
+        // Also check console
+        console.log('Logs from localStorage:', logs);
+        
+        // Try to save a test log
+        const testLog = {
+            timestamp: new Date().toISOString(),
+            test: true,
+            message: 'Test log from checkLogs.html'
+        };
+        
+        const existingLogs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+        existingLogs.push(testLog);
+        localStorage.setItem('notebookLogs', JSON.stringify(existingLogs));
+        
+        console.log('Test log saved. Total logs now:', existingLogs.length);
+    </script>
+</body>
+</html>

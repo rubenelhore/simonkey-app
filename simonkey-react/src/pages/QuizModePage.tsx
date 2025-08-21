@@ -31,7 +31,7 @@ const QuizModePage: React.FC = () => {
   console.log('[QuizModePage] Component rendering at', new Date().toISOString());
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSchoolStudent } = useUserType();
+  const { isSchoolStudent, isTeacher } = useUserType();
   console.log('[QuizModePage] Location state:', location.state);
   console.log('[QuizModePage] isSchoolStudent:', isSchoolStudent);
   
@@ -163,7 +163,16 @@ const QuizModePage: React.FC = () => {
       console.log('[QuizModePage] Buscando cuaderno:', location.state.notebookId, 'Encontrado:', !!notebook);
       
       if (notebook) {
-        console.log('Cuaderno encontrado, iniciando quiz automáticamente:', notebook.title);
+        console.log('Cuaderno encontrado, verificando si está congelado:', notebook.title);
+        
+        // Bloquear acceso a cuadernos congelados para todos excepto profesores
+        if (notebook.isFrozen && !isTeacher) {
+          console.log('Cuaderno congelado, no se puede iniciar quiz');
+          alert('Este cuaderno está congelado. No puedes realizar actividades de quiz.');
+          navigate('/inicio');
+          return;
+        }
+        
         setSelectedNotebook(notebook);
         setAutoStartAttempted(true);
         setIsAutoStarting(true);
@@ -1113,7 +1122,14 @@ const QuizModePage: React.FC = () => {
                 <div
                   key={notebook.id || index}
                   className={`notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedNotebook(notebook)}
+                  onClick={() => {
+                    // Bloquear acceso a cuadernos congelados para todos excepto profesores
+                    if (notebook.isFrozen && !isTeacher) {
+                      alert('Este cuaderno está congelado. No puedes realizar actividades de quiz.');
+                      return;
+                    }
+                    setSelectedNotebook(notebook);
+                  }}
                   style={{ borderColor: notebook.color }}
                 >
                   <div className="notebook-color" style={{ backgroundColor: notebook.color }}>

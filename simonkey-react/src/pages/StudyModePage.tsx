@@ -37,7 +37,7 @@ const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEV
 
 const StudyModePage = () => {
   const navigate = useNavigate();
-  const { isSchoolStudent, subscription } = useUserType();
+  const { isSchoolStudent, subscription, isTeacher } = useUserType();
   // const { schoolNotebooks, schoolSubjects } = useSchoolStudentData(); // deprecated
   // Usar useMemo para evitar recrear arrays en cada render
   const schoolNotebooks = React.useMemo<any[]>(() => [], []);
@@ -123,6 +123,15 @@ const StudyModePage = () => {
       setNotebookScore({ score: 0, level: 1, progress: 0 });
     }
   }, [selectedNotebook]);
+
+  // Verificar si el notebook seleccionado está congelado
+  useEffect(() => {
+    if (selectedNotebook && selectedNotebook.isFrozen && !isTeacher) {
+      console.log('Notebook congelado detectado, deseleccionando...');
+      alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
+      setSelectedNotebook(null);
+    }
+  }, [selectedNotebook?.isFrozen, isTeacher]);
 
   // Load effective user ID and user data - OPTIMIZADO
   useEffect(() => {
@@ -364,6 +373,23 @@ const StudyModePage = () => {
         
         setNotebooks(notebooksData);
         
+        // Actualizar el notebook seleccionado si cambió su estado de congelación
+        if (selectedNotebook) {
+          const updatedNotebook = notebooksData.find(n => n.id === selectedNotebook.id);
+          if (updatedNotebook && updatedNotebook.isFrozen !== selectedNotebook.isFrozen) {
+            // El estado de congelación cambió
+            if (updatedNotebook.isFrozen && !isTeacher) {
+              // Se congeló y el usuario no es profesor, deseleccionar
+              console.log('Notebook fue congelado, deseleccionando...');
+              setSelectedNotebook(null);
+              alert('Este cuaderno ha sido congelado. No puedes realizar actividades de estudio.');
+            } else {
+              // Actualizar con el nuevo estado
+              setSelectedNotebook(updatedNotebook);
+            }
+          }
+        }
+        
         // Don't auto-select notebooks, user must choose manually
       } catch (error) {
         console.error("Error al cargar cuadernos:", error);
@@ -536,9 +562,24 @@ const StudyModePage = () => {
 
   // Handle notebook selection - SUPER OPTIMIZADO
   const handleSelectNotebook = async (notebook: Notebook) => {
-    if (notebook.isFrozen) {
-      alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
-      return;
+    // Verificar el estado actual del notebook desde la base de datos
+    try {
+      const notebookDoc = await getDoc(doc(db, 'notebooks', notebook.id));
+      if (notebookDoc.exists()) {
+        const currentData = notebookDoc.data();
+        const isCurrentlyFrozen = currentData.isFrozen || false;
+        
+        // Bloquear acceso a cuadernos congelados para todos excepto profesores
+        if (isCurrentlyFrozen && !isTeacher) {
+          alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
+          return;
+        }
+        
+        // Actualizar el notebook con el estado actual
+        notebook.isFrozen = isCurrentlyFrozen;
+      }
+    } catch (error) {
+      console.error('Error verificando estado del notebook:', error);
     }
     
     setSelectedNotebook(notebook);
@@ -912,6 +953,13 @@ const StudyModePage = () => {
       return;
     }
     
+    // Verificar si el cuaderno está congelado (excepto para profesores)
+    if (selectedNotebook.isFrozen && !isTeacher) {
+      alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
+      setSelectedNotebook(null); // Deseleccionar el cuaderno congelado
+      return;
+    }
+    
     // Clear any previous errors
     setShowNotebookError(false);
     
@@ -1095,8 +1143,25 @@ const StudyModePage = () => {
                               {notebooks.map(notebook => (
                                 <div 
                                   key={notebook.id}
-                                  className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''}`}
-                                  onClick={() => {
+                                  className={`dropdown-item notebook-item ${selectedNotebook?.id === notebook.id ? 'selected' : ''} ${notebook.isFrozen ? 'frozen' : ''} ${notebook.isFrozen && !isTeacher ? 'disabled' : ''}`}
+                                  onClick={async () => {
+                                    // Verificar el estado actual del notebook desde la base de datos
+                                    try {
+                                      const notebookDoc = await getDoc(doc(db, 'notebooks', notebook.id));
+                                      if (notebookDoc.exists()) {
+                                        const currentData = notebookDoc.data();
+                                        const isCurrentlyFrozen = currentData.isFrozen || false;
+                                        
+                                        if (isCurrentlyFrozen && !isTeacher) {
+                                          alert('Este cuaderno está congelado. No puedes realizar actividades de estudio.');
+                                          setShowNotebookDropdown(false);
+                                          return;
+                                        }
+                                      }
+                                    } catch (error) {
+                                      console.error('Error verificando estado del notebook:', error);
+                                    }
+                                    
                                     setSelectedMateria(materia);
                                     handleSelectNotebook(notebook);
                                     setShowNotebookDropdown(false);

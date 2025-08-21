@@ -520,7 +520,7 @@
 /* Charts Container */
 .charts-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
   margin-bottom: 32px;
 }
@@ -724,7 +724,8 @@
   }
 
   .charts-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
   }
 
   .progress-modules-right-row .progress-module.kpi-module {
@@ -754,6 +755,11 @@
   .progress-module-col {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .charts-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .progress-modules-right-row {

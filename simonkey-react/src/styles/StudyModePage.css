@@ -1038,6 +1038,64 @@
   background-color: transparent;
 }
 
+/* Efecto de tache para cuadernos congelados */
+.dropdown-item.notebook-item.frozen.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.02);
+  position: relative;
+  pointer-events: auto; /* Permitir hover pero bloquear click con JavaScript */
+}
+
+.dropdown-item.notebook-item.frozen.disabled::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.dropdown-item.notebook-item.frozen.disabled::after {
+  content: '\2715'; /* Unicode para X */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0;
+  color: rgba(255, 59, 48, 0);
+  font-weight: bold;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.dropdown-item.notebook-item.frozen.disabled:hover {
+  background-color: rgba(255, 59, 48, 0.05);
+  transform: none;
+}
+
+.dropdown-item.notebook-item.frozen.disabled:hover::after {
+  font-size: 3rem;
+  color: rgba(255, 59, 48, 0.9);
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 .dropdown-item svg {
   color: #007AFF;
   margin-left: auto;
