@@ -178,7 +178,7 @@ const TeacherExamsPage: React.FC = () => {
       setExams(examsData);
       
       // Cargar estadísticas adicionales
-      await loadStats(materiasData, examsData);
+      await loadStats(materias, examsData);
       
     } catch (error) {
       console.error('❌ [TeacherExams] Error cargando datos:', error);
