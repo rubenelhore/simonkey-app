@@ -1,5 +1,5 @@
 // src/pages/StudyModePage.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
@@ -39,8 +39,9 @@ const StudyModePage = () => {
   const navigate = useNavigate();
   const { isSchoolStudent, subscription } = useUserType();
   // const { schoolNotebooks, schoolSubjects } = useSchoolStudentData(); // deprecated
-  const schoolNotebooks: any[] = [];
-  const schoolSubjects: any[] = [];
+  // Usar useMemo para evitar recrear arrays en cada render
+  const schoolNotebooks = React.useMemo<any[]>(() => [], []);
+  const schoolSubjects = React.useMemo<any[]>(() => [], []);
   const studyService = useStudyService(subscription);
   
   // State
@@ -246,7 +247,7 @@ const StudyModePage = () => {
     };
     
     fetchMaterias();
-  }, [navigate, isSchoolStudent, schoolSubjects]);
+  }, [navigate, isSchoolStudent]);
 
   // Load all user notebooks organized by materia - OPTIMIZADO
   useEffect(() => {
@@ -256,30 +257,8 @@ const StudyModePage = () => {
       try {
         const notebooksByMateria: { [materiaId: string]: { materia: any, notebooks: Notebook[] } } = {};
         
-        if (isSchoolStudent && schoolNotebooks) {
-          // Para estudiantes escolares, procesar directamente sin consultas
-          materias.forEach(materia => {
-            const notebooksData = schoolNotebooks
-              .filter(notebook => notebook.idMateria === materia.id)
-              .map(notebook => ({
-                id: notebook.id,
-                title: notebook.title,
-                color: notebook.color || '#6147FF',
-                type: 'school' as const,
-                materiaId: notebook.idMateria,
-                isFrozen: notebook.isFrozen || false,
-                frozenScore: notebook.frozenScore
-              }))
-              .sort((a, b) => a.title.localeCompare(b.title));
-            
-            if (notebooksData.length > 0) {
-              notebooksByMateria[materia.id] = {
-                materia: materia,
-                notebooks: notebooksData
-              };
-            }
-          });
-        } else {
+        // Ya no usar sistema escolar
+        {
           // Para usuarios regulares, obtener notebooks propios y de profesores (para materias inscritas)
           for (const materia of materias) {
             let notebooksQuery;
@@ -328,7 +307,7 @@ const StudyModePage = () => {
     };
     
     fetchAllUserNotebooks();
-  }, [materias, isSchoolStudent, schoolNotebooks]);
+  }, [materias, isSchoolStudent]);
 
   // Load notebooks when materia is selected
   useEffect(() => {

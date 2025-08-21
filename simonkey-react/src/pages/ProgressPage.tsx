@@ -80,7 +80,7 @@ interface CuadernoData {
 }
 
 const ProgressPage: React.FC = () => {
-  const { isSchoolUser, isSchoolStudent, isSchoolTeacher, isSchoolAdmin } = useUserType();
+  const { isSchoolUser, isSchoolStudent, isTeacher, isSchoolAdmin } = useUserType();
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
   const [loading, setLoading] = useState(true);

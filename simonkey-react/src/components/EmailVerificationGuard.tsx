@@ -9,7 +9,7 @@ interface EmailVerificationGuardProps {
 
 const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ children }) => {
   const { isAuthenticated, isEmailVerified, loading } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent, isSchoolUser, userProfile, loading: userTypeLoading } = useUserType();
+  const { isTeacher, isSchoolStudent, isSchoolUser, userProfile, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -19,7 +19,7 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
 
   useEffect(() => {
     // Crear un hash del estado actual para evitar procesamiento duplicado
-    const currentState = `${loading}-${userTypeLoading}-${isAuthenticated}-${isEmailVerified}-${isSchoolUser}-${isSchoolTeacher}-${isSchoolStudent}-${location.pathname}`;
+    const currentState = `${loading}-${userTypeLoading}-${isAuthenticated}-${isEmailVerified}-${isSchoolUser}-${isTeacher}-${isSchoolStudent}-${location.pathname}`;
     
     // Si el estado no ha cambiado, no procesar
     if (lastProcessedState.current === currentState) {
@@ -32,30 +32,7 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       // Reset navigation flag when state changes
       hasNavigated.current = false;
       
-      // USUARIOS ESCOLARES: Solo profesores tienen rutas restringidas
-      if (isSchoolTeacher && !hasNavigated.current) {
-        const validTeacherRoutes = [
-          '/teacher/home',
-          '/materias',
-          '/school/teacher',
-          '/school/notebooks',
-          '/school/notebooks/',
-          '/school/student',
-          '/school/students',
-          '/calendar',
-          '/exam'
-        ];
-        
-        const isValidRoute = validTeacherRoutes.some(route => 
-          location.pathname === route || location.pathname.startsWith(route + '/')
-        );
-        
-        if (!isValidRoute) {
-          hasNavigated.current = true;
-          navigate('/teacher/home', { replace: true });
-          return;
-        }
-      }
+      // Ya no hay restricciones especiales para profesores
 
       // USUARIOS NORMALES: Verificar email
       if (isAuthenticated && !isEmailVerified && !isSchoolUser && !hasNavigated.current) {
@@ -64,7 +41,7 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
         return;
       }
     }
-  }, [isAuthenticated, isEmailVerified, isSchoolUser, isSchoolTeacher, isSchoolStudent, userProfile, location.pathname, navigate, loading, userTypeLoading]);
+  }, [isAuthenticated, isEmailVerified, isSchoolUser, isTeacher, isSchoolStudent, userProfile, location.pathname, navigate, loading, userTypeLoading]);
 
   // Si está cargando, mostrar loading
   if (loading || userTypeLoading) {

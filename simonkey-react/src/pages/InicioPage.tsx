@@ -52,7 +52,7 @@ const DIVISION_LEVELS = {
 const InicioPage: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile, user } = useAuth();
-  const { isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor } = useUserType();
+  const { isTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor } = useUserType();
   const userName = userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Santiago';
   const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -76,20 +76,7 @@ const InicioPage: React.FC = () => {
     activeNotebooks: 0
   });
   
-  // Redirección automática para usuarios escolares
-  useEffect(() => {
-    if (isSchoolTeacher) {
-      console.log('🎓 Profesor detectado, redirigiendo a /teacher/home');
-      navigate('/teacher/home', { replace: true });
-    } else if (isSchoolAdmin) {
-      console.log('👨‍💼 Admin escolar detectado, redirigiendo a /school/admin');
-      navigate('/school/admin', { replace: true });
-    } else if (isSchoolTutor) {
-      console.log('👨‍🏫 Tutor detectado, redirigiendo a /school/tutor');
-      navigate('/school/tutor', { replace: true });
-    }
-    // Los estudiantes escolares pueden quedarse en esta página
-  }, [isSchoolTeacher, isSchoolAdmin, isSchoolTutor, navigate]);
+  // Ya no redirigir usuarios - todos usan la misma página de inicio
   
   // Global cache using localStorage
   const getCachedData = (key: string) => {
@@ -476,7 +463,7 @@ const InicioPage: React.FC = () => {
 
         // Obtener KPIs actuales
         const kpiService = await import('../services/kpiService');
-        const kpisData = await kpiService.getKPIsFromCache(user.uid);
+        let kpisData = await kpiService.getKPIsFromCache(user.uid);
         const globalScore = kpisData?.global?.scoreGlobal || 0;
         const scoreValue = Math.ceil(globalScore);
         setCurrentScore(scoreValue);
@@ -585,6 +572,23 @@ const InicioPage: React.FC = () => {
           console.log('💾 Datos principales y de progreso guardados en cache localStorage con división:', calculatedDivision);
         } else {
           console.log('⚠️ No se encontraron KPIs data, estableciendo valores por defecto');
+          
+          // Intentar inicializar KPIs si no existen
+          console.log('🔄 Intentando inicializar KPIs para el usuario...');
+          try {
+            const { kpiService: kpiSvc } = await import('../services/kpiService');
+            await kpiSvc.updateUserKPIs(user.uid);
+            console.log('✅ KPIs inicializados, recargando datos...');
+            // Intentar obtener los KPIs recién creados
+            const newKpisData = await kpiSvc.getUserKPIs(user.uid);
+            if (newKpisData) {
+              // Actualizar kpisData en lugar de usar setMainData que no existe
+              kpisData = newKpisData;
+            }
+          } catch (initError) {
+            console.log('⚠️ No se pudieron inicializar los KPIs:', initError);
+          }
+          
           const defaultProgressData = {
             conceptsDominated: conceptStats?.conceptosDominados || 0,
             totalTime: 0,
@@ -642,7 +646,7 @@ const InicioPage: React.FC = () => {
       console.log('🚀 Inicializando página de inicio para usuario:', user.uid);
       console.log('📚 Tipo de usuario detectado:', {
         isSchoolStudent,
-        isSchoolTeacher,
+        isTeacher,
         isSchoolAdmin,
         isSchoolTutor
       });

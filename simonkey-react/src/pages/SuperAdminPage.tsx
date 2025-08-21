@@ -29,6 +29,7 @@ import StudyLogicVerification from '../components/StudyLogicVerification';
 import DashboardVerification from '../components/DashboardVerification';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import UniversityUsersTab from '../components/UniversityUsersTab';
+import TeacherManagementImproved from '../components/TeacherManagementImproved';
 // import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections'; // removed
 const createTestSchoolData = () => {};
 const checkSchoolCollections = () => {};
@@ -111,7 +112,8 @@ const SuperAdminPage: React.FC = () => {
       title: '👥 Gestión de Usuarios',
       icon: 'fas fa-users',
       subcategories: {
-        university: { title: 'Usuarios Universitarios', icon: 'fas fa-graduation-cap' }
+        university: { title: 'Usuarios Universitarios', icon: 'fas fa-graduation-cap' },
+        teachers: { title: 'Gestión de Profesores', icon: 'fas fa-chalkboard-teacher' }
       }
     },
     communication: {
@@ -1485,6 +1487,11 @@ const SuperAdminPage: React.FC = () => {
           {/* Tab de Usuarios Universitarios */}
           {activeTab === 'university' && (
             <UniversityUsersTab />
+          )}
+          
+          {/* Tab de Gestión de Profesores */}
+          {activeTab === 'teachers' && (
+            <TeacherManagementImproved />
           )}
 
 

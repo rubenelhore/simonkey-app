@@ -37,7 +37,7 @@ const TeacherExamsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userProfile } = useAuth();
-  const { isSchoolTeacher } = useUserType();
+  const { isTeacher } = useUserType();
   
   const [exams, setExams] = useState<Exam[]>([]);
   const [materias, setMaterias] = useState<Materia[]>([]);
@@ -56,12 +56,12 @@ const TeacherExamsPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (!user || !isSchoolTeacher) {
+    if (!user || !isTeacher) {
       navigate('/school/teacher');
       return;
     }
     loadTeacherData();
-  }, [user, isSchoolTeacher, userProfile]);
+  }, [user, isTeacher, userProfile]);
 
   // Efecto para actualizar el filtro cuando llega desde navegación
   useEffect(() => {

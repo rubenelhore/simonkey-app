@@ -116,7 +116,7 @@ const NotebookDetail = () => {
   const studyService = useStudyService();
   
   // Usar el hook para detectar el tipo de usuario
-  const { isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
+  const { isSchoolStudent, isSchoolAdmin, isTeacher } = useUserType();
   
   // Usar el hook para obtener datos del estudiante escolar
   const schoolSubjects: any[] = [];
@@ -150,7 +150,7 @@ const NotebookDetail = () => {
         console.log('ID extraído de la URL:', extractedId);
 
         // Use the correct collection for school users
-        const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isSchoolTeacher) ? 'schoolNotebooks' : 'notebooks';
+        const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isTeacher) ? 'schoolNotebooks' : 'notebooks';
         
         // Buscar directamente por ID
         const notebookDoc = await getDoc(doc(db, notebooksCollection, extractedId));
@@ -192,7 +192,7 @@ const NotebookDetail = () => {
     };
 
     findNotebookByName();
-  }, [notebookName, isSchoolStudent, isSchoolAdmin, isSchoolTeacher]);
+  }, [notebookName, isSchoolStudent, isSchoolAdmin, isTeacher]);
 
   // Función para obtener el color del semáforo según las repeticiones
   const getTrafficLightColor = (conceptId: string): string => {
@@ -232,7 +232,7 @@ const NotebookDetail = () => {
       try {
         // Fetch notebook using unified service
         console.log('🔍 Intentando obtener notebook con ID:', notebookId);
-        console.log('👤 isSchoolTeacher:', isSchoolTeacher);
+        console.log('👤 isTeacher:', isTeacher);
         console.log('👤 isSchoolAdmin:', isSchoolAdmin);
         
         const notebook = await UnifiedNotebookService.getNotebook(notebookId);
@@ -266,7 +266,7 @@ const NotebookDetail = () => {
         // Fetch concept documents for this notebook
         const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
         console.log('📚 Colección de conceptos detectada:', conceptsCollection);
-        console.log('🔍 isSchoolTeacher:', isSchoolTeacher);
+        console.log('🔍 isTeacher:', isTeacher);
         console.log('🔍 isSchoolAdmin:', isSchoolAdmin);
         
         const q = query(
@@ -292,7 +292,7 @@ const NotebookDetail = () => {
           
           // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
           // Solo cargar para estudiantes, no para profesores o admins
-          const isTeacherOrAdmin = isSchoolAdmin || isSchoolTeacher;
+          const isTeacherOrAdmin = isSchoolAdmin || isTeacher;
           if (auth.currentUser && conceptosData.length > 0 && !isCancelled && !isTeacherOrAdmin) {
             // No bloquear la carga de conceptos, hacer esto en background
             (async () => {
@@ -337,7 +337,7 @@ const NotebookDetail = () => {
             code: conceptsError.code,
             collection: conceptsCollection,
             notebookId: notebookId,
-            isSchoolTeacher,
+            isTeacher,
             isSchoolAdmin
           });
           if (!isCancelled) setConceptosDocs([]);
@@ -345,7 +345,7 @@ const NotebookDetail = () => {
         
         // Cargar materiales del notebook con timeout
         // Solo cargar materiales para estudiantes y usuarios regulares, no para profesores/admins
-        const isTeacherOrAdmin = isSchoolAdmin || isSchoolTeacher;
+        const isTeacherOrAdmin = isSchoolAdmin || isTeacher;
         if (!isTeacherOrAdmin) {
           try {
             if (!isCancelled) setLoadingMaterials(true);
@@ -1295,7 +1295,7 @@ const NotebookDetail = () => {
             // Navegar de vuelta según el tipo de usuario
             if (isSchoolStudent) {
               navigate('/materias');
-            } else if (isSchoolTeacher) {
+            } else if (isTeacher) {
               navigate('/school/teacher');
             } else {
               navigate('/notebooks');
@@ -1352,7 +1352,7 @@ const NotebookDetail = () => {
                   className="back-button-notebooks"
                   onClick={() => {
                     // Si es profesor escolar, ir a su página de notebooks
-                    if (isSchoolTeacher) {
+                    if (isTeacher) {
                       console.log('👨‍🏫 School teacher navigation');
                       console.log('Current pathname:', window.location.pathname);
                       console.log('Referrer:', document.referrer);
@@ -1468,7 +1468,7 @@ const NotebookDetail = () => {
                       materiaId,
                       referrer: document.referrer,
                       isSchoolStudent,
-                      isSchoolTeacher
+                      isTeacher
                     });
                     
                     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
@@ -1517,7 +1517,7 @@ const NotebookDetail = () => {
               ) : materials.length > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {/* Botón + para subir otro documento */}
-                  {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) && (
+                  {((!isSchoolStudent && !isSchoolAdmin) || isTeacher) && (
                     <button
                       onClick={() => setIsModalOpen(true)}
                       style={{
@@ -1645,7 +1645,7 @@ const NotebookDetail = () => {
             
             {/* Barra de progreso de dominio */}
             {((isSchoolStudent && !cuaderno.isFrozen) || 
-              (!isSchoolStudent && !isSchoolAdmin && !isSchoolTeacher)) && 
+              (!isSchoolStudent && !isSchoolAdmin && !isTeacher)) && 
               conceptosDocs.length > 0 && (
               <div className="dominio-progress-container">
                 {(() => {
@@ -1821,7 +1821,7 @@ const NotebookDetail = () => {
                     </div>
                     <h3 className="empty-concepts-title">Cuaderno vacío</h3>
                     <p className="empty-concepts-subtitle">Añade tu primer documento para comenzar a estudiar</p>
-                    {((!isSchoolStudent && !isSchoolAdmin) || isSchoolTeacher) ? (
+                    {((!isSchoolStudent && !isSchoolAdmin) || isTeacher) ? (
                       <>
                         <button
                           className="btn-add-first-concept"
@@ -1888,7 +1888,7 @@ const NotebookDetail = () => {
                       return (
                         <div 
                           key={`${doc.id}-${conceptIndex}`}
-                          className={`concept-card ${!isSchoolTeacher ? `traffic-light-${trafficLightColor}` : ''}`}
+                          className={`concept-card ${!isTeacher ? `traffic-light-${trafficLightColor}` : ''}`}
                           onClick={() => {
                             // Mantener el contexto de materia si existe
                             const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
@@ -1917,7 +1917,7 @@ const NotebookDetail = () => {
       </main>
 
       {/* Modal - Solo visible para usuarios con permisos (incluye profesores) */}
-      {isModalOpen && (!isSchoolStudent || isSchoolTeacher) && ReactDOM.createPortal(
+      {isModalOpen && (!isSchoolStudent || isTeacher) && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) {
             setIsModalOpen(false);

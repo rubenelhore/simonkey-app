@@ -8,7 +8,7 @@ service cloud.firestore {
     
     // Cache del documento de usuario para reducir lecturas
     function getUserData() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
         : {};
     }
@@ -38,7 +38,9 @@ service cloud.firestore {
     
     // Verificar si es profesor independiente
     function isTeacher() {
-      return isAuthenticated() && getUserData().isTeacher == true;
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isTeacher == true;
     }
     
     // Verificar si el estudiante está inscrito en una materia
@@ -141,13 +143,8 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: materias
     // ========================================
     match /materias/{materiaId} {
-      // Lectura: propietario, super admin, o queries generales
-      allow read: if isAuthenticated() && (
-        resource == null ||  // Para queries que retornan vacío
-        isOwner(resource.data.userId) || 
-        isSuperAdmin()
-        // Los estudiantes inscritos acceden a través de enrollments query
-      );
+      // Lectura: propietario, super admin, o cualquier usuario autenticado
+      allow read: if isAuthenticated();
       
       // Creación: usuario autenticado (profesor o regular)
       allow create: if isAuthenticated() && 

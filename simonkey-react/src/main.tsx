@@ -11,6 +11,9 @@ import './services/firebase';
 
 // Importar utilidad de eliminación de cuentas escolares
 
+// Importar utilidades de diagnóstico
+import './utils/initializeUserKPIs';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

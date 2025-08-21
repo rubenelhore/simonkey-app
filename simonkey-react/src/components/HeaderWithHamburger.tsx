@@ -50,7 +50,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   themeColor
 }) => {
   const { user, logout, userProfile } = useAuth();
-  const { isSuperAdmin, subscription, isSchoolAdmin, isSchoolTeacher, isSchoolTutor, isSchoolStudent, isUniversityUser } = useUserType();
+  const { isSuperAdmin, subscription, isSchoolAdmin, isTeacher, isSchoolTutor, isSchoolStudent, isUniversityUser } = useUserType();
   const [isSidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -62,7 +62,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
-  const [isTeacher, setIsTeacher] = useState(false);
+  const [isTeacherLocal, setIsTeacherLocal] = useState(false);
   const [teacherRequestPending, setTeacherRequestPending] = useState(false);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -150,7 +150,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     if (!user) return;
     
     // No cargar notebooks para usuarios escolares (profesores, administradores y estudiantes)
-    if (isSchoolTeacher || isSchoolAdmin || isSchoolStudent) {
+    if (isTeacher || isSchoolAdmin || isSchoolStudent) {
       setNotebooks([]);
       return;
     }
@@ -174,7 +174,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       }
     };
     loadNotebooks();
-  }, [user, isSchoolTeacher, isSchoolAdmin, isSchoolStudent]);
+  }, [user, isTeacher, isSchoolAdmin, isSchoolStudent]);
 
   // Buscar estudios inteligentes disponibles hoy
   useEffect(() => {
@@ -182,7 +182,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       if (!user || notebooks.length === 0) return;
       
       // No buscar estudios inteligentes para profesores o administradores
-      if (isSchoolTeacher || isSchoolAdmin) return;
+      if (isTeacher || isSchoolAdmin) return;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const userId = user.uid;
@@ -281,7 +281,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     const checkTeacherStatus = async () => {
       if (!userProfile) return;
       
-      setIsTeacher(userProfile.isTeacher === true);
+      setIsTeacherLocal(userProfile.isTeacher === true);
       setTeacherRequestPending(
         !!userProfile.teacherRequestedAt && 
         !userProfile.teacherApprovedAt
@@ -495,12 +495,6 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             setMobileSidebarOpen(false);
             if (isUniversityUser) {
               navigate('/university');
-            } else if (isSchoolAdmin) {
-              navigate('/school/admin');
-            } else if (isSchoolTeacher) {
-              navigate('/teacher/home');
-            } else if (isSchoolTutor) {
-              navigate('/school/tutor');
             } else {
               navigate('/inicio');
             }
@@ -567,11 +561,11 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {showSidebarText && <span>Contraseñas</span>}
               </button>
             </>
-          ) : isSchoolTeacher ? (
+          ) : isTeacher ? (
             <>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/teacher/home' ? 'active' : ''}`} 
-                onClick={() => navigate('/teacher/home')}
+                className={`sidebar-icon-btn ${location.pathname === '/inicio' ? 'active' : ''}`} 
+                onClick={() => navigate('/inicio')}
                 title="Inicio"
               >
                 <FontAwesomeIcon icon={faHome} />
@@ -729,7 +723,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         </div>
         
         {/* Botón de Modo Profesor */}
-        {!isSchoolAdmin && !isSchoolTeacher && !isSchoolStudent && !isSchoolTutor && !isUniversityUser && !isTeacher && (
+        {!isSchoolAdmin && !isTeacher && !isSchoolStudent && !isSchoolTutor && !isUniversityUser && !isTeacher && (
           <button
             className="sidebar-icon-btn"
             onClick={() => {

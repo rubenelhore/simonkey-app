@@ -5,7 +5,7 @@ import { diagnoseAuthIssues, fixOrphanUser } from '../utils/authDebug';
 
 const AuthDiagnostic: React.FC = () => {
   const { user, userProfile, loading, isAuthenticated, isEmailVerified } = useAuth();
-  const { isSuperAdmin, isSchoolUser, isSchoolTeacher, isSchoolStudent, loading: userTypeLoading } = useUserType();
+  const { isSuperAdmin, isSchoolUser, isTeacher, isSchoolStudent, loading: userTypeLoading } = useUserType();
   const [diagnosticResult, setDiagnosticResult] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
 
@@ -75,7 +75,7 @@ const AuthDiagnostic: React.FC = () => {
           <li>Perfil: {userProfile ? `${userProfile.subscription} - ${userProfile.schoolRole || 'Sin rol'}` : 'No hay perfil'}</li>
           <li>Super Admin: {isSuperAdmin ? '✅' : '❌'}</li>
           <li>Usuario Escolar: {isSchoolUser ? '✅' : '❌'}</li>
-          <li>Profesor: {isSchoolTeacher ? '✅' : '❌'}</li>
+          <li>Profesor: {isTeacher ? '✅' : '❌'}</li>
           <li>Estudiante: {isSchoolStudent ? '✅' : '❌'}</li>
         </ul>
       </div>

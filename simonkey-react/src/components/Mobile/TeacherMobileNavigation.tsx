@@ -37,7 +37,7 @@ const TeacherMobileNavigation = () => {
   return (
     <nav className={`mobile-navigation ${isVisible ? 'visible' : 'hidden'}`}>
       <NavLink 
-        to="/teacher/home" 
+        to="/inicio" 
         className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}
       >
         <i className="fas fa-home"></i>

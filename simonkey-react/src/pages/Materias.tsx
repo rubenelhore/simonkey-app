@@ -44,12 +44,12 @@ const Materias: React.FC = () => {
   console.log('🎯 MATERIAS COMPONENT MOUNTED - TEACHER VERSION');
   
   const { user, userProfile, loading: authLoading } = useAuth();
-  const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isSchoolTeacher } = useUserType();
+  const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isTeacher } = useUserType();
   const [materias, setMaterias] = useState<Materia[]>([]);
   // Inicializar loading basado en el tipo de usuario
   const [loading, setLoading] = useState(() => {
     // Para profesores escolares, empezar con true ya que cargaremos sus materias
-    if (isSchoolTeacher) return true;
+    if (isTeacher) return true;
     // Para otros usuarios también empezar con true
     return true;
   });
@@ -68,7 +68,7 @@ const Materias: React.FC = () => {
   const schoolLoading = false;
   
   console.log('📚 Materias.tsx - Estado actual:');
-  console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  console.log('  - isTeacher:', isTeacher);
   console.log('  - isSchoolStudent:', isSchoolStudent);
   console.log('  - user:', user?.uid);
   // console.log('📚 user:', user);
@@ -111,7 +111,7 @@ const Materias: React.FC = () => {
     const loadMaterias = async () => {
       console.log('📂 useEffect loadMaterias - Iniciando');
       console.log('  - user:', user?.uid);
-      console.log('  - isSchoolTeacher:', isSchoolTeacher);
+      console.log('  - isTeacher:', isTeacher);
       console.log('  - isSchoolStudent:', isSchoolStudent);
       console.log('  - isSchoolAdmin:', isSchoolAdmin);
       
@@ -119,7 +119,7 @@ const Materias: React.FC = () => {
         console.log('  ❌ No hay usuario, saliendo');
         return;
       }
-      // Ya no verificamos isSchoolStudent, isSchoolTeacher, isSchoolAdmin
+      // Ya no verificamos isSchoolStudent, isTeacher, isSchoolAdmin
       // porque el sistema escolar fue migrado
       
       console.log('  ✅ Cargando materias para usuario regular (no escolar)');
@@ -281,14 +281,14 @@ const Materias: React.FC = () => {
       }
     };
     loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent, isSchoolTeacher, isSchoolAdmin]);
+  }, [user, refreshTrigger, isSchoolStudent, isTeacher, isSchoolAdmin]);
 
   // Log para debugging
   console.log('🔍 Materias - Estado actual del componente:', {
     loading,
     authLoading,
     schoolLoading,
-    isSchoolTeacher,
+    isTeacher,
     materiasLength: materias.length,
     isSchoolStudent,
     isSchoolAdmin
@@ -447,7 +447,7 @@ const Materias: React.FC = () => {
   // Efecto específico para profesores escolares
   useEffect(() => {
     const loadTeacherMaterias = async () => {
-      if (!isSchoolTeacher || !user || !userProfile) return;
+      if (!isTeacher || !user || !userProfile) return;
       
       console.log('👨‍🏫 Cargando materias para profesor escolar');
       setLoading(true);
@@ -511,7 +511,7 @@ const Materias: React.FC = () => {
     };
     
     loadTeacherMaterias();
-  }, [isSchoolTeacher, user, userProfile, refreshTrigger]);
+  }, [isTeacher, user, userProfile, refreshTrigger]);
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -756,7 +756,7 @@ const Materias: React.FC = () => {
     if (isSchoolStudent) return;
     try {
       // Determinar la colección correcta según el tipo de usuario
-      const isSchoolMateria = isSchoolAdmin || isSchoolTeacher;
+      const isSchoolMateria = isSchoolAdmin || isTeacher;
       const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
       const notebooksCollection = isSchoolMateria ? 'schoolNotebooks' : 'notebooks';
       const notebookField = isSchoolMateria ? 'idMateria' : 'materiaId';
@@ -830,7 +830,7 @@ const Materias: React.FC = () => {
     if (!user) return;
     
     try {
-      if (isSchoolAdmin || isSchoolTeacher) {
+      if (isSchoolAdmin || isTeacher) {
         // Para admin escolar o profesor: actualizar materia escolar
         const adminId = userProfile?.idAdmin || userProfile?.id || user.uid;
         
@@ -883,7 +883,7 @@ const Materias: React.FC = () => {
     if (!user) return;
     
     try {
-      const isSchoolMateria = isSchoolAdmin || isSchoolTeacher;
+      const isSchoolMateria = isSchoolAdmin || isTeacher;
       const materiaCollection = isSchoolMateria ? 'schoolSubjects' : 'materias';
       
       await updateDoc(doc(db, materiaCollection, id), {
@@ -993,8 +993,8 @@ const Materias: React.FC = () => {
     };
   }, [showCreateModal]);
 
-  if (loading || authLoading || (isSchoolStudent && schoolLoading)) {
-    console.log('🔄 Materias - Mostrando loading:', { loading, authLoading, schoolLoading, isSchoolTeacher });
+  if (loading || authLoading) {
+    console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
       <div className="materias-container">
         <HeaderWithHamburger title="Mis Materias" />
@@ -1116,7 +1116,7 @@ const Materias: React.FC = () => {
               onClearSelectedCategory={() => {}}
               onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
               isAdminView={true}
-              isSchoolTeacher={isSchoolTeacher}
+              isSchoolTeacher={isTeacher}
             />
             {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 && (
               <div className="no-materias-message">
@@ -1131,9 +1131,9 @@ const Materias: React.FC = () => {
     );
   }
 
-  // Vista normal para usuarios regulares y estudiantes
-  console.log('🎨 Materias - Renderizando vista para profesor escolar');
-  console.log('  - isSchoolTeacher:', isSchoolTeacher);
+  // Vista normal para todos los usuarios
+  console.log('🎨 Materias - Renderizando vista principal');
+  console.log('  - isTeacher:', isTeacher);
   console.log('  - materias:', materias.length);
   console.log('  - loading:', loading);
   console.log('  - authLoading:', authLoading);
@@ -1188,7 +1188,7 @@ const Materias: React.FC = () => {
                 </div>
                 
                 <div className="empty-state-content">
-                  {isSchoolTeacher ? (
+                  {isTeacher ? (
                     <>
                       <div className="badge-new">¡Bienvenido profesor!</div>
                       <h2 className="empty-state-title gradient-text">
@@ -1207,7 +1207,7 @@ const Materias: React.FC = () => {
                   )}
                   
                   <div className="empty-state-actions">
-                    {!isSchoolStudent && !isSchoolTeacher && (
+                    {!isSchoolStudent && !isTeacher && (
                       <button className="create-materia-button primary pulse" onClick={() => {
                         setShowCreateModal(true);
                       }}>
@@ -1219,7 +1219,7 @@ const Materias: React.FC = () => {
                       </button>
                     )}
                     
-                    {isSchoolTeacher && (
+                    {isTeacher && (
                       <div className="teacher-welcome-message">
                         <div className="message-icon">
                           <i className="fas fa-chalkboard-teacher"></i>
@@ -1233,7 +1233,7 @@ const Materias: React.FC = () => {
                       </div>
                     )}
                     
-                    {!isSchoolTeacher && (
+                    {!isTeacher && (
                       <div className="quick-suggestions enhanced">
                         <span className="suggestions-label">
                           <i className="fas fa-lightbulb"></i>
@@ -1282,19 +1282,19 @@ const Materias: React.FC = () => {
           ) : (
             <MateriaList 
               materias={materias}
-              onDeleteMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleDelete}
-              onEditMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleEdit}
-              onColorChange={isSchoolStudent || isSchoolTeacher ? undefined : handleColorChange}
-              onCreateMateria={isSchoolStudent || isSchoolTeacher ? undefined : handleCreate}
+              onDeleteMateria={isSchoolStudent || isTeacher ? undefined : handleDelete}
+              onEditMateria={isSchoolStudent || isTeacher ? undefined : handleEdit}
+              onColorChange={isSchoolStudent || isTeacher ? undefined : handleColorChange}
+              onCreateMateria={isSchoolStudent || isTeacher ? undefined : handleCreate}
               onViewMateria={handleView}
               onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
-              showCreateButton={!isSchoolStudent && !isSchoolTeacher}
+              showCreateButton={!isSchoolStudent && !isTeacher}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
               examsByMateria={examsByMateria}
               isSchoolStudent={isSchoolStudent}
-              isSchoolTeacher={isSchoolTeacher}
+              isSchoolTeacher={isTeacher}
               isTeacher={userProfile?.isTeacher === true}
               showCategoryModal={showCategoryModal}
               onCloseCategoryModal={() => setShowCategoryModal(false)}

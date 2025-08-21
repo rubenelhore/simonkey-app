@@ -313,7 +313,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                     Profesor: {teacherName}
                   </span>
                 )}
-                {(isTeacher || isSchoolTeacher) && studentCount !== undefined && (
+                {(isTeacher || isTeacher) && studentCount !== undefined && (
                   <span className="materia-students" style={{
                     fontSize: '0.85rem',
                     color: '#666',

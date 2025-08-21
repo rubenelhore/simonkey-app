@@ -418,20 +418,7 @@ const AppContent: React.FC = () => {
       if (isAuthenticated) {
         const currentPath = window.location.pathname;
         
-        // USUARIOS ESCOLARES: Redirigir a sus páginas específicas
-        // Redireccionar desde login/signup o cuando accedan a rutas no apropiadas
-        if (['/login', '/signup', '/inicio', '/'].includes(currentPath)) {
-          if (isTeacher) {
-            console.log('👨‍🏫 App - Redirigiendo profesor a /teacher/home');
-            navigate('/teacher/home', { replace: true });
-            return;
-          }
-          if (false) { // isSchoolTutor deprecated
-            console.log('🏫 App - Redirigiendo tutor escolar a /school/tutor');
-            navigate('/school/tutor', { replace: true });
-            return;
-          }
-        }
+        // Ya no redirigir profesores - todos usan las mismas rutas
         
         // TODOS LOS USUARIOS: Si está en login/signup y verificado, redirigir a inicio
         if (isEmailVerified && ['/login', '/signup'].includes(currentPath)) {
@@ -516,9 +503,7 @@ const AppContent: React.FC = () => {
               if (isAuthenticated) {
                 // Usuarios universitarios van a sus cursos por defecto
                 if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
-                // Usuarios escolares van a sus módulos específicos
-                if (isTeacher) return <Navigate to="/teacher/home" replace />;
-                // Usuarios regulares van a inicio
+                // Todos los usuarios autenticados van a inicio
                 if (isEmailVerified) {
                   return <Navigate to="/inicio" replace />;
                 }
@@ -787,20 +772,10 @@ const AppContent: React.FC = () => {
             }
           />
           
-          {/* Rutas para el sistema escolar */}
+          {/* Ruta /teacher/home ahora redirige a /inicio */}
           <Route
             path="/teacher/home"
-            element={
-              isAuthenticated ? (
-                <EmailVerificationGuard>
-                  <PasswordChangeGuard>
-                    <>
-                      <TeacherHomePage />
-                    </>
-                  </PasswordChangeGuard>
-                </EmailVerificationGuard>
-              ) : <Navigate to="/login" replace />
-            }
+            element={<Navigate to="/inicio" replace />}
           />
           {/* RUTAS DEL SISTEMA ESCOLAR ANTIGUO - DEPRECATED */}
           {/* Redirigir todas las rutas school a las nuevas rutas */}

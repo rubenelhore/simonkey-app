@@ -39,7 +39,7 @@ const Notebooks: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [materiaData, setMateriaData] = useState<any>(null);
   const navigate = useNavigate();
-  const { isSchoolUser, isSchoolTeacher, isSchoolStudent, isSchoolAdmin, isSuperAdmin, subscription } = useUserType();
+  const { isSchoolUser, isTeacher, isSchoolStudent, isSchoolAdmin, isSuperAdmin, subscription } = useUserType();
 
   const isFreeUser = subscription === 'free';
 
@@ -135,12 +135,12 @@ const Notebooks: React.FC = () => {
         // Si no hay ID, buscar por nombre (compatibilidad con URLs antiguos)
         console.log('Buscando materia con nombre:', decodedName);
 
-        if (isSchoolAdmin || isSchoolTeacher) {
+        if (isSchoolAdmin || isTeacher) {
           // For school admins and teachers, search in schoolSubjects
           // Get ALL subjects with this name that belong to the teacher
           let allMateriaIds: string[] = [];
           
-          if (isSchoolTeacher && userProfile?.id) {
+          if (isTeacher && userProfile?.id) {
             // For teachers, find all subjects with this name where they are the teacher
             const teacherDocId = userProfile.id;
             const teacherUid = user?.uid;
@@ -229,7 +229,7 @@ const Notebooks: React.FC = () => {
     };
 
     findMateriaByName();
-  }, [materiaName, isSchoolAdmin, isSchoolTeacher]);
+  }, [materiaName, isSchoolAdmin, isTeacher]);
 
   // Cargar datos de la materia
   useEffect(() => {
@@ -238,7 +238,7 @@ const Notebooks: React.FC = () => {
       
       try {
         // Si es admin escolar o profesor, buscar en schoolSubjects
-        if (isSchoolAdmin || isSchoolTeacher) {
+        if (isSchoolAdmin || isTeacher) {
           // Check if materiaId contains multiple IDs (comma-separated)
           const materiaIds = materiaId.split(',');
           if (materiaIds.length > 1) {
@@ -270,12 +270,12 @@ const Notebooks: React.FC = () => {
     };
     
     loadMateriaData();
-  }, [materiaId, isSchoolAdmin, isSchoolTeacher]);
+  }, [materiaId, isSchoolAdmin, isTeacher]);
 
   // Verificar si el usuario está inscrito en esta materia y cargar notebooks del profesor
   useEffect(() => {
     const checkEnrollmentAndLoadNotebooks = async () => {
-      if (!materiaId || !user || isSchoolAdmin || isSchoolTeacher || isSchoolStudent) return;
+      if (!materiaId || !user || isSchoolAdmin || isTeacher || isSchoolStudent) return;
       
       console.log('🔍 Verificando si el usuario está inscrito en la materia:', materiaId);
       setEnrolledMateriaLoading(true);
@@ -351,23 +351,23 @@ const Notebooks: React.FC = () => {
     };
     
     checkEnrollmentAndLoadNotebooks();
-  }, [materiaId, user, isSchoolAdmin, isSchoolTeacher, isSchoolStudent]);
+  }, [materiaId, user, isSchoolAdmin, isTeacher, isSchoolStudent]);
 
   // Cargar notebooks para admin escolar y profesores
   useEffect(() => {
     const loadAdminNotebooks = async () => {
-      if ((!isSchoolAdmin && !isSchoolTeacher) || !materiaId) return;
+      if ((!isSchoolAdmin && !isTeacher) || !materiaId) return;
       
       console.log('📚 loadAdminNotebooks - Iniciando carga');
       console.log('  - isSchoolAdmin:', isSchoolAdmin);
-      console.log('  - isSchoolTeacher:', isSchoolTeacher);
+      console.log('  - isTeacher:', isTeacher);
       console.log('  - materiaId:', materiaId);
       
       setAdminNotebooksLoading(true);
       try {
         // Usar el servicio unificado para obtener notebooks del profesor/materia
         // Para profesores, pasar su ID para filtrar solo sus notebooks
-        const teacherId = isSchoolTeacher ? user?.uid : undefined;
+        const teacherId = isTeacher ? user?.uid : undefined;
         
         // Check if materiaId contains multiple IDs (comma-separated)
         const materiaIds = materiaId.split(',').filter(id => id.trim());
@@ -403,7 +403,7 @@ const Notebooks: React.FC = () => {
     };
     
     loadAdminNotebooks();
-  }, [isSchoolAdmin, isSchoolTeacher, materiaId, user, notebookRefreshTrigger]);
+  }, [isSchoolAdmin, isTeacher, materiaId, user, notebookRefreshTrigger]);
 
   useEffect(() => {
     if (user) {
@@ -458,7 +458,7 @@ const Notebooks: React.FC = () => {
   let effectiveNotebooks = [];
   let isLoading = false;
   
-  if (isSchoolAdmin || isSchoolTeacher) {
+  if (isSchoolAdmin || isTeacher) {
     // Para admin escolar y profesores, usar los notebooks cargados específicamente
     console.log('👨‍🏫 PROFESOR/ADMIN ESCOLAR - Notebooks cargados:', adminNotebooks.length);
     console.log('  - adminNotebooks:', adminNotebooks);
@@ -509,7 +509,7 @@ const Notebooks: React.FC = () => {
     }
     
     // Si tenemos materiaId y estamos cargando notebooks de admin/profesor
-    if (materiaId && (isSchoolAdmin || isSchoolTeacher) && adminNotebooksLoading) {
+    if (materiaId && (isSchoolAdmin || isTeacher) && adminNotebooksLoading) {
       setInitialLoadComplete(false);
       return;
     }
@@ -521,7 +521,7 @@ const Notebooks: React.FC = () => {
     }
     
     // Si tenemos materiaId pero aún no hemos cargado notebooks (para profesores/admins)
-    if (materiaId && (isSchoolAdmin || isSchoolTeacher) && adminNotebooks.length === 0 && !adminNotebooksLoading) {
+    if (materiaId && (isSchoolAdmin || isTeacher) && adminNotebooks.length === 0 && !adminNotebooksLoading) {
       // Esperar un poco por si los notebooks están por cargar
       const timer = setTimeout(() => {
         setInitialLoadComplete(true);
@@ -533,7 +533,7 @@ const Notebooks: React.FC = () => {
     if (!isLoading && !adminNotebooksLoading && !enrolledMateriaLoading) {
       setInitialLoadComplete(true);
     }
-  }, [isLoading, materiaId, materiaName, adminNotebooksLoading, enrolledMateriaLoading, isSchoolAdmin, isSchoolTeacher, adminNotebooks.length]);
+  }, [isLoading, materiaId, materiaName, adminNotebooksLoading, enrolledMateriaLoading, isSchoolAdmin, isTeacher, adminNotebooks.length]);
   
   // Mostrar loading si:
   // 1. Estamos cargando auth
@@ -549,7 +549,7 @@ const Notebooks: React.FC = () => {
     
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
   // Los profesores escolares no necesitan filtrado porque ya vienen filtrados del servicio
-  if (materiaId && !isSchoolAdmin && !isSchoolTeacher) {
+  if (materiaId && !isSchoolAdmin && !isTeacher) {
     console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA');
     console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
     console.log('  - materiaId buscado:', materiaId);
@@ -596,7 +596,7 @@ const Notebooks: React.FC = () => {
   }, []);
 
   const handleCreate = async (title?: string, color?: string) => {
-    console.log('🎯 handleCreate llamado con:', { title, color, user: user?.uid, materiaId, isSchoolTeacher, isSchoolAdmin });
+    console.log('🎯 handleCreate llamado con:', { title, color, user: user?.uid, materiaId, isTeacher, isSchoolAdmin });
     
     if (!user || !materiaId || !title || !color) {
       console.error('❌ Faltan parámetros requeridos:', { 
@@ -610,7 +610,7 @@ const Notebooks: React.FC = () => {
     
     try {
       // Determinar si es un notebook escolar o regular
-      if (isSchoolAdmin || isSchoolTeacher) {
+      if (isSchoolAdmin || isTeacher) {
         // Crear notebook escolar
         console.log('📝 Creando notebook escolar para profesor/admin');
         console.log('  - materiaId:', materiaId);
@@ -667,13 +667,13 @@ const Notebooks: React.FC = () => {
       setRefreshTrigger(prev => prev + 1);
       
       // Recargar notebooks de admin/profesor si es necesario
-      if (isSchoolAdmin || isSchoolTeacher) {
+      if (isSchoolAdmin || isTeacher) {
         console.log('🔄 Recargando notebooks después de crear uno nuevo');
         
         // Pequeña espera para asegurar que Firestore indexe el documento
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        const teacherId = isSchoolTeacher ? user.uid : undefined;
+        const teacherId = isTeacher ? user.uid : undefined;
         console.log('  - Buscando notebooks con teacherId:', teacherId);
         const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId], teacherId);
         console.log('📚 Notebooks recargados:', notebooksData.length);
@@ -698,7 +698,7 @@ const Notebooks: React.FC = () => {
     
     try {
       // Si es profesor o admin escolar, eliminar de schoolNotebooks
-      if (isSchoolAdmin || isSchoolTeacher) {
+      if (isSchoolAdmin || isTeacher) {
         // Verificar que el notebook pertenece al profesor actual
         const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', id));
         
@@ -711,7 +711,7 @@ const Notebooks: React.FC = () => {
             console.log(`✅ Notebook escolar ${id} eliminado exitosamente`);
             
             // Recargar notebooks
-            const teacherId = isSchoolTeacher ? user?.uid : undefined;
+            const teacherId = isTeacher ? user?.uid : undefined;
             const notebooksData = await UnifiedNotebookService.getTeacherNotebooks([materiaId!], teacherId);
             setAdminNotebooks(notebooksData);
           } else {
@@ -1048,7 +1048,7 @@ const Notebooks: React.FC = () => {
     );
   }
 
-  if (!isSchoolStudent && !isSchoolAdmin && !isSchoolTeacher && notebooksError) {
+  if (!isSchoolStudent && !isSchoolAdmin && !isTeacher && notebooksError) {
     console.error('Error loading notebooks:', notebooksError);
     return (
       <div className="error-container">
@@ -1128,7 +1128,7 @@ const Notebooks: React.FC = () => {
             onAddConcept={(isSchoolStudent || isEnrolledMateria) ? undefined : handleAddConcept}
             onFreezeNotebook={handleFreezeNotebook}
             showCreateButton={!isSchoolStudent && !isSchoolAdmin && !isEnrolledMateria}
-            isSchoolTeacher={isSchoolTeacher} // Pasar el valor correcto para profesores
+            isSchoolTeacher={isTeacher} // Pasar el valor correcto para profesores
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}
             onCloseCategoryModal={() => setShowCategoryModal(false)}
