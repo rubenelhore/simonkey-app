@@ -59,7 +59,8 @@
       "Bash(firebase firestore:rules:get:*)",
       "Bash(TSC_COMPILE_ON_ERROR=true npx vite build)",
       "Bash(git rebase:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

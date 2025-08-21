@@ -865,6 +865,42 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.file-input-label.dragging {
+  border-color: #6147FF;
+  background-color: #f5f3ff;
+  border-width: 3px;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(97, 71, 255, 0.2);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 8px 24px rgba(97, 71, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(97, 71, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 8px 24px rgba(97, 71, 255, 0.2);
+  }
+}
+
+.file-input-label.dragging .file-input-content i {
+  color: #6147FF;
+  transform: scale(1.2);
+  animation: bounce 0.5s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1.2);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.2);
+  }
+}
+
 .file-input-content {
   display: flex;
   flex-direction: column;

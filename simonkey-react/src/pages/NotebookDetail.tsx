@@ -52,6 +52,7 @@ const NotebookDetail = () => {
   const [conceptosDocs, setConceptosDocs] = useState<ConceptDoc[]>([]);
   const [loadingConceptos, setLoadingConceptos] = useState<boolean>(true);
   const [cargando, setCargando] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>("Cargando...");
   const [nuevoConcepto, setNuevoConcepto] = useState<Concept>({
     id:  '',
@@ -1976,12 +1977,77 @@ const NotebookDetail = () => {
                     className="file-input"
                     style={{ display: 'none' }}
                   />
-                  <label htmlFor="pdf-upload" className="file-input-label">
+                  <label 
+                    htmlFor="pdf-upload" 
+                    className={`file-input-label ${isDragging ? 'dragging' : ''}`}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDragging(false);
+                      
+                      if (cargando) return;
+                      
+                      const files = Array.from(e.dataTransfer.files);
+                      const newDuplicates = new Set<string>();
+                      
+                      const validFiles = files.filter(file => {
+                        const ext = file.name.split('.').pop()?.toLowerCase();
+                        const isValid = (ext && SUPPORTED_EXTENSIONS.includes(ext)) || SUPPORTED_MIME_TYPES.includes(file.type);
+                        
+                        if (!isValid) {
+                          alert('El documento "' + file.name + '" no es soportado por la plataforma. Solo se permiten archivos .TXT, .CSV, .JPG, .PNG, .PDF');
+                          return false;
+                        }
+                        
+                        // Verificar si el archivo ya existe en los materiales del cuaderno
+                        const isDuplicate = materials.some(material => material.name === file.name);
+                        console.log(`🔍 Verificando archivo: ${file.name}`);
+                        console.log(`📋 Materiales actuales:`, materials.map(m => m.name));
+                        console.log(`❓ ¿Es duplicado?: ${isDuplicate}`);
+                        
+                        if (isDuplicate) {
+                          newDuplicates.add(file.name);
+                          console.warn(`⚠️ Archivo duplicado detectado: ${file.name}`);
+                          return false; // No incluir archivos duplicados en la lista
+                        }
+                        
+                        return true;
+                      });
+                      
+                      setDuplicateFiles(new Set()); // Limpiar duplicados ya que no los incluimos
+                      setArchivos(validFiles);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDragging(true);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Solo quitar el estado de dragging si realmente salimos del área
+                      if (e.currentTarget === e.target) {
+                        setIsDragging(false);
+                      }
+                    }}
+                  >
                     <div className="file-input-content">
                       <i className="fas fa-cloud-upload-alt"></i>
-                      <p>Haz clic aquí para seleccionar un archivo</p>
-                      <span>o arrastra y suelta un archivo aquí</span>
-                      <span style={{ color: '#6147FF', fontWeight: 600, marginTop: 6, display: 'block', fontSize: '0.98rem' }}>
+                      <p>{isDragging ? '¡Suelta el archivo aquí!' : 'Haz clic aquí para seleccionar un archivo'}</p>
+                      <span>{isDragging ? 'Suelta para cargar' : 'o arrastra y suelta un archivo aquí'}</span>
+                      <span style={{ 
+                        color: isDragging ? '#6147FF' : '#6147FF', 
+                        fontWeight: 600, 
+                        marginTop: 6, 
+                        display: 'block', 
+                        fontSize: '0.98rem',
+                        opacity: isDragging ? 0.7 : 1
+                      }}>
                         Formatos soportados: .TXT, .CSV, .JPG, .PNG, .PDF
                       </span>
                     </div>
