@@ -341,6 +341,9 @@ export interface UserProfile {
   // Campo para el nuevo sistema de profesores
   isTeacher?: boolean;
   
+  // Campo para indicar si el usuario está inscrito en alguna materia
+  isEnrolled?: boolean;
+  
   // DEPRECATED: Campos del sistema escolar antiguo - NO USAR
   // TODO: Eliminar después de completar la migración
   /** @deprecated */

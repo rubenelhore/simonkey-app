@@ -43,10 +43,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isTeacher == true;
     }
     
-    // Verificar si el estudiante está inscrito en una materia
-    function isEnrolledInMateria(materiaId) {
+    // Verificar si el usuario tiene isEnrolled en su perfil
+    function isEnrolledUser() {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + materiaId));
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isEnrolled == true;
     }
     
     // Validar límites de suscripción para notebooks
@@ -90,7 +91,9 @@ service cloud.firestore {
                      (resource.data.isTeacher == true) ||
                      // Permitir a usuarios autenticados leer su propio documento por email
                      (isAuthenticated() && 
-                      resource.data.email == request.auth.token.email);
+                      resource.data.email == request.auth.token.email) ||
+                     // Permitir a cualquier usuario autenticado leer info básica (para rankings)
+                     isAuthenticated();
       
       // Creación: solo el propio usuario al registrarse
       allow create: if isOwner(userId) &&
@@ -111,7 +114,7 @@ service cloud.firestore {
       
       // Subcolección KPIs
       match /kpis/{kpiId} {
-        allow read: if isOwner(userId) || isSuperAdmin();
+        allow read: if isOwner(userId) || isSuperAdmin() || isAuthenticated();
         allow write: if isOwner(userId) || isSuperAdmin();
       }
       
@@ -251,12 +254,8 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: enrollments
     // ========================================
     match /enrollments/{enrollmentId} {
-      // Lectura: estudiante inscrito, profesor de la materia, o super admin
-      allow read: if isAuthenticated() && (
-        resource.data.studentId == request.auth.uid ||
-        resource.data.teacherId == request.auth.uid ||
-        isSuperAdmin()
-      );
+      // Lectura: cualquier usuario autenticado puede leer enrollments (necesario para rankings y colaboración)
+      allow read: if isAuthenticated();
       
       // Creación: profesor agregando estudiante o estudiante inscribiéndose
       allow create: if isAuthenticated() && (
@@ -366,26 +365,26 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: exams
     // ========================================
     match /exams/{examId} {
-      // Lectura: profesor creador, estudiantes asignados, o super admin
+      // Lectura: profesor creador, usuarios con isEnrolled, o super admin
       allow read: if isAuthenticated() && (
-        (isTeacher() && resource.data.teacherId == request.auth.uid) ||
-        (resource.data.studentIds != null && 
-         request.auth.uid in resource.data.studentIds) ||
+        (isTeacher() && resource.data.idProfesor == request.auth.uid) ||
+        // Permitir a usuarios con isEnrolled leer exámenes
+        isEnrolledUser() ||
         isSuperAdmin()
       );
       
       // Creación: solo profesores
       allow create: if isTeacher() &&
-        hasRequiredFields(['title', 'teacherId', 'questions', 'duration']) &&
-        request.resource.data.teacherId == request.auth.uid;
+        hasRequiredFields(['title', 'idProfesor', 'idMateria']) &&
+        request.resource.data.idProfesor == request.auth.uid;
       
       // Actualización: profesor creador
       allow update: if isTeacher() &&
-        resource.data.teacherId == request.auth.uid;
+        resource.data.idProfesor == request.auth.uid;
       
       // Eliminación: profesor creador o super admin
       allow delete: if (
-        (isTeacher() && resource.data.teacherId == request.auth.uid) ||
+        (isTeacher() && resource.data.idProfesor == request.auth.uid) ||
         isSuperAdmin()
       );
     }

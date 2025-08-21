@@ -180,44 +180,12 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
 
     setLoading(true);
     try {
-      // Obtener información del usuario y escuela
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      
-      if (!userDoc.exists()) {
-        throw new Error('No se pudo encontrar el usuario');
-      }
-      
-      const userData = userDoc.data();
-      console.log('📚 Datos del usuario profesor:', userData);
-      
-      // Para profesores escolares, obtener el idEscuela
-      let idEscuela = userData.schoolData?.idEscuela || userData.idEscuela;
-      
-      // Si no tiene idEscuela pero tiene idAdmin, obtener el idInstitucion del admin
-      if (!idEscuela && userData.idAdmin) {
-        console.log('🔍 Buscando idEscuela desde el admin:', userData.idAdmin);
-        const adminDoc = await getDoc(doc(db, 'users', userData.idAdmin));
-        
-        if (adminDoc.exists()) {
-          const adminData = adminDoc.data();
-          idEscuela = adminData.idInstitucion || adminData.schoolData?.idEscuela;
-          console.log('🏫 ID Escuela obtenido del admin:', idEscuela);
-        }
-      }
-      
-      console.log('🏫 ID Escuela final:', idEscuela);
-
-      if (!idEscuela) {
-        console.error('Error: No se encontró idEscuela en profesor ni en admin:', userData);
-        throw new Error('No se pudo identificar la escuela del profesor');
-      }
-
-      const newExam: Omit<SchoolExam, 'id'> = {
+      // Para profesores independientes, crear examen regular (no escolar)
+      const newExam = {
         title: examData.title,
         description: examData.description,
         idMateria: selectedMateriaId,
         idProfesor: auth.currentUser.uid,
-        idEscuela: idEscuela,
         notebookIds: examData.selectedNotebooks,
         percentageQuestions: examData.percentageQuestions,
         timePerConcept: examData.timePerConcept,
@@ -233,20 +201,20 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         }
       };
 
-      console.log('📝 Creando examen con los siguientes datos:', {
+      console.log('📝 Creando examen regular con los siguientes datos:', {
         title: newExam.title,
         idMateria: newExam.idMateria,
         idProfesor: newExam.idProfesor,
-        idEscuela: newExam.idEscuela,
         notebookIds: newExam.notebookIds,
         isActive: newExam.isActive
       });
 
-      const docRef = await addDoc(collection(db, 'schoolExams'), newExam);
+      // Usar colección 'exams' en lugar de 'schoolExams'
+      const docRef = await addDoc(collection(db, 'exams'), newExam);
       console.log('✅ Examen creado exitosamente con ID:', docRef.id);
       
       // Verificar que el documento se creó correctamente
-      const verifyDoc = await getDoc(doc(db, 'schoolExams', docRef.id));
+      const verifyDoc = await getDoc(doc(db, 'exams', docRef.id));
       if (!verifyDoc.exists()) {
         console.error('⚠️ El examen se creó pero no se puede verificar');
       } else {

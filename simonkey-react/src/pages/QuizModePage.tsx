@@ -345,21 +345,65 @@ const QuizModePage: React.FC = () => {
           console.log('[QuizModePage] No se encontró usuario escolar por email');
         }
       } else {
-        // Para usuarios regulares, buscar en notebooks
+        // Para usuarios regulares, buscar en notebooks propios Y de profesores (para materias enroladas)
         console.log('[QuizModePage] Buscando cuadernos regulares...');
-        const notebooksQuery = query(
+        
+        // First, get user's own notebooks
+        const ownNotebooksQuery = query(
           collection(db, 'notebooks'),
           where('userId', '==', auth.currentUser.uid)
         );
         
-        const querySnapshot = await getDocs(notebooksQuery);
-        querySnapshot.forEach((doc) => {
+        const ownQuerySnapshot = await getDocs(ownNotebooksQuery);
+        ownQuerySnapshot.forEach((doc) => {
           notebooksData.push({
             id: doc.id,
             ...doc.data()
           } as Notebook);
         });
-        console.log('[QuizModePage] Cuadernos regulares encontrados:', notebooksData.length);
+        
+        // Also get notebooks from enrolled materias (teacher's notebooks)
+        // First get the user's enrollments
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', auth.currentUser.uid),
+          where('status', '==', 'active')
+        );
+        
+        const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+        const teacherIds = new Set<string>();
+        const materiaIds = new Set<string>();
+        
+        enrollmentsSnapshot.forEach(doc => {
+          const enrollment = doc.data();
+          if (enrollment.teacherId) teacherIds.add(enrollment.teacherId);
+          if (enrollment.materiaId) materiaIds.add(enrollment.materiaId);
+        });
+        
+        // For each teacher, get their notebooks for enrolled materias
+        for (const teacherId of teacherIds) {
+          for (const materiaId of materiaIds) {
+            const teacherNotebooksQuery = query(
+              collection(db, 'notebooks'),
+              where('userId', '==', teacherId),
+              where('materiaId', '==', materiaId)
+            );
+            
+            const teacherQuerySnapshot = await getDocs(teacherNotebooksQuery);
+            teacherQuerySnapshot.forEach((doc) => {
+              // Avoid duplicates
+              if (!notebooksData.find(n => n.id === doc.id)) {
+                notebooksData.push({
+                  id: doc.id,
+                  ...doc.data()
+                } as Notebook);
+              }
+            });
+          }
+        }
+        
+        console.log('[QuizModePage] Total cuadernos encontrados (propios + enrolados):', notebooksData.length);
+        console.log('[QuizModePage] IDs de cuadernos disponibles:', notebooksData.map(n => ({ id: n.id, title: n.title })));
       }
       
       setNotebooks(notebooksData);
@@ -1130,14 +1174,6 @@ const QuizModePage: React.FC = () => {
           </div>
           
           <div className="intro-content">
-            <div className="intro-section">
-              <h3>¿Qué es el Quiz?</h3>
-              <p>
-                El quiz es una evaluación de <strong>10 conceptos aleatorios</strong> 
-                de tu cuaderno para medir tu dominio general.
-              </p>
-            </div>
-            
             <div className="intro-section">
               <h3>¿Cómo funciona?</h3>
               <ul>

@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { SchoolExam, ExamAttempt } from '../types/exam.types';
+
+// Tipo para exámenes regulares (sin idEscuela)
+type RegularExam = Omit<SchoolExam, 'idEscuela'>;
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
@@ -28,13 +31,13 @@ const ExamDashboardPage: React.FC = () => {
   console.log('📋 examId desde params:', examId);
   console.log('👤 Usuario actual:', auth.currentUser?.uid);
   
-  const [exam, setExam] = useState<SchoolExam | null>(null);
+  const [exam, setExam] = useState<RegularExam | null>(null);
   const [results, setResults] = useState<StudentResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'score' | 'date'>('name');
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editedExam, setEditedExam] = useState<Partial<SchoolExam>>({});
+  const [editedExam, setEditedExam] = useState<Partial<RegularExam>>({});
 
   useEffect(() => {
     loadExamData();
@@ -62,7 +65,7 @@ const ExamDashboardPage: React.FC = () => {
     setLoading(true);
     try {
       console.log('📄 Intentando cargar documento del examen...');
-      console.log('  - Collection: schoolExams');
+      console.log('  - Collection: exams');
       console.log('  - Document ID:', examId);
       console.log('  - User ID:', auth.currentUser.uid);
       
@@ -87,7 +90,7 @@ const ExamDashboardPage: React.FC = () => {
       try {
         console.log('🔍 DEBUG: Listando todos los exámenes...');
         const { getDocs, collection: firestoreCollection, query: firestoreQuery } = await import('firebase/firestore');
-        const examsSnapshot = await getDocs(firestoreCollection(db, 'schoolExams'));
+        const examsSnapshot = await getDocs(firestoreCollection(db, 'exams'));
         console.log(`📊 Total de exámenes en la colección: ${examsSnapshot.size}`);
         examsSnapshot.forEach(doc => {
           console.log(`  - ID: ${doc.id}, Profesor: ${doc.data().idProfesor}, Título: ${doc.data().title}`);
@@ -100,13 +103,13 @@ const ExamDashboardPage: React.FC = () => {
       console.log('🔍 Intentando getDoc...');
       
       // SOLUCIÓN ALTERNATIVA: Usar query en lugar de getDoc  
-      let examData: SchoolExam | null = null;
+      let examData: RegularExam | null = null;
       
       try {
         console.log('🔄 Intentando con query alternativo...');
         const { getDocs, collection: firestoreCollection, query: firestoreQuery, where } = await import('firebase/firestore');
         const examQuery = firestoreQuery(
-          firestoreCollection(db, 'schoolExams'),
+          firestoreCollection(db, 'exams'),
           where('__name__', '==', examId)
         );
         const examSnapshot = await getDocs(examQuery);
@@ -114,7 +117,7 @@ const ExamDashboardPage: React.FC = () => {
         if (!examSnapshot.empty) {
           console.log('✅ Examen encontrado con query alternativo');
           const examDoc = examSnapshot.docs[0];
-          examData = { id: examDoc.id, ...examDoc.data() } as SchoolExam;
+          examData = { id: examDoc.id, ...examDoc.data() } as RegularExam;
         } else {
           console.error('❌ Examen no encontrado con query alternativo');
         }
@@ -126,7 +129,7 @@ const ExamDashboardPage: React.FC = () => {
       if (!examData) {
         console.log('🔄 Intentando con getDoc original...');
         try {
-          const examRef = doc(db, 'schoolExams', examId);
+          const examRef = doc(db, 'exams', examId);
           console.log('📍 Referencia del documento:', examRef.path);
           
           const examDoc = await getDoc(examRef);
@@ -136,7 +139,7 @@ const ExamDashboardPage: React.FC = () => {
             return;
           }
           
-          examData = { id: examDoc.id, ...examDoc.data() } as SchoolExam;
+          examData = { id: examDoc.id, ...examDoc.data() } as RegularExam;
         } catch (getDocError) {
           console.error('❌ Error con getDoc:', getDocError);
           alert('Error al cargar el examen');
@@ -163,111 +166,63 @@ const ExamDashboardPage: React.FC = () => {
         isActive: examData.isActive
       });
       
-      // Cargar estudiantes de la materia
-      console.log('📚 Buscando estudiantes de la materia...');
+      // Cargar estudiantes usando el sistema de enrollments
+      console.log('📚 Buscando estudiantes enrolados en la materia...');
       console.log('idMateria:', examData.idMateria);
-      console.log('idEscuela:', examData.idEscuela);
+      console.log('idProfesor:', examData.idProfesor);
       
-      // Primero intentar con idMaterias (campo correcto para estudiantes escolares)
-      let studentsSnapshot;
-      try {
-        console.log('🔍 Intentando buscar estudiantes con idMaterias...');
-        studentsSnapshot = await getDocs(
-          query(collection(db, 'users'), 
-          where('schoolRole', '==', 'student'),
-          where('idMaterias', 'array-contains', examData.idMateria))
-        );
-        console.log(`📊 Estudiantes encontrados con idMaterias: ${studentsSnapshot.size}`);
-        
-        // FORZAR ANÁLISIS: Si no encuentra estudiantes, buscar TODOS para debug
-        if (studentsSnapshot.size === 0) {
-          console.log('⚠️ No se encontraron estudiantes con idMaterias, analizando TODOS los estudiantes...');
-          throw new Error('No students found with idMaterias, forcing fallback');
+      // Buscar todos los enrollments activos para esta materia y profesor
+      const enrollmentsSnapshot = await getDocs(
+        query(collection(db, 'enrollments'),
+        where('materiaId', '==', examData.idMateria),
+        where('teacherId', '==', examData.idProfesor),
+        where('status', '==', 'active'))
+      );
+      
+      console.log(`📊 Enrollments encontrados: ${enrollmentsSnapshot.size}`);
+      
+      // Obtener los IDs de los estudiantes enrolados
+      const enrolledStudentIds: string[] = [];
+      enrollmentsSnapshot.forEach(doc => {
+        const enrollment = doc.data();
+        enrolledStudentIds.push(enrollment.studentId);
+        console.log(`  📝 Enrollment: estudiante ${enrollment.studentId}`);
+      });
+      
+      console.log(`📊 Estudiantes enrolados: ${enrolledStudentIds.length}`);
+      
+      // Obtener los datos de los estudiantes enrolados
+      const studentDocs: any[] = [];
+      
+      if (enrolledStudentIds.length > 0) {
+        // Firestore no permite where('id', 'in', array) con más de 10 elementos
+        // Dividir en chunks de 10 si es necesario
+        const chunks = [];
+        for (let i = 0; i < enrolledStudentIds.length; i += 10) {
+          chunks.push(enrolledStudentIds.slice(i, i + 10));
         }
-      } catch (error) {
-        console.log('⚠️ No se pudo buscar con idMaterias, obteniendo TODOS los estudiantes para análisis...');
         
-        // Obtener TODOS los estudiantes escolares para ver qué estructura tienen
-        studentsSnapshot = await getDocs(
-          query(collection(db, 'users'), 
-          where('schoolRole', '==', 'student'))
-        );
-        
-        console.log(`📊 Total estudiantes escolares encontrados: ${studentsSnapshot.size}`);
-        
-        // Analizar la estructura de los primeros estudiantes
-        let studentCount = 0;
-        studentsSnapshot.forEach(doc => {
-          if (studentCount < 3) {  // Solo mostrar los primeros 3 para debug
-            const data = doc.data();
-            console.log(`📍 Estudiante ${studentCount + 1}:`, {
-              id: doc.id,
-              email: data.email,
-              displayName: data.displayName,
-              idMaterias: data.idMaterias,
-              subjectIds: data.subjectIds,
-              idInstitucion: data.idInstitucion,
-              idEscuela: data.idEscuela,
-              schoolId: data.schoolId,
-              idAdmin: data.idAdmin
-            });
-            studentCount++;
-          }
-        });
-        
-        // Filtrar manualmente por escuela Y materia
-        const filteredDocs: any[] = [];
-        studentsSnapshot.forEach(doc => {
-          const data = doc.data();
+        for (const chunk of chunks) {
+          const studentsQuery = query(
+            collection(db, 'users'),
+            where('__name__', 'in', chunk)
+          );
+          const chunkSnapshot = await getDocs(studentsQuery);
           
-          // Debug: ver campos de escuela
-          const schoolFields = {
-            idInstitucion: data.idInstitucion,
-            idEscuela: data.idEscuela,
-            schoolId: data.schoolId,
-            idAdmin: data.idAdmin
-          };
-          
-          // Verificar que pertenece a la misma escuela (más flexible)
-          const sameSchool = data.idInstitucion === examData.idEscuela || 
-                            data.idEscuela === examData.idEscuela ||
-                            data.schoolId === examData.idEscuela ||
-                            data.idAdmin === auth.currentUser?.uid;  // Si el profesor es el admin
-          
-          // Verificar que está en la materia (buscar en todos los campos posibles)
-          const materias = data.idMaterias || data.subjectIds || data.materiaIds || [];
-          const inMateria = materias.includes(examData.idMateria);
-          
-          // Debug para el primer estudiante que no coincide
-          if (studentCount < 5 && !inMateria) {
-            console.log(`❌ Estudiante ${data.email} NO está en la materia:`, {
-              buscando: examData.idMateria,
-              materias: materias,
-              escuela: schoolFields,
-              examEscuela: examData.idEscuela
-            });
-            studentCount++;
-          }
-          
-          if (sameSchool && inMateria) {
-            filteredDocs.push(doc);
-            console.log(`  ✅ Estudiante incluido: ${data.displayName || data.email}`);
-          } else if (sameSchool && !inMateria) {
-            console.log(`  ⚠️ Estudiante ${data.displayName || data.email} está en la escuela pero NO en la materia`);
-          }
-        });
-        
-        // Crear un snapshot-like object con los documentos filtrados
-        studentsSnapshot = {
-          ...studentsSnapshot,
-          docs: filteredDocs,
-          size: filteredDocs.length
-        } as any;
-        
-        console.log(`📊 Estudiantes filtrados por escuela y materia: ${filteredDocs.length}`);
+          chunkSnapshot.forEach(doc => {
+            studentDocs.push(doc);
+            console.log(`  👤 Estudiante cargado: ${doc.data().displayName || doc.data().email}`);
+          });
+        }
       }
       
-      console.log(`📊 Estudiantes encontrados: ${studentsSnapshot.size}`);
+      // Crear un snapshot-like object para mantener compatibilidad con el resto del código
+      const studentsSnapshot = {
+        docs: studentDocs,
+        size: studentDocs.length
+      } as any;
+      
+      console.log(`📊 Estudiantes finales encontrados: ${studentsSnapshot.size}`);
       
       // Cargar intentos de examen
       console.log('🔍 Buscando intentos de examen...');
@@ -373,7 +328,7 @@ const ExamDashboardPage: React.FC = () => {
     if (!examId || !exam) return;
     
     try {
-      await updateDoc(doc(db, 'schoolExams', examId), {
+      await updateDoc(doc(db, 'exams', examId), {
         ...editedExam,
         updatedAt: new Date()
       });
@@ -402,7 +357,7 @@ const ExamDashboardPage: React.FC = () => {
       await Promise.all(deletePromises);
       
       // Eliminar el examen
-      await deleteDoc(doc(db, 'schoolExams', examId));
+      await deleteDoc(doc(db, 'exams', examId));
       
       alert('Examen eliminado correctamente');
       navigate(-1);

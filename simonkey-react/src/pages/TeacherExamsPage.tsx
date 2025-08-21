@@ -114,18 +114,34 @@ const TeacherExamsPage: React.FC = () => {
       );
       const materiasSnap = await getDocs(materiasQuery);
       
-      const materiasData: Materia[] = [];
+      const allMaterias: Materia[] = [];
       materiasSnap.forEach(doc => {
         const data = doc.data();
-        materiasData.push({
+        allMaterias.push({
           id: doc.id,
           nombre: data.title,
           color: data.color || '#6147FF'
         });
       });
       
-      console.log('📚 [TeacherExams] Materias encontradas:', materiasData.length);
-      setMaterias(materiasData);
+      // Filtrar solo materias que tienen estudiantes inscritos
+      const materiasWithEnrollments: Materia[] = [];
+      for (const materia of allMaterias) {
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('materiaId', '==', materia.id),
+          where('teacherId', '==', user.uid)
+        );
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        
+        if (!enrollmentsSnap.empty) {
+          materiasWithEnrollments.push(materia);
+        }
+      }
+      
+      console.log('📚 [TeacherExams] Materias encontradas:', allMaterias.length);
+      console.log('📚 [TeacherExams] Materias con estudiantes inscritos:', materiasWithEnrollments.length);
+      setMaterias(materiasWithEnrollments);
       
       // Cargar exámenes del profesor
       const examsQuery = query(
@@ -137,7 +153,7 @@ const TeacherExamsPage: React.FC = () => {
       const examsData: Exam[] = [];
       examsSnap.forEach(doc => {
         const data = doc.data();
-        const materia = materiasData.find(m => m.id === data.idMateria);
+        const materia = materiasWithEnrollments.find(m => m.id === data.idMateria);
         const status = determineExamStatus(data);
         
         examsData.push({

@@ -709,6 +709,16 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 <FontAwesomeIcon icon={faGraduationCap} />
                 {showSidebarText && <span>Estudiar</span>}
               </button>
+              {userProfile?.isEnrolled && (
+                <button 
+                  className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
+                  onClick={() => handleMobileNavigation('/exams')}
+                  title="Mis exámenes"
+                >
+                  <FontAwesomeIcon icon={faFileAlt} />
+                  {showSidebarText && <span>Mis exámenes</span>}
+                </button>
+              )}
               <button 
                 className={`sidebar-icon-btn ${isProgressPage ? 'active' : ''}`} 
                 onClick={() => handleMobileNavigation('/progress')}

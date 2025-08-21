@@ -979,23 +979,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
         </div>
         
         <div className="intro-content">
-          <div className="intro-section">
-            <h3>¿Qué es el Mini Quiz?</h3>
-            <p>
-              Para validar tu estudio inteligente, necesitas completar un mini quiz de 
-              <strong> 5 preguntas</strong> sobre los conceptos que acabas de estudiar.
-            </p>
-          </div>
-          
-          <div className="intro-section">
-            <h3>¿Cómo funciona?</h3>
-            <ul>
-              <li><i className="fas fa-clock"></i><span>Tienes <strong>45 segundos</strong> para responder</span></li>
-              <li><i className="fas fa-star"></i><span>Necesitas una calificación de <strong>8/10 o mayor</strong></span></li>
-              <li><i className="fas fa-check-circle"></i><span>Si apruebas, tu estudio inteligente se valida</span></li>
-              <li><i className="fas fa-redo"></i><span>Si no apruebas, puedes intentar mañana</span></li>
-            </ul>
-          </div>
         </div>
         
         <div className="intro-actions">

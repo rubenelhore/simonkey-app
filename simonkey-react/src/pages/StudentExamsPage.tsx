@@ -43,7 +43,8 @@ const StudentExamsPage: React.FC = () => {
     // No navegar mientras se está cargando la autenticación
     if (authLoading) return;
     
-    if (!user || !isSchoolStudent) {
+    // Permitir acceso a estudiantes escolares Y usuarios con isEnrolled
+    if (!user || (!isSchoolStudent && !userProfile?.isEnrolled)) {
       navigate('/materias');
       return;
     }
@@ -64,70 +65,101 @@ const StudentExamsPage: React.FC = () => {
         schoolRole: userProfile.schoolRole
       });
       
-      // Get all subject IDs from student's profile
+      // Obtener materias del estudiante usando el sistema de enrollments
       const studentSubjectIds = new Set<string>();
       
-      // Primero intentar con idMaterias directo del perfil
-      if ((userProfile as any).idMaterias && (userProfile as any).idMaterias.length > 0) {
-        console.log('📚 Usando idMaterias del perfil:', (userProfile as any).idMaterias);
-        (userProfile as any).idMaterias.forEach((materiaId: string) => {
-          studentSubjectIds.add(materiaId);
-        });
-      } 
-      // Si no tiene idMaterias, intentar con subjectIds
-      else if (userProfile.subjectIds && userProfile.subjectIds.length > 0) {
-        console.log('📚 Usando subjectIds del perfil:', userProfile.subjectIds);
-        userProfile.subjectIds.forEach((materiaId: string) => {
-          studentSubjectIds.add(materiaId);
-        });
-      }
-      // Como último recurso, obtener de los notebooks
-      else if (userProfile.idCuadernos && userProfile.idCuadernos.length > 0) {
-        console.log('📚 Obteniendo materias desde notebooks...');
-        for (const notebookId of userProfile.idCuadernos) {
-          try {
-            const notebookDoc = await getDocs(
-              query(collection(db, 'schoolNotebooks'), where('__name__', '==', notebookId))
-            );
-            notebookDoc.forEach(doc => {
-              const data = doc.data();
-              if (data.idMateria) {
-                studentSubjectIds.add(data.idMateria);
-              }
-            });
-          } catch (error) {
-            console.error('Error loading notebook:', notebookId, error);
-          }
+      console.log('📚 Buscando enrollments del estudiante...');
+      
+      // Buscar todos los enrollments activos del estudiante
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('studentId', '==', user.uid),
+        where('status', '==', 'active')
+      );
+      
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      console.log(`📊 Enrollments activos encontrados: ${enrollmentsSnapshot.size}`);
+      
+      enrollmentsSnapshot.forEach(doc => {
+        const enrollment = doc.data();
+        studentSubjectIds.add(enrollment.materiaId);
+        console.log(`  📝 Materia encontrada: ${enrollment.materiaId}`);
+      });
+      
+      // Fallback: si no hay enrollments y el usuario tiene isEnrolled, intentar con el perfil
+      if (studentSubjectIds.size === 0 && userProfile?.isEnrolled) {
+        console.log('📚 No se encontraron enrollments activos, intentando con datos del perfil...');
+        
+        // Primero intentar con idMaterias directo del perfil
+        if ((userProfile as any).idMaterias && (userProfile as any).idMaterias.length > 0) {
+          console.log('📚 Usando idMaterias del perfil:', (userProfile as any).idMaterias);
+          (userProfile as any).idMaterias.forEach((materiaId: string) => {
+            studentSubjectIds.add(materiaId);
+          });
+        } 
+        // Si no tiene idMaterias, intentar con subjectIds
+        else if (userProfile.subjectIds && userProfile.subjectIds.length > 0) {
+          console.log('📚 Usando subjectIds del perfil:', userProfile.subjectIds);
+          userProfile.subjectIds.forEach((materiaId: string) => {
+            studentSubjectIds.add(materiaId);
+          });
         }
       }
       
-      console.log('📚 Subject IDs del estudiante:', Array.from(studentSubjectIds));
+      console.log('📚 Subject IDs del estudiante (total):', Array.from(studentSubjectIds));
       
       // Get exams for each subject
       const allExams: Exam[] = [];
       const subjectNames = new Map<string, string>();
       
       for (const subjectId of studentSubjectIds) {
-        // Get subject name
+        // Get subject name from materias collection
         try {
-          const subjectQuery = query(collection(db, 'schoolSubjects'), where('__name__', '==', subjectId));
-          const subjectSnapshot = await getDocs(subjectQuery);
-          subjectSnapshot.forEach(doc => {
-            const subjectData = doc.data();
+          const subjectDoc = await getDocs(query(collection(db, 'materias'), where('__name__', '==', subjectId)));
+          if (!subjectDoc.empty) {
+            const subjectData = subjectDoc.docs[0].data();
             subjectNames.set(subjectId, subjectData.nombre || 'Materia sin nombre');
-          });
+          } else {
+            // Fallback: try schoolSubjects for backwards compatibility
+            const schoolSubjectDoc = await getDocs(query(collection(db, 'schoolSubjects'), where('__name__', '==', subjectId)));
+            if (!schoolSubjectDoc.empty) {
+              const subjectData = schoolSubjectDoc.docs[0].data();
+              subjectNames.set(subjectId, subjectData.nombre || 'Materia sin nombre');
+            } else {
+              subjectNames.set(subjectId, 'Materia sin nombre');
+            }
+          }
         } catch (error) {
           console.error('Error loading subject:', subjectId, error);
+          subjectNames.set(subjectId, 'Materia sin nombre');
         }
         
-        // Get active exams for this subject
+        // Get active exams for this subject from regular exams collection
         try {
-          const subjectExams = await ExamService.getActiveExamsForStudent(user.uid, subjectId);
-          subjectExams.forEach(exam => {
+          console.log(`🔍 Buscando exámenes activos para materia: ${subjectId}`);
+          
+          const examsQuery = query(
+            collection(db, 'exams'),
+            where('idMateria', '==', subjectId),
+            where('isActive', '==', true)
+          );
+          
+          const examsSnapshot = await getDocs(examsQuery);
+          console.log(`📝 Exámenes encontrados para materia ${subjectId}: ${examsSnapshot.size}`);
+          
+          examsSnapshot.forEach(doc => {
+            const examData = doc.data();
             allExams.push({
-              ...exam,
+              id: doc.id,
+              title: examData.title,
+              description: examData.description,
+              isActive: examData.isActive,
+              idMateria: examData.idMateria,
+              idProfesor: examData.idProfesor,
+              createdAt: examData.createdAt,
               materiaName: subjectNames.get(subjectId) || 'Materia sin nombre'
             });
+            console.log(`  ✅ Examen agregado: ${examData.title}`);
           });
         } catch (error) {
           console.error('Error loading exams for subject:', subjectId, error);

@@ -53,13 +53,13 @@ export class ExamService {
       // SIMPLIFICADO: Solo buscar exámenes activos de la materia
       // Si el estudiante tiene la materia asignada, puede ver sus exámenes
       console.log('📋 Consultando exámenes con filtros:', {
-        collection: 'schoolExams',
+        collection: 'exams',
         idMateria: materiaId,
         isActive: true
       });
       
       const examsQuery = query(
-        collection(db, 'schoolExams'),
+        collection(db, 'exams'),
         where('idMateria', '==', materiaId),
         where('isActive', '==', true)
       );
@@ -173,7 +173,7 @@ export class ExamService {
    */
   static async getExamById(examId: string): Promise<SchoolExam | null> {
     try {
-      const examDoc = await getDoc(doc(db, 'schoolExams', examId));
+      const examDoc = await getDoc(doc(db, 'exams', examId));
       
       if (examDoc.exists()) {
         return {

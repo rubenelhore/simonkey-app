@@ -19,6 +19,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
+import { MateriaRankingService } from '../services/materiaRankingService';
 import '../scripts/fixUserNotebooks';
 import '../scripts/verifyNotebookIds';
 import '../utils/forceReloadKPIs';
@@ -809,9 +810,9 @@ const ProgressPage: React.FC = () => {
       console.log('[ProgressPage] Calculando ranking para materia:', selectedMateria);
       console.log('[ProgressPage] Es usuario escolar:', isSchoolUser);
       
-      // Para usuarios regulares, mostrar su propio score
+      // Para usuarios regulares, intentar obtener ranking basado en enrollments
       if (!isSchoolUser) {
-        console.log('[ProgressPage] Usuario regular, mostrando score personal');
+        console.log('[ProgressPage] Usuario regular, verificando enrollments');
         
         if (!selectedMateria || selectedMateria === 'general') {
           // Para vista general, mostrar el score global
@@ -822,13 +823,37 @@ const ProgressPage: React.FC = () => {
             score: Math.ceil(globalScore) 
           }]);
         } else {
-          // Para una materia específica, mostrar el score de esa materia
-          const materiaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
-          setRankingData([{ 
-            posicion: 1, 
-            nombre: 'Tú', 
-            score: Math.ceil(materiaScore) 
-          }]);
+          // Para una materia específica, intentar obtener ranking basado en enrollments
+          console.log('[ProgressPage] Intentando obtener ranking de enrollments para materia:', selectedMateria);
+          
+          try {
+            const enrollmentRanking = await MateriaRankingService.getMateriaRanking(
+              selectedMateria,
+              userId
+            );
+            
+            if (enrollmentRanking && enrollmentRanking.length > 0) {
+              console.log('[ProgressPage] Ranking de enrollments encontrado:', enrollmentRanking);
+              setRankingData(enrollmentRanking);
+            } else {
+              // Si no hay ranking de enrollments, mostrar solo el score personal
+              const materiaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+              setRankingData([{ 
+                posicion: 1, 
+                nombre: 'Tú', 
+                score: Math.ceil(materiaScore) 
+              }]);
+            }
+          } catch (error) {
+            console.error('[ProgressPage] Error obteniendo ranking de enrollments:', error);
+            // Fallback: mostrar solo el score personal
+            const materiaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+            setRankingData([{ 
+              posicion: 1, 
+              nombre: 'Tú', 
+              score: Math.ceil(materiaScore) 
+            }]);
+          }
         }
         return;
       }
@@ -1579,8 +1604,7 @@ const ProgressPage: React.FC = () => {
       <HeaderWithHamburger title="Mi Progreso" />
       <div className="progress-layout">
         <div className="progress-modules-row">
-          {isSchoolUser && (
-          <div className={`progress-module-col ${!isSchoolUser ? 'no-side-module' : ''}`}>
+          <div className={`progress-module-col ${!isSchoolUser && materias.length === 0 ? 'no-side-module' : ''}`}>
             {/* Módulo 1: Score Global */}
             <div className="progress-module kpi-module">
               <div className="kpi-icon icon-trophy">
@@ -1593,7 +1617,8 @@ const ProgressPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Módulo Lateral: Selector de Materias y Ranking - Solo para usuarios escolares */}
+            {/* Módulo Lateral: Selector de Materias y Ranking */}
+            {materias.length > 0 && (
               <div className="progress-side-module">
               {materias.length === 0 ? (
                 <div className="no-materias-message">
@@ -1667,40 +1692,11 @@ const ProgressPage: React.FC = () => {
                 </>
               )}
             </div>
+            )}
           </div>
-          )}
 
-          <div className={`progress-modules-right ${!isSchoolUser ? 'full-width' : ''}`}>
+          <div className={`progress-modules-right ${!isSchoolUser && materias.length === 0 ? 'full-width' : ''}`}>
             <div className="progress-modules-right-row">
-              {/* Subject Selector for FREE and PRO users only */}
-              {!isSchoolUser && materias.length > 0 && (
-                <div className="progress-module subject-selector-module">
-                  <div className="subject-selector-header">
-                    <div className="subject-selector-icon">
-                      <FontAwesomeIcon icon={faBook} />
-                    </div>
-                    <div className="subject-selector-content">
-                      <label htmlFor="subject-select" className="subject-selector-label">
-                        Materia
-                      </label>
-                      <select 
-                        id="subject-select"
-                        className="subject-selector-dropdown"
-                        value={selectedMateria}
-                        onChange={(e) => setSelectedMateria(e.target.value)}
-                      >
-                        <option value="">General</option>
-                        {materias.map((materia) => (
-                          <option key={materia.id} value={materia.id}>
-                            {materia.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               {/* Medal Module */}
               <div className="corner-medal-module">
                 <button 

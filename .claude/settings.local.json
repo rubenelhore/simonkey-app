@@ -60,7 +60,8 @@
       "Bash(TSC_COMPILE_ON_ERROR=true npx vite build)",
       "Bash(git rebase:*)",
       "Bash(touch:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(firebase firestore:delete:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

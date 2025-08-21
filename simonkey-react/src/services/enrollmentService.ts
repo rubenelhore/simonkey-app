@@ -48,6 +48,9 @@ export class EnrollmentService {
         enrollmentData
       );
 
+      // Marcar al usuario como inscrito permanentemente
+      await this.markUserAsEnrolled(studentId);
+
       console.log(`✅ Inscripción creada: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
@@ -96,7 +99,7 @@ export class EnrollmentService {
         throw new Error('Ya estás inscrito en esta materia');
       }
 
-      // 5. Crear la inscripción
+      // 5. Crear la inscripción (incluye marcar como inscrito)
       const enrollmentId = await this.createEnrollment(
         studentId,
         codeData.teacherId,
@@ -157,6 +160,47 @@ export class EnrollmentService {
     } catch (error) {
       console.error('Error obteniendo inscripción:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Verificar si un estudiante está inscrito en una materia específica
+   */
+  async isStudentEnrolled(
+    studentId: string,
+    materiaId: string
+  ): Promise<boolean> {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('studentId', '==', studentId),
+        where('materiaId', '==', materiaId),
+        where('status', '==', EnrollmentStatus.ACTIVE)
+      );
+      
+      const snapshot = await getDocs(q);
+      return !snapshot.empty;
+    } catch (error) {
+      console.error('Error verificando inscripción:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Marcar al usuario como inscrito permanentemente
+   */
+  async markUserAsEnrolled(studentId: string): Promise<void> {
+    try {
+      const userRef = doc(db, 'users', studentId);
+      await updateDoc(userRef, {
+        isEnrolled: true,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Usuario ${studentId} marcado como inscrito permanentemente`);
+    } catch (error) {
+      console.error('Error marcando usuario como inscrito:', error);
+      // No lanzar error para no interrumpir la inscripción
     }
   }
 

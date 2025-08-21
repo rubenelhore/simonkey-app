@@ -60,7 +60,7 @@ import AboutSimonkeyInline from './components/AboutSimonkeyInline';
 // Sistema de profesores independientes
 import TeacherMateriaRedirect from './components/TeacherMateriaRedirect';
 import TeacherExamsPage from './pages/TeacherExamsPage';
-import TeacherAnalyticsPage from './components/analytics/TeacherAnalyticsPage';
+import IndependentTeacherAnalyticsPage from './components/analytics/IndependentTeacherAnalyticsPage';
 import CalendarPage from './pages/CalendarPage';
 import StudentExamsPage from './pages/StudentExamsPage';
 import ExamPage from './pages/ExamPage';
@@ -78,6 +78,7 @@ import { TourProvider } from './contexts/TourContext';
 import TourOverlay from './components/Onboarding/TourOverlay';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
+import { useEnrollmentStatus } from './hooks/useEnrollmentStatus';
 // DESHABILITADO: Ya no forzamos cambio de contraseña
 // import ChangePasswordRequired from './pages/ChangePasswordRequired';
 import PasswordChangeGuard from './components/Guards/PasswordChangeGuard';
@@ -101,6 +102,7 @@ import InactivityMonitor from './components/InactivityMonitor';
 // Importar utilidad para arreglar perfil de usuario (solo en desarrollo)
 if (process.env.NODE_ENV === 'development') {
   import('./utils/fixUserProfile');
+  import('./utils/setUserEnrolled');
 }
 // Importar funciones de debug para profesores
 import './utils/browserDebugTeacher';
@@ -331,6 +333,9 @@ const AppContent: React.FC = () => {
   const { isTeacher, isSuperAdmin, isUniversityUser, loading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
   const { user: currentUser, setUser } = useContext(UserContext);
+  
+  // Hook para verificar y actualizar automáticamente el estado de inscripciones
+  useEnrollmentStatus();
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
     // Para usuarios nuevos, no confiar solo en localStorage
@@ -801,7 +806,7 @@ const AppContent: React.FC = () => {
           <Route path="/classAnalytics" element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <TeacherAnalyticsPage />
+                <IndependentTeacherAnalyticsPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           } />
