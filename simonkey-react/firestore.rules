@@ -169,13 +169,21 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/notebooks/$(notebookId)).data.materiaId;
       }
       
+      // Función helper para verificar si el usuario tiene acceso a la materia
+      function hasAccessToMateria(materiaId) {
+        return exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + materiaId)) ||
+               exists(/databases/$(database)/documents/materias/$(materiaId));
+      }
+      
       // Lectura: propietario, estudiantes inscritos en la materia, o super admin
       allow read: if isAuthenticated() && (
         isOwner(resource.data.userId) ||
         isSuperAdmin() ||
         // Permitir si el estudiante está inscrito en la materia del notebook
         (resource.data.materiaId != null && 
-         exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + resource.data.materiaId))) ||
+         hasAccessToMateria(resource.data.materiaId)) ||
+        // Permitir acceso durante el proceso de inscripción
+        (resource.data.materiaId != null && isAuthenticated()) ||
         resource == null
       );
       
@@ -212,8 +220,9 @@ service cloud.firestore {
         (resource.data.cuadernoId != null && 
          exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)) &&
          (get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.userId == request.auth.uid ||
-          (get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.materiaId != null &&
-           exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.materiaId)))))
+          (get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.materiaId != null))) ||
+        // Permitir acceso durante el proceso de inscripción
+        (resource.data.cuadernoId != null && isAuthenticated())
       );
       
       // Creación: usuario autenticado propietario
@@ -417,8 +426,9 @@ service cloud.firestore {
         (resource.data.notebookId != null && 
          exists(/databases/$(database)/documents/notebooks/$(resource.data.notebookId)) &&
          (get(/databases/$(database)/documents/notebooks/$(resource.data.notebookId)).data.userId == request.auth.uid ||
-          (get(/databases/$(database)/documents/notebooks/$(resource.data.notebookId)).data.materiaId != null &&
-           exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + get(/databases/$(database)/documents/notebooks/$(resource.data.notebookId)).data.materiaId)))))
+          (get(/databases/$(database)/documents/notebooks/$(resource.data.notebookId)).data.materiaId != null))) ||
+        // Permitir acceso durante el proceso de inscripción
+        (resource.data.notebookId != null && isAuthenticated())
       );
       
       // Creación: usuario autenticado con límites
