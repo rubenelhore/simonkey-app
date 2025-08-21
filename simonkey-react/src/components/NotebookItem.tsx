@@ -6,6 +6,7 @@ import { decodeMateriaName, encodeNotebookName } from '../utils/urlUtils';
 import { generateNotebookUrl } from '../utils/slugify';
 import { CacheManager } from '../utils/cacheManager';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserType } from '../hooks/useUserType';
 
 interface NotebookItemProps {
   id: string;
@@ -35,6 +36,7 @@ interface NotebookItemProps {
 
 const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent, isEnrolled = false }) => {
   const { user } = useAuth();
+  const { isSchoolAdmin } = useUserType();
   console.log('📝 NotebookItem recibió props:', {
     id,
     title,
@@ -87,41 +89,60 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
   };
 
   const handleView = () => {
+    console.log('🚨🚨🚨 HANDLE VIEW LLAMADO');
+    console.log('Props:', { id, title, isTeacher, isSchoolAdmin, isFrozen, isSchoolNotebook });
+    console.log('🔴 isSchoolNotebook valor:', isSchoolNotebook);
+    
     // Si el cuaderno está congelado y no es profesor, no permitir abrir
     if (isFrozen && !isTeacher) {
+      console.log('❌ Bloqueado: notebook congelado y no es profesor');
       return;
     }
     
-    // Detectar si estamos dentro de una materia
-    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
-    const materiaName = materiaMatch ? materiaMatch[1] : null;
-    
     // Usar ID + slug para la navegación
     const notebookUrl = generateNotebookUrl(id, title);
+    console.log('📍 URL generada:', notebookUrl);
     
-    if (isSchoolNotebook) {
-      // Navegar a la vista del cuaderno escolar con ID + slug
+    // Detectar si estamos en una ruta de materia para mantener el contexto
+    const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+    
+    // FORZAR que los profesores NUNCA vayan a school notebooks
+    if (isSchoolNotebook && !isTeacher && !isSchoolAdmin) {
+      // Solo estudiantes escolares van a school notebooks
+      console.log('🏫 Navegando a notebook escolar:', `/school/notebooks/${notebookUrl}`);
       navigate(`/school/notebooks/${notebookUrl}`);
-    } else if (materiaName) {
-      // Keep the encoded materia name as it appears in the URL
-      navigate(`/materias/${materiaName}/notebooks/${notebookUrl}`);
+    } else if (materiaMatch) {
+      // Si estamos en una ruta de materia, mantener el contexto de la materia
+      const materiaNameWithId = materiaMatch[1];
+      const targetUrl = `/materias/${materiaNameWithId}/notebooks/${notebookUrl}`;
+      console.log('🎯 NAVEGANDO CON CONTEXTO DE MATERIA:', targetUrl);
+      navigate(targetUrl);
     } else {
-      navigate(`/notebooks/${notebookUrl}`);
+      // Si no hay contexto de materia, ir a notebooks regular
+      const targetUrl = `/notebooks/${notebookUrl}`;
+      console.log('🎯 NAVEGANDO SIN CONTEXTO DE MATERIA:', targetUrl);
+      navigate(targetUrl);
     }
   };
 
   const handleCardClick = () => {
+    console.log('🖱️ CARD CLICK DETECTADO');
+    console.log('Estado:', { hasError, isFrozen, isTeacher });
+    
     // Si hay error, no hacer nada
     if (hasError) {
+      console.log('❌ Bloqueado: hay error');
       return;
     }
     
     // Si el cuaderno está congelado y no es profesor, no permitir abrir
     if (isFrozen && !isTeacher) {
+      console.log('❌ Bloqueado: congelado y no es profesor');
       return;
     }
     
     // Al hacer click en la card, entrar directamente al cuaderno
+    console.log('✅ Llamando handleView...');
     handleView();
   };
 

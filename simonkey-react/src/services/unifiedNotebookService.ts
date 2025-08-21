@@ -87,7 +87,7 @@ export class UnifiedNotebookService {
   }
   
   /**
-   * Obtiene notebooks escolares para un profesor
+   * Obtiene notebooks para un profesor basados en sus materias
    */
   static async getTeacherNotebooks(materiaIds: string[], teacherId?: string): Promise<Notebook[]> {
     // console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
@@ -101,60 +101,59 @@ export class UnifiedNotebookService {
     
     const notebooks: Notebook[] = [];
     
-    // Buscar en schoolNotebooks - filtrar por materia Y profesor si se proporciona
+    // Buscar en notebooks - filtrar por materia Y profesor si se proporciona
     let constraints: any[] = [
-      where('idMateria', 'in', materiaIds),
+      where('materiaId', 'in', materiaIds),
       orderBy('createdAt', 'desc')
     ];
     
-    // Si se proporciona teacherId, filtrar también por profesor
+    // Si se proporciona teacherId, filtrar también por userId
     if (teacherId) {
       constraints = [
-        where('idMateria', 'in', materiaIds),
-        where('idProfesor', '==', teacherId),
+        where('materiaId', 'in', materiaIds),
+        where('userId', '==', teacherId),
         orderBy('createdAt', 'desc')
       ];
     }
     
-    const schoolQuery = query(
-      collection(db, 'schoolNotebooks'),
+    const notebooksQuery = query(
+      collection(db, 'notebooks'),
       ...constraints
     );
     
-    // console.log('  📖 Ejecutando query en schoolNotebooks');
-    // console.log('     Query: where idMateria in', materiaIds);
+    // console.log('  📖 Ejecutando query en notebooks');
+    // console.log('     Query: where materiaId in', materiaIds);
     // if (teacherId) {
-    //   console.log('     Query: where idProfesor ==', teacherId);
+    //   console.log('     Query: where userId ==', teacherId);
     // }
     
-    let schoolSnapshot;
+    let notebooksSnapshot;
     try {
-      schoolSnapshot = await getDocs(schoolQuery);
-      // console.log('  📊 Documentos encontrados con query compuesto:', schoolSnapshot.size);
+      notebooksSnapshot = await getDocs(notebooksQuery);
+      // console.log('  📊 Documentos encontrados con query compuesto:', notebooksSnapshot.size);
     } catch (error) {
       console.error('  ❌ Error con query compuesto:', error);
       console.log('  🔄 Intentando query alternativo...');
       
       // Si falla el query compuesto, hacer un query más simple y filtrar manualmente
       const simpleQuery = query(
-        collection(db, 'schoolNotebooks'),
-        where('idMateria', 'in', materiaIds)
+        collection(db, 'notebooks'),
+        where('materiaId', 'in', materiaIds)
       );
       
-      schoolSnapshot = await getDocs(simpleQuery);
-      console.log('  📊 Documentos encontrados con query simple:', schoolSnapshot.size);
+      notebooksSnapshot = await getDocs(simpleQuery);
+      console.log('  📊 Documentos encontrados con query simple:', notebooksSnapshot.size);
       
       // Filtrar manualmente por profesor si es necesario
-      schoolSnapshot.forEach(doc => {
+      notebooksSnapshot.forEach(doc => {
         const data = doc.data();
-        if (!teacherId || data.idProfesor === teacherId) {
+        if (!teacherId || data.userId === teacherId) {
           console.log(`  📓 Notebook encontrado: ${doc.id}`);
           console.log(`     - title: ${data.title}`);
-          console.log(`     - idMateria: ${data.idMateria}`);
-          console.log(`     - idProfesor: ${data.idProfesor}`);
+          console.log(`     - materiaId: ${data.materiaId}`);
+          console.log(`     - userId: ${data.userId}`);
           notebooks.push({
             id: doc.id,
-            type: 'school',
             ...data
           } as Notebook);
         }
@@ -164,39 +163,14 @@ export class UnifiedNotebookService {
       return notebooks;
     }
     
-    // Debug desactivado para evitar logs excesivos
-    // Si necesitas debug, descomentar las siguientes líneas:
-    /*
-    console.log('  🔍 DEBUG: Buscando TODOS los notebooks en schoolNotebooks...');
-    const allNotebooks = await getDocs(collection(db, 'schoolNotebooks'));
-    console.log('  🔍 TOTAL notebooks en schoolNotebooks:', allNotebooks.size);
-    
-    // Filtrar manualmente para ver cuántos coinciden
-    let matchingCount = 0;
-    allNotebooks.forEach(doc => {
-      const data = doc.data();
-      const matchesMateria = materiaIds.includes(data.idMateria);
-      const matchesTeacher = !teacherId || data.idProfesor === teacherId;
-      
-      if (matchesMateria && matchesTeacher) {
-        matchingCount++;
-        console.log(`     ✅ MATCH - ${doc.id}: idMateria=${data.idMateria}, idProfesor=${data.idProfesor}, title=${data.title}`);
-      } else {
-        console.log(`     ❌ NO MATCH - ${doc.id}: idMateria=${data.idMateria} (buscado: ${materiaIds}), idProfesor=${data.idProfesor} (buscado: ${teacherId})`);
-      }
-    });
-    console.log(`  📊 Total que deberían coincidir: ${matchingCount}`);
-    */
-    
-    schoolSnapshot.forEach(doc => {
+    notebooksSnapshot.forEach(doc => {
       const data = doc.data();
       // console.log(`  📓 Notebook encontrado: ${doc.id}`);
       // console.log(`     - title: ${data.title}`);
-      // console.log(`     - idMateria: ${data.idMateria}`);
-      // console.log(`     - idProfesor: ${data.idProfesor}`);
+      // console.log(`     - materiaId: ${data.materiaId}`);
+      // console.log(`     - userId: ${data.userId}`);
       notebooks.push({
         id: doc.id,
-        type: 'school',
         ...data
       } as Notebook);
     });
@@ -213,18 +187,17 @@ export class UnifiedNotebookService {
     
     const notebooks: Notebook[] = [];
     
-    // Buscar en schoolNotebooks por IDs específicos
-    const schoolQuery = query(
-      collection(db, 'schoolNotebooks'),
+    // Buscar en notebooks por IDs específicos
+    const notebooksQuery = query(
+      collection(db, 'notebooks'),
       where(documentId(), 'in', notebookIds)
     );
     
-    const schoolSnapshot = await getDocs(schoolQuery);
-    schoolSnapshot.forEach(doc => {
+    const notebooksSnapshot = await getDocs(notebooksQuery);
+    notebooksSnapshot.forEach(doc => {
       const data = doc.data();
       notebooks.push({
         id: doc.id,
-        type: 'school',
         ...data
       } as Notebook);
     });

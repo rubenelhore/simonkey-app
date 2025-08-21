@@ -237,35 +237,41 @@ const Notebooks: React.FC = () => {
       if (!materiaId) return;
       
       try {
-        // Si es admin escolar o profesor, buscar en schoolSubjects
-        if (isSchoolAdmin || isTeacher) {
-          // Check if materiaId contains multiple IDs (comma-separated)
-          const materiaIds = materiaId.split(',');
-          if (materiaIds.length > 1) {
-            // Multiple materias with same name - just use the first one for display
-            console.log('Multiple materias detected, using first for display:', materiaIds[0]);
-          }
-          
-          const firstMateriaId = materiaIds[0];
-          const materiaDoc = await getDoc(doc(db, 'schoolSubjects', firstMateriaId));
-          if (materiaDoc.exists()) {
-            const data = materiaDoc.data();
-            setMateriaData({ 
-              id: materiaDoc.id, 
-              title: data.nombre,
-              color: data.color || '#6147FF',
-              ...data 
-            });
-          }
+        // Para todos los usuarios, buscar en materias (schoolSubjects ya no existe)
+        // Check if materiaId contains multiple IDs (comma-separated)
+        const materiaIds = materiaId.split(',');
+        if (materiaIds.length > 1) {
+          // Multiple materias with same name - just use the first one for display
+          console.log('Multiple materias detected, using first for display:', materiaIds[0]);
+        }
+        
+        const firstMateriaId = materiaIds[0];
+        const materiaDoc = await getDoc(doc(db, 'materias', firstMateriaId));
+        if (materiaDoc.exists()) {
+          const data = materiaDoc.data();
+          setMateriaData({ 
+            id: materiaDoc.id, 
+            title: data.title || data.nombre, // Support both title and nombre fields
+            color: data.color || '#6147FF',
+            ...data 
+          });
         } else {
-          // Para usuarios regulares, buscar en materias
-          const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
-          if (materiaDoc.exists()) {
-            setMateriaData({ id: materiaDoc.id, ...materiaDoc.data() });
-          }
+          // Si no existe la materia, crear datos básicos para no bloquear la funcionalidad
+          console.log(`Materia ${firstMateriaId} no encontrada, usando datos por defecto`);
+          setMateriaData({ 
+            id: firstMateriaId, 
+            title: 'Materia', 
+            color: '#6147FF'
+          });
         }
       } catch (error) {
         console.error('Error loading materia:', error);
+        // En caso de error de permisos, usar datos básicos
+        setMateriaData({ 
+          id: materiaId || '', 
+          title: 'Materia', 
+          color: '#6147FF'
+        });
       }
     };
     
@@ -1041,20 +1047,42 @@ const Notebooks: React.FC = () => {
 
   if (shouldShowLoading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Cargando {materiaId ? 'cuadernos' : 'materias'}...</p>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title={materiaData ? materiaData.title : ""}
+          subtitle={materiaData ? `Cuadernos de ${materiaData.title}` : `Espacio Personal de ${userData.nombre || 'Simón'}`}
+          showBackButton={!!materiaId}
+          onBackClick={() => navigate('/materias')}
+          themeColor={materiaData?.color}
+        />
+        <main className="notebooks-main notebooks-main-no-sidebar">
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Cargando {materiaId ? 'cuadernos' : 'materias'}...</p>
+          </div>
+        </main>
+      </>
     );
   }
 
   if (!isSchoolStudent && !isSchoolAdmin && !isTeacher && notebooksError) {
     console.error('Error loading notebooks:', notebooksError);
     return (
-      <div className="error-container">
-        <h2>Error al cargar las materias</h2>
-        <p>{notebooksError.message}</p>
-      </div>
+      <>
+        <HeaderWithHamburger
+          title=""
+          subtitle="Error"
+          showBackButton={!!materiaId}
+          onBackClick={() => navigate('/materias')}
+          themeColor={materiaData?.color}
+        />
+        <main className="notebooks-main notebooks-main-no-sidebar">
+          <div className="error-container">
+            <h2>Error al cargar las materias</h2>
+            <p>{notebooksError.message}</p>
+          </div>
+        </main>
+      </>
     );
   }
 

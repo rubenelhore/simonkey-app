@@ -178,10 +178,12 @@ service cloud.firestore {
                exists(/databases/$(database)/documents/materias/$(materiaId));
       }
       
-      // Lectura: propietario, estudiantes inscritos en la materia, o super admin
+      // Lectura: propietario, profesores, estudiantes inscritos en la materia, o super admin
       allow read: if isAuthenticated() && (
         isOwner(resource.data.userId) ||
         isSuperAdmin() ||
+        // Permitir si es profesor (pueden ver sus propios notebooks)
+        isTeacher() ||
         // Permitir si el estudiante está inscrito en la materia del notebook
         (resource.data.materiaId != null && 
          hasAccessToMateria(resource.data.materiaId)) ||
@@ -208,17 +210,81 @@ service cloud.firestore {
         isOwner(resource.data.userId) ||
         isSuperAdmin()
       );
+      
+      // ========================================
+      // SUBCOLECCIÓN: concepts
+      // ========================================
+      match /concepts/{conceptId} {
+        // Lectura: mismo acceso que el notebook padre
+        allow read: if isAuthenticated() && (
+          isOwner(getNotebookOwner()) ||
+          isSuperAdmin() ||
+          isTeacher() ||
+          hasAccessToMateria(getNotebookMateria()) ||
+          isAuthenticated()
+        );
+        
+        // Creación y actualización: solo el propietario del notebook
+        allow create, update: if isAuthenticated() && 
+          isOwner(getNotebookOwner());
+        
+        // Eliminación: propietario del notebook o super admin
+        allow delete: if isAuthenticated() && (
+          isOwner(getNotebookOwner()) ||
+          isSuperAdmin()
+        );
+      }
+    }
+    
+    // ========================================
+    // REGLAS PARA COLECCIÓN: schoolNotebooks (legacy - para compatibilidad)
+    // ========================================
+    match /schoolNotebooks/{notebookId} {
+      // Lectura: permitir a profesores, estudiantes inscritos, y super admin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isTeacher() ||
+        isEnrolledUser() ||
+        // Permitir acceso temporal durante migración
+        isAuthenticated()
+      );
+      
+      // No permitir creación de nuevos schoolNotebooks (deprecated)
+      allow create: if false;
+      
+      // Actualización: solo super admin para migración
+      allow update: if isSuperAdmin();
+      
+      // Eliminación: solo super admin
+      allow delete: if isSuperAdmin();
+      
+      // ========================================
+      // SUBCOLECCIÓN: concepts dentro de schoolNotebooks
+      // ========================================
+      match /concepts/{conceptId} {
+        // Lectura: mismo acceso que el notebook padre
+        allow read: if isAuthenticated() && (
+          isSuperAdmin() ||
+          isTeacher() ||
+          isEnrolledUser() ||
+          isAuthenticated()
+        );
+        
+        // No permitir modificaciones (solo lectura para legacy)
+        allow create, update, delete: if false;
+      }
     }
     
     // ========================================
     // REGLAS PARA COLECCIÓN: conceptos
     // ========================================
     match /conceptos/{conceptId} {
-      // Lectura: propietario, estudiantes con acceso al notebook, o super admin
+      // Lectura: propietario, profesores, estudiantes con acceso al notebook, o super admin
       allow read: if isAuthenticated() && (
         resource == null ||
         isOwner(resource.data.usuarioId) ||
         isSuperAdmin() ||
+        isTeacher() ||
         // Permitir si el estudiante tiene acceso al notebook del concepto
         (resource.data.cuadernoId != null && 
          exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)) &&

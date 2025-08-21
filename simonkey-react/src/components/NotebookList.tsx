@@ -11,6 +11,7 @@ import '../styles/ModalOverride.css';
 import { doc, updateDoc, serverTimestamp, setDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import FreezeModal from './FreezeModal';
+import { useUserType } from '../hooks/useUserType';
 
 // Define la interfaz Notebook localmente en lugar de importarla
 interface Notebook {
@@ -107,6 +108,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   // console.log('🔍 DEBUG - Notebooks no es null, continuando...');
 
   const { user } = useAuth();
+  const { isTeacher, isSchoolAdmin } = useUserType();
   const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
@@ -821,7 +823,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
                 onAddConcept={onAddConcept}
                 isFrozen={notebook.isFrozen}
                 onFreeze={(id) => handleFreezeClick(id, notebook.title, notebook.isFrozen || false)}
-                isTeacher={isSchoolTeacher}
+                isTeacher={isTeacher || isSchoolTeacher}
                 domainProgress={notebook.domainProgress}
                 isStudent={notebook.isStudent}
                 isEnrolled={notebook.isEnrolled}

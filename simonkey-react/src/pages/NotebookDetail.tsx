@@ -6,6 +6,7 @@ import { useStudyService } from '../hooks/useStudyService';
 import { useUserType } from '../hooks/useUserType';
 // import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { UnifiedNotebookService } from '../services/unifiedNotebookService';
+import { UnifiedConceptService } from '../services/unifiedConceptService';
 import { decodeNotebookName } from '../utils/urlUtils';
 import { extractNotebookId } from '../utils/slugify';
 
@@ -20,7 +21,8 @@ import {
   setDoc,
   arrayUnion, 
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { generateConcepts, prepareFilesForGeneration } from '../services/firebaseFunctions';
 import { MaterialService } from '../services/materialService';
@@ -36,7 +38,7 @@ interface ConceptDoc {
   cuadernoId: string;
   usuarioId: string;
   conceptos: Concept[];
-  creadoEn: Date;
+  creadoEn: Date | Timestamp;
 }
 
 // arrayBufferToBase64 function no longer needed with Cloud Functions
@@ -46,6 +48,28 @@ const NotebookDetail = () => {
   const [notebookId, setNotebookId] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Log persistente de entrada al componente
+  useEffect(() => {
+    console.log('🔴🔴🔴 NOTEBOOKDETAIL MONTADO');
+    console.log('Params:', { notebookName });
+    console.log('Location:', location.pathname);
+    console.log('URL completa:', window.location.href);
+    
+    const entryLog = {
+      timestamp: new Date().toISOString(),
+      page: 'NotebookDetail',
+      action: 'COMPONENT_MOUNTED',
+      notebookName,
+      url: window.location.href,
+      pathname: location.pathname,
+      userId: auth.currentUser?.uid
+    };
+    const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+    logs.push(entryLog);
+    localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
+    console.log('🚀 NotebookDetail MOUNTED - Log saved to localStorage');
+  }, []);
   const [cuaderno, setCuaderno] = useState<Notebook | null>(null);
   const [materiaId, setMateriaId] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<File[]>([]);
@@ -145,13 +169,30 @@ const NotebookDetail = () => {
         return;
       }
 
+      // Agregar log persistente
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        page: 'NotebookDetail',
+        action: 'findNotebookByName',
+        notebookName,
+        isTeacher,
+        isSchoolAdmin,
+        isSchoolStudent,
+        userId: auth.currentUser?.uid
+      };
+      const existingLogs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+      existingLogs.push(logEntry);
+      localStorage.setItem('notebookLogs', JSON.stringify(existingLogs.slice(-50))); // Keep last 50 logs
+
+      let extractedId = '';
       try {
         // Extraer el ID del notebook de la URL (formato: id/slug)
-        const extractedId = extractNotebookId(notebookName);
+        extractedId = extractNotebookId(notebookName);
         console.log('ID extraído de la URL:', extractedId);
 
-        // Use the correct collection for school users
-        const notebooksCollection = (isSchoolStudent || isSchoolAdmin || isTeacher) ? 'schoolNotebooks' : 'notebooks';
+        // CAMBIO CRÍTICO: Los profesores ahora usan 'notebooks', NO 'schoolNotebooks'
+        const notebooksCollection = 'notebooks'; // Siempre usar notebooks para todos
+        console.log('🔍 Usando colección:', notebooksCollection, 'para usuario tipo:', { isTeacher, isSchoolAdmin, isSchoolStudent });
         
         // Buscar directamente por ID
         const notebookDoc = await getDoc(doc(db, notebooksCollection, extractedId));
@@ -174,8 +215,9 @@ const NotebookDetail = () => {
           }
           
           // Si no se encontró por ID o no parece ser un ID, buscar por título
+          // IMPORTANTE: Siempre usar 'notebooks' para todos los usuarios
           const notebooksQuery = query(
-            collection(db, notebooksCollection),
+            collection(db, 'notebooks'),
             where('title', '==', decodedName)
           );
           const querySnapshot = await getDocs(notebooksQuery);
@@ -185,10 +227,36 @@ const NotebookDetail = () => {
             setNotebookId(doc.id);
           } else {
             console.error('No se encontró el cuaderno:', extractedId, 'ni', decodedName);
+            // Log persistente del error
+            const errorLog = {
+              timestamp: new Date().toISOString(),
+              page: 'NotebookDetail',
+              error: 'Notebook not found',
+              extractedId,
+              decodedName,
+              isTeacher,
+              isSchoolAdmin
+            };
+            const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+            logs.push(errorLog);
+            localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error finding notebook by name:', error);
+        // Log persistente del error
+        const errorLog = {
+          timestamp: new Date().toISOString(),
+          page: 'NotebookDetail',
+          error: error.message,
+          code: error.code,
+          extractedId,
+          isTeacher,
+          isSchoolAdmin
+        };
+        const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+        logs.push(errorLog);
+        localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
       }
     };
 
@@ -249,6 +317,20 @@ const NotebookDetail = () => {
             type: notebook.type,
             title: notebook.title
           });
+          // Log persistente del éxito
+          const successLog = {
+            timestamp: new Date().toISOString(),
+            page: 'NotebookDetail',
+            action: 'notebook_loaded',
+            notebookId: notebook.id,
+            type: notebook.type,
+            isTeacher,
+            isSchoolAdmin
+          };
+          const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+          logs.push(successLog);
+          localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
+          
           // Guardar el materiaId si existe (puede venir como idMateria o materiaId)
           const matId = (notebook as any).idMateria || (notebook as any).materiaId;
           if (matId) {
@@ -257,44 +339,57 @@ const NotebookDetail = () => {
           }
         } else {
           console.error("No such notebook!");
+          // Log persistente antes de redirigir
+          const errorLog = {
+            timestamp: new Date().toISOString(),
+            page: 'NotebookDetail',
+            error: 'Notebook not found in UnifiedNotebookService',
+            notebookId,
+            isTeacher,
+            isSchoolAdmin
+          };
+          const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+          logs.push(errorLog);
+          localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
+          
           if (!isCancelled) {
             setLoadingConceptos(false);
-            navigate('/notebooks');
+            // Esperar un poco antes de redirigir para dar tiempo a ver los logs
+            setTimeout(() => {
+              if (!isCancelled) {
+                navigate('/notebooks');
+              }
+            }, 2000);
           }
           return;
         }
         
-        // Fetch concept documents for this notebook
-        const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId!);
-        console.log('📚 Colección de conceptos detectada:', conceptsCollection);
+        // Fetch concept documents for this notebook using UnifiedConceptService
         console.log('🔍 isTeacher:', isTeacher);
         console.log('🔍 isSchoolAdmin:', isSchoolAdmin);
         
-        const q = query(
-          collection(db, conceptsCollection),
-          where('cuadernoId', '==', notebookId)
-        );
-        
         try {
-          console.log('📖 Intentando leer conceptos de:', conceptsCollection);
-          console.log('📝 Query: buscando conceptos con cuadernoId ==', notebookId);
+          console.log('📖 Obteniendo conceptos para notebook:', notebookId);
+          console.log('🔑 Usuario actual:', auth.currentUser?.uid);
+          console.log('👤 Es profesor:', isTeacher);
+          console.log('👤 Es admin escolar:', isSchoolAdmin);
           
-          const querySnapshot = await getDocs(q);
+          // Use UnifiedConceptService to get concept documents
+          const conceptosData = await UnifiedConceptService.getConceptDocs(notebookId!);
           
           if (isCancelled) return;
           
-          const conceptosData = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as ConceptDoc[];
+          console.log('✅ Documentos de conceptos encontrados:', conceptosData.length);
           
-          console.log('✅ Conceptos encontrados:', conceptosData.length);
+          // Calculate total concepts count
+          const totalConcepts = conceptosData.reduce((sum, doc) => sum + (doc.conceptos?.length || 0), 0);
+          console.log('✅ Total de conceptos:', totalConcepts);
+          
           setConceptosDocs(conceptosData);
           
           // Cargar datos de aprendizaje para el semáforo en paralelo (no bloquear la UI)
-          // Solo cargar para estudiantes, no para profesores o admins
-          const isTeacherOrAdmin = isSchoolAdmin || isTeacher;
-          if (auth.currentUser && conceptosData.length > 0 && !isCancelled && !isTeacherOrAdmin) {
+          // CAMBIO: Los profesores también necesitan ver el semáforo para evaluar el progreso
+          if (auth.currentUser && conceptosData.length > 0 && !isCancelled) {
             // No bloquear la carga de conceptos, hacer esto en background
             (async () => {
               const learningMap = new Map<string, number>();
@@ -305,9 +400,27 @@ const NotebookDetail = () => {
                   doc.conceptos.map(c => c.id)
                 );
                 
+                // Determinar de quién cargar los datos de aprendizaje
+                // Para profesores: usar el dueño del notebook o de los conceptos
+                // Para estudiantes: usar el usuario actual
+                let targetUserId = auth.currentUser!.uid;
+                
+                if (isTeacher || isSchoolAdmin) {
+                  // Primero intentar con el userId del primer documento de conceptos
+                  if (conceptosData.length > 0 && conceptosData[0].usuarioId) {
+                    targetUserId = conceptosData[0].usuarioId;
+                  } 
+                  // Si no, intentar con el userId del notebook
+                  else if (notebook && notebook.userId) {
+                    targetUserId = notebook.userId;
+                  }
+                }
+                
+                console.log('📊 Cargando datos de aprendizaje para usuario:', targetUserId);
+                
                 // Cargar datos de aprendizaje en paralelo
                 const learningPromises = allConceptIds.map(async (conceptId) => {
-                  const learningDataRef = doc(db, 'users', auth.currentUser!.uid, 'learningData', conceptId);
+                  const learningDataRef = doc(db, 'users', targetUserId, 'learningData', conceptId);
                   const learningDataSnap = await getDoc(learningDataRef);
                   
                   if (learningDataSnap.exists()) {
@@ -336,40 +449,45 @@ const NotebookDetail = () => {
           console.error('❌ Error cargando conceptos:', {
             message: conceptsError.message,
             code: conceptsError.code,
-            collection: conceptsCollection,
             notebookId: notebookId,
             isTeacher,
             isSchoolAdmin
           });
+          // Log persistente del error de conceptos
+          const errorLog = {
+            timestamp: new Date().toISOString(),
+            page: 'NotebookDetail',
+            error: 'Error loading concepts',
+            message: conceptsError.message,
+            code: conceptsError.code,
+            notebookId,
+            isTeacher,
+            isSchoolAdmin
+          };
+          const logs = JSON.parse(localStorage.getItem('notebookLogs') || '[]');
+          logs.push(errorLog);
+          localStorage.setItem('notebookLogs', JSON.stringify(logs.slice(-50)));
+          
           if (!isCancelled) setConceptosDocs([]);
         }
         
         // Cargar materiales del notebook con timeout
-        // Solo cargar materiales para estudiantes y usuarios regulares, no para profesores/admins
-        const isTeacherOrAdmin = isSchoolAdmin || isTeacher;
-        if (!isTeacherOrAdmin) {
-          try {
-            if (!isCancelled) setLoadingMaterials(true);
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Timeout')), 3000);
-            });
-            
-            const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
-            const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
-            
-            if (!isCancelled) setMaterials(notebookMaterials as Material[]);
-          } catch (materialsError) {
-            console.warn('⚠️ Error cargando materiales:', materialsError);
-            if (!isCancelled) setMaterials([]);
-          } finally {
-            if (!isCancelled) setLoadingMaterials(false);
-          }
-        } else {
-          // Para profesores/admins, no cargar materiales
-          if (!isCancelled) {
-            setMaterials([]);
-            setLoadingMaterials(false);
-          }
+        // CAMBIO: Los profesores también necesitan ver los materiales para evaluar
+        try {
+          if (!isCancelled) setLoadingMaterials(true);
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Timeout')), 3000);
+          });
+          
+          const materialsPromise = MaterialService.getNotebookMaterials(notebookId);
+          const notebookMaterials = await Promise.race([materialsPromise, timeoutPromise]);
+          
+          if (!isCancelled) setMaterials(notebookMaterials as Material[]);
+        } catch (materialsError) {
+          console.warn('⚠️ Error cargando materiales:', materialsError);
+          if (!isCancelled) setMaterials([]);
+        } finally {
+          if (!isCancelled) setLoadingMaterials(false);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -1352,161 +1470,23 @@ const NotebookDetail = () => {
                 <button 
                   className="back-button-notebooks"
                   onClick={() => {
-                    // Si es profesor escolar, ir a su página de notebooks
-                    if (isTeacher) {
-                      console.log('👨‍🏫 School teacher navigation');
-                      console.log('Current pathname:', window.location.pathname);
-                      console.log('Referrer:', document.referrer);
-                      console.log('materiaId from state:', materiaId);
-                      
-                      // Primero verificar si venimos de una URL de materias
-                      const referrer = document.referrer;
-                      const referrerMateriaMatch = referrer.match(/\/materias\/([^\/]+)\/notebooks/);
-                      if (referrerMateriaMatch) {
-                        const materiaUrlPart = referrerMateriaMatch[1];
-                        console.log('✅ Found materia in referrer, navigating back to:', `/materias/${materiaUrlPart}/notebooks`);
-                        navigate(`/materias/${materiaUrlPart}/notebooks`);
-                        return;
-                      }
-                      
-                      // Si tenemos materiaId del cuaderno, usar eso
-                      if (materiaId) {
-                        // Intentar obtener el nombre de la materia del cuaderno
-                        if (cuaderno && (cuaderno as any).nombreMateria) {
-                          const materiaUrl = `${(cuaderno as any).nombreMateria}-${materiaId}`;
-                          console.log('✅ Using notebook materia name:', `/materias/${materiaUrl}/notebooks`);
-                          navigate(`/materias/${materiaUrl}/notebooks`);
-                          return;
-                        }
-                        // Si no hay nombre, usar Biología como fallback
-                        console.log('📌 Using materiaId with default name:', materiaId);
-                        navigate(`/materias/Biología-${materiaId}/notebooks`);
-                        return;
-                      }
-                      
-                      // Verificar si estamos en una URL de school/teacher/materias
-                      const teacherMateriaMatch = window.location.pathname.match(/\/school\/teacher\/materias\/([^\/]+)/);
-                      if (teacherMateriaMatch) {
-                        const materiaId = teacherMateriaMatch[1];
-                        console.log('✅ Found materia in teacher URL:', materiaId);
-                        navigate(`/school/teacher/materias/${materiaId}/notebooks`);
-                        return;
-                      }
-                      
-                      // Fallback para profesores
-                      console.log('🏠 Fallback to /materias');
-                      navigate('/materias');
-                      return;
-                    }
-
-                    // Si es estudiante escolar
-                    if (isSchoolStudent) {
-                      console.log('🎓 Estudiante escolar - intentando volver a materia...');
-                      
-                      // Primero intentar obtener de sessionStorage
-                      try {
-                        const previousMateriaStr = sessionStorage.getItem('schoolStudent_previousMateria');
-                        console.log('📦 SessionStorage data:', previousMateriaStr);
-                        
-                        if (previousMateriaStr) {
-                          const previousMateria = JSON.parse(previousMateriaStr);
-                          console.log('📋 Parsed materia data:', previousMateria);
-                          
-                          const isRecent = (Date.now() - previousMateria.timestamp) < 30 * 60 * 1000;
-                          const ageMinutes = Math.round((Date.now() - previousMateria.timestamp) / 1000 / 60);
-                          console.log(`⏰ Data age: ${ageMinutes} minutes, isRecent: ${isRecent}`);
-                          
-                          if (isRecent && previousMateria.materiaName) {
-                            const targetUrl = `/school/student/materia/${previousMateria.materiaName}`;
-                            console.log('✅ Navigating back to:', targetUrl);
-                            navigate(targetUrl);
-                            return;
-                          } else {
-                            console.log('⚠️ Data expired or incomplete');
-                          }
-                        } else {
-                          console.log('⚠️ No saved materia data found');
-                        }
-                      } catch (error) {
-                        console.error('❌ Error retrieving materia:', error);
-                      }
-                      
-                      // Si no se encontró en sessionStorage, intentar con el materiaId del cuaderno actual
-                      console.log('🔍 DEBUG: materiaId:', materiaId);
-                      console.log('🔍 DEBUG: schoolSubjects:', schoolSubjects);
-                      console.log('🔍 DEBUG: schoolSubjects.length:', schoolSubjects?.length);
-                      
-                      if (materiaId && schoolSubjects && schoolSubjects.length > 0) {
-                        console.log('🔍 Intentando encontrar materia por ID:', materiaId);
-                        console.log('🔍 DEBUG: Todas las materias disponibles:', schoolSubjects.map(s => ({id: s.id, nombre: s.nombre})));
-                        
-                        const materia = schoolSubjects.find(subject => subject.id === materiaId);
-                        console.log('🔍 DEBUG: Materia encontrada:', materia);
-                        
-                        if (materia) {
-                          const targetUrl = `/school/student/materia/${materia.nombre}`;
-                          console.log('✅ Found materia, navigating to:', targetUrl);
-                          navigate(targetUrl);
-                          return;
-                        } else {
-                          console.log('⚠️ Materia no encontrada en schoolSubjects');
-                        }
-                      } else {
-                        console.log('⚠️ No hay materiaId o schoolSubjects no cargadas');
-                        console.log('   - materiaId:', materiaId);
-                        console.log('   - schoolSubjects existe:', !!schoolSubjects);
-                        console.log('   - schoolSubjects length:', schoolSubjects?.length);
-                      }
-                      
-                      console.log('🏠 Fallback: navigating to /materias');
-                      navigate('/materias');
-                      return;
-                    }
+                    console.log('🔙 Back button clicked');
                     
-                    // Para usuarios regulares
-                    console.log('🔙 Back button clicked - Debug info:', {
-                      pathname: window.location.pathname,
-                      materiaId,
-                      referrer: document.referrer,
-                      isSchoolStudent,
-                      isTeacher
-                    });
-                    
+                    // PARA TODOS: Detectar si estamos en una ruta de materia
                     const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
+                    
                     if (materiaMatch) {
-                      const urlMateriaId = materiaMatch[1];
-                      console.log('✅ Found materia in URL, navigating to:', `/materias/${urlMateriaId}/notebooks`);
-                      navigate(`/materias/${urlMateriaId}/notebooks`);
-                    } else if (window.location.pathname.includes('/school/notebooks/')) {
-                      // Estamos en una URL de school notebooks
-                      console.log('📚 In school notebooks URL');
-                      
-                      // Intentar obtener el nombre de la materia del referrer
-                      const referrer = document.referrer;
-                      console.log('📍 Referrer:', referrer);
-                      
-                      // Extraer el nombre de la materia del referrer si es posible
-                      const referrerMatch = referrer.match(/\/materias\/([^\/]+)\/notebooks/);
-                      if (referrerMatch) {
-                        const materiaUrl = referrerMatch[1];
-                        console.log('✅ Found materia in referrer, navigating to:', `/materias/${materiaUrl}/notebooks`);
-                        navigate(`/materias/${materiaUrl}/notebooks`);
-                      } else if (materiaId) {
-                        // Si tenemos materiaId, usar el formato conocido
-                        const materiaUrl = `Biología-${materiaId}`;
-                        console.log('✅ Using materiaId, navigating to:', `/materias/${materiaUrl}/notebooks`);
-                        navigate(`/materias/${materiaUrl}/notebooks`);
-                      } else {
-                        // Último recurso: intentar con Biología-W0ysd7X2NKwLhKhQPwkC directamente
-                        console.log('⚠️ No materiaId found, trying hardcoded value');
-                        navigate('/materias/Biología-W0ysd7X2NKwLhKhQPwkC/notebooks');
-                      }
+                      // Si hay materia en la URL, volver a la lista de notebooks de esa materia
+                      const materiaNameWithId = materiaMatch[1];
+                      console.log('📚 Navegando de vuelta a notebooks de materia:', materiaNameWithId);
+                      navigate(`/materias/${materiaNameWithId}/notebooks`);
                     } else {
-                      console.log('🏠 Default navigation to /notebooks');
+                      // Si no hay materia, ir a la página general de notebooks
+                      console.log('🏠 Navegando a notebooks general');
                       navigate('/notebooks');
                     }
                   }}
-                  title={isSchoolStudent ? "Volver a la materia" : "Volver a cuadernos"}
+                  title="Volver a cuadernos"
                 >
                   <i className="fas fa-arrow-left"></i>
                 </button>
@@ -1889,7 +1869,7 @@ const NotebookDetail = () => {
                       return (
                         <div 
                           key={`${doc.id}-${conceptIndex}`}
-                          className={`concept-card ${!isTeacher ? `traffic-light-${trafficLightColor}` : ''}`}
+                          className={`concept-card traffic-light-${trafficLightColor}`}
                           onClick={() => {
                             // Mantener el contexto de materia si existe
                             const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
