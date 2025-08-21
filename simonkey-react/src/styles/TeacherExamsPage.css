@@ -1,9 +1,17 @@
 .teacher-exams-page {
-  margin-left: 80px;
-  width: calc(100vw - 80px);
   padding: 2rem;
   background: #f8fafc;
   min-height: calc(100vh - 64px);
+  width: 100%;
+}
+
+/* Ajuste para el content-wrapper en la página de exámenes del profesor */
+.content-wrapper:has(.teacher-exams-page),
+.content-wrapper:has(.teacher-exams-loading) {
+  margin-left: 60px;
+  padding-top: 64px;
+  width: calc(100vw - 60px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .teacher-exams-loading {
@@ -12,6 +20,7 @@
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 64px);
+  width: 100%;
   background: #f8fafc;
   gap: 1rem;
 }
@@ -34,6 +43,7 @@
   padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: none;
 }
 
 .exams-controls-row {
@@ -41,6 +51,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .create-exam-button-main {
@@ -77,12 +88,15 @@
 /* Filter controls */
 .exams-filters {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   align-items: center;
   box-shadow: none !important;
   background: transparent !important;
   padding: 0 !important;
   margin-bottom: 0 !important;
+  flex-wrap: wrap;
+  border: none !important;
+  border-bottom: none !important;
 }
 
 .filter-btn {
@@ -190,23 +204,14 @@
 /* Exam card header */
 .exam-card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 1.25rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
 
-.exam-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  font-size: 1.5rem;
-}
+/* exam-icon removed - no longer needed */
 
 .exam-status {
   display: flex;
@@ -223,6 +228,7 @@
 /* Exam card body */
 .exam-card-body {
   padding: 1.5rem;
+  text-align: center;
 }
 
 .exam-title {
@@ -231,6 +237,7 @@
   color: #1f2937;
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
+  text-align: center;
 }
 
 .exam-description {
@@ -242,6 +249,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-align: center;
 }
 
 .exam-meta {
@@ -249,11 +257,13 @@
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1rem;
+  align-items: center;
 }
 
 .exam-info-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.875rem;
   color: #6b7280;
@@ -267,11 +277,12 @@
 .exam-created {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   font-size: 0.875rem;
   color: #9ca3af;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
+  text-align: center;
 }
 
 .exam-created i {
@@ -285,6 +296,7 @@
   padding: 1rem 1.5rem;
   background: #f9fafb;
   border-top: 1px solid #e5e7eb;
+  justify-content: center;
 }
 
 .exam-action-btn {
@@ -389,9 +401,14 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .teacher-exams-page {
+    padding: 1rem;
+  }
+  
+  /* Sin margen en móvil */
+  .content-wrapper:has(.teacher-exams-page),
+  .content-wrapper:has(.teacher-exams-loading) {
     margin-left: 0;
     width: 100vw;
-    padding: 1rem;
   }
   
   .exams-controls {

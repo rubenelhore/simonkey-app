@@ -1,8 +1,25 @@
+.student-exams-main {
+  padding: 2rem;
+  background: #f8fafc;
+  min-height: calc(100vh - 64px);
+  width: 100%;
+}
+
+/* Ajuste para el content-wrapper en la página de exámenes del estudiante */
+.content-wrapper:has(.student-exams-main) {
+  margin-left: 60px;
+  padding-top: 64px;
+  width: calc(100vw - 60px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .student-exams-page {
   padding: 0;
   width: 100%;
   background: transparent;
   min-height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .student-exams-loading {
@@ -152,14 +169,14 @@
 .exam-status {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
+  margin: 0 auto 1rem auto;
+  width: fit-content;
 }
 
 .exam-status.available {
@@ -192,7 +209,7 @@
   color: #1f2937;
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
-  padding-right: 140px; /* Space for status badge */
+  text-align: center;
 }
 
 .exam-description {
@@ -204,11 +221,12 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-align: center;
 }
 
 .exam-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 1rem;
   margin-top: 1rem;
@@ -548,8 +566,18 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
+  .student-exams-main {
+    padding: 1rem;
+  }
+
   .student-exams-page {
     padding: 0;
+  }
+  
+  /* Sin margen en móvil */
+  .content-wrapper:has(.student-exams-main) {
+    margin-left: 0;
+    width: 100vw;
   }
   
   .exams-filters {

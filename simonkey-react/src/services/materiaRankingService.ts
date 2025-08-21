@@ -102,14 +102,29 @@ export class MateriaRankingService {
           // Get student's KPIs for this materia
           let score = 0;
           try {
-            const kpisDoc = await getDoc(doc(db, 'users', studentId, 'kpis', 'metrics'));
+            // KPIs are stored in users/{userId}/kpis/dashboard
+            const kpisDoc = await getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard'));
             if (kpisDoc.exists()) {
               const kpisData = kpisDoc.data();
+              console.log(`📊 KPIs data for ${studentName}:`, {
+                hasMaterias: !!kpisData.materias,
+                materiaIds: kpisData.materias ? Object.keys(kpisData.materias) : [],
+                targetMateriaId: materiaId,
+                materiaData: kpisData.materias?.[materiaId]
+              });
+              
               // Check if this materia exists in their KPIs
               if (kpisData.materias && kpisData.materias[materiaId]) {
                 score = Math.ceil(kpisData.materias[materiaId].scoreMateria || 0);
-                console.log(`✅ Got student score: ${score}`);
+                console.log(`✅ Got student score from materia: ${score}`);
+              } else if (kpisData.global?.scoreGlobal) {
+                // Fallback to global score if materia score not found
+                console.log(`⚠️ No score for materia ${materiaId}, using global score`);
+                score = Math.ceil(kpisData.global.scoreGlobal || 0);
+                console.log(`✅ Got student global score: ${score}`);
               }
+            } else {
+              console.log(`⚠️ No KPIs document found for ${studentId} at path: users/${studentId}/kpis/dashboard`);
             }
           } catch (kpiError) {
             console.log(`⚠️ Could not read KPIs for ${studentId}:`, kpiError);

@@ -554,10 +554,6 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
                 <span className="stat-label">Movimientos</span>
                 <span className="stat-number">{moves}</span>
               </div>
-              <div className="stat-box">
-                <span className="stat-label">Mejor racha</span>
-                <span className="stat-number">{bestStreak}</span>
-              </div>
               <div className="stat-box highlight">
                 <span className="stat-label">Puntuación</span>
                 <span className="stat-number">{getScore()}</span>

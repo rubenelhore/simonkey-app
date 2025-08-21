@@ -23,14 +23,15 @@
 
 .modal-content.teacher-request-modal {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s ease;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0 !important;
   max-width: 600px;
   width: 90%;
+  border: none;
 }
 
 @keyframes slideUp {
@@ -52,6 +53,7 @@
   align-items: center;
   position: relative;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px 16px 0 0;
 }
 
 .teacher-request-modal .modal-header h2 {
@@ -100,6 +102,9 @@
 
 .modal-body {
   padding: 0;
+  max-height: calc(90vh - 80px);
+  overflow-y: auto;
+  border-radius: 0 0 16px 16px;
 }
 
 .info-section {

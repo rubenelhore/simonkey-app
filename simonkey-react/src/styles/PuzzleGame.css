@@ -568,7 +568,15 @@
   font-size: 2rem;
 }
 
-.back-to-games-btn {
+.game-complete-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.back-to-games-btn,
+.play-again-btn {
   padding: 12px 32px;
   border-radius: 12px;
   font-size: 1rem;
@@ -576,14 +584,27 @@
   cursor: pointer;
   transition: all 0.3s ease;
   border: none;
-  background: #6147ff;
   color: white;
+}
+
+.back-to-games-btn {
+  background: #6147ff;
+}
+
+.play-again-btn {
+  background: #10b981;
 }
 
 .back-to-games-btn:hover {
   background: #4c3bff;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
+}
+
+.play-again-btn:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* Confetti Animation */

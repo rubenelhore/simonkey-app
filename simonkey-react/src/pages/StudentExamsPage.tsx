@@ -289,8 +289,8 @@ const StudentExamsPage: React.FC = () => {
         subtitle="Todos tus exámenes disponibles"
         themeColor="#FF6B6B"
       />
-      <main className="notebooks-main notebooks-main-no-sidebar">
-        <div className="notebooks-list-section notebooks-list-section-full">
+      <div className="content-wrapper">
+        <main className="student-exams-main">
           <div className="student-exams-page">
         {(loading || authLoading) ? (
           <div className="student-exams-loading-content">
@@ -395,16 +395,6 @@ const StudentExamsPage: React.FC = () => {
           </div>
         ) : (
           <div className="empty-state-enhanced">
-            <div className="empty-state-illustration">
-              <div className="illustration-circle">
-                <i className="fas fa-clipboard-list"></i>
-              </div>
-              <div className="decoration-dots">
-                <span className="dot dot-1"></span>
-                <span className="dot dot-2"></span>
-                <span className="dot dot-3"></span>
-              </div>
-            </div>
             <h2 className="empty-state-title">
               {filter === 'all' 
                 ? '¡Tu espacio de exámenes está listo!'
@@ -447,8 +437,8 @@ const StudentExamsPage: React.FC = () => {
         </>
         )}
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </>
   );
 };

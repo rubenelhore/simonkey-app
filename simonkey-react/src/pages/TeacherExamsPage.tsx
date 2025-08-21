@@ -373,15 +373,6 @@ const TeacherExamsPage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="teacher-exams-loading">
-        <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
-        <p>Cargando exámenes...</p>
-      </div>
-    );
-  }
-
   const filteredExams = getFilteredAndSortedExams();
 
   return (
@@ -391,7 +382,14 @@ const TeacherExamsPage: React.FC = () => {
         subtitle="Gestiona todos tus exámenes"
         themeColor="#6147FF"
       />
-      <div className="teacher-exams-page">
+      <div className="content-wrapper">
+        {loading ? (
+          <div className="teacher-exams-loading">
+            <i className="fas fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#6147FF' }}></i>
+            <p>Cargando exámenes...</p>
+          </div>
+        ) : (
+        <div className="teacher-exams-page">
         {/* Controls section */}
         <div className="exams-controls">
           <div className="exams-controls-row">
@@ -413,17 +411,17 @@ const TeacherExamsPage: React.FC = () => {
                 <i className="fas fa-check-circle"></i>
                 Finalizados ({exams.filter(e => e.status === 'finished').length})
               </button>
+              
+              <button 
+                className="create-exam-button-main"
+                onClick={handleCreateExam}
+                disabled={materias.length === 0}
+                title={materias.length === 0 ? "Necesitas tener materias asignadas primero" : ""}
+              >
+                <i className="fas fa-plus"></i>
+                <span>Crear nuevo examen</span>
+              </button>
             </div>
-            
-            <button 
-              className="create-exam-button-main"
-              onClick={handleCreateExam}
-              disabled={materias.length === 0}
-              title={materias.length === 0 ? "Necesitas tener materias asignadas primero" : ""}
-            >
-              <i className="fas fa-plus"></i>
-              <span>Crear nuevo examen</span>
-            </button>
             
             <div className="search-container">
               <i className="fas fa-search search-icon"></i>
@@ -456,9 +454,6 @@ const TeacherExamsPage: React.FC = () => {
                 className={`teacher-exam-card ${exam.status}`}
               >
                 <div className="exam-card-header">
-                  <div className="exam-icon">
-                    <i className="fas fa-file-alt"></i>
-                  </div>
                   <div 
                     className="exam-status" 
                     style={{ backgroundColor: getStatusColor(exam.status || 'draft') }}
@@ -490,7 +485,6 @@ const TeacherExamsPage: React.FC = () => {
                   </div>
                   
                   <div className="exam-created">
-                    <i className="fas fa-calendar"></i>
                     <span>
                       Creado {formatDistanceToNow(exam.createdAt.toDate(), { addSuffix: true, locale: es })}
                     </span>
@@ -537,6 +531,8 @@ const TeacherExamsPage: React.FC = () => {
               }
             </p>
           </div>
+        )}
+      </div>
         )}
       </div>
 

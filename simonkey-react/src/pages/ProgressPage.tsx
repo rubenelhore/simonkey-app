@@ -474,6 +474,47 @@ const ProgressPage: React.FC = () => {
         });
       }
       
+      // Para usuarios regulares, si no hay materias pero hay KPIs de materias, extraerlas de ahí
+      if (!isSchoolUser && materiasArray.length === 0 && kpisData?.materias) {
+        console.log('[ProgressPage] Extrayendo materias de KPIs para usuario regular...');
+        const materiasFromKpis = Object.keys(kpisData.materias);
+        for (const materiaId of materiasFromKpis) {
+          // Intentar obtener el nombre de la materia desde Firestore
+          try {
+            const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+            if (materiaDoc.exists()) {
+              const materiaData = materiaDoc.data();
+              materiasArray.push({
+                id: materiaId,
+                nombre: materiaData.nombre || materiaData.title || 'Materia'
+              });
+            } else {
+              // Si no existe en Firestore, usar el ID como nombre
+              materiasArray.push({
+                id: materiaId,
+                nombre: materiaId
+              });
+            }
+          } catch (error) {
+            console.log(`[ProgressPage] Error obteniendo materia ${materiaId}:`, error);
+            // Usar el ID como fallback
+            materiasArray.push({
+              id: materiaId,
+              nombre: materiaId
+            });
+          }
+        }
+      }
+      
+      // Si aún no hay materias pero hay un score global, crear una materia general
+      if (materiasArray.length === 0 && kpisData?.global?.scoreGlobal > 0) {
+        console.log('[ProgressPage] Creando materia general basada en score global');
+        materiasArray.push({
+          id: 'general',
+          nombre: 'General'
+        });
+      }
+      
       console.log('[ProgressPage] Materias finales:', materiasArray);
       console.log('[ProgressPage] Total de materias encontradas:', materiasArray.length);
       materiasArray.forEach(m => console.log(`[ProgressPage] - Materia: ${m.nombre} (ID: ${m.id})`));
@@ -1618,7 +1659,7 @@ const ProgressPage: React.FC = () => {
             </div>
 
             {/* Módulo Lateral: Selector de Materias y Ranking */}
-            {materias.length > 0 && (
+            {(materias.length > 0 || kpisData?.global?.scoreGlobal > 0) && (
               <div className="progress-side-module">
               {materias.length === 0 ? (
                 <div className="no-materias-message">

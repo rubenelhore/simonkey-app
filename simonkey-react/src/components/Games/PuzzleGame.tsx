@@ -329,6 +329,32 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     }
   };
 
+  const restartGame = () => {
+    // Reset all game states
+    setGameStarted(false);
+    setGameCompleted(false);
+    setLevel(1);
+    setScore(0);
+    setCombo(0);
+    setMaxCombo(0);
+    setElapsedTime(0);
+    setCorrectPuzzles([]);
+    setCurrentConcepts([]);
+    setFragments([]);
+    setDraggedFragment(null);
+    setIsAnimating(false);
+    setPointsAwarded(false);
+    
+    // Start the game again
+    setTimeout(() => {
+      setGameStarted(true);
+      setStartTime(Date.now());
+      if (concepts.length > 0) {
+        startNewRound(concepts);
+      }
+    }, 100);
+  };
+
   const handleDragStart = (fragment: Fragment) => {
     setDraggedFragment(fragment);
   };
@@ -780,9 +806,14 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
               </div>
             </div>
 
-            <button className="back-to-games-btn" onClick={onBack}>
-              Volver a juegos
-            </button>
+            <div className="game-complete-buttons">
+              <button className="back-to-games-btn" onClick={onBack}>
+                Volver a juegos
+              </button>
+              <button className="play-again-btn" onClick={restartGame}>
+                Volver a jugar
+              </button>
+            </div>
           </div>
         </div>
       )}

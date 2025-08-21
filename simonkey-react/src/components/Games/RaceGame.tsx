@@ -59,6 +59,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const [processedGroups, setProcessedGroups] = useState<Set<string>>(new Set());
   const [showIntro, setShowIntro] = useState(true);
+  const [trackFlash, setTrackFlash] = useState(false);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -74,10 +75,10 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
   const screenWidth = window.innerWidth;
   const runnerPositionFromRight = isMobile ? 20 : 80; // Runner is 20px from right on mobile
   
-  const HURDLE_SPEED = isMobile ? 0.5 : 1.5; // Much slower speed on mobile for full track visibility
+  const HURDLE_SPEED = isMobile ? 1.2 : 2.0; // Adjusted speed for better sync
   const COLLISION_ZONE = isMobile ? (screenWidth - runnerPositionFromRight - 40) : 750; // Dynamic collision based on screen width
   const SPAWN_POSITION = -150; // Starting position for hurdles (off screen left)
-  const SPAWN_FREQUENCY = isMobile ? 7000 : 4500; // Much more time between spawns on mobile
+  const SPAWN_FREQUENCY = isMobile ? 5500 : 4000; // Better spacing between spawns
   const MAX_QUESTIONS = 8; // Total questions per game
 
   // Conceptos se cargan directamente desde el botón "Comenzar Carrera"
@@ -252,6 +253,12 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
       return;
     }
     
+    // Don't spawn if there are still hurdles too close to the start
+    if (hurdles.some(h => h.position < 300)) {
+      console.log('⚠️ Esperando que las barreras actuales avancen más');
+      return;
+    }
+    
     // Select a random concept for the correct answer
     const correctIndex = Math.floor(Math.random() * currentConcepts.length);
     const correct = currentConcepts[correctIndex];
@@ -313,8 +320,8 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         position: hurdle.position + HURDLE_SPEED
       }));
       
-      // Check for collisions - adjust detection range based on speed
-      const detectionRange = isMobile ? 20 : 40; // Even smaller range for mobile for precise detection
+      // Check for collisions - tighter detection range for better sync
+      const detectionRange = isMobile ? 15 : 25; // Tighter range for more precise collision
       const hurdlesInCollisionZone = updated.filter(hurdle => 
         hurdle.position >= COLLISION_ZONE - detectionRange && 
         hurdle.position <= COLLISION_ZONE + detectionRange &&
@@ -354,6 +361,11 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         setMaxCombo(combo + 1);
       }
       setShowResult('correct');
+      
+      // Trigger green flash on track
+      setTrackFlash(true);
+      setTimeout(() => setTrackFlash(false), 600);
+      
       setQuestionsAnswered(prev => {
         const newCount = prev + 1;
         if (newCount >= MAX_QUESTIONS) {
@@ -456,6 +468,33 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
     
     // Spawn first question when game starts, but wait a bit longer for concepts to load
     setTimeout(() => spawnNewQuestion(), 1000);
+  };
+  
+  const restartGame = () => {
+    console.log('🔄 Reiniciando juego...');
+    // Reset all game states
+    setGameStarted(false);
+    setGameOver(false);
+    setScore(0);
+    setLives(3);
+    setCombo(0);
+    setMaxCombo(0);
+    setElapsedTime(0);
+    setQuestionsAnswered(0);
+    setHurdles([]);
+    setCurrentDefinition('');
+    setCorrectConcept(null);
+    setIsJumping(false);
+    setPointsAwarded(false);
+    setProcessedGroups(new Set());
+    setShowResult(null);
+    setRunnerLane(1); // Reset to middle lane
+    setTrackFlash(false);
+    
+    // Start the game again after a brief delay
+    setTimeout(() => {
+      startGame();
+    }, 100);
   };
 
   const endGame = async (completed: boolean) => {
@@ -661,7 +700,7 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
         </div>
       )}
 
-      <div className="race-track">
+      <div className={`race-track ${trackFlash ? 'success-flash' : ''}`}>
         <div className="track-background">
           <div className="parallax-layer clouds"></div>
           <div className="parallax-layer trees"></div>
@@ -749,15 +788,17 @@ const RaceGame: React.FC<RaceGameProps> = ({ notebookId, notebookTitle, onBack, 
               <span className="label">Conceptos:</span>
               <span className="value">{questionsAnswered}</span>
             </div>
-            <div className="final-stat">
-              <span className="label">Mejor Combo:</span>
-              <span className="value">x{maxCombo}</span>
-            </div>
           </div>
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-            <span>Volver a Juegos</span>
-          </button>
+          <div className="game-over-buttons">
+            <button className="back-button" onClick={onBack}>
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>Volver a Juegos</span>
+            </button>
+            <button className="play-again-button" onClick={restartGame}>
+              <FontAwesomeIcon icon={faRunning} />
+              <span>Volver a Jugar</span>
+            </button>
+          </div>
         </div>
       )}
       </div>
