@@ -109,8 +109,8 @@ const TeacherExamsPage: React.FC = () => {
       
       // Cargar materias del profesor
       const materiasQuery = query(
-        collection(db, 'schoolSubjects'),
-        where('idProfesor', '==', userProfile.id || user.uid)
+        collection(db, 'materias'),
+        where('userId', '==', user.uid)
       );
       const materiasSnap = await getDocs(materiasQuery);
       
@@ -119,7 +119,7 @@ const TeacherExamsPage: React.FC = () => {
         const data = doc.data();
         materiasData.push({
           id: doc.id,
-          nombre: data.nombre,
+          nombre: data.title,
           color: data.color || '#6147FF'
         });
       });
@@ -129,8 +129,8 @@ const TeacherExamsPage: React.FC = () => {
       
       // Cargar exámenes del profesor
       const examsQuery = query(
-        collection(db, 'schoolExams'),
-        where('idProfesor', '==', userProfile.id || user.uid)
+        collection(db, 'exams'),
+        where('idProfesor', '==', user.uid)
       );
       const examsSnap = await getDocs(examsQuery);
       
@@ -233,7 +233,7 @@ const TeacherExamsPage: React.FC = () => {
     }
 
     try {
-      await deleteDoc(doc(db, 'schoolExams', examId));
+      await deleteDoc(doc(db, 'exams', examId));
       console.log('🗑️ [TeacherExams] Examen eliminado:', examId);
       
       // Actualizar la lista local

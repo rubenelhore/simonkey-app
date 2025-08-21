@@ -256,8 +256,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares y materias inscritas */}
-            {!isSchoolStudent && !isEnrolled && (
+            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares y materias inscritas, pero visible para profesores en sus materias */}
+            {((!isSchoolStudent && !isEnrolled) || (isTeacher && !isEnrolled)) && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}

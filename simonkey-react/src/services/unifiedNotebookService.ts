@@ -337,6 +337,38 @@ export class UnifiedNotebookService {
   }
   
   /**
+   * Obtiene notebooks regulares para un profesor (no escolares)
+   */
+  static async getRegularTeacherNotebooks(materiaIds: string[], userId: string): Promise<Notebook[]> {
+    if (!materiaIds || materiaIds.length === 0) {
+      return [];
+    }
+    
+    const notebooks: Notebook[] = [];
+    
+    // Buscar en notebooks regulares por materia y usuario
+    const notebooksQuery = query(
+      collection(db, 'notebooks'),
+      where('materiaId', 'in', materiaIds),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const notebooksSnapshot = await getDocs(notebooksQuery);
+    
+    notebooksSnapshot.forEach(doc => {
+      const data = doc.data();
+      notebooks.push({
+        id: doc.id,
+        type: 'personal',
+        ...data
+      } as Notebook);
+    });
+    
+    return notebooks;
+  }
+
+  /**
    * Helper para determinar si un usuario es escolar
    */
   static isSchoolUser(userProfile: any): boolean {

@@ -1518,7 +1518,7 @@ const NotebookDetail = () => {
               ) : materials.length > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {/* Botón + para subir otro documento */}
-                  {((!isSchoolStudent && !isSchoolAdmin) || isTeacher) && (
+                  {((!isSchoolStudent && !isSchoolAdmin) || isTeacher) && cuaderno && cuaderno.userId === auth.currentUser?.uid && (
                     <button
                       onClick={() => setIsModalOpen(true)}
                       style={{
@@ -2328,24 +2328,26 @@ const NotebookDetail = () => {
               >
                 Cerrar
               </button>
-              <button
-                onClick={() => {
-                  setErrorModal({ ...errorModal, isOpen: false });
-                  setIsModalOpen(true);
-                }}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#6147FF',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Subir otro documento
-              </button>
+              {cuaderno && cuaderno.userId === auth.currentUser?.uid && (
+                <button
+                  onClick={() => {
+                    setErrorModal({ ...errorModal, isOpen: false });
+                    setIsModalOpen(true);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#6147FF',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Subir otro documento
+                </button>
+              )}
             </div>
           </div>
         </div>,

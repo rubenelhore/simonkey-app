@@ -74,7 +74,8 @@ const CreateExamModal: React.FC<CreateExamModalProps> = ({
         }
 
         // Cargar notebooks de la materia usando UnifiedNotebookService
-        const teacherNotebooks = await UnifiedNotebookService.getTeacherNotebooks([selectedMateriaId]);
+        // Para profesores regulares, usar notebooks regulares
+        const teacherNotebooks = await UnifiedNotebookService.getRegularTeacherNotebooks([selectedMateriaId], auth.currentUser?.uid || '');
         
         const notebooksData = [];
         for (const notebook of teacherNotebooks) {

@@ -115,10 +115,36 @@ const Materias: React.FC = () => {
       console.log('  - isSchoolStudent:', isSchoolStudent);
       console.log('  - isSchoolAdmin:', isSchoolAdmin);
       
-      if (!user) {
-        console.log('  ❌ No hay usuario, saliendo');
+      if (!user || authLoading) {
+        console.log('  ❌ No hay usuario o aún cargando auth, saliendo');
+        setLoading(false);
         return;
       }
+      
+      // Verificar que el usuario tenga un token válido antes de hacer consultas
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.log('  ❌ No hay currentUser en Firebase Auth, esperando...');
+        setLoading(false);
+        return;
+      }
+
+      // Verificar que el token del usuario no esté expirado
+      try {
+        await currentUser.getIdToken(false); // false = no force refresh, solo verificar
+        console.log('  ✅ Token de usuario válido');
+      } catch (error) {
+        console.log('  ⚠️ Error verificando token, refrescando...', error);
+        try {
+          await currentUser.getIdToken(true); // true = force refresh
+          console.log('  ✅ Token refrescado exitosamente');
+        } catch (refreshError) {
+          console.log('  ❌ Error refrescando token:', refreshError);
+          setLoading(false);
+          return;
+        }
+      }
+      
       // Ya no verificamos isSchoolStudent, isTeacher, isSchoolAdmin
       // porque el sistema escolar fue migrado
       
@@ -167,7 +193,8 @@ const Materias: React.FC = () => {
               createdAt: docSnap.data().createdAt?.toDate() || new Date(),
               updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
               notebookCount: notebookCountMap[docSnap.id] || 0,
-              studentCount: 0
+              studentCount: 0,
+              isEnrolled: false // Materia propia del usuario (no inscrita)
             };
             
             // Si es profesor, contar estudiantes inscritos en esta materia
@@ -273,7 +300,32 @@ const Materias: React.FC = () => {
 
         setMaterias(materiasWithProgress);
         setError(null);
+        console.log('  ✅ Materias cargadas exitosamente:', materiasWithProgress.length);
       } catch (err) {
+        console.error('❌ Error cargando materias:', err);
+        
+        // Verificar si es un error de permisos de Firestore
+        if (err instanceof Error) {
+          if (err.message.includes('Missing or insufficient permissions')) {
+            console.error('🔒 Error de permisos - verificando autenticación...');
+            // Intentar obtener token fresco
+            try {
+              const currentUser = auth.currentUser;
+              if (currentUser) {
+                await currentUser.getIdToken(true);
+                console.log('🔄 Token refrescado, reintentando en 1 segundo...');
+                // Reintentar después de un breve delay
+                setTimeout(() => {
+                  setRefreshTrigger(prev => prev + 1);
+                }, 1000);
+                return;
+              }
+            } catch (tokenError) {
+              console.error('❌ Error refrescando token:', tokenError);
+            }
+          }
+        }
+        
         setError(err as Error);
       } finally {
         console.log('  ✅ Finalizando carga de materias, setLoading(false)');
@@ -281,7 +333,7 @@ const Materias: React.FC = () => {
       }
     };
     loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent, isTeacher, isSchoolAdmin]);
+  }, [user, refreshTrigger, isSchoolStudent, isTeacher, isSchoolAdmin, authLoading]);
 
   // Log para debugging
   console.log('🔍 Materias - Estado actual del componente:', {
@@ -444,74 +496,7 @@ const Materias: React.FC = () => {
     loadStudentMateriasWithConcepts();
   }, [isSchoolStudent, schoolSubjects, schoolNotebooks, schoolLoading, user, userProfile]);
 
-  // Efecto específico para profesores escolares
-  useEffect(() => {
-    const loadTeacherMaterias = async () => {
-      if (!isTeacher || !user || !userProfile) return;
-      
-      console.log('👨‍🏫 Cargando materias para profesor escolar');
-      setLoading(true);
-      
-      try {
-        // Cargar materias asignadas al profesor
-        const materiasQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idProfesor', '==', user.uid)
-        );
-        
-        const materiasSnapshot = await getDocs(materiasQuery);
-        
-        // Cargar notebooks para contar cuántos hay por materia
-        const notebooksQuery = query(
-          collection(db, 'schoolNotebooks'),
-          where('idProfesor', '==', user.uid)
-        );
-        
-        const notebooksSnapshot = await getDocs(notebooksQuery);
-        console.log('📚 Total notebooks del profesor:', notebooksSnapshot.size);
-        
-        // Crear mapa de conteo de notebooks
-        const notebookCountMap: Record<string, number> = {};
-        notebooksSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          const idMateria = data.idMateria;
-          console.log(`  - Notebook ${doc.id}: idMateria=${idMateria}, title=${data.title}`);
-          if (idMateria) {
-            notebookCountMap[idMateria] = (notebookCountMap[idMateria] || 0) + 1;
-          }
-        });
-        console.log('📊 Conteo de notebooks por materia:', notebookCountMap);
-        
-        // Construir las materias del profesor
-        const teacherMaterias: Materia[] = materiasSnapshot.docs.map(docSnap => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            title: data.nombre,
-            color: data.color || '#6147FF',
-            category: '',
-            userId: user.uid,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            notebookCount: notebookCountMap[docSnap.id] || 0
-          };
-        });
-        
-        console.log('👨‍🏫 Materias del profesor cargadas:', teacherMaterias.length);
-        setMaterias(teacherMaterias);
-        setError(null);
-        console.log('👨‍🏫 About to set loading to false');
-        setLoading(false);
-        console.log('👨‍🏫 Loading should now be false');
-      } catch (error) {
-        console.error('Error loading teacher materias:', error);
-        setError(error as Error);
-        setLoading(false);
-      }
-    };
-    
-    loadTeacherMaterias();
-  }, [isTeacher, user, userProfile, refreshTrigger]);
+  // NOTA: useEffect para profesores escolares eliminado - sistema escolar deprecado
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -1116,7 +1101,7 @@ const Materias: React.FC = () => {
               onClearSelectedCategory={() => {}}
               onRefreshCategories={() => setRefreshTrigger(prev => prev + 1)}
               isAdminView={true}
-              isSchoolTeacher={isTeacher}
+              isTeacher={isTeacher}
             />
             {selectedTeacher && selectedStudents.length > 0 && adminMaterias.length === 0 && (
               <div className="no-materias-message">
@@ -1282,10 +1267,10 @@ const Materias: React.FC = () => {
           ) : (
             <MateriaList 
               materias={materias}
-              onDeleteMateria={isSchoolStudent || isTeacher ? undefined : handleDelete}
-              onEditMateria={isSchoolStudent || isTeacher ? undefined : handleEdit}
-              onColorChange={isSchoolStudent || isTeacher ? undefined : handleColorChange}
-              onCreateMateria={isSchoolStudent || isTeacher ? undefined : handleCreate}
+              onDeleteMateria={isSchoolStudent ? undefined : handleDelete}
+              onEditMateria={isSchoolStudent ? undefined : handleEdit}
+              onColorChange={isSchoolStudent ? undefined : handleColorChange}
+              onCreateMateria={isSchoolStudent ? undefined : handleCreate}
               onViewMateria={handleView}
               onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
               showCreateButton={!isSchoolStudent && !isTeacher}
@@ -1294,8 +1279,7 @@ const Materias: React.FC = () => {
               setShowCreateModal={setShowCreateModal}
               examsByMateria={examsByMateria}
               isSchoolStudent={isSchoolStudent}
-              isSchoolTeacher={isTeacher}
-              isTeacher={userProfile?.isTeacher === true}
+              isTeacher={isTeacher}
               showCategoryModal={showCategoryModal}
               onCloseCategoryModal={() => setShowCategoryModal(false)}
               onClearSelectedCategory={handleClearSelectedCategory}

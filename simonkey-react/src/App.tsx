@@ -60,6 +60,7 @@ import AboutSimonkeyInline from './components/AboutSimonkeyInline';
 // Sistema de profesores independientes
 import TeacherMateriaRedirect from './components/TeacherMateriaRedirect';
 import TeacherExamsPage from './pages/TeacherExamsPage';
+import TeacherAnalyticsPage from './components/analytics/TeacherAnalyticsPage';
 import CalendarPage from './pages/CalendarPage';
 import StudentExamsPage from './pages/StudentExamsPage';
 import ExamPage from './pages/ExamPage';
@@ -793,7 +794,14 @@ const AppContent: React.FC = () => {
           <Route path="/exams" element={
             isAuthenticated ? (
               <EmailVerificationGuard>
-                <StudentExamsPage />
+                {isTeacher ? <TeacherExamsPage /> : <StudentExamsPage />}
+              </EmailVerificationGuard>
+            ) : <Navigate to="/login" replace />
+          } />
+          <Route path="/classAnalytics" element={
+            isAuthenticated ? (
+              <EmailVerificationGuard>
+                <TeacherAnalyticsPage />
               </EmailVerificationGuard>
             ) : <Navigate to="/login" replace />
           } />

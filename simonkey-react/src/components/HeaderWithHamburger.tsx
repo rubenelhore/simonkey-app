@@ -27,7 +27,8 @@ import {
   faFileAlt,
   faKey,
   faBars,
-  faChalkboardTeacher
+  faChalkboardTeacher,
+  faBrain
 } from '@fortawesome/free-solid-svg-icons';
 import TeacherRequestModal from './TeacherRequestModal';
 import { teacherService } from '../services/teacherService';
@@ -580,20 +581,36 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 {showSidebarText && <span>Materias</span>}
               </button>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/school/teacher/exams' ? 'active' : ''}`} 
-                onClick={() => navigate('/school/teacher/exams')}
+                className={`sidebar-icon-btn ${location.pathname === '/study' ? 'active' : ''}`} 
+                onClick={() => navigate('/study')}
+                title="Estudiar"
+              >
+                <FontAwesomeIcon icon={faGraduationCap} />
+                {showSidebarText && <span>Estudiar</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/progress' ? 'active' : ''}`} 
+                onClick={() => navigate('/progress')}
+                title="Progreso"
+              >
+                <FontAwesomeIcon icon={faChartLine} />
+                {showSidebarText && <span>Progreso</span>}
+              </button>
+              <button 
+                className={`sidebar-icon-btn ${location.pathname === '/exams' ? 'active' : ''}`} 
+                onClick={() => navigate('/exams')}
                 title="Mis exámenes"
               >
                 <FontAwesomeIcon icon={faFileAlt} />
                 {showSidebarText && <span>Mis exámenes</span>}
               </button>
               <button 
-                className={`sidebar-icon-btn ${location.pathname === '/school/teacher/analytics' ? 'active' : ''}`} 
-                onClick={() => navigate('/school/teacher/analytics')}
-                title="Analítica"
+                className={`sidebar-icon-btn ${location.pathname === '/classAnalytics' ? 'active' : ''}`} 
+                onClick={() => navigate('/classAnalytics')}
+                title="Analítica de Clase"
               >
-                <FontAwesomeIcon icon={faChartLine} />
-                {showSidebarText && <span>Analítica</span>}
+                <FontAwesomeIcon icon={faBrain} />
+                {showSidebarText && <span>Analítica de Clase</span>}
               </button>
               <button 
                 className={`sidebar-icon-btn ${location.pathname === '/calendar' ? 'active' : ''}`} 
