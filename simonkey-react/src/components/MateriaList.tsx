@@ -194,6 +194,12 @@ const MateriaList: React.FC<MateriaListProps> = ({
   };
 
   const handleToggleActions = (materiaId: string) => {
+    // Si se pasa string vacío, siempre cerrar (usado para forzar cierre)
+    if (materiaId === '') {
+      setOpenActionsId(null);
+      return;
+    }
+    
     if (openActionsId === materiaId) {
       setOpenActionsId(null);
     } else {

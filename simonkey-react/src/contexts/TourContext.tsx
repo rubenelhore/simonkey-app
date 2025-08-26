@@ -165,12 +165,10 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     
-    // Solo activar el tour si:
-    // 1. El usuario NO ha completado el onboarding
-    // 2. El email YA está verificado (para evitar que se encime con la pantalla de verificación)
-    const shouldShowTour = userProfile.hasCompletedOnboarding === false && isEmailVerified === true;
+    // TEMPORALMENTE DESACTIVADO: No mostrar el tour introductorio por el momento
+    const shouldShowTour = false; // userProfile.hasCompletedOnboarding === false && isEmailVerified === true;
     
-    console.log('🎯 TourContext - Verificando si mostrar tour:', {
+    console.log('🎯 TourContext - Tour desactivado temporalmente:', {
       hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
       isEmailVerified,
       shouldShowTour,

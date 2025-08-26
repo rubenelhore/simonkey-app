@@ -167,6 +167,8 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     console.log('Editando cuaderno:', title, 'editableTitle:', editableTitle);
     setEditableTitle(title);
     setIsEditing(true);
+    // Cerrar el menú desplegable - pasar null para cerrar cualquier menú abierto
+    onToggleActions('');
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

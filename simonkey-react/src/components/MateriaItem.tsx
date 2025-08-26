@@ -110,6 +110,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
     e.stopPropagation();
     setEditableTitle(title);
     setIsEditing(true);
+    // Cerrar el menú desplegable - pasar string vacío para forzar cierre
+    onToggleActions('');
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

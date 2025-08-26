@@ -401,20 +401,10 @@ const NotebookDetail = () => {
                 );
                 
                 // Determinar de quién cargar los datos de aprendizaje
-                // Para profesores: usar el dueño del notebook o de los conceptos
-                // Para estudiantes: usar el usuario actual
-                let targetUserId = auth.currentUser!.uid;
-                
-                if (isTeacher || isSchoolAdmin) {
-                  // Primero intentar con el userId del primer documento de conceptos
-                  if (conceptosData.length > 0 && conceptosData[0].usuarioId) {
-                    targetUserId = conceptosData[0].usuarioId;
-                  } 
-                  // Si no, intentar con el userId del notebook
-                  else if (notebook && notebook.userId) {
-                    targetUserId = notebook.userId;
-                  }
-                }
+                // IMPORTANTE: Siempre usar el usuario actual para que cada persona vea SU PROPIO dominio
+                // Profesores ven SU dominio de los conceptos, no el del estudiante
+                // Estudiantes ven SU propio dominio
+                const targetUserId = auth.currentUser!.uid;
                 
                 console.log('📊 Cargando datos de aprendizaje para usuario:', targetUserId);
                 

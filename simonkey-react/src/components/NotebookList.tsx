@@ -515,6 +515,12 @@ const NotebookList: React.FC<NotebookListProps> = ({
   };
 
   const handleToggleActions = (notebookId: string) => {
+    // Si se pasa string vacío, siempre cerrar (usado para forzar cierre)
+    if (notebookId === '') {
+      setOpenActionsId(null);
+      return;
+    }
+    
     // Si se hace clic en el mismo cuaderno que ya está abierto, cerrarlo
     if (openActionsId === notebookId) {
       setOpenActionsId(null);

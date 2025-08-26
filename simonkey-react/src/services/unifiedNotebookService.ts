@@ -90,9 +90,9 @@ export class UnifiedNotebookService {
    * Obtiene notebooks para un profesor basados en sus materias
    */
   static async getTeacherNotebooks(materiaIds: string[], teacherId?: string): Promise<Notebook[]> {
-    // console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
-    // console.log('  - materiaIds:', materiaIds);
-    // console.log('  - teacherId:', teacherId);
+    console.log('🔍 UnifiedNotebookService.getTeacherNotebooks - Iniciando');
+    console.log('  - materiaIds:', materiaIds);
+    console.log('  - teacherId:', teacherId);
     
     if (!materiaIds || materiaIds.length === 0) {
       console.log('  ❌ No hay materiaIds, retornando array vacío');
@@ -101,53 +101,41 @@ export class UnifiedNotebookService {
     
     const notebooks: Notebook[] = [];
     
-    // Buscar en notebooks - filtrar por materia Y profesor si se proporciona
-    let constraints: any[] = [
-      where('materiaId', 'in', materiaIds),
-      orderBy('createdAt', 'desc')
-    ];
+    // Hacer un query simple por materiaId
+    console.log('  📖 Ejecutando query para obtener notebooks de las materias');
     
-    // Si se proporciona teacherId, filtrar también por userId
-    if (teacherId) {
-      constraints = [
-        where('materiaId', 'in', materiaIds),
-        where('userId', '==', teacherId),
-        orderBy('createdAt', 'desc')
-      ];
-    }
-    
-    const notebooksQuery = query(
+    const simpleQuery = query(
       collection(db, 'notebooks'),
-      ...constraints
+      where('materiaId', 'in', materiaIds)
     );
     
-    // console.log('  📖 Ejecutando query en notebooks');
-    // console.log('     Query: where materiaId in', materiaIds);
-    // if (teacherId) {
-    //   console.log('     Query: where userId ==', teacherId);
-    // }
-    
-    let notebooksSnapshot;
     try {
-      notebooksSnapshot = await getDocs(notebooksQuery);
-      // console.log('  📊 Documentos encontrados con query compuesto:', notebooksSnapshot.size);
-    } catch (error) {
-      console.error('  ❌ Error con query compuesto:', error);
-      console.log('  🔄 Intentando query alternativo...');
+      const notebooksSnapshot = await getDocs(simpleQuery);
+      console.log('  📊 Documentos encontrados con query por materiaId:', notebooksSnapshot.size);
       
-      // Si falla el query compuesto, hacer un query más simple y filtrar manualmente
-      const simpleQuery = query(
-        collection(db, 'notebooks'),
-        where('materiaId', 'in', materiaIds)
-      );
-      
-      notebooksSnapshot = await getDocs(simpleQuery);
-      console.log('  📊 Documentos encontrados con query simple:', notebooksSnapshot.size);
-      
-      // Filtrar manualmente por profesor si es necesario
       notebooksSnapshot.forEach(doc => {
         const data = doc.data();
-        if (!teacherId || data.userId === teacherId) {
+        
+        // Si se proporciona teacherId, filtrar por él
+        if (teacherId) {
+          console.log(`  🔍 Revisando notebook con filtro por teacherId: ${doc.id}`);
+          console.log(`     - title: ${data.title}`);
+          console.log(`     - materiaId: ${data.materiaId}`);
+          console.log(`     - userId del notebook: ${data.userId}`);
+          console.log(`     - teacherId buscado: ${teacherId}`);
+          console.log(`     - ¿Coinciden?: ${data.userId === teacherId}`);
+          
+          if (data.userId === teacherId) {
+            console.log(`  ✅ Notebook del profesor encontrado: ${doc.id}`);
+            notebooks.push({
+              id: doc.id,
+              ...data
+            } as Notebook);
+          } else {
+            console.log(`  ❌ Este notebook no es del profesor actual`);
+          }
+        } else {
+          // Sin teacherId, incluir todos los notebooks de la materia
           console.log(`  📓 Notebook encontrado: ${doc.id}`);
           console.log(`     - title: ${data.title}`);
           console.log(`     - materiaId: ${data.materiaId}`);
@@ -159,23 +147,25 @@ export class UnifiedNotebookService {
         }
       });
       
-      console.log('  ✅ Total notebooks después de filtrar manualmente:', notebooks.length);
-      return notebooks;
+      if (teacherId) {
+        console.log(`  ✅ Total notebooks del profesor ${teacherId}:`, notebooks.length);
+      } else {
+        console.log(`  ✅ Total notebooks de las materias:`, notebooks.length);
+      }
+    } catch (error) {
+      console.error('  ❌ Error ejecutando query:', error);
     }
     
-    notebooksSnapshot.forEach(doc => {
-      const data = doc.data();
-      // console.log(`  📓 Notebook encontrado: ${doc.id}`);
-      // console.log(`     - title: ${data.title}`);
-      // console.log(`     - materiaId: ${data.materiaId}`);
-      // console.log(`     - userId: ${data.userId}`);
-      notebooks.push({
-        id: doc.id,
-        ...data
-      } as Notebook);
-    });
+    // Ordenar manualmente si tenemos notebooks
+    if (notebooks.length > 0) {
+      notebooks.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+    }
     
-    // console.log('  ✅ Total notebooks retornados:', notebooks.length);
+    console.log('  ✅ Total notebooks retornados:', notebooks.length);
     return notebooks;
   }
   

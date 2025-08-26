@@ -388,8 +388,9 @@ const Notebooks: React.FC = () => {
       setAdminNotebooksLoading(true);
       try {
         // Usar el servicio unificado para obtener notebooks del profesor/materia
-        // Para profesores, pasar su ID para filtrar solo sus notebooks
-        const teacherId = isTeacher ? user?.uid : undefined;
+        // Los profesores deben ver TODOS los notebooks de la materia, no solo los suyos
+        // Solo pasamos teacherId si NO es profesor (para admin escolar)
+        const teacherId = undefined; // Profesores ven todos los notebooks de la materia
         
         // Check if materiaId contains multiple IDs (comma-separated)
         const materiaIds = materiaId.split(',').filter(id => id.trim());
