@@ -11,6 +11,7 @@ import { Concept } from '../types/interfaces';
 import { useUserType } from '../hooks/useUserType';
 import { decodeNotebookName, encodeNotebookName } from '../utils/urlUtils';
 import { extractNotebookId } from '../utils/slugify';
+import HeaderWithHamburger from '../components/HeaderWithHamburger';
 
 const ConceptDetail: React.FC = () => {
   const { notebookName, conceptoId, index } = useParams<{ 
@@ -410,8 +411,15 @@ const ConceptDetail: React.FC = () => {
         }
       });
       
+      // IMPORTANTE: Ordenar alfabéticamente igual que en NotebookDetail
+      conceptosArray.sort((a, b) => {
+        const terminoA = a.concepto?.término || '';
+        const terminoB = b.concepto?.término || '';
+        return terminoA.localeCompare(terminoB, 'es');
+      });
+      
       console.log('📊 Listener detectó cambio - Total conceptos en cuaderno:', totalConceptos, 'Anterior:', totalConcepts);
-      console.log('📋 Array de conceptos globales:', conceptosArray);
+      console.log('📋 Array de conceptos globales (ordenados alfabéticamente):', conceptosArray);
       
       setTotalConcepts(totalConceptos);
       setAllConcepts(conceptosArray);
@@ -474,13 +482,23 @@ const ConceptDetail: React.FC = () => {
     if (idx !== -1) {
       console.log('🔄 Sincronizando globalIndex:', idx, 'para concepto:', conceptoId, 'índice local:', index);
       console.log('📋 Total de conceptos en allConcepts:', allConcepts.length);
-      console.log('📍 Posición actual:', idx + 1, 'de', allConcepts.length);
+      console.log('📍 Posición actual en orden alfabético:', idx + 1, 'de', allConcepts.length);
+      
+      // Mostrar el concepto actual para debug
+      const currentConcept = allConcepts[idx];
+      console.log('📖 Concepto actual:', currentConcept.concepto?.término);
+      
       setGlobalIndex(idx);
     } else {
       console.error('❌ No se encontró el concepto en allConcepts', {
         conceptoId,
         index,
-        allConceptsLength: allConcepts.length
+        allConceptsLength: allConcepts.length,
+        allConcepts: allConcepts.map(c => ({ 
+          docId: c.conceptoId, 
+          localIdx: c.localIndex, 
+          term: c.concepto?.término 
+        }))
       });
     }
   }, [allConcepts, conceptoId, index]);
@@ -911,21 +929,19 @@ const ConceptDetail: React.FC = () => {
   // console.log('✅ Renderizando concepto:', concepto?.término);
 
   return (
-    <div className="concept-detail-container">
-      <header className="concept-detail-header">
-        <div className="header-content">
-          <div className="breadcrumb">
-            <button 
-              onClick={() => navigateToNotebook(notebookId || '')}
-              className="back-button"
-            >
-              <i className="fas fa-arrow-left"></i>
-            </button>
-            <h1 className="centered-title">{cuaderno.title} - Conceptos</h1>
-          </div>
-        </div>
-      </header>
-      <main className="concept-detail-main">
+    <>
+      <HeaderWithHamburger title={`${cuaderno.title} - Conceptos`} />
+      <div className="concept-detail-container">
+        <main className="concept-detail-main">
+        {/* Botón de regreso al cuaderno */}
+        <button 
+          onClick={() => navigateToNotebook(notebookId || '')}
+          className="back-button-notebook"
+          title="Volver al cuaderno"
+        >
+          <i className="fas fa-arrow-left"></i>
+        </button>
+        
         {/* Controles de navegación entre conceptos */}
         <div className="concept-navigation">
           <button 
@@ -1126,7 +1142,8 @@ const ConceptDetail: React.FC = () => {
           */}
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 };
 

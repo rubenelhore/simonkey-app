@@ -1841,10 +1841,21 @@ const NotebookDetail = () => {
                     </div>
                   )}
                   
-                  {conceptosDocs.flatMap((doc) => 
-                    doc.conceptos
-                      .sort((a, b) => a.término.localeCompare(b.término, 'es')) // Ordenar alfabéticamente
-                      .map((concepto, conceptIndex) => {
+                  {conceptosDocs.flatMap((doc) => {
+                    // Primero, crear un array con los conceptos y sus índices originales
+                    const conceptosConIndices = doc.conceptos.map((concepto, originalIndex) => ({
+                      concepto,
+                      originalIndex,
+                      docId: doc.id
+                    }));
+                    
+                    // Luego ordenar alfabéticamente
+                    const conceptosOrdenados = [...conceptosConIndices].sort((a, b) => 
+                      a.concepto.término.localeCompare(b.concepto.término, 'es')
+                    );
+                    
+                    return conceptosOrdenados.map((item) => {
+                      const { concepto, originalIndex, docId } = item;
                       const trafficLightColor = getTrafficLightColor(concepto.id);
                       
                       // Filtrar según el filtro de dominio seleccionado
@@ -1860,26 +1871,26 @@ const NotebookDetail = () => {
                       
                       return (
                         <div 
-                          key={`${doc.id}-${conceptIndex}`}
+                          key={`${docId}-${originalIndex}`}
                           className={`concept-card traffic-light-${trafficLightColor}`}
                           onClick={() => {
                             // Mantener el contexto de materia si existe
                             const materiaMatch = window.location.pathname.match(/\/materias\/([^\/]+)/);
                             if (materiaMatch) {
                               const urlMateriaId = materiaMatch[1];
-                              navigate(`/materias/${urlMateriaId}/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/materias/${urlMateriaId}/notebooks/${notebookName}/concepto/${docId}/${originalIndex}`);
                             } else if (materiaId) {
-                              navigate(`/materias/${materiaId}/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/materias/${materiaId}/notebooks/${notebookName}/concepto/${docId}/${originalIndex}`);
                             } else {
-                              navigate(`/notebooks/${notebookName}/concepto/${doc.id}/${conceptIndex}`);
+                              navigate(`/notebooks/${notebookName}/concepto/${docId}/${originalIndex}`);
                             }
                           }}
                         >
                           <h4>{concepto.término}</h4>
                         </div>
                       );
-                    }).filter(Boolean)
-                  )}
+                    }).filter(Boolean);
+                  })}
                 </div>
               </>
             )}
