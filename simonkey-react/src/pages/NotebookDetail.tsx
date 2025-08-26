@@ -1852,7 +1852,9 @@ const NotebookDetail = () => {
                   )}
                   
                   {conceptosDocs.flatMap((doc) => 
-                    doc.conceptos.map((concepto, conceptIndex) => {
+                    doc.conceptos
+                      .sort((a, b) => a.término.localeCompare(b.término, 'es')) // Ordenar alfabéticamente
+                      .map((concepto, conceptIndex) => {
                       const trafficLightColor = getTrafficLightColor(concepto.id);
                       
                       // Filtrar según el filtro de dominio seleccionado
