@@ -127,7 +127,13 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
 
   const handleCardClick = () => {
     console.log('🖱️ CARD CLICK DETECTADO');
-    console.log('Estado:', { hasError, isFrozen, isTeacher });
+    console.log('Estado:', { hasError, isFrozen, isTeacher, isEditing });
+    
+    // Si está en modo edición, no hacer nada (evitar navegación)
+    if (isEditing) {
+      console.log('❌ Bloqueado: en modo edición');
+      return;
+    }
     
     // Si hay error, no hacer nada
     if (hasError) {

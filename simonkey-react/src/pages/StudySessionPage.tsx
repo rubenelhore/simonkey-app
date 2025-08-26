@@ -83,6 +83,9 @@ const StudySessionPage = () => {
   // Timer
   const [sessionTimer, setSessionTimer] = useState<number | null>(null);
 
+  // First card instruction state
+  const [isFirstCard, setIsFirstCard] = useState<boolean>(true);
+
   // Validate navigation state
   useEffect(() => {
     if (!notebookId || !mode) {
@@ -376,6 +379,11 @@ const StudySessionPage = () => {
   // Handle concept response
   const handleConceptResponse = async (conceptId: string, quality: ResponseQuality) => {
     if (!auth.currentUser || !sessionId) return;
+    
+    // Mark that we're no longer on the first card
+    if (isFirstCard) {
+      setIsFirstCard(false);
+    }
     
     try {
       const effectiveUserData = await getEffectiveUserId();
@@ -931,6 +939,16 @@ const StudySessionPage = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* First card instruction message - only for smart mode */}
+                    {isFirstCard && studyMode === StudyMode.SMART && (
+                      <div className="first-card-instruction">
+                        <div className="instruction-content">
+                          <i className="fas fa-lightbulb instruction-icon"></i>
+                          <p>Mientras se desbloquea la tarjeta, trata de decir la definición del concepto mentalmente</p>
+                        </div>
+                      </div>
+                    )}
 
                     <SwipeableStudyCard
                       concept={currentConcept}

@@ -81,6 +81,11 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   };
 
   const handleCardClick = () => {
+    // Si está en modo edición, no hacer nada (evitar navegación)
+    if (isEditing) {
+      return;
+    }
+    
     // Si hay error, no hacer nada
     if (hasError) {
       return;

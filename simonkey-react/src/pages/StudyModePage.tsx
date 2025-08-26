@@ -16,6 +16,7 @@ import { useStudyService } from '../hooks/useStudyService';
 import { gamePointsService } from '../services/gamePointsService';
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
+import { studySessionPersistence } from '../utils/studySessionPersistence';
 
 // División levels configuration
 const DIVISION_LEVELS = {
@@ -102,18 +103,13 @@ const StudyModePage = () => {
   const [showMedalDetails, setShowMedalDetails] = useState(false);
   const [showNotebookError, setShowNotebookError] = useState(false);
 
-  // Clear notebook selection only on fresh page loads (not when coming back from navigation)
+  // Load persisted selection on component mount
   useEffect(() => {
-    // Check if we're coming back from games page
-    const comingFromGames = sessionStorage.getItem('returning-from-games');
-    if (comingFromGames) {
-      // Don't reset selections when returning from games
-      sessionStorage.removeItem('returning-from-games');
-    } else {
-      // Reset selections on fresh loads
-      setSelectedNotebook(null);
-      setSelectedMateria(null);
-      setNotebookScore({ score: 0, level: 1, progress: 0 });
+    const persistedSelection = studySessionPersistence.getSelection();
+    if (persistedSelection && persistedSelection.notebook && persistedSelection.materia) {
+      console.log('Restaurando selección persistida:', persistedSelection);
+      setSelectedMateria(persistedSelection.materia);
+      setSelectedNotebook(persistedSelection.notebook);
     }
   }, []);
 
@@ -246,7 +242,16 @@ const StudyModePage = () => {
         
         setMaterias(materiasData);
         
-        // Don't restore previous selections - force manual selection
+        // Try to restore persisted selection after loading materias
+        const persistedSelection = studySessionPersistence.getSelection();
+        if (persistedSelection && persistedSelection.notebook && persistedSelection.materia) {
+          // Verificar que la materia y cuaderno aún existan
+          const materiaExists = materiasData.find(m => m.id === persistedSelection.materia.id);
+          if (materiaExists) {
+            setSelectedMateria(persistedSelection.materia);
+            // El notebook se restaurará cuando se carguen los notebooks de esta materia
+          }
+        }
         
         setLoading(false);
       } catch (error) {
@@ -390,7 +395,20 @@ const StudyModePage = () => {
           }
         }
         
-        // Don't auto-select notebooks, user must choose manually
+        // Try to restore persisted notebook selection if the materia matches
+        const persistedSelection = studySessionPersistence.getSelection();
+        if (persistedSelection && persistedSelection.notebook && persistedSelection.materia &&
+            selectedMateria && persistedSelection.materia.id === selectedMateria.id) {
+          // Verificar que el notebook aún exista
+          const notebookExists = notebooksData.find(n => n.id === persistedSelection.notebook!.id);
+          if (notebookExists) {
+            console.log('Restaurando notebook persistido:', persistedSelection.notebook.title);
+            handleSelectNotebook(notebookExists);
+          } else {
+            console.log('Notebook persistido ya no existe, limpiando selección');
+            studySessionPersistence.clearSelection();
+          }
+        }
       } catch (error) {
         console.error("Error al cargar cuadernos:", error);
       }
@@ -584,6 +602,9 @@ const StudyModePage = () => {
     
     setSelectedNotebook(notebook);
     setShowNotebookError(false);
+    
+    // Guardar la selección en localStorage
+    studySessionPersistence.saveSelection(notebook, selectedMateria);
     
     // Mostrar valores estimados INMEDIATAMENTE basados en valores típicos
     setNotebookScore({ score: 0, level: 1, progress: 0 });
@@ -975,6 +996,9 @@ const StudyModePage = () => {
       console.log('Quiz not available - staying on current page');
       return;
     }
+    
+    // Guardar la selección antes de navegar
+    studySessionPersistence.saveSelection(selectedNotebook, selectedMateria);
     
     // Navigate to the appropriate study session
     switch (mode) {
