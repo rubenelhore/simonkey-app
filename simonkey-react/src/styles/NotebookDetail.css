@@ -1564,10 +1564,8 @@
 .preview-modal {
   background-color: white;
   border-radius: 12px;
-  max-width: 90vw;
-  max-height: 90vh;
-  width: auto;
-  height: auto;
+  width: 412px;
+  height: 631px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -1620,6 +1618,7 @@
   min-height: 200px;
 }
 
+
 .preview-content img {
   display: block;
   margin: auto;
@@ -1631,6 +1630,7 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border-radius: 8px;
 }
+
 
 .preview-content pre {
   margin: 0;
