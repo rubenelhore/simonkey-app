@@ -37,20 +37,20 @@ interface NotebookItemProps {
 const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category, conceptCount, onDelete, onEdit, onColorChange, showActions, onToggleActions, isSchoolNotebook, onAddConcept, isFrozen, onFreeze, isTeacher, domainProgress, isStudent, isEnrolled = false }) => {
   const { user } = useAuth();
   const { isSchoolAdmin } = useUserType();
-  console.log('📝 NotebookItem recibió props:', {
-    id,
-    title,
-    hasTitle: !!title,
-    titleType: typeof title,
-    titleLength: title?.length || 0,
-    isTeacher,
-    isEnrolled,
-    showMenuButton: isTeacher && !isEnrolled,
-    isTeacherType: typeof isTeacher,
-    isEnrolledType: typeof isEnrolled,
-    notIsEnrolled: !isEnrolled,
-    conditionResult: isTeacher && !isEnrolled
-  });
+  // console.log('📝 NotebookItem recibió props:', {
+  //   id,
+  //   title,
+  //   hasTitle: !!title,
+  //   titleType: typeof title,
+  //   titleLength: title?.length || 0,
+  //   isTeacher,
+  //   isEnrolled,
+  //   showMenuButton: isTeacher && !isEnrolled,
+  //   isTeacherType: typeof isTeacher,
+  //   isEnrolledType: typeof isEnrolled,
+  //   notIsEnrolled: !isEnrolled,
+  //   conditionResult: isTeacher && !isEnrolled
+  // });
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editableTitle, setEditableTitle] = useState(title);

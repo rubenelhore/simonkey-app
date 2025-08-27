@@ -281,7 +281,7 @@ const Notebooks: React.FC = () => {
   // Verificar si el usuario está inscrito en esta materia y cargar notebooks del profesor
   useEffect(() => {
     const checkEnrollmentAndLoadNotebooks = async () => {
-      if (!materiaId || !user || isSchoolAdmin || isTeacher || isSchoolStudent) return;
+      if (!materiaId || !user || isSchoolAdmin || isSchoolStudent) return;
       
       console.log('🔍 Verificando si el usuario está inscrito en la materia:', materiaId);
       setEnrolledMateriaLoading(true);
@@ -481,18 +481,7 @@ const Notebooks: React.FC = () => {
   let effectiveNotebooks = [];
   let isLoading = false;
   
-  if (isSchoolAdmin || isTeacher) {
-    // Para admin escolar y profesores, usar los notebooks cargados específicamente
-    console.log('👨‍🏫 PROFESOR/ADMIN ESCOLAR - Notebooks cargados:', adminNotebooks.length);
-    console.log('  - adminNotebooks:', adminNotebooks);
-    console.log('  - materiaId:', materiaId);
-    effectiveNotebooks = adminNotebooks.map(notebook => ({
-      ...notebook,
-      userId: notebook.userId || '',
-      conceptCount: notebook.conceptCount || 0
-    }));
-    isLoading = adminNotebooksLoading;
-  } else if (isSchoolStudent) {
+  if (isSchoolStudent) {
     // Para estudiantes escolares
     console.log('🎓 ESTUDIANTE ESCOLAR DETECTADO');
     console.log('  - schoolNotebooks:', schoolNotebooks);
@@ -506,21 +495,30 @@ const Notebooks: React.FC = () => {
       conceptCount: notebook.conceptCount || 0
     }));
     isLoading = schoolNotebooksLoading;
+  } else if (isEnrolledMateria && enrolledMateriaNotebooks.length > 0) {
+    // Para cualquier usuario inscrito como estudiante (incluidos profesores)
+    console.log('📚 Usuario inscrito como estudiante - Mostrando notebooks del profesor');
+    effectiveNotebooks = enrolledMateriaNotebooks.map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || '',
+      conceptCount: notebook.conceptCount || 0
+    }));
+    isLoading = enrolledMateriaLoading;
+  } else if (isSchoolAdmin || isTeacher) {
+    // Para admin escolar y profesores (cuando NO están inscritos como estudiantes)
+    console.log('👨‍🏫 PROFESOR/ADMIN ESCOLAR - Notebooks cargados:', adminNotebooks.length);
+    console.log('  - adminNotebooks:', adminNotebooks);
+    console.log('  - materiaId:', materiaId);
+    effectiveNotebooks = adminNotebooks.map(notebook => ({
+      ...notebook,
+      userId: notebook.userId || '',
+      conceptCount: notebook.conceptCount || 0
+    }));
+    isLoading = adminNotebooksLoading;
   } else {
-    // Para usuarios regulares, verificar si están inscritos en la materia
-    if (isEnrolledMateria && enrolledMateriaNotebooks.length > 0) {
-      console.log('📚 Usuario inscrito - Mostrando notebooks del profesor');
-      effectiveNotebooks = enrolledMateriaNotebooks.map(notebook => ({
-        ...notebook,
-        userId: notebook.userId || '',
-        conceptCount: notebook.conceptCount || 0
-      }));
-      isLoading = enrolledMateriaLoading;
-    } else {
-      // Mostrar sus propios notebooks
-      effectiveNotebooks = notebooks || [];
-      isLoading = notebooksLoading;
-    }
+    // Para usuarios regulares sin inscripción
+    effectiveNotebooks = notebooks || [];
+    isLoading = notebooksLoading;
   }
   
   // Efecto para manejar la carga inicial y evitar el flash de contenido vacío
@@ -1127,14 +1125,14 @@ const Notebooks: React.FC = () => {
           </div>
         )}
         <div className="notebooks-list-section notebooks-list-section-full">
-          {console.log('🏫 Notebooks.tsx passing to NotebookList:', {
+          {/* {console.log('🏫 Notebooks.tsx passing to NotebookList:', {
             isSchoolStudent,
             isSchoolAdmin, 
             isEnrolledMateria,
             isTeacher,
             effectiveNotebooksCount: effectiveNotebooks.length,
             shouldAllowEdit: !(isSchoolStudent || isEnrolledMateria)
-          })}
+          })} */}
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,

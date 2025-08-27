@@ -819,16 +819,16 @@ const NotebookList: React.FC<NotebookListProps> = ({
             {notebooksBySelectedCategory.map(notebook => {
               const teacherValue = isUserTeacher || isTeacher || isSchoolTeacher;
               const enrolledValue = isEnrolledMateria || notebook.isEnrolled;
-              console.log(`📋 NotebookList passing props for notebook ${notebook.id}:`, {
-                isUserTeacher,
-                isTeacher,
-                isSchoolTeacher,
-                isEnrolledMateria,
-                notebookIsEnrolled: notebook.isEnrolled,
-                finalTeacherValue: teacherValue,
-                finalEnrolledValue: enrolledValue,
-                shouldShowMenu: teacherValue && !enrolledValue
-              });
+              // console.log(`📋 NotebookList passing props for notebook ${notebook.id}:`, {
+              //   isUserTeacher,
+              //   isTeacher,
+              //   isSchoolTeacher,
+              //   isEnrolledMateria,
+              //   notebookIsEnrolled: notebook.isEnrolled,
+              //   finalTeacherValue: teacherValue,
+              //   finalEnrolledValue: enrolledValue,
+              //   shouldShowMenu: teacherValue && !enrolledValue
+              // });
               
               return (
                 <NotebookItem
