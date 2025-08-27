@@ -1,806 +1,107 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../hooks/useUserType';
-import { db, auth, app } from '../services/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  addDoc,
-  serverTimestamp,
-  onSnapshot,
-  query,
-  getDoc,
-  setDoc,
-  where,
-  limit,
-  getFirestore
-} from 'firebase/firestore';
-import { UserSubscriptionType, SchoolRole } from '../types/interfaces';
-import { deleteAllUserData, deleteUserCompletely } from '../services/userService';
-import { deleteUserData, syncSchoolUsers, migrateUsers } from '../services/firebaseFunctions';
-import SchoolLinking from '../components/SchoolLinking';
-import SchoolCreation from '../components/SchoolCreation';
-import SchoolLinkingVerification from '../components/SchoolLinkingVerification';
-import SchoolMigrationTool from '../components/SchoolMigrationTool';
-import StudyLogicVerification from '../components/StudyLogicVerification';
-import DashboardVerification from '../components/DashboardVerification';
-import AnalyticsDashboard from '../components/AnalyticsDashboard';
-import UniversityUsersTab from '../components/UniversityUsersTab';
-import TeacherManagementImproved from '../components/TeacherManagementImproved';
-// import { createTestSchoolData, checkSchoolCollections } from '../utils/testSchoolCollections'; // removed
-const createTestSchoolData = () => {};
-const checkSchoolCollections = () => {};
-import { cleanDuplicateSchoolTeachers, checkCollectionsStatus } from '../utils/cleanDuplicateUsers';
-import { fixRubenelhoreDuplicate, checkRubenelhoreStatus } from '../utils/fixDuplicateUser';
-// import { migrateAllExistingSchoolUsers, checkUserSyncStatus } from '../utils/migrateExistingSchoolUsers'; // removed
-const migrateAllExistingSchoolUsers = () => {};
-const checkUserSyncStatus = () => {};
-import { runCompleteReplicaTest } from '../utils/testReplicaSystem';
-// Importar funciones de adminUtils para que estén disponibles globalmente
-import '../utils/adminUtils';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { db, auth } from '../services/firebase';
+import { getAuth, listUsers } from 'firebase/auth';
 
 interface User {
   id: string;
-  email: string;
-  nombre: string;
-  apellidos: string;
-  subscription: UserSubscriptionType;
-  schoolRole?: SchoolRole;
-  createdAt: any;
-  username?: string;
+  nombre?: string;
   displayName?: string;
-  birthdate?: string;
+  email?: string;
+  subscription?: string;
+  schoolRole?: string;
+  createdAt?: any;
+  lastLoginAt?: any;
+  lastLogin?: any;
+  lastSignIn?: any;
+  lastLogoutAt?: any;
+  lastLogout?: any;
+  lastSignOut?: any;
+  updatedAt?: any;
   notebookCount?: number;
-  maxNotebooks?: number;
-}
-
-interface ContactMessage {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  createdAt: Date;
-  read: boolean;
-  status: 'pending' | 'responded' | 'archived';
-  userId?: string | null;
+  conceptsCreatedThisWeek?: number;
+  notebooksCreatedThisWeek?: number;
 }
 
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isSuperAdmin, userProfile, loading: userTypeLoading } = useUserType();
-  const [activeCategory, setActiveCategory] = useState('school');
-  const [activeTab, setActiveTab] = useState('schoolLinking');
-  const [showSubcategories, setShowSubcategories] = useState(false);
-  const [messages, setMessages] = useState<ContactMessage[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
+  const { isSuperAdmin, loading: userTypeLoading } = useUserType();
+  const [activeTab, setActiveTab] = useState('usuarios');
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResults, setSyncResults] = useState<any>(null);
-  const [isRealtimeActive, setIsRealtimeActive] = useState(false);
-  const [schools, setSchools] = useState<any[]>([]);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  // Configuración de categorías y subcategorías
-  const categories = {
-    // Categoría 'school' comentada - ya no se usa el sistema escolar
-    // school: {
-    //   title: '🏢 Gestión Escolar',
-    //   icon: 'fas fa-school',
-    //   subcategories: {
-    //     schoolLinking: { title: 'Vinculación Escolar', icon: 'fas fa-link' },
-    //     schoolCreation: { title: 'Creación Escolar', icon: 'fas fa-plus-circle' },
-    //     schoolVerification: { title: 'Verificación de Vinculación', icon: 'fas fa-search' }
-    //   }
-    // },
-    verification: {
-      title: '🔍 Verificación del Sistema',
-      icon: 'fas fa-clipboard-check',
-      subcategories: {
-        studyLogic: { title: 'Lógica de Estudio', icon: 'fas fa-brain' },
-        dashboardLogic: { title: 'Lógica de Dashboards', icon: 'fas fa-chart-pie' },
-        analytics: { title: 'Analytics', icon: 'fas fa-chart-line' }
-      }
-    },
-    users: {
-      title: '👥 Gestión de Usuarios',
-      icon: 'fas fa-users',
-      subcategories: {
-        university: { title: 'Usuarios Universitarios', icon: 'fas fa-graduation-cap' },
-        teachers: { title: 'Gestión de Profesores', icon: 'fas fa-chalkboard-teacher' }
-      }
-    },
-    communication: {
-      title: '📨 Comunicación',
-      icon: 'fas fa-comments',
-      subcategories: {
-        messages: { title: 'Mensajes', icon: 'fas fa-envelope' }
-      }
-    }
-  };
-
-  console.log('SuperAdminPage - Component loaded - FULL VERSION');
-  console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
-  console.log('SuperAdminPage - userTypeLoading:', userTypeLoading);
-  console.log('SuperAdminPage - userProfile:', userProfile);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    nombre: '',
+    email: '',
+    subscription: '',
+    role: '',
+    fechaCreacion: '',
+    ultimaSesion: ''
+  });
 
   // Verificar si el usuario es súper admin
-  useEffect(() => {
-    console.log('SuperAdminPage - useEffect check - isSuperAdmin:', isSuperAdmin, 'userTypeLoading:', userTypeLoading);
-    
-    // Solo redirigir si ya terminó de cargar y NO es súper admin
+  React.useEffect(() => {
     if (!userTypeLoading && !isSuperAdmin) {
-      console.log('SuperAdminPage - Redirecting to /notebooks - not super admin');
       navigate('/notebooks');
     }
   }, [isSuperAdmin, userTypeLoading, navigate]);
 
-  // Listener en tiempo real para usuarios
+  // Cargar usuarios cuando se selecciona la pestaña
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (activeTab === 'usuarios') {
+      loadUsers();
+    }
+  }, [activeTab]);
 
-    console.log('🔍 SuperAdminPage - Configurando listener en tiempo real para usuarios');
-    setLoading(true);
-
-    // Listener para la colección 'users' (principal)
-    const usersUnsubscribe = onSnapshot(
-      collection(db, 'users'),
-      (usersSnapshot) => {
-        const usersData = usersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as User[];
-        
-        console.log('SuperAdminPage - Users from "users" collection (realtime):', usersData.length);
-        console.log('SuperAdminPage - Users from "users" collection details (realtime):', usersData.map(u => ({
-          id: u.id,
-          email: u.email,
-          nombre: u.nombre,
-          displayName: u.displayName,
-          username: u.username,
-          apellidos: u.apellidos,
-          subscription: u.subscription,
-          birthdate: u.birthdate,
-          notebookCount: u.notebookCount,
-          maxNotebooks: u.maxNotebooks
-        })));
-
-        // Marcar que el listener está activo
-        setIsRealtimeActive(true);
-
-        // Intentar cargar usuarios de la colección 'usuarios' (español) si existe
-        const loadUsuariosCollection = async () => {
-          try {
-            const usuariosSnapshot = await getDocs(collection(db, 'usuarios'));
-            const usuariosData = usuariosSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })) as User[];
-            
-            console.log('SuperAdminPage - Users from "usuarios" collection:', usuariosData.length);
-            console.log('SuperAdminPage - Users from "usuarios" collection details:', usuariosData.map(u => ({
-              id: u.id,
-              email: u.email,
-              nombre: u.nombre,
-              displayName: u.displayName,
-              username: u.username,
-              apellidos: u.apellidos,
-              subscription: u.subscription,
-              birthdate: u.birthdate,
-              notebookCount: u.notebookCount,
-              maxNotebooks: u.maxNotebooks
-            })));
-
-            // Combinar usuarios de ambas colecciones (evitando duplicados)
-            const allUsers = [...usersData];
-            usuariosData.forEach(usuario => {
-              const exists = allUsers.find(u => u.id === usuario.id);
-              if (!exists) {
-                allUsers.push(usuario);
-              }
-            });
-
-            setUsers(allUsers);
-            console.log('SuperAdminPage - Total combined users (realtime):', allUsers.length);
-          } catch (error) {
-            console.log('SuperAdminPage - No "usuarios" collection found, using only "users"');
-            setUsers(usersData);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        loadUsuariosCollection();
-      },
-      (error) => {
-        console.error('Error en listener de usuarios:', error);
-        setIsRealtimeActive(false);
-        setLoading(false);
-      }
-    );
-
-    // Cleanup function
-    return () => {
-      console.log('🔍 SuperAdminPage - Limpiando listener de usuarios');
-      usersUnsubscribe();
-    };
-  }, [isSuperAdmin]);
-
-  // Listener en tiempo real para mensajes de contacto
-  useEffect(() => {
-    if (!isSuperAdmin) return;
-
-    console.log('📨 SuperAdminPage - Configurando listener para mensajes de contacto');
-
-    const messagesUnsubscribe = onSnapshot(
-      query(collection(db, 'contactMessages'), where('status', '!=', 'archived')),
-      (snapshot) => {
-        const messagesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date()
-        })) as ContactMessage[];
-        
-        // Ordenar por fecha de creación descendente (más recientes primero)
-        messagesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        
-        setMessages(messagesData);
-        
-        // Contar mensajes no leídos
-        const unread = messagesData.filter(msg => !msg.read).length;
-        setUnreadCount(unread);
-        
-        console.log(`📨 Total mensajes: ${messagesData.length}, No leídos: ${unread}`);
-      },
-      (error) => {
-        console.error('Error al cargar mensajes:', error);
-      }
-    );
-
-    return () => {
-      console.log('📨 Limpiando listener de mensajes');
-      messagesUnsubscribe();
-    };
-  }, [isSuperAdmin]);
-
-  // Función para mostrar notificaciones
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setNotification({ message, type });
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
-  };
-
-  // Función para recargar datos manualmente (mantener para compatibilidad)
-  const loadData = async () => {
-    console.log('SuperAdminPage - loadData called (manual refresh)');
-    setLoading(true);
+  const loadUsers = async () => {
     try {
-      // Cargar usuarios de la colección 'users' (principal)
+      setLoading(true);
       const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as User[];
+      const usersData: User[] = [];
       
-      console.log('SuperAdminPage - Users from "users" collection:', usersData.length);
-      console.log('SuperAdminPage - Users from "users" collection details:', usersData.map(u => ({
-        id: u.id,
-        email: u.email,
-        nombre: u.nombre,
-        displayName: u.displayName,
-        username: u.username,
-        apellidos: u.apellidos,
-        subscription: u.subscription,
-        birthdate: u.birthdate,
-        notebookCount: u.notebookCount,
-        maxNotebooks: u.maxNotebooks
-      })));
-
-      // Cargar usuarios de la colección 'usuarios' (español) si existe
-      try {
-        const usuariosSnapshot = await getDocs(collection(db, 'usuarios'));
-        const usuariosData = usuariosSnapshot.docs.map(doc => ({
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        usersData.push({
           id: doc.id,
-          ...doc.data()
-        })) as User[];
-        
-        console.log('SuperAdminPage - Users from "usuarios" collection:', usuariosData.length);
-        console.log('SuperAdminPage - Users from "usuarios" collection details:', usuariosData.map(u => ({
-          id: u.id,
-          email: u.email,
-          nombre: u.nombre,
-          displayName: u.displayName,
-          username: u.username,
-          apellidos: u.apellidos,
-          subscription: u.subscription,
-          birthdate: u.birthdate,
-          notebookCount: u.notebookCount,
-          maxNotebooks: u.maxNotebooks
-        })));
-
-        // Combinar usuarios de ambas colecciones (evitando duplicados)
-        const allUsers = [...usersData];
-        usuariosData.forEach(usuario => {
-          const exists = allUsers.find(u => u.id === usuario.id);
-          if (!exists) {
-            allUsers.push(usuario);
-          }
+          ...userData
         });
-
-        setUsers(allUsers);
-        console.log('SuperAdminPage - Total combined users:', allUsers.length);
-      } catch (error) {
-        console.log('SuperAdminPage - No "usuarios" collection found, using only "users"');
-        setUsers(usersData);
-      }
+      });
+      
+      console.log(`Total users loaded: ${usersData.length}`);
+      
+      setUsers(usersData);
+      setFilteredUsers(usersData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading users:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Gestión de usuarios
-  const updateUserSubscription = async (userId: string, subscription: UserSubscriptionType) => {
-    try {
-      console.log(`🔄 Actualizando suscripción del usuario ${userId} a ${subscription}`);
+  // Función para filtrar usuarios
+  const filterUsers = () => {
+    let filtered = users.filter(user => {
+      const nombre = (user.displayName || user.nombre || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const subscription = (user.subscription || 'free').toLowerCase();
+      const role = (user.schoolRole || 'individual').toLowerCase();
       
-      // Obtener los datos actuales del usuario
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) {
-        throw new Error('Usuario no encontrado');
-      }
-      
-      const userData = userDoc.data();
-      const previousSubscription = userData.subscription;
-      
-      // Si se cambia de SCHOOL a otro tipo, limpiar réplicas
-      if (previousSubscription === UserSubscriptionType.SCHOOL && subscription !== UserSubscriptionType.SCHOOL) {
-        console.log(`🔄 Cambiando de SCHOOL a ${subscription}, limpiando réplicas...`);
-        await cleanupUserReplicas(userId);
-      }
-      
-      // Actualizar la suscripción en la colección users
-      await updateDoc(doc(db, 'users', userId), {
-        subscription,
-        updatedAt: serverTimestamp()
-      });
-      
-      // Si se cambia a SCHOOL, verificar si ya tiene un rol asignado y crear réplica
-      if (subscription === UserSubscriptionType.SCHOOL && userData.schoolRole) {
-        console.log(`🏫 Usuario cambiado a SCHOOL con rol ${userData.schoolRole}, creando réplica...`);
-        
-        if (userData.schoolRole === SchoolRole.TEACHER) {
-          await createTeacherReplica(userId, userData);
-        } else if (userData.schoolRole === SchoolRole.STUDENT) {
-          await createStudentReplica(userId, userData);
-        }
-        
-        console.log(`✅ Suscripción actualizada a ${subscription} y réplica creada`);
-        showNotification(`Suscripción actualizada a ${subscription} y réplica creada`, 'success');
-      } else {
-        console.log(`✅ Suscripción actualizada exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
-        showNotification(`Suscripción actualizada a ${subscription}`, 'success');
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      showNotification('Error al actualizar la suscripción del usuario', 'error');
-    }
+      return nombre.includes(filters.nombre.toLowerCase()) &&
+             email.includes(filters.email.toLowerCase()) &&
+             subscription.includes(filters.subscription.toLowerCase()) &&
+             role.includes(filters.role.toLowerCase());
+    });
+    setFilteredUsers(filtered);
   };
 
-  const updateUserSchoolRole = async (userId: string, schoolRole: SchoolRole) => {
-    try {
-      console.log(`🔄 Actualizando rol escolar del usuario ${userId} a ${schoolRole}`);
-      
-      // Obtener los datos actuales del usuario
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) {
-        throw new Error('Usuario no encontrado');
-      }
-      
-      const userData = userDoc.data();
-      const previousRole = userData.schoolRole;
-      
-      // Limpiar réplicas anteriores si el rol cambió
-      if (previousRole && previousRole !== schoolRole) {
-        console.log(`🔄 Rol cambiando de ${previousRole} a ${schoolRole}, limpiando réplicas anteriores...`);
-        await cleanupUserReplicas(userId);
-      }
-      
-      // Actualizar el rol en la colección users
-      await updateDoc(doc(db, 'users', userId), {
-        schoolRole,
-        updatedAt: serverTimestamp()
-      });
-      
-      // Crear réplica automática en schoolTeachers o schoolStudents según el rol
-      if (schoolRole === SchoolRole.TEACHER) {
-        await createTeacherReplica(userId, userData);
-      } else if (schoolRole === SchoolRole.STUDENT) {
-        await createStudentReplica(userId, userData);
-      }
-      
-      console.log(`✅ Rol escolar actualizado exitosamente - El listener en tiempo real actualizará la interfaz automáticamente`);
-      showNotification(`Rol escolar actualizado a ${schoolRole} y réplica creada`, 'success');
-    } catch (error) {
-      console.error('Error updating user school role:', error);
-      showNotification('Error al actualizar el rol escolar del usuario', 'error');
-    }
-  };
-
-  // Función para crear réplica de profesor (DEPRECADA - Ya no usamos réplicas)
-  const createTeacherReplica = async (userId: string, userData: any) => {
-    console.log(`⚠️ FUNCIÓN DEPRECADA: createTeacherReplica - Ya no usamos réplicas`);
-    console.log(`Los usuarios escolares ahora se crean directamente en la colección users con subscription: SCHOOL y schoolRole: TEACHER`);
-    // No hacer nada - las réplicas ya no son necesarias
-  };
-
-  // Función para crear réplica de estudiante (DEPRECADA - Ya no usamos réplicas)
-  const createStudentReplica = async (userId: string, userData: any) => {
-    console.log(`⚠️ FUNCIÓN DEPRECADA: createStudentReplica - Ya no usamos réplicas`);
-    console.log(`Los usuarios escolares ahora se crean directamente en la colección users con subscription: SCHOOL y schoolRole: STUDENT`);
-    // No hacer nada - las réplicas ya no son necesarias
-  };
-
-  // Función para limpiar réplicas cuando se elimina un usuario (DEPRECADA - Ya no usamos réplicas)
-  const cleanupUserReplicas = async (userId: string) => {
-    console.log(`⚠️ FUNCIÓN DEPRECADA: cleanupUserReplicas - Ya no usamos réplicas`);
-    console.log(`Los usuarios escolares ahora están solo en la colección users`);
-    // No hacer nada - las réplicas ya no existen
-  };
-
-  const deleteUser = async (userId: string, userName: string) => {
-    try {
-      console.log('🗑️ SuperAdmin eliminando usuario con Firebase Function:', userId);
-      
-      // Limpiar réplicas antes de eliminar el usuario
-      await cleanupUserReplicas(userId);
-      
-      // Usar la función con Firebase Functions
-      const result = await deleteUserData({ userId, deletedBy: 'superadmin' });
-      const data = result.data as any;
-      
-      if (data.success) {
-        console.log('✅ Usuario eliminado exitosamente:', data);
-        alert(`✅ Usuario "${userName}" eliminado exitosamente!\n\nElementos eliminados:\n` +
-          `- Cuadernos: ${data.deletedItems.notebooks}\n` +
-          `- Conceptos: ${data.deletedItems.concepts}\n` +
-          `- Sesiones de estudio: ${data.deletedItems.studySessions}`);
-        loadData(); // Recargar la lista de usuarios
-      } else {
-        throw new Error(data.message || 'Error desconocido');
-      }
-      
-    } catch (error) {
-      console.error('Error en deleteUser:', error);
-      alert('Error al eliminar el usuario. Por favor, intenta de nuevo.');
-    }
-  };
-
-  // Funciones de sincronización de usuarios escolares
-  const handleSyncAllSchoolUsers = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los usuarios escolares? Esto creará usuarios reales en Firebase Auth para todos los schoolTeachers y schoolStudents.')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      console.log('🚀 Iniciando sincronización completa...');
-      const results = await syncSchoolUsers('all');
-      const data = results.data as any;
-      setSyncResults(data.results);
-      
-      console.log('🎉 Sincronización completada:', data);
-      alert(`Sincronización completada: ${data.results.teachers.success + data.results.students.success} exitosos, ${data.results.teachers.errors.length + data.results.students.errors.length} errores`);
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en sincronización:', error);
-      alert(`Error en sincronización: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleSyncTeachers = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los profesores escolares?')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      const results = await syncSchoolUsers('teachers');
-      const data = results.data as any;
-      setSyncResults({ teachers: data.results.teachers, students: { success: 0, errors: [] } });
-      alert(`Sincronización de profesores completada: ${data.results.teachers.success} exitosos, ${data.results.teachers.errors.length} errores`);
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en sincronización de profesores:', error);
-      alert(`Error en sincronización: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleSyncStudents = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres sincronizar TODOS los estudiantes escolares?')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      const results = await syncSchoolUsers('students');
-      const data = results.data as any;
-      setSyncResults({ teachers: { success: 0, errors: [] }, students: data.results.students });
-      alert(`Sincronización de estudiantes completada: ${data.results.students.success} exitosos, ${data.results.students.errors.length} errores`);
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en sincronización de estudiantes:', error);
-      alert(`Error en sincronización: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleMigrateExistingTeachers = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres migrar los profesores existentes?')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      const result = await migrateUsers();
-      const data = result.data as any;
-      alert(`Migración completada: ${data.updatedCount} usuarios actualizados, ${data.errorCount} errores`);
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en migración:', error);
-      alert(`Error en migración: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleCheckTeacherStatus = async () => {
-    const teacherId = prompt('Ingresa el ID del profesor a verificar:');
-    if (!teacherId) return;
-    
-    try {
-      const results = await syncSchoolUsers();
-      const data = results.data as any;
-      const teacherResult = data.results.teachers;
-      
-      if (teacherResult.success > 0) {
-        alert(`✅ Profesor encontrado y sincronizado correctamente`);
-      } else if (teacherResult.errors.length > 0) {
-        alert(`❌ Error con el profesor: ${teacherResult.errors[0].error}`);
-      } else {
-        alert(`ℹ️ Profesor no encontrado en la base de datos`);
-      }
-    } catch (error: any) {
-      console.error('❌ Error verificando profesor:', error);
-      alert(`Error verificando profesor: ${error.message}`);
-    }
-  };
-
-  // Funciones para datos de prueba
-  const handleCreateTestData = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres crear datos de prueba? Esto agregará entidades de ejemplo al sistema escolar.')) {
-      return;
-    }
-    
-    alert('Esta función ha sido removida en la migración');
-  };
-
-  const handleCheckCollections = async () => {
-    alert('Esta función ha sido removida en la migración');
-  };
-
-  const handleCleanDuplicateTeachers = async () => {
-    try {
-      setSyncLoading(true);
-      const results = await cleanDuplicateSchoolTeachers();
-      const message = `🧹 Limpieza completada:\n\n✅ Documentos eliminados: ${results.removed}\n❌ Errores: ${results.errors.length}`;
-      
-      if (results.errors.length > 0) {
-        const errorDetails = results.errors.map(e => `- ${e.id}: ${e.error}`).join('\n');
-        alert(`${message}\n\nDetalles de errores:\n${errorDetails}`);
-      } else {
-        alert(message);
-      }
-      
-      showNotification(`Limpieza completada: ${results.removed} documentos eliminados`, 'success');
-    } catch (error: any) {
-      console.error('❌ Error limpiando documentos duplicados:', error);
-      alert(`Error limpiando documentos duplicados: ${error.message}`);
-      showNotification('Error en la limpieza', 'error');
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleCheckCollectionsStatus = async () => {
-    try {
-      await checkCollectionsStatus();
-      alert('✅ Verificación completada. Revisa la consola para ver los detalles.');
-    } catch (error: any) {
-      console.error('❌ Error verificando estado de colecciones:', error);
-      alert(`Error verificando estado: ${error.message}`);
-    }
-  };
-
-  const handleFixRubenelhoreDuplicate = async () => {
-    try {
-      setSyncLoading(true);
-      const result = await fixRubenelhoreDuplicate();
-      
-      if (result.success) {
-        alert(`✅ ${result.message}`);
-        showNotification('Corrección completada exitosamente', 'success');
-      } else {
-        alert(`❌ ${result.message}`);
-        showNotification('Error en la corrección', 'error');
-      }
-    } catch (error: any) {
-      console.error('❌ Error corrigiendo duplicado de rubenelhore:', error);
-      alert(`Error: ${error.message}`);
-      showNotification('Error en la corrección', 'error');
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleCheckRubenelhoreStatus = async () => {
-    try {
-      await checkRubenelhoreStatus();
-      alert('✅ Verificación completada. Revisa la consola para ver los detalles.');
-    } catch (error: any) {
-      console.error('❌ Error verificando estado de Rubenelhore:', error);
-      alert(`Error verificando estado: ${error.message}`);
-    }
-  };
-
-  // Nuevas funciones para migración automática de réplicas
-  const handleMigrateAllExistingSchoolUsers = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres migrar TODOS los usuarios escolares existentes? Esto creará réplicas en schoolTeachers y schoolStudents para usuarios que ya tienen roles pero no tienen réplicas.')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      console.log('🚀 Iniciando migración completa de usuarios escolares existentes...');
-      const results = { teachers: { success: 0, errors: [] }, students: { success: 0, errors: [] } };
-      
-      const totalSuccess = results.teachers.success + results.students.success;
-      const totalErrors = results.teachers.errors.length + results.students.errors.length;
-      console.log('🎉 Migración completada:', results);
-      alert(`Migración completada:\n\n👨‍🏫 Profesores: ${results.teachers.success} exitosos, ${results.teachers.errors.length} errores\n👨‍🎓 Estudiantes: ${results.students.success} exitosos, ${results.students.errors.length} errores\n\nTotal: ${totalSuccess} exitosos, ${totalErrors} errores`);
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en migración:', error);
-      alert(`Error en migración: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleCheckUserSyncStatus = async () => {
-    const userId = prompt('Ingresa el ID del usuario a verificar:');
-    if (!userId) return;
-    
-    try {
-      const status = { existsInUsers: false, existsInTeachers: false, existsInStudents: false, userData: null } as any;
-      
-      let message = `📊 Estado de sincronización para usuario ${userId}:\n\n`;
-      message += `👤 Existe en users: ${status.existsInUsers ? '✅ Sí' : '❌ No'}\n`;
-      message += `👨‍🏫 Existe en schoolTeachers: ${status.existsInTeachers ? '✅ Sí' : '❌ No'}\n`;
-      message += `👨‍🎓 Existe en schoolStudents: ${status.existsInStudents ? '✅ Sí' : '❌ No'}\n\n`;
-      
-      if (status.userData) {
-        message += `📋 Datos del usuario:\n`;
-        message += `- Email: ${status.userData.email}\n`;
-        message += `- Nombre: ${status.userData.nombre || status.userData.displayName}\n`;
-        message += `- Subscription: ${status.userData.subscription}\n`;
-        message += `- SchoolRole: ${status.userData.schoolRole || 'No asignado'}\n`;
-      }
-      
-      alert(message);
-    } catch (error: any) {
-      console.error('❌ Error verificando estado de usuario:', error);
-      alert(`Error verificando estado: ${error.message}`);
-    }
-  };
-
-  // Función para probar el sistema de réplicas
-  const handleTestReplicaSystem = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres ejecutar una prueba completa del sistema de réplicas? Esto creará un usuario de prueba temporal.')) {
-      return;
-    }
-    
-    setSyncLoading(true);
-    try {
-      console.log('🧪 Iniciando prueba del sistema de réplicas...');
-      const result = await runCompleteReplicaTest();
-      
-      if (result.success) {
-        alert(`🎉 ${result.message}\n\nEl sistema de réplicas está funcionando correctamente.`);
-      } else {
-        alert(`❌ ${result.message}\n\nHay un problema con el sistema de réplicas.`);
-      }
-      
-      loadData();
-    } catch (error: any) {
-      console.error('❌ Error en prueba del sistema de réplicas:', error);
-      alert(`Error en prueba: ${error.message}`);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  // Funciones para manejar mensajes
-  const handleMarkAsRead = async (messageId: string) => {
-    try {
-      await updateDoc(doc(db, 'contactMessages', messageId), {
-        read: true,
-        readAt: serverTimestamp()
-      });
-      console.log('✅ Mensaje marcado como leído');
-    } catch (error) {
-      console.error('Error al marcar mensaje como leído:', error);
-    }
-  };
-
-  const handleArchiveMessage = async (messageId: string) => {
-    try {
-      await updateDoc(doc(db, 'contactMessages', messageId), {
-        status: 'archived',
-        archivedAt: serverTimestamp()
-      });
-      setSelectedMessage(null);
-      showNotification('Mensaje archivado exitosamente', 'success');
-    } catch (error) {
-      console.error('Error al archivar mensaje:', error);
-      showNotification('Error al archivar mensaje', 'error');
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este mensaje permanentemente?')) {
-      return;
-    }
-    
-    try {
-      await deleteDoc(doc(db, 'contactMessages', messageId));
-      setSelectedMessage(null);
-      showNotification('Mensaje eliminado exitosamente', 'success');
-    } catch (error) {
-      console.error('Error al eliminar mensaje:', error);
-      showNotification('Error al eliminar mensaje', 'error');
-    }
-  };
-
-  const formatMessageDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) {
-      return `Hoy ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (days === 1) {
-      return `Ayer ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (days < 7) {
-      return `Hace ${days} días`;
-    } else {
-      return date.toLocaleDateString('es-ES');
-    }
-  };
+  // Ejecutar filtros cuando cambien
+  React.useEffect(() => {
+    filterUsers();
+  }, [filters, users]);
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
@@ -816,700 +117,221 @@ const SuperAdminPage: React.FC = () => {
 
   // Si no es súper admin, no mostrar nada (será redirigido)
   if (!isSuperAdmin) {
-    console.log('SuperAdminPage - Not super admin, returning null');
     return null;
   }
 
-  console.log('SuperAdminPage - Rendering full component');
+  const renderUsersTab = () => {
+    if (loading) {
+      return (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando usuarios...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="users-section">
+        <h2>👥 Usuarios ({filteredUsers.length} de {users.length})</h2>
+        <div className="simple-table-container">
+          <table className="simple-users-table">
+            <thead>
+              <tr>
+                <th style={{ width: '16%', textAlign: 'center' }}>
+                  Nombre
+                  <div className="filter-input">
+                    <input
+                      type="text"
+                      placeholder="Filtrar nombre..."
+                      value={filters.nombre}
+                      onChange={(e) => setFilters({...filters, nombre: e.target.value})}
+                      className="header-filter"
+                    />
+                  </div>
+                </th>
+                <th style={{ width: '20%', textAlign: 'center' }}>
+                  Email
+                  <div className="filter-input">
+                    <input
+                      type="text"
+                      placeholder="Filtrar email..."
+                      value={filters.email}
+                      onChange={(e) => setFilters({...filters, email: e.target.value})}
+                      className="header-filter"
+                    />
+                  </div>
+                </th>
+                <th style={{ width: '10%', textAlign: 'center' }}>
+                  Suscripción
+                  <div className="filter-input">
+                    <select
+                      value={filters.subscription}
+                      onChange={(e) => setFilters({...filters, subscription: e.target.value})}
+                      className="header-filter"
+                    >
+                      <option value="">Todas</option>
+                      <option value="free">Free</option>
+                      <option value="pro">Pro</option>
+                      <option value="school">School</option>
+                      <option value="university">University</option>
+                    </select>
+                  </div>
+                </th>
+                <th style={{ width: '14%', textAlign: 'center' }}>
+                  Rol
+                  <div className="filter-input">
+                    <select
+                      value={filters.role}
+                      onChange={(e) => setFilters({...filters, role: e.target.value})}
+                      className="header-filter"
+                    >
+                      <option value="">Todos</option>
+                      <option value="individual">Individual</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </th>
+                <th style={{ width: '14%', textAlign: 'center' }}>Fecha Creación</th>
+                <th style={{ width: '14%', textAlign: 'center' }}>Última Sesión</th>
+                <th style={{ width: '12%', textAlign: 'center' }}>Duración Sesión</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => (
+                <tr key={user.id}>
+                  <td style={{ width: '16%' }}>
+                    {user.displayName || user.nombre || 'Sin nombre'}
+                  </td>
+                  <td style={{ width: '20%' }}>
+                    {user.email || 'Sin email'}
+                  </td>
+                  <td style={{ width: '10%' }}>
+                    <span className={`sub-badge ${user.subscription || 'free'}`}>
+                      {user.subscription || 'free'}
+                    </span>
+                  </td>
+                  <td style={{ width: '14%' }}>
+                    {user.schoolRole || 'individual'}
+                  </td>
+                  <td style={{ width: '14%' }}>
+                    {user.createdAt ? 
+                      new Date(user.createdAt.seconds * 1000).toLocaleDateString() : 
+                      'No disponible'
+                    }
+                  </td>
+                  <td style={{ width: '14%' }}>
+                    {(() => {
+                      // Buscar diferentes campos que podrían contener la fecha de último login
+                      const lastLogin = user.lastLoginAt || user.lastLogin || user.lastSignIn || user.updatedAt;
+                      if (lastLogin && lastLogin.seconds) {
+                        return new Date(lastLogin.seconds * 1000).toLocaleDateString();
+                      } else if (lastLogin && typeof lastLogin === 'string') {
+                        return new Date(lastLogin).toLocaleDateString();
+                      } else if (lastLogin && lastLogin.toDate) {
+                        return lastLogin.toDate().toLocaleDateString();
+                      }
+                      return 'Nunca';
+                    })()}
+                  </td>
+                  <td style={{ width: '12%' }}>
+                    {(() => {
+                      // Solo mostrar datos reales de duración de sesión
+                      const realDuration = user.sessionDuration || user.lastSessionDuration || user.sessionTime || 
+                                         user.totalSessionTime || user.activeTime || user.timeSpent;
+                      
+                      if (realDuration && typeof realDuration === 'number') {
+                        // Convertir a minutos si está en segundos o milisegundos
+                        let minutes = realDuration;
+                        if (realDuration > 1000) {
+                          minutes = Math.floor(realDuration / (1000 * 60)); // De milisegundos a minutos
+                        } else if (realDuration > 300) {
+                          minutes = Math.floor(realDuration / 60); // De segundos a minutos
+                        }
+                        
+                        if (minutes > 0) {
+                          if (minutes > 60) {
+                            const hours = Math.floor(minutes / 60);
+                            const mins = minutes % 60;
+                            return `${hours}h ${mins}m`;
+                          }
+                          return `${minutes}m`;
+                        }
+                      }
+                      
+                      // Si tenemos campos de login y logout reales, calcular la diferencia
+                      const loginTime = user.lastLoginAt || user.lastLogin || user.lastSignIn;
+                      const logoutTime = user.lastLogoutAt || user.lastLogout || user.lastSignOut;
+                      
+                      if (loginTime && logoutTime) {
+                        try {
+                          const loginDate = loginTime.seconds ? new Date(loginTime.seconds * 1000) : new Date(loginTime);
+                          const logoutDate = logoutTime.seconds ? new Date(logoutTime.seconds * 1000) : new Date(logoutTime);
+                          const diffMs = logoutDate.getTime() - loginDate.getTime();
+                          const minutes = Math.floor(diffMs / (1000 * 60));
+                          if (minutes > 0) {
+                            if (minutes > 60) {
+                              const hours = Math.floor(minutes / 60);
+                              const mins = minutes % 60;
+                              return `${hours}h ${mins}m`;
+                            }
+                            return `${minutes}m`;
+                          }
+                        } catch (error) {
+                          console.error('Error calculating session duration:', error);
+                        }
+                      }
+                      
+                      return 'Sin datos';
+                    })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredUsers.length === 0 && users.length > 0 && (
+            <div className="no-users">
+              <p>No se encontraron usuarios con los filtros aplicados</p>
+            </div>
+          )}
+          
+          {users.length === 0 && (
+            <div className="no-users">
+              <p>No se encontraron usuarios</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
       <HeaderWithHamburger title="🛡️ Panel de Control - Súper Admin" />
       <div className="super-admin-container with-header-sidebar">
-        <nav className="admin-tabs">
-          {/* Mostrar categorías principales siempre */}
-          {Object.entries(categories).map(([categoryKey, category]) => (
-            <button 
-              key={categoryKey}
-              className={`tab-button ${activeCategory === categoryKey ? 'active' : ''}`}
-              onClick={() => {
-                setActiveCategory(categoryKey);
-                setShowSubcategories(true);
-              }}
-            >
-              <i className={category.icon}></i> {category.title}
-            </button>
-          ))}
-        </nav>
-
-        {/* Mostrar subcategorías debajo cuando hay una categoría seleccionada */}
-        {showSubcategories && (
-          <nav className="admin-subtabs">
-            {Object.entries(categories[activeCategory as keyof typeof categories].subcategories).map(([subKey, subcategory]) => {
-              const isMessages = subKey === 'messages';
-              return (
-                <button 
-                  key={subKey}
-                  className={`subtab-button ${activeTab === subKey ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveTab(subKey);
-                    if (isMessages) {
-                      // Marcar mensajes como leídos cuando se abre la pestaña
-                      messages.filter(m => !m.read && selectedMessage?.id === m.id).forEach(m => {
-                        handleMarkAsRead(m.id);
-                      });
-                    }
-                  }}
-                >
-                  <i className={subcategory.icon}></i> {subcategory.title}
-                  {isMessages && unreadCount > 0 && (
-                    <span className="unread-badge">{unreadCount}</span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        )}
-
-        <div className="tab-content">
-          {loading && (
-            <div className="loading-overlay">
-              <div className="loading-spinner"></div>
-              <p>Cargando datos...</p>
-            </div>
-          )}
-
-          {/* Tab de Usuarios */}
-          {activeTab === 'users' && (
-            <div className="users-tab">
-              <div className="tab-header">
-                <h2>Gestión de Usuarios ({users.length})</h2>
-                <div className="header-actions">
-                  {isRealtimeActive && (
-                    <div className="realtime-indicator" title="Actualización en tiempo real activa">
-                      <i className="fas fa-broadcast-tower"></i>
-                      <span>Tiempo real</span>
-                    </div>
-                  )}
-                  <button className="refresh-button" onClick={loadData} title="Actualizar datos manualmente">
-                    <i className="fas fa-sync-alt"></i>
-                  </button>
-                </div>
-              </div>
-              
-              {loading ? (
-                <div className="loading-message">
-                  <div className="loading-spinner"></div>
-                  <p>Cargando usuarios...</p>
-                </div>
-              ) : (
-                <div className="users-grid">
-                  {users.map(user => {
-                    // Debug log para cada usuario
-                    console.log('👤 Usuario:', {
-                      id: user.id,
-                      subscription: user.subscription,
-                      schoolRole: user.schoolRole,
-                      'UserSubscriptionType.SCHOOL': UserSubscriptionType.SCHOOL,
-                      'Comparación': user.subscription === UserSubscriptionType.SCHOOL
-                    });
-                    
-                    return (
-                    <div key={user.id} className="user-card">
-                      <div className="user-info">
-                        <div className="user-header">
-                          <h3>
-                            {user.nombre || user.displayName || user.username || 'Sin nombre'}
-                            {user.apellidos && ` ${user.apellidos}`}
-                          </h3>
-                          <span className={`badge ${user.subscription?.toLowerCase() || 'free'}`}>
-                            {(() => {
-                              const sub = user.subscription?.toLowerCase();
-                              
-                              if (sub === 'super_admin') return '👑 Súper Admin';
-                              if (sub === 'pro') return '⭐ Pro';
-                              if (sub === 'school') {
-                                const role = user.schoolRole?.toLowerCase();
-                                let roleText = 'Sin rol';
-                                if (role === 'admin') roleText = 'Admin';
-                                if (role === 'teacher') roleText = 'Profesor';
-                                if (role === 'student') roleText = 'Estudiante';
-                                if (role === 'tutor') roleText = 'Tutor';
-                                return `🏫 Escolar - ${roleText}`;
-                              }
-                              if (sub === 'university') return '🎓 Universidad';
-                              // Por defecto es FREE
-                              return '🆓 Gratis';
-                            })()}
-                          </span>
-                        </div>
-                        
-                        <div className="user-details">
-                          <div className="detail-row">
-                            <span className="detail-label">📧 Email:</span>
-                            <span className="detail-value">{user.email || 'No disponible'}</span>
-                          </div>
-                          
-                          <div className="detail-row">
-                            <span className="detail-label">🆔 ID:</span>
-                            <span className="detail-value user-id">{user.id}</span>
-                          </div>
-
-                          {/* Mostrar username si existe */}
-                          {user.username && (
-                            <div className="detail-row">
-                              <span className="detail-label">👤 Username:</span>
-                              <span className="detail-value">{user.username}</span>
-                            </div>
-                          )}
-
-                          {/* Mostrar displayName si es diferente del nombre */}
-                          {user.displayName && user.displayName !== user.nombre && (
-                            <div className="detail-row">
-                              <span className="detail-label">📝 Display Name:</span>
-                              <span className="detail-value">{user.displayName}</span>
-                            </div>
-                          )}
-                          
-                          {/* Mostrar fecha de nacimiento si existe */}
-                          {user.birthdate && (
-                            <div className="detail-row">
-                              <span className="detail-label">🎂 Fecha nacimiento:</span>
-                              <span className="detail-value">{user.birthdate}</span>
-                            </div>
-                          )}
-                          
-                          {user.createdAt && (
-                            <div className="detail-row">
-                              <span className="detail-label">📅 Creado:</span>
-                              <span className="detail-value">
-                                {user.createdAt.toDate ? 
-                                  user.createdAt.toDate().toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  }) : 
-                                  'Fecha no disponible'
-                                }
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Mostrar estadísticas si existen */}
-                          {user.notebookCount !== undefined && (
-                            <div className="detail-row">
-                              <span className="detail-label">📚 Cuadernos:</span>
-                              <span className="detail-value">{user.notebookCount}</span>
-                            </div>
-                          )}
-
-                          {user.maxNotebooks !== undefined && (
-                            <div className="detail-row">
-                              <span className="detail-label">📊 Límite cuadernos:</span>
-                              <span className="detail-value">{user.maxNotebooks === -1 ? '∞' : user.maxNotebooks}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="user-actions">
-                        <div className="action-group">
-                          <label className="action-label">Tipo de suscripción:</label>
-                          <select 
-                            value={user.subscription?.toLowerCase() || UserSubscriptionType.FREE}
-                            onChange={(e) => updateUserSubscription(user.id, e.target.value as UserSubscriptionType)}
-                            className="subscription-select"
-                          >
-                            <option value={UserSubscriptionType.FREE}>🆓 Gratis</option>
-                            <option value={UserSubscriptionType.PRO}>⭐ Pro</option>
-                            <option value={UserSubscriptionType.SCHOOL}>🏫 Escolar</option>
-                            <option value={UserSubscriptionType.UNIVERSITY}>🎓 Universidad</option>
-                            <option value={UserSubscriptionType.SUPER_ADMIN}>👑 Súper Admin</option>
-                          </select>
-                        </div>
-                        
-                        {user.subscription?.toLowerCase() === 'school' && (
-                          <div className="action-group">
-                            <label className="action-label">Rol escolar:</label>
-                            <select 
-                              value={user.schoolRole?.toLowerCase() || ''}
-                              onChange={(e) => updateUserSchoolRole(user.id, e.target.value as SchoolRole)}
-                              className="role-select"
-                            >
-                              <option value={SchoolRole.ADMIN}>👨‍💼 Administrador</option>
-                              <option value={SchoolRole.TEACHER}>👨‍🏫 Profesor</option>
-                              <option value={SchoolRole.STUDENT}>👨‍🎓 Alumno</option>
-                              <option value={SchoolRole.TUTOR}>👨‍👩‍👧‍👦 Tutor</option>
-                            </select>
-                          </div>
-                        )}
-                        
-                        <div className="action-buttons">
-                          <button 
-                            className="delete-button"
-                            onClick={() => deleteUser(user.id, user.nombre || '')}
-                            title="Eliminar usuario"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )})}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab de Vinculación Escolar */}
-          {activeTab === 'schoolLinking' && (
-            <SchoolLinking />
-          )}
-
-          {/* Tab de Creación Escolar */}
-          {activeTab === 'schoolCreation' && (
-            <SchoolCreation />
-          )}
-
-          {/* Tab de Mensajes */}
-          {activeTab === 'messages' && (
-            <div className="messages-tab">
-              <div className="messages-container">
-                <div className="messages-list">
-                  <h3>Mensajes de Contacto</h3>
-                  {messages.length === 0 ? (
-                    <div className="no-messages">
-                      <i className="fas fa-inbox"></i>
-                      <p>No hay mensajes</p>
-                    </div>
-                  ) : (
-                    <div className="messages-items">
-                      {messages.map(message => (
-                        <div 
-                          key={message.id} 
-                          className={`message-item ${!message.read ? 'unread' : ''} ${selectedMessage?.id === message.id ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedMessage(message);
-                            if (!message.read) {
-                              handleMarkAsRead(message.id);
-                            }
-                          }}
-                        >
-                          <div className="message-header">
-                            <div className="message-from">
-                              <strong>{message.name}</strong>
-                              {!message.read && <span className="unread-dot"></span>}
-                            </div>
-                            <div className="message-date">{formatMessageDate(message.createdAt)}</div>
-                          </div>
-                          <div className="message-subject">{message.subject}</div>
-                          <div className="message-preview">{message.message.substring(0, 80)}...</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {selectedMessage && (
-                  <div className="message-detail">
-                    <div className="message-detail-header">
-                      <button 
-                        className="close-detail"
-                        onClick={() => setSelectedMessage(null)}
-                      >
-                        <i className="fas fa-times"></i>
-                      </button>
-                    </div>
-                    <div className="message-detail-content">
-                      <h3>Detalle del Mensaje</h3>
-                      <div className="message-info">
-                        <p><strong>De:</strong> {selectedMessage.name}</p>
-                        <p><strong>Email:</strong> <a href={`mailto:${selectedMessage.email}`}>{selectedMessage.email}</a></p>
-                        <p><strong>Asunto:</strong> {
-                          selectedMessage.subject === 'soporte' ? 'Soporte técnico' :
-                          selectedMessage.subject === 'ventas' ? 'Información de precios' :
-                          selectedMessage.subject === 'feedback' ? 'Sugerencias' :
-                          selectedMessage.subject === 'otro' ? 'Otro' :
-                          selectedMessage.subject
-                        }</p>
-                        <p><strong>Fecha:</strong> {selectedMessage.createdAt.toLocaleString('es-ES')}</p>
-                      </div>
-                      <div className="message-body">
-                        <p>{selectedMessage.message}</p>
-                      </div>
-                      <div className="message-actions">
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => window.location.href = `mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
-                        >
-                          <i className="fas fa-reply"></i> Responder por Email
-                        </button>
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={() => handleArchiveMessage(selectedMessage.id)}
-                        >
-                          <i className="fas fa-archive"></i> Archivar
-                        </button>
-                        <button 
-                          className="btn btn-danger"
-                          onClick={() => handleDeleteMessage(selectedMessage.id)}
-                        >
-                          <i className="fas fa-trash"></i> Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tab de Sincronización Escolar - Temporalmente oculto
-          {activeTab === 'schoolSync' && (
-            <div className="school-sync-tab">
-              <div className="tab-header">
-                <h2>🔄 Sincronización de Usuarios Escolares</h2>
-                <p className="tab-description">
-                  Sincroniza los usuarios de las colecciones schoolTeachers y schoolStudents 
-                  para crear usuarios reales en Firebase Auth que puedan hacer login.
-                </p>
-              </div>
-
-              {syncLoading && (
-                <div className="loading-overlay">
-                  <div className="loading-spinner"></div>
-                  <p>Sincronizando usuarios escolares...</p>
-                </div>
-              )}
-
-              <div className="sync-actions">
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🚀 Sincronización Completa</h3>
-                    <p>Sincroniza TODOS los profesores y estudiantes escolares</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-all"
-                    onClick={handleSyncAllSchoolUsers}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-sync-alt"></i>
-                    Sincronizar Todo
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>👨‍🏫 Solo Profesores</h3>
-                    <p>Sincroniza únicamente los schoolTeachers</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-teachers"
-                    onClick={handleSyncTeachers}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-chalkboard-teacher"></i>
-                    Sincronizar Profesores
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>👨‍🎓 Solo Estudiantes</h3>
-                    <p>Sincroniza únicamente los schoolStudents</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-students"
-                    onClick={handleSyncStudents}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-user-graduate"></i>
-                    Sincronizar Estudiantes
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔄 Migrar Profesores Existentes</h3>
-                    <p>Migra usuarios con schoolRole: 'teacher' a schoolTeachers</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-migrate"
-                    onClick={handleMigrateExistingTeachers}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-sync-alt"></i>
-                    Migrar Profesores
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔍 Verificar Estado de Profesor</h3>
-                    <p>Verifica si un usuario existe en schoolTeachers</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-check"
-                    onClick={handleCheckTeacherStatus}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-search"></i>
-                    Verificar Estado
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🧹 Limpiar Documentos Duplicados</h3>
-                    <p>Elimina documentos duplicados en schoolTeachers</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-clean"
-                    onClick={handleCleanDuplicateTeachers}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-broom"></i>
-                    Limpiar Duplicados
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>📊 Verificar Estado de Colecciones</h3>
-                    <p>Muestra el estado de users y schoolTeachers</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-status"
-                    onClick={handleCheckCollectionsStatus}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-chart-bar"></i>
-                    Verificar Estado
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔧 Corregir Duplicado Rubenelhore</h3>
-                    <p>Elimina el documento duplicado específico de rubenelhore23@gmail.com</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-fix"
-                    onClick={handleFixRubenelhoreDuplicate}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-wrench"></i>
-                    Corregir Duplicado
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔍 Verificar Estado Rubenelhore</h3>
-                    <p>Muestra el estado específico de rubenelhore23@gmail.com</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-check-specific"
-                    onClick={handleCheckRubenelhoreStatus}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-search"></i>
-                    Verificar Rubenelhore
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔄 Migración Automática de Réplicas</h3>
-                    <p>Migra usuarios existentes con roles pero sin réplicas en schoolTeachers/schoolStudents</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-migrate-all"
-                    onClick={handleMigrateAllExistingSchoolUsers}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-sync-alt"></i>
-                    Migrar Todos los Usuarios Escolares
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🔍 Verificar Estado de Usuario</h3>
-                    <p>Verifica el estado de sincronización de un usuario específico</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-check-user"
-                    onClick={handleCheckUserSyncStatus}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-user-check"></i>
-                    Verificar Estado de Usuario
-                  </button>
-                </div>
-
-                <div className="sync-card">
-                  <div className="sync-card-header">
-                    <h3>🧪 Probar Sistema de Réplicas</h3>
-                    <p>Ejecuta una prueba completa del sistema automático de réplicas</p>
-                  </div>
-                  <button 
-                    className="sync-button sync-test-replica"
-                    onClick={handleTestReplicaSystem}
-                    disabled={syncLoading}
-                  >
-                    <i className="fas fa-vial"></i>
-                    Probar Sistema de Réplicas
-                  </button>
-                </div>
-              </div>
-
-              <SchoolMigrationTool />
-
-              {syncResults && (
-                <div className="sync-results">
-                  <h3>📊 Resultados de Sincronización</h3>
-                  
-                  {syncResults.teachers && (
-                    <div className="result-section">
-                      <h4>👨‍🏫 Profesores</h4>
-                      <div className="result-stats">
-                        <div className="stat-item success">
-                          <span className="stat-number">{syncResults.teachers.success}</span>
-                          <span className="stat-label">Exitosos</span>
-                        </div>
-                        <div className="stat-item error">
-                          <span className="stat-number">{syncResults.teachers.errors.length}</span>
-                          <span className="stat-label">Errores</span>
-                        </div>
-                      </div>
-                      
-                      {syncResults.teachers.errors.length > 0 && (
-                        <div className="error-details">
-                          <h5>Errores en Profesores:</h5>
-                          {syncResults.teachers.errors.map((error: any, index: number) => (
-                            <div key={index} className="error-item">
-                              <strong>{error.email}:</strong> {error.error}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {syncResults.students && (
-                    <div className="result-section">
-                      <h4>👨‍🎓 Estudiantes</h4>
-                      <div className="result-stats">
-                        <div className="stat-item success">
-                          <span className="stat-number">{syncResults.students.success}</span>
-                          <span className="stat-label">Exitosos</span>
-                        </div>
-                        <div className="stat-item error">
-                          <span className="stat-number">{syncResults.students.errors.length}</span>
-                          <span className="stat-label">Errores</span>
-                        </div>
-                      </div>
-                      
-                      {syncResults.students.errors.length > 0 && (
-                        <div className="error-details">
-                          <h5>Errores en Estudiantes:</h5>
-                          {syncResults.students.errors.map((error: any, index: number) => (
-                            <div key={index} className="error-item">
-                              <strong>{error.email}:</strong> {error.error}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="sync-info">
-                <h3>ℹ️ Información Importante</h3>
-                <ul>
-                  <li>La sincronización crea usuarios reales en Firebase Auth con contraseña "1234"</li>
-                  <li>Los usuarios sincronizados podrán hacer login en el sistema</li>
-                  <li>Se mantienen los datos originales en las colecciones escolares</li>
-                  <li>Los usuarios ya existentes solo se actualizarán en la colección users</li>
-                  <li>Es recomendable hacer backup antes de ejecutar la sincronización masiva</li>
-                </ul>
-              </div>
-            </div>
-          )}
-          */}
-
-          {/* Tab de Verificación de Vinculación */}
-          {activeTab === 'schoolVerification' && (
-            <div className="school-verification-tab">
-              <div className="tab-header">
-                <h2>🔗 Verificación de Vinculación Escolar</h2>
-              </div>
-              <SchoolLinkingVerification />
-            </div>
-          )}
-
-          {/* Tab de Verificación de Lógica de Estudio */}
-          {activeTab === 'studyLogic' && (
-            <div className="study-logic-tab">
-              <div className="tab-header">
-                <h2>🧠 Verificación de Lógica de Estudio</h2>
-                <p className="tab-description">
-                  Monitorea las fechas de estudio de los conceptos según el algoritmo SM-3
-                </p>
-              </div>
-              <StudyLogicVerification />
-            </div>
-          )}
-
-          {/* Tab de Verificación de Lógica de Dashboards */}
-          {activeTab === 'dashboardLogic' && (
-            <div className="dashboard-logic-tab">
-              <div className="tab-header">
-                <h2>📊 Verificación de Lógica de Dashboards</h2>
-                <p className="tab-description">
-                  Visualiza todos los datos y KPIs que conforman el dashboard de cada usuario
-                </p>
-              </div>
-              <DashboardVerification />
-            </div>
-          )}
-
-          {/* Tab de Analytics */}
-          {activeTab === 'analytics' && (
-            <div className="analytics-tab">
-              <AnalyticsDashboard />
-            </div>
-          )}
-
-          {/* Tab de Usuarios Universitarios */}
-          {activeTab === 'university' && (
-            <UniversityUsersTab />
-          )}
-          
-          {/* Tab de Gestión de Profesores */}
-          {activeTab === 'teachers' && (
-            <TeacherManagementImproved />
-          )}
-
-
-        </div>
-
-        {/* Notificación */}
-        {notification && (
-          <div className={`notification notification-${notification.type}`}>
-            <div className="notification-content">
-              <i className={`fas ${notification.type === 'success' ? 'fa-check-circle' : notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
-              <span>{notification.message}</span>
-            </div>
+        <div className="admin-content">
+          <div className="welcome-section">
+            <h1>Panel de Súper Admin</h1>
+            <p>Bienvenido al panel de control de súper administrador.</p>
           </div>
-        )}
+          
+          <div className="admin-tabs">
+            <button 
+              className={`tab-button ${activeTab === 'usuarios' ? 'active' : ''}`}
+              onClick={() => setActiveTab('usuarios')}
+            >
+              👥 Usuarios
+            </button>
+          </div>
+          
+          <div className="tab-content">
+            {activeTab === 'usuarios' && renderUsersTab()}
+          </div>
+        </div>
       </div>
     </>
   );
 };
 
-export default SuperAdminPage; 
+export default SuperAdminPage;
