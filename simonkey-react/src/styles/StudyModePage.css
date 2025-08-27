@@ -30,24 +30,20 @@
   --transition: all 0.3s ease;
 }
 
-/* Prevent body scroll when on study page */
+/* Allow scrolling on study page */
 body:has(.study-mode-container) {
-  overflow: hidden !important;
-  height: 100vh !important;
+  overflow-y: auto;
+  min-height: 100vh;
 }
 
 /* Main Container */
 .study-mode-container {
-  height: 100vh;
+  min-height: 100vh;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  overflow-y: auto;
+  position: relative;
 }
 
 .study-mode-main {
@@ -58,7 +54,7 @@ body:has(.study-mode-container) {
   width: 100%;
   box-sizing: border-box;
   background-color: #ffffff;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Loading State */

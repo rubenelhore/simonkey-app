@@ -1361,8 +1361,8 @@ const StudyModePage = () => {
             </div>
           </div>
 
-          {/* AI-Powered Study Section */}
-          <div className="ai-study-section">
+          {/* AI-Powered Study Section - Temporarily Hidden */}
+          <div className="ai-study-section" style={{ display: 'none' }}>
             <div className="ai-section-header">
               <div className="ai-badge">
                 <span>Potenciado con IA</span>
