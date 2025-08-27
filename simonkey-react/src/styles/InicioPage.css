@@ -1325,6 +1325,19 @@
   .daily-metrics {
     justify-content: center;
   }
+  
+  /* Progress metrics para tablets - mantener 2 columnas pero más compacto */
+  .progress-insights-container {
+    gap: 0.8rem;
+  }
+  
+  .progress-metric {
+    padding: 0.8rem;
+  }
+  
+  .progress-metric-value {
+    font-size: 1.3rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1403,6 +1416,31 @@
     font-size: 0.85rem;
   }
   
+  /* Progress metrics responsive - cambiar a 1 columna en móviles */
+  .progress-insights-container {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .progress-metric {
+    padding: 1rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .progress-metric-value {
+    flex-direction: row;
+    font-size: 1.5rem;
+  }
+  
+  .progress-metric-label {
+    font-size: 0.8rem;
+    text-align: left;
+    flex: 1;
+  }
+  
   .row-4 {
     grid-template-columns: 1fr;
     gap: 0.75rem;
@@ -1435,6 +1473,21 @@
   
   .action-icon {
     font-size: 1.25rem;
+  }
+  
+  /* Progress metrics para pantallas muy pequeñas - diseño más compacto */
+  .progress-metric {
+    padding: 0.8rem;
+    min-height: 60px;
+  }
+  
+  .progress-metric-value {
+    font-size: 1.4rem;
+  }
+  
+  .progress-metric-label {
+    font-size: 0.75rem;
+    line-height: 1.1;
   }
 }
 
