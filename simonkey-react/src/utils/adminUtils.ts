@@ -5,6 +5,7 @@ import {
   doc, 
   setDoc, 
   getDoc,
+  updateDoc,
   serverTimestamp,
   query,
   where,
@@ -51,6 +52,8 @@ export const updateCurrentUserAsSuperAdmin = async () => {
     }
 
     console.log('Actualizando usuario como Super Admin...');
+    console.log('Usuario actual:', currentUser.email);
+    console.log('UID:', currentUser.uid);
     
     // Verificar si el documento existe
     const userDocRef = doc(db, 'users', currentUser.uid);
@@ -58,25 +61,95 @@ export const updateCurrentUserAsSuperAdmin = async () => {
     
     if (!userDoc.exists()) {
       console.error('Documento de usuario no encontrado');
-      return false;
+      console.log('Intentando crear el documento de usuario...');
+      
+      // Crear el documento si no existe
+      await setDoc(userDocRef, {
+        email: currentUser.email,
+        subscription: UserSubscriptionType.SUPER_ADMIN,
+        maxNotebooks: -1,
+        maxConceptsPerNotebook: -1,
+        notebooksCreatedThisWeek: 0,
+        conceptsCreatedThisWeek: 0,
+        weekStartDate: new Date(),
+        createdAt: serverTimestamp()
+      });
+      
+      console.log('✅ Documento de usuario creado como Super Admin');
+      console.log('Recarga la página para ver los cambios');
+      return true;
     }
 
-    // Actualizar el usuario como super admin
-    await setDoc(userDocRef, {
-      subscription: UserSubscriptionType.SUPER_ADMIN,
-      maxNotebooks: -1,
-      maxConceptsPerNotebook: -1,
-      notebooksCreatedThisWeek: 0,
-      conceptsCreatedThisWeek: 0,
-      weekStartDate: new Date()
-    }, { merge: true });
+    const userData = userDoc.data();
+    console.log('Estado actual del usuario:', {
+      subscription: userData.subscription,
+      email: userData.email
+    });
 
-    console.log('✅ Usuario actualizado exitosamente como Super Admin');
-    console.log('Recarga la página para ver los cambios');
+    // Si ya es super admin, no hacer nada
+    if (userData.subscription === UserSubscriptionType.SUPER_ADMIN) {
+      console.log('✅ El usuario ya es Super Admin');
+      return true;
+    }
+
+    // Intentar actualizar usando updateDoc primero
+    try {
+      await updateDoc(userDocRef, {
+        subscription: UserSubscriptionType.SUPER_ADMIN,
+        maxNotebooks: -1,
+        maxConceptsPerNotebook: -1,
+        notebooksCreatedThisWeek: 0,
+        conceptsCreatedThisWeek: 0,
+        weekStartDate: new Date()
+      });
+      
+      console.log('✅ Usuario actualizado exitosamente como Super Admin');
+      console.log('Recarga la página para ver los cambios');
+      return true;
+    } catch (updateError: any) {
+      console.error('Error con updateDoc:', updateError.message);
+      
+      // Si updateDoc falla, intentar con setDoc
+      try {
+        await setDoc(userDocRef, {
+          subscription: UserSubscriptionType.SUPER_ADMIN,
+          maxNotebooks: -1,
+          maxConceptsPerNotebook: -1,
+          notebooksCreatedThisWeek: 0,
+          conceptsCreatedThisWeek: 0,
+          weekStartDate: new Date()
+        }, { merge: true });
+        
+        console.log('✅ Usuario actualizado exitosamente como Super Admin (con setDoc)');
+        console.log('Recarga la página para ver los cambios');
+        return true;
+      } catch (setError: any) {
+        console.error('Error con setDoc:', setError.message);
+        throw setError;
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ Error actualizando usuario:', error.message);
     
-    return true;
-  } catch (error) {
-    console.error('Error actualizando usuario:', error);
+    if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
+      console.log('');
+      console.log('⚠️ SOLUCIÓN: El error es de permisos de Firebase.');
+      console.log('');
+      console.log('Para solucionarlo, necesitas actualizar las reglas de Firestore:');
+      console.log('1. Ve a Firebase Console: https://console.firebase.google.com');
+      console.log('2. Selecciona tu proyecto: simonkey-5c78f');
+      console.log('3. Ve a Firestore Database > Rules');
+      console.log('4. Agrega esta regla temporal para tu usuario:');
+      console.log('');
+      console.log('```');
+      console.log('// Permitir que estos usuarios específicos actualicen su propio documento');
+      console.log(`allow write: if request.auth != null && request.auth.uid == resource.id && request.auth.token.email in ['ruben.elhore@gmail.com', 'santiagoarceofel@gmail.com'];`);
+      console.log('```');
+      console.log('');
+      console.log('O usa Firebase CLI:');
+      console.log(`firebase firestore:update users/UJwItor6k5gHfFgrxmFkbln15D62 --data '{"subscription":"super_admin","maxNotebooks":-1,"maxConceptsPerNotebook":-1}'`);
+    }
+    
     return false;
   }
 };

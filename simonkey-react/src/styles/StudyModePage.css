@@ -30,12 +30,24 @@
   --transition: all 0.3s ease;
 }
 
+/* Prevent body scroll when on study page */
+body:has(.study-mode-container) {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
 /* Main Container */
 .study-mode-container {
-  min-height: 100vh;
+  height: 100vh;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .study-mode-main {
@@ -46,6 +58,7 @@
   width: 100%;
   box-sizing: border-box;
   background-color: #ffffff;
+  overflow: hidden;
 }
 
 /* Loading State */
@@ -646,7 +659,7 @@
   box-shadow: none;
   border: none;
   position: relative;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -2857,10 +2870,13 @@
 /* AI-Powered Study Section */
 .ai-study-section {
   margin-top: 1.5rem;
-  padding: 1.5rem 0 2rem 0;
+  padding: 0;
   border-top: 2px solid var(--border-light);
   background: linear-gradient(to bottom, #F9FAFB, #F3F4F6);
   position: relative;
+  width: 914px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .ai-study-section::before {
@@ -2876,7 +2892,7 @@
 
 .ai-section-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   position: relative;
   z-index: 1;
 }

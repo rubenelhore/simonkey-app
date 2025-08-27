@@ -687,7 +687,7 @@ const NotebookDetail = () => {
       );
     } else if (fileType === 'application/pdf') {
       return (
-        <div style={{ height: '80vh', width: '380px' }}>
+        <div style={{ height: '200px', width: '882px' }}>
           <iframe
             src={`${fileURL}#navpanes=0`}
             title={file.name}

@@ -32,7 +32,8 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAuthenticated() && (
         getUserSubscription() == 'super_admin' ||
-        request.auth.token.email == 'ruben.elhore@gmail.com'
+        request.auth.token.email == 'ruben.elhore@gmail.com' ||
+        request.auth.token.email == 'santiagoarceofel@gmail.com'
       );
     }
     
