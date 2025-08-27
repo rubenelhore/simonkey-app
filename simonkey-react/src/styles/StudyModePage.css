@@ -55,6 +55,8 @@ body:has(.study-mode-container) {
   box-sizing: border-box;
   background-color: #ffffff;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Loading State */
@@ -3160,9 +3162,14 @@ body:has(.study-mode-container) {
 
 /* Responsive Design for AI Section */
 @media (max-width: 768px) {
+  .main-study-module {
+    order: 1; /* Main content first on mobile */
+  }
+  
   .ai-study-section {
     margin-top: 1rem;
     padding: 1rem 0 1.5rem 0;
+    order: 999; /* Move to bottom on mobile */
   }
 
   .ai-section-header h2 {
