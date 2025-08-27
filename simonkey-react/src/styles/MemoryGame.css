@@ -1287,6 +1287,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: #1f2937;
+  -webkit-text-fill-color: #1f2937; /* iOS text color fix */
   margin-bottom: 0.5rem;
 }
 
@@ -1299,6 +1300,7 @@
 .difficulty-details span {
   font-size: 0.75rem;
   color: #64748b;
+  -webkit-text-fill-color: #64748b; /* iOS text color fix */
 }
 
 .insufficient-text {
