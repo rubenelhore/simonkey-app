@@ -1064,9 +1064,9 @@ const ProgressPage: React.FC = () => {
           
           console.log(`[ProgressPage] Ranking calculado con ${rankingToShow.length} estudiantes`);
           
-          // Si hay datos, mostrar el ranking
+          // Si hay datos, mostrar el ranking completo
           if (rankingToShow.length > 0) {
-            setRankingData(rankingToShow.slice(0, 10)); // Mostrar top 10
+            setRankingData(rankingToShow); // Mostrar todos los usuarios
           } else {
             // Si no hay datos de otros estudiantes, mostrar solo al usuario actual
             const userScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;

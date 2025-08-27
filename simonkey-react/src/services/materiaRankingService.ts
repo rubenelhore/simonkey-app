@@ -152,8 +152,8 @@ export class MateriaRankingService {
       
       console.log(`📊 Ranking calculated with ${rankings.length} students`);
       
-      // Return top 10
-      return rankings.slice(0, 10);
+      // Return all students
+      return rankings;
       
     } catch (error) {
       console.error('❌ Error getting materia ranking:', error);
