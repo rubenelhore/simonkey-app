@@ -400,8 +400,8 @@
   color: #6b7280;
 }
 
-/* Calendar module specific styles */
-.calendar-module {
+/* Calendar module specific styles - Solo para el dashboard de inicio */
+.horizontal-module.calendar-module {
   padding: 25px 0.75rem;
   cursor: default;
   height: 100%;
@@ -409,7 +409,7 @@
   flex-direction: column;
 }
 
-.calendar-module .module-content {
+.horizontal-module.calendar-module .module-content {
   text-align: left;
 }
 
@@ -1439,7 +1439,7 @@
 }
 
 /* 🎮 MODOS DE ESTUDIO - DISEÑO SUPER MEGA BONITO */
-.study-modes-module {
+.horizontal-module.study-modes-module {
   padding: 0.75rem;
   cursor: default;
   height: 100%;
@@ -1447,14 +1447,14 @@
   flex-direction: column;
 }
 
-.study-modes-module .module-content {
+.horizontal-module.study-modes-module .module-content {
   padding: 0.75rem;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.study-modes-module .module-header {
+.horizontal-module.study-modes-module .module-header {
   /* Usa los mismos estilos que el header del calendario */
 }
 
@@ -1670,8 +1670,8 @@
   height: 300px;
 }
 
-/* 📊 MÓDULO DE PROGRESO */
-.progress-module {
+/* 📊 MÓDULO DE PROGRESO - Solo para el dashboard de inicio */
+.horizontal-module.progress-module {
   padding: 0.75rem;
   cursor: default;
   height: 100%;
@@ -1679,7 +1679,7 @@
   flex-direction: column;
 }
 
-.progress-module .module-content {
+.horizontal-module.progress-module .module-content {
   padding: 0.75rem;
   height: 100%;
   display: flex;
