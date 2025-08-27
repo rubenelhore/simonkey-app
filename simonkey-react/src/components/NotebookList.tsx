@@ -60,6 +60,8 @@ interface NotebookListProps {
   onCreateExam?: () => void;
   examButtonDisabled?: boolean;
   examButtonTitle?: string;
+  isEnrolledMateria?: boolean; // Nueva prop para indicar si es materia inscrita
+  isUserTeacher?: boolean; // Prop para indicar si el usuario es profesor
 }
 
 const NotebookList: React.FC<NotebookListProps> = ({ 
@@ -83,7 +85,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
   showExamButton = false,
   onCreateExam,
   examButtonDisabled = false,
-  examButtonTitle = ""
+  examButtonTitle = "",
+  isEnrolledMateria = false,
+  isUserTeacher = false
 }) => {
   console.log('🎯 NotebookList props received:', { 
     onFreezeNotebook, 
@@ -812,29 +816,44 @@ const NotebookList: React.FC<NotebookListProps> = ({
             </div>
           )}
           <div className="notebook-grid" ref={notebookListRef}>
-            {notebooksBySelectedCategory.map(notebook => (
-              <NotebookItem
-                key={notebook.id}
-                id={notebook.id}
-                title={notebook.title}
-                color={notebook.color}
-                category={notebook.category}
-                conceptCount={notebook.conceptCount}
-                onDelete={onDeleteNotebook}
-                onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
-                onColorChange={onColorChange}
-                showActions={openActionsId === notebook.id}
-                onToggleActions={handleToggleActions}
-                isSchoolNotebook={isSchoolNotebook || isSchoolTeacher}
-                onAddConcept={onAddConcept}
-                isFrozen={notebook.isFrozen}
-                onFreeze={(id) => handleFreezeClick(id, notebook.title, notebook.isFrozen || false)}
-                isTeacher={isTeacher || isSchoolTeacher}
-                domainProgress={notebook.domainProgress}
-                isStudent={notebook.isStudent}
-                isEnrolled={notebook.isEnrolled}
-              />
-            ))}
+            {notebooksBySelectedCategory.map(notebook => {
+              const teacherValue = isUserTeacher || isTeacher || isSchoolTeacher;
+              const enrolledValue = isEnrolledMateria || notebook.isEnrolled;
+              console.log(`📋 NotebookList passing props for notebook ${notebook.id}:`, {
+                isUserTeacher,
+                isTeacher,
+                isSchoolTeacher,
+                isEnrolledMateria,
+                notebookIsEnrolled: notebook.isEnrolled,
+                finalTeacherValue: teacherValue,
+                finalEnrolledValue: enrolledValue,
+                shouldShowMenu: teacherValue && !enrolledValue
+              });
+              
+              return (
+                <NotebookItem
+                  key={notebook.id}
+                  id={notebook.id}
+                  title={notebook.title}
+                  color={notebook.color}
+                  category={notebook.category}
+                  conceptCount={notebook.conceptCount}
+                  onDelete={onDeleteNotebook}
+                  onEdit={onEditNotebook ? (id: string, newTitle: string) => onEditNotebook(id, newTitle) : undefined}
+                  onColorChange={onColorChange}
+                  showActions={openActionsId === notebook.id}
+                  onToggleActions={handleToggleActions}
+                  isSchoolNotebook={isSchoolNotebook || isSchoolTeacher}
+                  onAddConcept={onAddConcept}
+                  isFrozen={notebook.isFrozen}
+                  onFreeze={(id) => handleFreezeClick(id, notebook.title, notebook.isFrozen || false)}
+                  isTeacher={teacherValue}
+                  domainProgress={notebook.domainProgress}
+                  isStudent={notebook.isStudent}
+                  isEnrolled={enrolledValue}
+                />
+              );
+            })}
           </div>
         </div>
       )}

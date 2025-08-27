@@ -1127,6 +1127,14 @@ const Notebooks: React.FC = () => {
           </div>
         )}
         <div className="notebooks-list-section notebooks-list-section-full">
+          {console.log('🏫 Notebooks.tsx passing to NotebookList:', {
+            isSchoolStudent,
+            isSchoolAdmin, 
+            isEnrolledMateria,
+            isTeacher,
+            effectiveNotebooksCount: effectiveNotebooks.length,
+            shouldAllowEdit: !(isSchoolStudent || isEnrolledMateria)
+          })}
           <NotebookList 
             notebooks={effectiveNotebooks.map(notebook => ({
               id: notebook.id,
@@ -1160,6 +1168,8 @@ const Notebooks: React.FC = () => {
             onFreezeNotebook={handleFreezeNotebook}
             showCreateButton={!isSchoolStudent && !isSchoolAdmin && !isEnrolledMateria}
             isSchoolTeacher={isTeacher} // Pasar el valor correcto para profesores
+            isEnrolledMateria={isEnrolledMateria}
+            isUserTeacher={isTeacher}
             selectedCategory={selectedCategory}
             showCategoryModal={showCategoryModal}
             onCloseCategoryModal={() => setShowCategoryModal(false)}

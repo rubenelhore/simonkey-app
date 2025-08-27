@@ -42,7 +42,14 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
     title,
     hasTitle: !!title,
     titleType: typeof title,
-    titleLength: title?.length || 0
+    titleLength: title?.length || 0,
+    isTeacher,
+    isEnrolled,
+    showMenuButton: isTeacher && !isEnrolled,
+    isTeacherType: typeof isTeacher,
+    isEnrolledType: typeof isEnrolled,
+    notIsEnrolled: !isEnrolled,
+    conditionResult: isTeacher && !isEnrolled
   });
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -372,8 +379,8 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - oculto para estudiantes y cuadernos de materias inscritas */}
-            {!isStudent && !isEnrolled && (
+            {/* Botón de menú de 3 puntos - solo visible para profesores en cuadernos no inscritos */}
+            {isTeacher && !isEnrolled && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}
@@ -407,7 +414,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               </button>
             )}
 
-            <h3 style={{ paddingRight: (isStudent || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: (!isTeacher || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
             <div className="materia-info-container">
               <span className="materia-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}
