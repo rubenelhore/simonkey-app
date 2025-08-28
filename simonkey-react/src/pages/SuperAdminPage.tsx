@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { db, auth } from '../services/firebase';
-import { getAuth, listUsers } from 'firebase/auth';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface User {
   id: string;
@@ -25,6 +24,12 @@ interface User {
   notebookCount?: number;
   conceptsCreatedThisWeek?: number;
   notebooksCreatedThisWeek?: number;
+  sessionDuration?: any;
+  lastSessionDuration?: any;
+  sessionTime?: any;
+  totalSessionTime?: any;
+  activeTime?: any;
+  timeSpent?: any;
 }
 
 const SuperAdminPage: React.FC = () => {
