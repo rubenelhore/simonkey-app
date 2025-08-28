@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { logger } from '../utils/logger';
 
 interface TourStep {
   id: string;
@@ -168,19 +169,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // TEMPORALMENTE DESACTIVADO: No mostrar el tour introductorio por el momento
     const shouldShowTour = false; // userProfile.hasCompletedOnboarding === false && isEmailVerified === true;
     
-    console.log('🎯 TourContext - Tour desactivado temporalmente:', {
-      hasCompletedOnboarding: userProfile.hasCompletedOnboarding,
-      isEmailVerified,
-      shouldShowTour,
-      currentlyActive: isActive
-    });
+    // Tour temporarily disabled
     
     if (shouldShowTour && !isActive) {
-      console.log('🎯 TourContext - Activando tour para usuario nuevo con email verificado');
       setIsActive(true);
       setCurrentStepIndex(0);
     } else if (!shouldShowTour && isActive) {
-      console.log('🎯 TourContext - Desactivando tour');
       setIsActive(false);
     }
   }, [userProfile, loading, user, isEmailVerified]);
@@ -188,7 +182,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Función para completar el tour y actualizar el perfil
   const completeTour = async () => {
     try {
-      console.log('🎯 TourContext - Completando tour');
       
       if (user && refreshUserProfile) {
         // Actualizar el perfil en Firestore
@@ -201,9 +194,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Refrescar el perfil del usuario para que se actualice el contexto
         await refreshUserProfile();
         
-        console.log('✅ TourContext - Perfil actualizado, tour completado');
       } else {
-        console.log('⚠️ TourContext - No se pudo actualizar perfil (usuario o refreshUserProfile no disponible)');
       }
       
       // Desactivar el tour
@@ -216,14 +207,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const nextStep = async () => {
-    console.log(`🎯 NextStep - Paso actual: ${currentStepIndex + 1}/${tourSteps.length}`);
     
     const currentStep = tourSteps[currentStepIndex];
     
     // Si es el último paso y tiene navegación, navegar y completar tour
     if (currentStepIndex >= tourSteps.length - 1) {
       if (currentStep.action === 'navigate' && currentStep.actionTarget) {
-        console.log(`🔄 Último paso - navegando a: ${currentStep.actionTarget} y completando tour`);
         navigate(currentStep.actionTarget);
         
         // Esperar navegación y luego completar tour
@@ -240,7 +229,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Si necesita navegación, navegar primero
     if (currentStep.action === 'navigate' && currentStep.actionTarget) {
       setIsNavigating(true);
-      console.log(`🔄 Navegando a: ${currentStep.actionTarget}`);
       
       navigate(currentStep.actionTarget);
       
@@ -248,7 +236,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTimeout(() => {
         setCurrentStepIndex(currentStepIndex + 1);
         setIsNavigating(false);
-        console.log(`✅ Avanzado al paso ${currentStepIndex + 2}`);
       }, 1000);
     } else {
       // Avanzar directamente
@@ -263,7 +250,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const skipTour = async () => {
-    console.log('🔄 Usuario saltó el tour');
     await completeTour();
   };
 
@@ -271,7 +257,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user) {
       (window as any).debugTour = () => {
-        console.log('🔍 DEBUG TOUR - Estado actual:', {
+        logger.debug('DEBUG TOUR - Current state', {
           userProfile,
           loading,
           isActive,
@@ -281,11 +267,11 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       (window as any).forceCompleteTour = async () => {
-        console.log('🔧 FORZANDO COMPLETAR TOUR para usuario actual...');
+        logger.debug('FORCING TOUR COMPLETION for current user...');
         await completeTour();
       };
       
-      console.log('🛠️ Debug functions available: window.debugTour(), window.forceCompleteTour()');
+      logger.debugFunctions('Debug functions available: window.debugTour(), window.forceCompleteTour()');
     }
   }, [user, userProfile, isActive]);
 

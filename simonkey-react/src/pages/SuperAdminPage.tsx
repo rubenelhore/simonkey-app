@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
-import { collection, getDocs } from 'firebase/firestore';
+import TeacherManagementImproved from '../components/TeacherManagementImproved';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 interface User {
@@ -32,12 +33,25 @@ interface User {
   timeSpent?: any;
 }
 
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  timestamp: any;
+  userId?: string;
+  status?: string;
+}
+
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, loading: userTypeLoading } = useUserType();
   const [activeTab, setActiveTab] = useState('usuarios');
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [filteredMessages, setFilteredMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     nombre: '',
@@ -46,6 +60,10 @@ const SuperAdminPage: React.FC = () => {
     role: '',
     fechaCreacion: '',
     ultimaSesion: ''
+  });
+  const [messageFilters, setMessageFilters] = useState({
+    search: '',
+    status: ''
   });
 
   // Verificar si el usuario es súper admin
@@ -69,10 +87,12 @@ const SuperAdminPage: React.FC = () => {
     }
   }, [isSuperAdmin, userTypeLoading, navigate]);
 
-  // Cargar usuarios cuando se selecciona la pestaña
+  // Cargar datos cuando se selecciona la pestaña
   useEffect(() => {
     if (activeTab === 'usuarios') {
       loadUsers();
+    } else if (activeTab === 'mensajes') {
+      loadMessages();
     }
   }, [activeTab]);
 
@@ -117,10 +137,58 @@ const SuperAdminPage: React.FC = () => {
     setFilteredUsers(filtered);
   };
 
+  const loadMessages = async () => {
+    try {
+      setLoading(true);
+      const messagesQuery = query(
+        collection(db, 'contactMessages'),
+        orderBy('timestamp', 'desc')
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const messagesData: ContactMessage[] = [];
+      
+      messagesSnapshot.forEach((doc) => {
+        const messageData = doc.data();
+        messagesData.push({
+          id: doc.id,
+          ...messageData
+        });
+      });
+      
+      console.log(`Total messages loaded: ${messagesData.length}`);
+      
+      setMessages(messagesData);
+      setFilteredMessages(messagesData);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterMessages = () => {
+    let filtered = messages.filter(message => {
+      const matchesSearch = !messageFilters.search || 
+        message.name.toLowerCase().includes(messageFilters.search.toLowerCase()) ||
+        message.email.toLowerCase().includes(messageFilters.search.toLowerCase()) ||
+        message.subject.toLowerCase().includes(messageFilters.search.toLowerCase()) ||
+        message.message.toLowerCase().includes(messageFilters.search.toLowerCase());
+      
+      const matchesStatus = !messageFilters.status || message.status === messageFilters.status;
+      
+      return matchesSearch && matchesStatus;
+    });
+    setFilteredMessages(filtered);
+  };
+
   // Ejecutar filtros cuando cambien
   React.useEffect(() => {
     filterUsers();
   }, [filters, users]);
+
+  React.useEffect(() => {
+    filterMessages();
+  }, [messageFilters, messages]);
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
@@ -325,6 +393,107 @@ const SuperAdminPage: React.FC = () => {
     );
   };
 
+  const renderTeachersTab = () => {
+    return (
+      <div className="teachers-section">
+        <TeacherManagementImproved />
+      </div>
+    );
+  };
+
+  const renderMessagesTab = () => {
+    if (loading) {
+      return (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando mensajes...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="messages-section">
+        <h2>📬 Mensajes de Contacto ({filteredMessages.length} de {messages.length})</h2>
+        
+        <div className="message-filters">
+          <input
+            type="text"
+            placeholder="Buscar mensajes..."
+            value={messageFilters.search}
+            onChange={(e) => setMessageFilters({...messageFilters, search: e.target.value})}
+            className="search-input"
+          />
+          
+          <select
+            value={messageFilters.status}
+            onChange={(e) => setMessageFilters({...messageFilters, status: e.target.value})}
+            className="status-filter"
+          >
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="responded">Respondido</option>
+            <option value="resolved">Resuelto</option>
+          </select>
+        </div>
+
+        <div className="simple-table-container">
+          <table className="simple-messages-table">
+            <thead>
+              <tr>
+                <th style={{ width: '15%' }}>Nombre</th>
+                <th style={{ width: '20%' }}>Email</th>
+                <th style={{ width: '20%' }}>Asunto</th>
+                <th style={{ width: '30%' }}>Mensaje</th>
+                <th style={{ width: '10%' }}>Estado</th>
+                <th style={{ width: '15%' }}>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMessages.map((message) => (
+                <tr key={message.id}>
+                  <td>{message.name}</td>
+                  <td>{message.email}</td>
+                  <td>{message.subject}</td>
+                  <td>
+                    <div className="message-preview">
+                      {message.message.length > 100 
+                        ? `${message.message.substring(0, 100)}...` 
+                        : message.message}
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${message.status || 'pending'}`}>
+                      {message.status === 'responded' ? 'Respondido' : 
+                       message.status === 'resolved' ? 'Resuelto' : 'Pendiente'}
+                    </span>
+                  </td>
+                  <td>
+                    {message.timestamp ? 
+                      new Date(message.timestamp.seconds * 1000).toLocaleDateString() : 
+                      'No disponible'
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredMessages.length === 0 && messages.length > 0 && (
+            <div className="no-messages">
+              <p>No se encontraron mensajes con los filtros aplicados</p>
+            </div>
+          )}
+          
+          {messages.length === 0 && (
+            <div className="no-messages">
+              <p>No se encontraron mensajes</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <HeaderWithHamburger title="🛡️ Panel de Control - Súper Admin" />
@@ -342,10 +511,24 @@ const SuperAdminPage: React.FC = () => {
             >
               👥 Usuarios
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'profesores' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profesores')}
+            >
+              👩‍🏫 Profesores
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'mensajes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('mensajes')}
+            >
+              📬 Mensajes
+            </button>
           </div>
           
           <div className="tab-content">
             {activeTab === 'usuarios' && renderUsersTab()}
+            {activeTab === 'profesores' && renderTeachersTab()}
+            {activeTab === 'mensajes' && renderMessagesTab()}
           </div>
         </div>
       </div>

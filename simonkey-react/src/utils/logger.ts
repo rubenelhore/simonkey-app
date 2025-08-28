@@ -2,7 +2,9 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LoggerConfig {
   isDevelopment: boolean;
+  isLocalhost: boolean;
   logLevel: LogLevel;
+  enableDebugFunctions: boolean;
 }
 
 class Logger {
@@ -15,44 +17,90 @@ class Logger {
   };
 
   constructor() {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugMode = urlParams.get('debug') === 'true';
+    
     this.config = {
       isDevelopment: import.meta.env.DEV,
-      logLevel: (import.meta.env.VITE_LOG_LEVEL as LogLevel) || 'info',
+      isLocalhost,
+      // In production, only show warnings and errors unless debug=true in URL
+      logLevel: import.meta.env.PROD && !debugMode ? 'warn' : 'debug',
+      enableDebugFunctions: isLocalhost || debugMode,
     };
   }
 
   private shouldLog(level: LogLevel): boolean {
-    if (!this.config.isDevelopment) return level === 'error';
     return this.logLevels[level] >= this.logLevels[this.config.logLevel];
   }
 
-  private formatMessage(level: LogLevel, message: string, data?: any): string {
-    const timestamp = new Date().toISOString();
-    return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+  private formatMessage(prefix: string, message: string): void {
+    console.log(`${prefix} ${message}`);
   }
 
   debug(message: string, data?: any): void {
     if (this.shouldLog('debug')) {
-      console.log(this.formatMessage('debug', message), data || '');
+      if (data !== undefined) {
+        console.log(`🔍 ${message}`, data);
+      } else {
+        console.log(`🔍 ${message}`);
+      }
     }
   }
 
   info(message: string, data?: any): void {
     if (this.shouldLog('info')) {
-      console.log(this.formatMessage('info', message), data || '');
+      if (data !== undefined) {
+        console.log(`ℹ️ ${message}`, data);
+      } else {
+        console.log(`ℹ️ ${message}`);
+      }
     }
   }
 
   warn(message: string, data?: any): void {
     if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message), data || '');
+      if (data !== undefined) {
+        console.warn(`⚠️ ${message}`, data);
+      } else {
+        console.warn(`⚠️ ${message}`);
+      }
     }
   }
 
   error(message: string, error?: any): void {
     if (this.shouldLog('error')) {
-      console.error(this.formatMessage('error', message), error || '');
+      if (error !== undefined) {
+        console.error(`❌ ${message}`, error);
+      } else {
+        console.error(`❌ ${message}`);
+      }
     }
+  }
+
+  // Specific system loggers
+  amplitude(message: string, data?: any): void {
+    if (this.shouldLog('info')) {
+      this.formatMessage('📊 Amplitude:', message);
+    }
+  }
+
+  auth(message: string, data?: any): void {
+    if (this.shouldLog('info')) {
+      this.formatMessage('🔐 Auth:', message);
+    }
+  }
+
+  // Only show debug functions when appropriate
+  debugFunctions(message: string): void {
+    if (this.config.enableDebugFunctions) {
+      console.log(`🛠️ ${message}`);
+    }
+  }
+
+  // Silent method for suppressing noisy logs
+  silent(): boolean {
+    return !this.config.enableDebugFunctions;
   }
 }
 

@@ -17,6 +17,7 @@ import { db } from './firebase';
 import { Concept } from '../types/interfaces';
 import { UnifiedNotebookService } from './unifiedNotebookService';
 import { CacheManager } from '../utils/cacheManager';
+import { logger } from '../utils/logger';
 
 interface ConceptDoc {
   id: string;
@@ -36,11 +37,10 @@ export class UnifiedConceptService {
    * Obtiene todos los documentos de conceptos para un notebook
    */
   static async getConceptDocs(notebookId: string): Promise<ConceptDoc[]> {
-    console.log('🔍 UnifiedConceptService.getConceptDocs - notebookId:', notebookId);
+    logger.debug(`UnifiedConceptService.getConceptDocs - notebookId: ${notebookId}`);
     try {
       // First try to get concepts from the subcollection within the notebook
       const conceptsRef = collection(db, 'notebooks', notebookId, 'concepts');
-      console.log('📚 Intentando obtener conceptos de notebooks subcollection...');
       const querySnapshot = await getDocs(conceptsRef);
       
       if (querySnapshot.size > 0) {
@@ -51,9 +51,7 @@ export class UnifiedConceptService {
       }
       
       // If no concepts in subcollection, try the old way for backward compatibility
-      console.log('📚 No hay conceptos en subcollection, intentando colección legacy...');
       const conceptsCollection = await UnifiedNotebookService.getConceptsCollection(notebookId);
-      console.log('📚 Colección legacy detectada:', conceptsCollection);
       
       // IMPORTANTE: Ambas colecciones usan 'cuadernoId'
       const q = query(
@@ -61,7 +59,6 @@ export class UnifiedConceptService {
         where('cuadernoId', '==', notebookId)
       );
       
-      console.log('🔍 Ejecutando query en colección legacy...');
       const legacySnapshot = await getDocs(q);
       return legacySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -103,7 +100,7 @@ export class UnifiedConceptService {
             } as Concept);
           }
         });
-        console.log(`📚 Found ${concepts.length} concepts in notebooks/${notebookId}/concepts subcollection`);
+        logger.debug(`Found ${concepts.length} concepts in notebooks/${notebookId}/concepts subcollection`);
         return concepts;
       }
       
@@ -125,7 +122,7 @@ export class UnifiedConceptService {
               } as Concept);
             }
           });
-          console.log(`📚 Found ${concepts.length} concepts in schoolNotebooks/${notebookId}/concepts subcollection`);
+          logger.debug(`Found ${concepts.length} concepts in schoolNotebooks/${notebookId}/concepts subcollection`);
           return concepts;
         }
       } catch (error) {
@@ -136,7 +133,7 @@ export class UnifiedConceptService {
       const conceptDocs = await this.getConceptDocs(notebookId);
       const legacyConcepts = conceptDocs.flatMap(doc => doc.conceptos || []);
       if (legacyConcepts.length > 0) {
-        console.log(`📚 Found ${legacyConcepts.length} concepts in legacy collection for notebook ${notebookId}`);
+        if (legacyConcepts.length > 0) logger.debug(`Found ${legacyConcepts.length} concepts in legacy collection for notebook ${notebookId}`);
       }
       return legacyConcepts;
     } catch (error) {
@@ -172,7 +169,6 @@ export class UnifiedConceptService {
     }
     
     // Invalidar caché de materias cuando se agrega un concepto
-    console.log('➕ Concepto agregado, invalidando cache de materias...');
     CacheManager.invalidateMateriasCache(userId);
   }
   
@@ -205,7 +201,6 @@ export class UnifiedConceptService {
     }
     
     // Invalidar caché de materias cuando se agregan conceptos
-    console.log(`➕ ${concepts.length} conceptos agregados, invalidando cache de materias...`);
     CacheManager.invalidateMateriasCache(userId);
   }
   
@@ -321,7 +316,7 @@ export class UnifiedConceptService {
         migrated: true
       });
       
-      console.log(`✅ Migrated ${allConcepts.length} concepts for notebook ${notebookId}`);
+      logger.info(`Migrated ${allConcepts.length} concepts for notebook ${notebookId}`);
       return true;
     } catch (error) {
       console.error(`Error migrating concepts for notebook ${notebookId}:`, error);

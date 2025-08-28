@@ -104,7 +104,6 @@ const InicioPage: React.FC = () => {
     try {
       localStorage.removeItem(`inicio_cache_materias_${userId}`);
       localStorage.removeItem(`inicio_cache_events_${userId}`);
-      console.log('🗑️ Cache de inicio limpiado');
     } catch (error) {
       console.error('Error clearing cache:', error);
     }
@@ -114,7 +113,6 @@ const InicioPage: React.FC = () => {
   React.useEffect(() => {
     const handleCacheInvalidation = (event: CustomEvent) => {
       if (event.detail.userId === user?.uid) {
-        console.log('🔄 Cache invalidado, recargando materias...');
         fetchMateriasByDominio(true); // Force refresh
       }
     };
@@ -130,7 +128,6 @@ const InicioPage: React.FC = () => {
   const calculateDivision = (concepts: number) => {
     let divisionKey = 'WOOD';
     
-    console.log('🏆 Calculando división para', concepts, 'conceptos');
     
     // Ordenar las divisiones por su valor mínimo para procesarlas en orden
     const divisionsInOrder = Object.entries(DIVISION_LEVELS).sort((a, b) => {
@@ -161,7 +158,6 @@ const InicioPage: React.FC = () => {
     }
     
     const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
-    console.log(`🎖️ División final asignada: ${division.name} ${division.icon} para ${concepts} conceptos`);
     setCurrentDivision({ name: division.name, icon: division.icon });
     return { name: division.name, icon: division.icon }; // Return the division for immediate use
   };
@@ -177,23 +173,19 @@ const InicioPage: React.FC = () => {
     
     // PRIMERA VERIFICACIÓN: Prevenir llamadas simultáneas
     if (materiasLoading) {
-      console.log('⏳ Ya se están cargando las materias, ignorando llamada duplicada');
       return;
     }
     
     // Debounce: no llamar si se llamó hace menos de 2 segundos
     const now = Date.now();
     if (!forceRefresh && (now - lastMateriasFetchRef.current) < 2000) {
-      console.log('⏱️ Llamada muy reciente, ignorando (debounce 2s)');
       return;
     }
     lastMateriasFetchRef.current = now;
     
-    console.log(`🔍 fetchMateriasByDominio llamada - forceRefresh: ${forceRefresh}, loaded: ${materiasLoadedRef.current}`);
     
     // If already loaded and not forcing refresh, skip
     if (!forceRefresh && materiasLoadedRef.current && materiasByDominio.length > 0) {
-      console.log('✅ Materias ya cargadas en memoria, no recargando');
       return;
     }
     
@@ -201,18 +193,15 @@ const InicioPage: React.FC = () => {
     const cachedMaterias = getCachedData(`materias_${user.uid}`);
     const cacheValid = cachedMaterias && isCacheValid(cachedMaterias.timestamp);
     
-    console.log(`💾 Cache status - exists: ${!!cachedMaterias}, valid: ${cacheValid}`);
     
     // TEMPORALMENTE deshabilitado el cache para debug de enrolled courses
     if (false && !forceRefresh && cacheValid && cachedMaterias.data) {
-      console.log('📦 Usando materias desde cache localStorage');
       setMateriasByDominio(cachedMaterias.data);
       materiasLoadedRef.current = true;
       return;
     }
     
     try {
-      console.log('🚀 Iniciando carga de materias desde servidor...');
       setMateriasLoading(true);
       
       let materiasSnapshot: any;
@@ -239,7 +228,6 @@ const InicioPage: React.FC = () => {
       const allMateriasDocs = [...ownMateriasSnapshot.docs];
       
       // Para cada enrollment, obtener la materia del profesor
-      console.log(`📚 Found ${enrollmentsSnapshot.docs.length} active enrollments`);
       for (const enrollmentDoc of enrollmentsSnapshot.docs) {
         const enrollmentData = enrollmentDoc.data();
         const materiaId = enrollmentData.materiaId;
@@ -248,12 +236,10 @@ const InicioPage: React.FC = () => {
         // Obtener la materia del profesor
         const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
         if (materiaDoc.exists()) {
-          console.log(`✅ Found enrolled materia: ${materiaDoc.data().title || materiaDoc.data().nombre}`);
           allMateriasDocs.push(materiaDoc);
         }
       }
       
-      console.log(`📊 Total materias (own + enrolled): ${allMateriasDocs.length}`);
       materiasSnapshot = {
         empty: allMateriasDocs.length === 0,
         docs: allMateriasDocs
@@ -305,7 +291,6 @@ const InicioPage: React.FC = () => {
         }
       }
       
-      console.log(`📚 Total materias processed: ${materiasWithDominio.length}`);
       materiasWithDominio.forEach(m => {
         console.log(`  - ${m.title}: ${m.dominioPercentage}% (${m.dominatedConcepts}/${m.totalConcepts})`);
       });
@@ -321,14 +306,11 @@ const InicioPage: React.FC = () => {
       // Take only top 5
       const topMaterias = materiasWithDominio.slice(0, 5);
       
-      console.log('📚 Materias con dominio calculado:', materiasWithDominio);
-      console.log('📚 Top 5 materias:', topMaterias);
       
       setMateriasByDominio(topMaterias);
       
       // Update localStorage cache
       setCachedData(`materias_${user.uid}`, topMaterias, Date.now());
-      console.log('💾 Materias guardadas en cache localStorage');
       materiasLoadedRef.current = true;
     } catch (error) {
       console.error('Error fetching materias by dominio:', error);
@@ -347,7 +329,6 @@ const InicioPage: React.FC = () => {
     // Check localStorage cache first
     const cachedEvents = getCachedData(`events_${user.uid}`);
     if (!forceRefresh && cachedEvents && isCacheValid(cachedEvents.timestamp)) {
-      console.log('📦 Usando eventos desde cache localStorage');
       setTodayEvents(cachedEvents.data);
       setEventsLoaded(true);
       return;
@@ -399,7 +380,6 @@ const InicioPage: React.FC = () => {
       
       // Update localStorage cache
       setCachedData(`events_${user.uid}`, events, Date.now());
-      console.log('💾 Eventos guardados en cache localStorage');
     } catch (error) {
       console.error('Error fetching today events:', error);
       setTodayEvents([]);
@@ -427,7 +407,6 @@ const InicioPage: React.FC = () => {
       // setCurrentDivision(data.currentDivision); // ELIMINADO
       // Cargar datos de progreso desde el caché si existen
       if (data.progressData) {
-        console.log('📊 Usando datos de progreso desde cache:', data.progressData);
         setProgressData(data.progressData);
       }
       // NO retornar aquí - continuar para recalcular la división
@@ -449,16 +428,13 @@ const InicioPage: React.FC = () => {
         // Si ha estudiado hoy, actualizar la racha automáticamente
         let currentStreakValue = 0;
         if (studiedToday) {
-          console.log('✅ Usuario ha estudiado hoy, actualizando racha...');
           currentStreakValue = await streakService.updateStreakIfStudied(user.uid);
           console.log('🔥 Racha actualizada a:', currentStreakValue);
         } else {
           // Si no ha estudiado hoy, solo obtener la racha actual
           const streakData = await streakService.getUserStreak(user.uid);
           currentStreakValue = streakData.currentStreak;
-          console.log('📊 Racha actual (sin actualizar):', currentStreakValue);
         }
-        console.log('🎯 Valor final de racha para mostrar:', currentStreakValue);
         setCurrentStreak(currentStreakValue);
 
         // Obtener KPIs actuales
@@ -470,20 +446,16 @@ const InicioPage: React.FC = () => {
         
         // Obtener conceptos dominados y calcular división
         const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
-        console.log('🎯 División: Conceptos dominados actuales:', conceptStats.conceptosDominados);
         
         // También obtener conceptos con repeticiones >= 2 (otra métrica alternativa)
         const conceptsWithRepetitions = await kpiService.kpiService.getConceptsWithMinRepetitions(user.uid, 2);
-        console.log('🎯 División: Conceptos con 2+ repeticiones:', conceptsWithRepetitions);
         
         // Usar el mayor de los dos valores para ser más generoso con la división
         const conceptsForDivision = Math.max(conceptStats.conceptosDominados, conceptsWithRepetitions);
-        console.log('🎯 División: Usando', conceptsForDivision, 'conceptos para calcular división');
         
         const calculatedDivision = calculateDivision(conceptsForDivision);
         
         // Actualizar datos del módulo de Progreso
-        console.log('📊 Actualizando datos del módulo de Progreso...');
         console.log('KPIs Data:', kpisData);
         console.log('Concept Stats:', conceptStats);
         
@@ -532,7 +504,6 @@ const InicioPage: React.FC = () => {
             activeNotebooks: activeNotebooks
           };
           
-          console.log('📊 Nuevos datos de progreso:', newProgressData);
           setProgressData(newProgressData);
           
           // Obtener historial de posiciones para calcular progreso
@@ -569,16 +540,13 @@ const InicioPage: React.FC = () => {
             progressData: newProgressData // Usar los nuevos datos de progreso
           };
           setCachedData(`main_data_${user.uid}`, mainData, Date.now());
-          console.log('💾 Datos principales y de progreso guardados en cache localStorage con división:', calculatedDivision);
         } else {
-          console.log('⚠️ No se encontraron KPIs data, estableciendo valores por defecto');
           
           // Intentar inicializar KPIs si no existen
           console.log('🔄 Intentando inicializar KPIs para el usuario...');
           try {
             const { kpiService: kpiSvc } = await import('../services/kpiService');
             await kpiSvc.updateUserKPIs(user.uid);
-            console.log('✅ KPIs inicializados, recargando datos...');
             // Intentar obtener los KPIs recién creados
             const newKpisData = await kpiSvc.getUserKPIs(user.uid);
             if (newKpisData) {
@@ -586,7 +554,6 @@ const InicioPage: React.FC = () => {
               kpisData = newKpisData;
             }
           } catch (initError) {
-            console.log('⚠️ No se pudieron inicializar los KPIs:', initError);
           }
           
           const defaultProgressData = {
@@ -631,7 +598,6 @@ const InicioPage: React.FC = () => {
             progressData: defaultProgressData // Usar los datos por defecto
           };
           setCachedData(`main_data_${user.uid}`, mainData, Date.now());
-          console.log('💾 Datos principales guardados con valores por defecto en cache localStorage con división:', calculatedDivision);
         }
         
       } catch (error) {
@@ -643,13 +609,6 @@ const InicioPage: React.FC = () => {
 
   useEffect(() => {
     if (user?.uid) {
-      console.log('🚀 Inicializando página de inicio para usuario:', user.uid);
-      console.log('📚 Tipo de usuario detectado:', {
-        isSchoolStudent,
-        isTeacher,
-        isSchoolAdmin,
-        isSchoolTutor
-      });
       
       // Reset loaded ref when user changes
       materiasLoadedRef.current = false;
@@ -661,7 +620,6 @@ const InicioPage: React.FC = () => {
       
       // Load main data from cache
       if (cachedMainData && isCacheValid(cachedMainData.timestamp)) {
-        console.log('⚡ Cargando datos principales desde cache localStorage');
         const data = cachedMainData.data;
         setCurrentStreak(data.currentStreak);
         setHasStudiedToday(data.hasStudiedToday);
@@ -671,20 +629,17 @@ const InicioPage: React.FC = () => {
         // setCurrentDivision(data.currentDivision); // ELIMINADO - división se calcula en fetchData()
         // Cargar datos de progreso desde el caché si existen
         if (data.progressData) {
-          console.log('📊 Cargando datos de progreso desde cache:', data.progressData);
           setProgressData(data.progressData);
         }
         setLoading(false);
       }
       
       if (cachedMaterias && isCacheValid(cachedMaterias.timestamp)) {
-        console.log('⚡ Cargando materias desde cache localStorage');
         setMateriasByDominio(cachedMaterias.data);
         materiasLoadedRef.current = true;
       }
       
       if (cachedEvents && isCacheValid(cachedEvents.timestamp)) {
-        console.log('⚡ Cargando eventos desde cache localStorage');
         setTodayEvents(cachedEvents.data);
         setEventsLoaded(true);
       }
@@ -722,7 +677,6 @@ const InicioPage: React.FC = () => {
     // Also listen for visibility change (tab switching)
     const handleVisibilityChange = () => {
       if (!document.hidden && user?.uid) {
-        console.log('👁️ Pestaña visible, verificando cache...');
         
         const cachedMaterias = getCachedData(`materias_${user.uid}`);
         const cachedEvents = getCachedData(`events_${user.uid}`);
@@ -742,7 +696,6 @@ const InicioPage: React.FC = () => {
           console.log('🔄 Cache de materias expirado o no cargado, refrescando...');
           fetchMateriasByDominio(false);
         } else {
-          console.log('✅ Cache de materias válido, no recargando');
         }
       }
     };

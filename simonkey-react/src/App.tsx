@@ -341,7 +341,7 @@ const AppContent: React.FC = () => {
     // Para usuarios nuevos, no confiar solo en localStorage
     // Empezar como false y sincronizar con userProfile cuando esté disponible
     const completed = localStorage.getItem('hasCompletedOnboarding') === 'true';
-    console.log('🎯 Estado inicial de onboarding desde localStorage:', completed);
+    // Estado inicial de onboarding desde localStorage
     // Si no hay userProfile todavía, ser conservador y mostrar onboarding si no está explícitamente completado
     return completed;
   });
@@ -351,24 +351,18 @@ const AppContent: React.FC = () => {
   
   // Sincronizar con el perfil de usuario cuando esté disponible
   useEffect(() => {
-    console.log('🎯 Verificando estado de onboarding...', { 
-      userProfile: !!userProfile, 
-      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding,
-      currentState: hasCompletedOnboarding,
-      isEmailVerified
-    });
+    // Verificando estado de onboarding con perfil de usuario
     
     if (userProfile) {
       // Si el perfil existe, usar su estado de onboarding
       if (userProfile.hasCompletedOnboarding === true) {
-        console.log('🎯 Usuario ha completado onboarding según perfil');
+        // Usuario ha completado onboarding según perfil
         if (!hasCompletedOnboarding) {
           setHasCompletedOnboarding(true);
           localStorage.setItem('hasCompletedOnboarding', 'true');
         }
       } else if (userProfile.hasCompletedOnboarding === false || !userProfile.hasCompletedOnboarding) {
-        // Usuario nuevo o no ha completado onboarding
-        console.log('🎯 Usuario nuevo o no ha completado onboarding - mostrando onboarding');
+        // Usuario nuevo o no ha completado onboarding - mostrando onboarding
         if (hasCompletedOnboarding) {
           setHasCompletedOnboarding(false);
           localStorage.removeItem('hasCompletedOnboarding');
@@ -394,7 +388,7 @@ const AppContent: React.FC = () => {
       localStorage.removeItem('hasCompletedOnboarding');
       localStorage.removeItem('tourStep');
       setHasCompletedOnboarding(false);
-      console.log('✅ Tutorial reseteado - recarga la página para verlo');
+      // Tutorial reseteado - recarga la página para verlo
     };
     
     // Función para mostrar el modal de completar perfil
@@ -403,8 +397,8 @@ const AppContent: React.FC = () => {
       setShowProfileCompletion(true);
     };
     
-    console.log('🔧 === SIMONKEY - AYUDA DE DIAGNÓSTICO ===');
-    console.log('💡 Si tienes problemas de autenticación, ejecuta en la consola:');
+    // SIMONKEY - AYUDA DE DIAGNÓSTICO
+    // Si tienes problemas de autenticación, ejecuta en la consola:
     console.log('   window.quickFix() - Solución rápida');
     console.log('   window.diagnoseAuthIssues() - Diagnóstico completo');
     console.log('   window.fixOrphanUser() - Arreglar usuario huérfano');
@@ -857,7 +851,7 @@ const AppContent: React.FC = () => {
         */}
         {isAuthenticated && !isUniversityUser && !hasCompletedOnboarding && isEmailVerified && (
           <InteractiveTour onComplete={() => {
-            console.log('🎯 InteractiveTour completado - marcando como completado permanentemente');
+            // InteractiveTour completado - marcando como completado permanentemente
             setHasCompletedOnboarding(true);
             localStorage.setItem('hasCompletedOnboarding', 'true');
             
@@ -873,7 +867,7 @@ const AppContent: React.FC = () => {
           isOpen={showProfileCompletion}
           onClose={() => setShowProfileCompletion(false)}
           onComplete={(data) => {
-            console.log('✅ Perfil completado con data:', data);
+            // Perfil completado
             setShowProfileCompletion(false);
           }}
         />
