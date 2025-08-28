@@ -99,24 +99,48 @@ const SuperAdminPage: React.FC = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const usersSnapshot = await getDocs(collection(db, 'users'));
+      console.log('🔄 Iniciando carga de usuarios...');
+      
+      // Usar query sin límites para asegurar que se traigan todos los usuarios
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      console.log(`📦 Snapshot size: ${usersSnapshot.size} documentos`);
+      console.log(`📦 Snapshot empty: ${usersSnapshot.empty}`);
+      
       const usersData: User[] = [];
       
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
+        console.log(`👤 Cargando usuario: ${userData.email || userData.displayName || doc.id}`);
         usersData.push({
           id: doc.id,
           ...userData
         });
       });
       
-      console.log(`📊 TOTAL USUARIOS CARGADOS: ${usersData.length}`);
-      console.log(`📄 Primeros 3 usuarios:`, usersData.slice(0, 3));
+      console.log(`📊 TOTAL USUARIOS CARGADOS: ${usersData.length} (esperados: 65)`);
+      console.log(`📄 Primeros 5 usuarios:`, usersData.slice(0, 5).map(u => ({
+        id: u.id,
+        email: u.email,
+        displayName: u.displayName,
+        nombre: u.nombre
+      })));
+      
+      if (usersData.length < 65) {
+        console.warn(`⚠️ PROBLEMA: Solo se cargaron ${usersData.length} usuarios de los 65 esperados`);
+        
+        // Intentar una segunda consulta para debug
+        console.log('🔄 Intentando segunda consulta para debug...');
+        const secondSnapshot = await getDocs(collection(db, 'users'));
+        console.log(`🔍 Segunda consulta size: ${secondSnapshot.size}`);
+      }
       
       setUsers(usersData);
       setFilteredUsers(usersData);
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('❌ Error loading users:', error);
+      console.error('❌ Error details:', error);
     } finally {
       setLoading(false);
     }
