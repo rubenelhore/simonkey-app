@@ -7,10 +7,6 @@ declare global {
       track: (event: string, properties?: any) => void;
       setUserId: (userId: string | null) => void;
       identify: (properties: any) => void;
-      add: (plugin: any) => void;
-    };
-    sessionReplay: {
-      plugin: (config?: any) => any;
     };
   }
 }

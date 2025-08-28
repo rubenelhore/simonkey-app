@@ -55,10 +55,15 @@ const SuperAdminPage: React.FC = () => {
     } else if (!userTypeLoading && isSuperAdmin) {
       // Track super admin access
       if (typeof window !== 'undefined' && window.amplitude) {
-        window.amplitude.track('Super Admin Access', {
-          page: 'SuperAdminPage',
-          timestamp: new Date().toISOString()
-        });
+        try {
+          window.amplitude.track('Super Admin Access', {
+            page: 'SuperAdminPage',
+            timestamp: new Date().toISOString()
+          });
+          console.log('✅ Amplitude: Super Admin access tracked');
+        } catch (error) {
+          console.warn('⚠️ Error tracking Super Admin access:', error);
+        }
       }
     }
   }, [isSuperAdmin, userTypeLoading, navigate]);

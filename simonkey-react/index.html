@@ -9,21 +9,10 @@
     <!-- Amplitude Analytics -->
     <script src="https://cdn.amplitude.com/script/f4418cb2e49da5120f3b97252e5247a.js"></script>
     <script>
-      window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+      // Initialize Amplitude with simpler configuration
       window.amplitude.init('f4418cb2e49da5120f3b97252e5247a', {
-        "fetchRemoteConfig": true,
-        "autocapture": true,
-        "trackingOptions": {
-          "ip_address": true,
-          "city": true,
-          "country": true,
-          "region": true,
-          "dma": false
-        },
-        "includeUtm": true,
-        "includeReferrer": true,
-        "includeFbclid": true,
-        "includeGclid": true
+        "fetchRemoteConfig": false,
+        "autocapture": true
       });
       
       // Track initial page load
@@ -32,8 +21,11 @@
         url: window.location.href,
         title: document.title,
         referrer: document.referrer,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
       });
+      
+      console.log('✅ Amplitude initialized successfully');
     </script>
     
     <script type="text/javascript">

@@ -406,11 +406,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Track logout before signing out
       if (typeof window !== 'undefined' && window.amplitude && authState.user) {
-        window.amplitude.track('User Logout', {
-          email: authState.user.email,
-          userId: authState.user.uid,
-          timestamp: new Date().toISOString()
-        });
+        try {
+          window.amplitude.track('User Logout', {
+            email: authState.user.email,
+            userId: authState.user.uid,
+            timestamp: new Date().toISOString()
+          });
+          console.log('✅ Amplitude: User logout tracked for', authState.user.email);
+        } catch (error) {
+          console.warn('⚠️ Error tracking logout in Amplitude:', error);
+        }
       }
       
       await auth.signOut();
@@ -455,19 +460,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Track user login in Amplitude
         if (typeof window !== 'undefined' && window.amplitude) {
-          window.amplitude.setUserId(user.uid);
-          window.amplitude.identify({
-            email: user.email,
-            displayName: user.displayName,
-            emailVerified: user.emailVerified,
-            loginMethod: user.providerData[0]?.providerId || 'unknown'
-          });
-          window.amplitude.track('User Login', {
-            email: user.email,
-            userId: user.uid,
-            loginMethod: user.providerData[0]?.providerId || 'unknown',
-            timestamp: new Date().toISOString()
-          });
+          try {
+            window.amplitude.setUserId(user.uid);
+            window.amplitude.identify({
+              email: user.email,
+              displayName: user.displayName,
+              emailVerified: user.emailVerified,
+              loginMethod: user.providerData[0]?.providerId || 'unknown'
+            });
+            window.amplitude.track('User Login', {
+              email: user.email,
+              userId: user.uid,
+              loginMethod: user.providerData[0]?.providerId || 'unknown',
+              timestamp: new Date().toISOString()
+            });
+            console.log('✅ Amplitude: User login tracked for', user.email);
+          } catch (error) {
+            console.warn('⚠️ Error tracking login in Amplitude:', error);
+          }
         }
         
         try {
@@ -508,10 +518,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Clear Amplitude user ID when logged out
         if (typeof window !== 'undefined' && window.amplitude) {
-          window.amplitude.setUserId(null);
-          window.amplitude.track('User Logout Complete', {
-            timestamp: new Date().toISOString()
-          });
+          try {
+            window.amplitude.setUserId(null);
+            window.amplitude.track('User Logout Complete', {
+              timestamp: new Date().toISOString()
+            });
+            console.log('✅ Amplitude: User logout complete tracked');
+          } catch (error) {
+            console.warn('⚠️ Error clearing user in Amplitude:', error);
+          }
         }
         
         // Resetear estado cuando no hay usuario
