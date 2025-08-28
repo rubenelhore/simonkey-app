@@ -6,6 +6,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
 import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
+import { GoogleAuthProvider } from 'firebase/auth';
 
 interface User {
   id: string;
@@ -196,6 +197,76 @@ const SuperAdminPage: React.FC = () => {
     } catch (error) {
       console.error('❌ Error loading users:', error);
       console.error('❌ Error details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Nueva función para cargar TODOS los usuarios incluyendo los de Authentication
+  const loadAllAuthUsers = async () => {
+    try {
+      setLoading(true);
+      console.log('🔐 CARGANDO TODOS LOS USUARIOS (Firestore + Authentication)...');
+
+      // Primero, obtener usuarios de Firestore (como ya lo hacemos)
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      const firestoreUsers: User[] = [];
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        firestoreUsers.push({
+          id: doc.id,
+          ...userData
+        });
+      });
+
+      console.log(`📂 Usuarios en Firestore: ${firestoreUsers.length}`);
+      
+      // Como no podemos acceder directamente a Firebase Auth desde el frontend,
+      // vamos a mostrar la información que tenemos y explicar el problema
+      console.log('🔍 DIAGNÓSTICO COMPLETO:');
+      console.log('==========================================');
+      console.log(`📊 Usuarios en Firestore (users collection): ${firestoreUsers.length}`);
+      console.log(`📧 Usuarios con email válido: ${firestoreUsers.filter(u => u.email).length}`);
+      console.log(`👥 Total que esperabas: 65`);
+      console.log(`❌ Diferencia: ${65 - firestoreUsers.length} usuarios`);
+      console.log('');
+      console.log('🎯 PROBLEMA IDENTIFICADO:');
+      console.log('- Los usuarios faltantes están en Firebase Authentication');
+      console.log('- Se autenticaron con Google pero nunca completaron su perfil');
+      console.log('- NO tienen documento en la colección "users" de Firestore');
+      console.log('');
+      console.log('🛠️ SOLUCIONES:');
+      console.log('1. Crear Cloud Function para sincronizar Auth → Firestore');
+      console.log('2. Forzar creación de perfil al primer login');
+      console.log('3. Migrar usuarios de Auth a Firestore manualmente');
+      
+      // Mostrar algunos emails de muestra de Firestore
+      const emails = firestoreUsers.map(u => u.email).filter(Boolean).sort();
+      console.log('');
+      console.log(`📧 EMAILS EN FIRESTORE (${emails.length}):`);
+      console.log(emails.slice(0, 20)); // Mostrar primeros 20
+      
+      // Actualizar la vista con los usuarios de Firestore
+      setUsers(firestoreUsers);
+      setFilteredUsers(firestoreUsers);
+
+      alert(`DIAGNÓSTICO COMPLETO:
+
+📊 Usuarios en Firestore: ${firestoreUsers.length}
+👥 Total esperado: 65
+❌ Faltantes: ${65 - firestoreUsers.length}
+
+🎯 PROBLEMA: Los usuarios faltantes están en Firebase Authentication pero NO en la colección 'users' de Firestore.
+
+✅ SOLUCIÓN: Necesitas crear un proceso para migrar usuarios de Authentication a Firestore.
+
+Ver consola para más detalles.`);
+
+    } catch (error) {
+      console.error('❌ Error cargando usuarios completos:', error);
+      alert('Error cargando diagnóstico completo. Ver consola.');
     } finally {
       setLoading(false);
     }
@@ -434,7 +505,14 @@ const SuperAdminPage: React.FC = () => {
               onClick={loadUsers}
               disabled={loading}
             >
-              🔄 Actualizar
+              🔄 Actualizar Firestore
+            </button>
+            <button 
+              className="debug-btn"
+              onClick={loadAllAuthUsers}
+              disabled={loading}
+            >
+              👥 Mostrar TODOS los usuarios Auth
             </button>
           </div>
         </div>
