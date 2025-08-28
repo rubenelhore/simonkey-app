@@ -86,8 +86,12 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: users
     // ========================================
     match /users/{userId} {
-      // Lectura: usuario propio, super admin, o profesor leyendo info básica
-      allow read: if isSuperAdmin() ||
+      // Lectura: SUPER ADMIN tiene acceso TOTAL sin restricciones
+      allow read: if (request.auth != null && (
+                        request.auth.token.email == 'santiagoarceofel@gmail.com' ||
+                        request.auth.token.email == 'ruben.elhore@gmail.com' ||
+                        request.auth.token.email == 'ruben@simonkey.ai'
+                      )) ||
                      isOwner(userId) || 
                      // Permitir lectura pública de información básica de profesores
                      (resource != null && resource.data.isTeacher == true) ||
