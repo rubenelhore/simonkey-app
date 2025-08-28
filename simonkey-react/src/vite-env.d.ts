@@ -3,10 +3,13 @@
 declare global {
   interface Window {
     amplitude: {
-      init: (apiKey: string, config?: any) => void;
-      track: (event: string, properties?: any) => void;
-      setUserId: (userId: string | null) => void;
-      identify: (properties: any) => void;
+      getInstance: () => {
+        init: (apiKey: string, config?: any) => void;
+        logEvent: (event: string, properties?: any) => void;
+        setUserId: (userId: string | null) => void;
+        identify: (identify: any, properties?: any) => void;
+        setUserProperties: (properties: any) => void;
+      };
     };
   }
 }

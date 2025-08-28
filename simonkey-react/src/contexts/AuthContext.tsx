@@ -407,7 +407,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Track logout before signing out
       if (typeof window !== 'undefined' && window.amplitude && authState.user) {
         try {
-          window.amplitude.track('User Logout', {
+          const amplitudeInstance = window.amplitude.getInstance();
+          amplitudeInstance.logEvent('User Logout', {
             email: authState.user.email,
             userId: authState.user.uid,
             timestamp: new Date().toISOString()
@@ -461,14 +462,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Track user login in Amplitude
         if (typeof window !== 'undefined' && window.amplitude) {
           try {
-            window.amplitude.setUserId(user.uid);
-            window.amplitude.identify({
+            const amplitudeInstance = window.amplitude.getInstance();
+            amplitudeInstance.setUserId(user.uid);
+            amplitudeInstance.setUserProperties({
               email: user.email,
               displayName: user.displayName,
               emailVerified: user.emailVerified,
               loginMethod: user.providerData[0]?.providerId || 'unknown'
             });
-            window.amplitude.track('User Login', {
+            amplitudeInstance.logEvent('User Login', {
               email: user.email,
               userId: user.uid,
               loginMethod: user.providerData[0]?.providerId || 'unknown',
@@ -519,8 +521,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Clear Amplitude user ID when logged out
         if (typeof window !== 'undefined' && window.amplitude) {
           try {
-            window.amplitude.setUserId(null);
-            window.amplitude.track('User Logout Complete', {
+            const amplitudeInstance = window.amplitude.getInstance();
+            amplitudeInstance.setUserId(null);
+            amplitudeInstance.logEvent('User Logout Complete', {
               timestamp: new Date().toISOString()
             });
             console.log('✅ Amplitude: User logout complete tracked');

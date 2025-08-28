@@ -56,7 +56,8 @@ const SuperAdminPage: React.FC = () => {
       // Track super admin access
       if (typeof window !== 'undefined' && window.amplitude) {
         try {
-          window.amplitude.track('Super Admin Access', {
+          const amplitudeInstance = window.amplitude.getInstance();
+          amplitudeInstance.logEvent('Super Admin Access', {
             page: 'SuperAdminPage',
             timestamp: new Date().toISOString()
           });
