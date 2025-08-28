@@ -4,7 +4,7 @@ import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
-import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 
 interface User {
@@ -150,7 +150,25 @@ const SuperAdminPage: React.FC = () => {
           
           // Log de cada documento para ver cuáles faltan
           const loadedEmails = new Set(usersData.map(u => u.email).filter(Boolean));
-          console.log(`📧 Emails cargados (${loadedEmails.size}):`, Array.from(loadedEmails).sort());
+          const loadedIds = new Set(usersData.map(u => u.id));
+          
+          console.log(`📧 Total emails válidos cargados: ${loadedEmails.size}`);
+          console.log(`🆔 Total IDs cargados: ${loadedIds.size}`);
+          console.log(`📧 Primeros 10 emails:`, Array.from(loadedEmails).slice(0, 10).sort());
+          
+          // Intentar crear una consulta de solo lectura directamente
+          console.log('🔍 Verificando si el problema son las reglas de Firestore...');
+          
+          // Log de usuarios con datos incompletos
+          const usersWithoutEmail = usersData.filter(u => !u.email);
+          const usersWithoutDisplayName = usersData.filter(u => !u.displayName && !u.nombre);
+          
+          console.log(`❌ Usuarios sin email: ${usersWithoutEmail.length}`);
+          console.log(`❌ Usuarios sin nombre: ${usersWithoutDisplayName.length}`);
+          
+          if (usersWithoutEmail.length > 0) {
+            console.log('👤 Usuarios sin email:', usersWithoutEmail.map(u => u.id));
+          }
           
         } catch (error) {
           console.error('❌ Error en consulta con límite alto:', error);

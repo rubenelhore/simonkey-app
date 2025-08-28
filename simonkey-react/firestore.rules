@@ -33,7 +33,8 @@ service cloud.firestore {
       return isAuthenticated() && (
         getUserSubscription() == 'super_admin' ||
         request.auth.token.email == 'ruben.elhore@gmail.com' ||
-        request.auth.token.email == 'santiagoarceofel@gmail.com'
+        request.auth.token.email == 'santiagoarceofel@gmail.com' ||
+        request.auth.token.email == 'ruben@simonkey.ai'
       );
     }
     
@@ -86,12 +87,12 @@ service cloud.firestore {
     // ========================================
     match /users/{userId} {
       // Lectura: usuario propio, super admin, o profesor leyendo info básica
-      allow read: if isOwner(userId) || 
-                     isSuperAdmin() ||
+      allow read: if isSuperAdmin() ||
+                     isOwner(userId) || 
                      // Permitir lectura pública de información básica de profesores
-                     (resource.data.isTeacher == true) ||
+                     (resource != null && resource.data.isTeacher == true) ||
                      // Permitir a usuarios autenticados leer su propio documento por email
-                     (isAuthenticated() && 
+                     (isAuthenticated() && resource != null && 
                       resource.data.email == request.auth.token.email) ||
                      // Permitir a cualquier usuario autenticado leer info básica (para rankings)
                      isAuthenticated();
