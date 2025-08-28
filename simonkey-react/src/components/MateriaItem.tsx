@@ -263,8 +263,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - oculto para estudiantes escolares y materias inscritas, pero visible para profesores en sus materias */}
-            {((!isSchoolStudent && !isEnrolled) || (isTeacher && !isEnrolled)) && (
+            {/* Botón de menú de 3 puntos - solo visible para materias propias (no inscritas) y solo para profesores */}
+            {!isEnrolled && isTeacher && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}
@@ -298,7 +298,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               </button>
             )}
 
-            <h3 style={{ paddingRight: (isSchoolStudent || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: (isEnrolled || !isTeacher) ? '8px' : '40px' }}>{editableTitle}</h3>
             {isAdminView ? (
               <div className="materia-admin-info">
                 <span className="materia-teacher">

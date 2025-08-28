@@ -852,6 +852,8 @@ const ProgressPage: React.FC = () => {
   const calculateRanking = async () => {
     if (!auth.currentUser || !kpisData) return;
 
+    setRankingLoading(true);
+    
     try {
       const effectiveUserData = await getEffectiveUserId();
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
@@ -1146,6 +1148,8 @@ const ProgressPage: React.FC = () => {
     } catch (error) {
       console.error('[ProgressPage] Error calculando ranking:', error);
       setRankingData([]);
+    } finally {
+      setRankingLoading(false);
     }
   };
 
@@ -1535,6 +1539,7 @@ const ProgressPage: React.FC = () => {
 
   // Calcular el ranking real basado en los datos actuales
   const [rankingData, setRankingData] = useState<Array<{posicion: number, nombre: string, score: number}>>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
 
   const [positionHistoryData, setPositionHistoryData] = useState<PositionData[]>([]);
 
@@ -1815,7 +1820,30 @@ const ProgressPage: React.FC = () => {
               <div className="ranking-table">
                 <h4>Tabla de Posiciones</h4>
                 <div className="ranking-list">
-                  {rankingData.length > 0 ? (
+                  {rankingLoading ? (
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      padding: '3rem 0',
+                      flexDirection: 'column',
+                      gap: '1rem'
+                    }}>
+                      <FontAwesomeIcon 
+                        icon={faSpinner} 
+                        spin 
+                        size="2x" 
+                        style={{ color: '#6366f1' }}
+                      />
+                      <span style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#6b7280',
+                        fontStyle: 'italic'
+                      }}>
+                        Cargando posiciones...
+                      </span>
+                    </div>
+                  ) : rankingData.length > 0 ? (
                     <>
                       {rankingData.map((student) => (
                         <div 

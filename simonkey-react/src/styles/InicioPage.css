@@ -1,13 +1,13 @@
-/* 🎯 DASHBOARD SIN SCROLL - DISEÑO POR FILAS */
+/* 🎯 DASHBOARD CON SCROLL RESPONSIVE - DISEÑO POR FILAS */
 
 .dashboard-container {
-  height: 100vh;
+  min-height: 100vh;
   background: #ffffff;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .dashboard-content {
-  height: calc(100vh - 4rem);
+  min-height: calc(100vh - 4rem);
   padding: 1rem 5rem 1rem 6rem; /* 96px left (80px + 16px), 80px right */
   display: flex;
   flex-direction: column;
@@ -1325,17 +1325,29 @@
   .daily-metrics {
     justify-content: center;
   }
+  
+  /* Progress metrics para tablets - mantener 2 columnas pero más compacto */
+  .progress-insights-container {
+    gap: 0.8rem;
+  }
+  
+  .progress-metric {
+    padding: 0.8rem;
+  }
+  
+  .progress-metric-value {
+    font-size: 1.3rem;
+  }
 }
 
 @media (max-width: 768px) {
   .dashboard-container {
-    height: auto;
     min-height: 100vh;
-    overflow: auto;
+    overflow-y: auto;
   }
   
   .dashboard-content {
-    height: auto;
+    min-height: auto;
     padding: 0.5rem;
     padding-left: 0.5rem; /* Reset sidebar padding on mobile */
     gap: 0.5rem;
@@ -1403,6 +1415,31 @@
     font-size: 0.85rem;
   }
   
+  /* Progress metrics responsive - cambiar a 1 columna en móviles */
+  .progress-insights-container {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .progress-metric {
+    padding: 1rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .progress-metric-value {
+    flex-direction: row;
+    font-size: 1.5rem;
+  }
+  
+  .progress-metric-label {
+    font-size: 0.8rem;
+    text-align: left;
+    flex: 1;
+  }
+  
   .row-4 {
     grid-template-columns: 1fr;
     gap: 0.75rem;
@@ -1435,6 +1472,21 @@
   
   .action-icon {
     font-size: 1.25rem;
+  }
+  
+  /* Progress metrics para pantallas muy pequeñas - diseño más compacto */
+  .progress-metric {
+    padding: 0.8rem;
+    min-height: 60px;
+  }
+  
+  .progress-metric-value {
+    font-size: 1.4rem;
+  }
+  
+  .progress-metric-label {
+    font-size: 0.75rem;
+    line-height: 1.1;
   }
 }
 

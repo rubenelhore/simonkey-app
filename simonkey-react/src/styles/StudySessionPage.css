@@ -151,8 +151,8 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1C1C1E;
-  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
+  color: #6147FF;
+  -webkit-text-fill-color: #6147FF; /* iOS text color fix */
 }
 
 /* Compact intro header styles */
@@ -228,11 +228,13 @@
   font-size: 1.125rem;
   font-weight: 600;
   color: #1C1C1E;
+  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
 }
 
 .intro-section p {
   margin: 0;
   color: #48484A;
+  -webkit-text-fill-color: #48484A; /* iOS text color fix */
   line-height: 1.6;
 }
 
@@ -244,6 +246,17 @@
 .intro-section li {
   margin-bottom: 0.5rem;
   color: #48484A;
+  -webkit-text-fill-color: #48484A; /* iOS text color fix */
+}
+
+.intro-section li i {
+  color: #6147FF;
+  -webkit-text-fill-color: #6147FF; /* iOS text color fix */
+}
+
+.intro-section li strong {
+  color: #1C1C1E;
+  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
 }
 
 /* Compact content styles */
@@ -628,6 +641,7 @@
   align-items: center;
   gap: 0.5rem;
   border: none;
+  -webkit-text-fill-color: inherit; /* iOS text color fix */
 }
 
 .action-button.primary {
