@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simonkey | Tu estudio, tu ritmo</title>
+    
+    <!-- Amplitude Analytics -->
+    <script src="https://cdn.amplitude.com/script/f4418cb2e49da5120f3b97252e5247a.js"></script>
+    <script>
+      window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+      window.amplitude.init('f4418cb2e49da5120f3b97252e5247a', {
+        "fetchRemoteConfig": true,
+        "autocapture": true
+      });
+    </script>
+    
     <script type="text/javascript">
       (function(l,e,m,p,i,r,e){
         e={i:true,f:false,t:1000,h:l.document.location.href,u:'https://app.lemlist.com/api/visitors'};
