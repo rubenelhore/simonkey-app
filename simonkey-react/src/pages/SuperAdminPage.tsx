@@ -4,7 +4,7 @@ import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 interface User {
@@ -190,6 +190,119 @@ const SuperAdminPage: React.FC = () => {
     filterMessages();
   }, [messageFilters, messages]);
 
+  // Función para corregir usuarios sin lastLoginAt
+  const fixUsersWithoutLastLogin = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres corregir los usuarios sin lastLoginAt? Esto usará la fecha de creación o última actualización como referencia.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let fixedCount = 0;
+      let errorCount = 0;
+
+      for (const user of users) {
+        // Verificar si el usuario no tiene lastLoginAt o lastLogin
+        if (!user.lastLoginAt && !user.lastLogin) {
+          try {
+            // Usar la fecha de creación o última actualización como fallback
+            let fallbackDate = user.createdAt || user.updatedAt;
+            
+            // Si no hay fecha de creación ni actualización, usar la fecha actual
+            if (!fallbackDate) {
+              fallbackDate = serverTimestamp();
+            }
+
+            await updateDoc(doc(db, 'users', user.id), {
+              lastLoginAt: fallbackDate,
+              lastLogin: fallbackDate,
+              updatedAt: serverTimestamp()
+            });
+            
+            fixedCount++;
+            console.log(`✅ Fixed user ${user.email || user.id}`);
+          } catch (error) {
+            console.error(`❌ Error fixing user ${user.email || user.id}:`, error);
+            errorCount++;
+          }
+        }
+      }
+
+      alert(`Proceso completado:\n✅ Usuarios corregidos: ${fixedCount}\n❌ Errores: ${errorCount}`);
+      
+      // Recargar usuarios para ver los cambios
+      if (fixedCount > 0) {
+        loadUsers();
+      }
+    } catch (error) {
+      console.error('Error en el proceso de corrección:', error);
+      alert('Error durante la corrección. Ver consola para detalles.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para debuggear datos de login de un usuario específico
+  const debugUserLogin = async () => {
+    const email = prompt('Ingresa el email del usuario a debuggear:');
+    if (!email) return;
+
+    try {
+      setLoading(true);
+      const targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      
+      if (!targetUser) {
+        alert('Usuario no encontrado en la lista cargada.');
+        return;
+      }
+
+      // Obtener datos frescos del usuario desde Firestore
+      const userDocRef = doc(db, 'users', targetUser.id);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (!userDocSnap.exists()) {
+        alert('Usuario no encontrado en Firestore.');
+        return;
+      }
+
+      const freshUserData = userDocSnap.data();
+      
+      const debugInfo = {
+        'Email': freshUserData.email || 'N/A',
+        'User ID': targetUser.id,
+        'lastLoginAt': freshUserData.lastLoginAt || 'No existe',
+        'lastLogin': freshUserData.lastLogin || 'No existe', 
+        'lastActivity': freshUserData.lastActivity || 'No existe',
+        'updatedAt': freshUserData.updatedAt || 'No existe',
+        'createdAt': freshUserData.createdAt || 'No existe',
+        'lastAuthProvider': freshUserData.lastAuthProvider || 'No existe'
+      };
+
+      console.log('🔍 DEBUG USUARIO:', email);
+      console.table(debugInfo);
+
+      // Mostrar en alert también
+      let alertMessage = `DEBUG USUARIO: ${email}\n\n`;
+      Object.entries(debugInfo).forEach(([key, value]) => {
+        let displayValue = value;
+        if (value && typeof value === 'object' && value.seconds) {
+          displayValue = new Date(value.seconds * 1000).toLocaleString('es-ES');
+        } else if (value && typeof value === 'object' && value.toDate) {
+          displayValue = value.toDate().toLocaleString('es-ES');
+        }
+        alertMessage += `${key}: ${displayValue}\n`;
+      });
+
+      alert(alertMessage);
+      
+    } catch (error) {
+      console.error('Error debugging user:', error);
+      alert('Error obteniendo datos del usuario. Ver consola para detalles.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
     return (
@@ -219,7 +332,18 @@ const SuperAdminPage: React.FC = () => {
 
     return (
       <div className="users-section">
-        <h2>👥 Usuarios ({filteredUsers.length} de {users.length})</h2>
+        <div className="section-header">
+          <h2>👥 Usuarios ({filteredUsers.length} de {users.length})</h2>
+          <div className="action-buttons">
+            <button 
+              className="refresh-btn"
+              onClick={loadUsers}
+              disabled={loading}
+            >
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
         <div className="simple-table-container">
           <table className="simple-users-table">
             <thead>
@@ -280,7 +404,7 @@ const SuperAdminPage: React.FC = () => {
                   </div>
                 </th>
                 <th style={{ width: '14%', textAlign: 'center' }}>Fecha Creación</th>
-                <th style={{ width: '14%', textAlign: 'center' }}>Última Sesión</th>
+                <th style={{ width: '18%', textAlign: 'center' }}>Última Sesión</th>
                 <th style={{ width: '12%', textAlign: 'center' }}>Duración Sesión</th>
               </tr>
             </thead>
@@ -307,18 +431,108 @@ const SuperAdminPage: React.FC = () => {
                       'No disponible'
                     }
                   </td>
-                  <td style={{ width: '14%' }}>
+                  <td style={{ width: '18%' }}>
                     {(() => {
-                      // Buscar diferentes campos que podrían contener la fecha de último login
-                      const lastLogin = user.lastLoginAt || user.lastLogin || user.lastSignIn || user.updatedAt;
-                      if (lastLogin && lastLogin.seconds) {
-                        return new Date(lastLogin.seconds * 1000).toLocaleDateString();
-                      } else if (lastLogin && typeof lastLogin === 'string') {
-                        return new Date(lastLogin).toLocaleDateString();
-                      } else if (lastLogin && lastLogin.toDate) {
-                        return lastLogin.toDate().toLocaleDateString();
+                      // Recopilar TODAS las posibles fechas de login/actividad
+                      const dates = [];
+                      
+                      // Campos principales de login
+                      if (user.lastLoginAt) dates.push({ field: 'lastLoginAt', value: user.lastLoginAt, priority: 1 });
+                      if (user.lastLogin) dates.push({ field: 'lastLogin', value: user.lastLogin, priority: 1 });
+                      
+                      // Campos de actividad
+                      if (user.lastActivity) dates.push({ field: 'lastActivity', value: user.lastActivity, priority: 2 });
+                      if (user.updatedAt) dates.push({ field: 'updatedAt', value: user.updatedAt, priority: 3 });
+                      
+                      // Campos legacy
+                      if (user.lastSignIn) dates.push({ field: 'lastSignIn', value: user.lastSignIn, priority: 4 });
+                      if (user.createdAt) dates.push({ field: 'createdAt', value: user.createdAt, priority: 5 });
+                      
+                      // Convertir fechas y ordenar por más reciente
+                      const processedDates = dates.map(item => {
+                        let date = null;
+                        let timestamp = 0;
+                        
+                        if (item.value && item.value.seconds) {
+                          date = new Date(item.value.seconds * 1000);
+                          timestamp = item.value.seconds;
+                        } else if (item.value && item.value.toDate) {
+                          date = item.value.toDate();
+                          timestamp = date.getTime() / 1000;
+                        } else if (typeof item.value === 'string') {
+                          date = new Date(item.value);
+                          timestamp = date.getTime() / 1000;
+                        } else if (item.value instanceof Date) {
+                          date = item.value;
+                          timestamp = date.getTime() / 1000;
+                        }
+                        
+                        return {
+                          ...item,
+                          date,
+                          timestamp,
+                          isValid: date && !isNaN(date.getTime())
+                        };
+                      }).filter(item => item.isValid);
+                      
+                      // Ordenar por timestamp más reciente, pero priorizando campos importantes
+                      processedDates.sort((a, b) => {
+                        // Si tienen la misma prioridad, ordenar por fecha
+                        if (a.priority === b.priority) {
+                          return b.timestamp - a.timestamp;
+                        }
+                        // Sino, ordenar por prioridad (menor número = mayor prioridad)
+                        return a.priority - b.priority;
+                      });
+                      
+                      if (processedDates.length === 0) {
+                        return <span style={{ color: '#dc2626', fontStyle: 'italic' }}>Sin datos</span>;
                       }
-                      return 'Nunca';
+                      
+                      const mostRecent = processedDates[0];
+                      const now = new Date();
+                      const diffHours = (now.getTime() - mostRecent.date.getTime()) / (1000 * 60 * 60);
+                      
+                      const dateString = mostRecent.date.toLocaleString('es-ES', {
+                        year: '2-digit',
+                        month: '2-digit', 
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                      
+                      // Mostrar fuente y estado
+                      let sourceIndicator = '';
+                      if (mostRecent.field === 'lastLoginAt' || mostRecent.field === 'lastLogin') {
+                        sourceIndicator = '🔐'; // Login real
+                      } else if (mostRecent.field === 'lastActivity') {
+                        sourceIndicator = '⚡'; // Actividad
+                      } else if (mostRecent.field === 'updatedAt') {
+                        sourceIndicator = '📝'; // Actualización
+                      } else {
+                        sourceIndicator = '📅'; // Otro
+                      }
+                      
+                      // Color según recencia
+                      let color = '#374151'; // default
+                      if (diffHours < 1) color = '#10b981'; // verde
+                      else if (diffHours < 24) color = '#3b82f6'; // azul
+                      else if (diffHours > 168) color = '#6b7280'; // gris
+                      
+                      return (
+                        <div style={{ fontSize: '0.85rem' }}>
+                          <span style={{ color, fontWeight: diffHours < 24 ? 'bold' : 'normal' }}>
+                            {sourceIndicator} {dateString}
+                          </span>
+                          <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>
+                            {mostRecent.field}
+                            {diffHours < 1 && ' (online)'}
+                            {diffHours >= 1 && diffHours < 24 && ' (hoy)'}
+                            {diffHours >= 24 && diffHours < 168 && ` (${Math.floor(diffHours/24)}d)`}
+                            {diffHours >= 168 && ` (${Math.floor(diffHours/168)}sem)`}
+                          </div>
+                        </div>
+                      );
                     })()}
                   </td>
                   <td style={{ width: '12%' }}>

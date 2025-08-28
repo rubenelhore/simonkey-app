@@ -7,6 +7,7 @@ import { UserProfile, UserSubscriptionType } from '../types/interfaces';
 import { checkAndFixCurrentUser } from '../utils/adminUtils';
 import { useUserType } from '../hooks/useUserType';
 import { logger } from '../utils/logger';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Maintenance mode flag - DISABLE ALL FIREBASE OPERATIONS
 const MAINTENANCE_MODE = false;
@@ -485,11 +486,61 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           // console.log('🔍 Iniciando carga de perfil y verificación...');
           
-          // Cargar perfil y verificación en paralelo
+          // Cargar perfil y verificación en paralelo PRIMERO
           const [profile, verificationResult] = await Promise.all([
             loadUserProfile(user),
             updateVerificationState(user)
           ]);
+          
+          // Después, actualizar lastLoginAt de forma inteligente basado en el perfil cargado
+          try {
+            let shouldUpdateLogin = true;
+            
+            if (profile && (profile.lastLoginAt || profile.lastLogin)) {
+              const lastLoginField = profile.lastLoginAt || profile.lastLogin;
+              let lastLoginDate;
+              
+              // Parse de la fecha del último login
+              if (lastLoginField && lastLoginField.seconds) {
+                lastLoginDate = new Date(lastLoginField.seconds * 1000);
+              } else if (lastLoginField && lastLoginField.toDate) {
+                lastLoginDate = lastLoginField.toDate();
+              } else if (typeof lastLoginField === 'string') {
+                lastLoginDate = new Date(lastLoginField);
+              }
+              
+              // Solo actualizar si ha pasado más de 5 minutos desde el último login registrado
+              if (lastLoginDate) {
+                const minutesSinceLastLogin = (Date.now() - lastLoginDate.getTime()) / (1000 * 60);
+                if (minutesSinceLastLogin < 5) {
+                  shouldUpdateLogin = false;
+                  console.log(`⏩ Skip lastLoginAt update - último login hace ${Math.round(minutesSinceLastLogin)} minutos para ${user.email}`);
+                }
+              }
+            }
+            
+            if (shouldUpdateLogin) {
+              const loginTime = serverTimestamp();
+              const currentTime = new Date().toISOString();
+              console.log(`🔄 Actualizando lastLoginAt para usuario: ${user.email} (${user.uid}) en ${currentTime}`);
+              
+              await updateDoc(doc(db, 'users', user.uid), {
+                lastLoginAt: loginTime,
+                lastLogin: loginTime, // Para compatibilidad con campos legacy
+                updatedAt: loginTime,
+                email: user.email, // Asegurar que el email esté actualizado
+                lastAuthProvider: user.providerData[0]?.providerId || 'unknown'
+              });
+              
+              console.log(`✅ LastLoginAt actualizado exitosamente para ${user.email} en ${currentTime}`);
+            }
+            
+            logger.debug(`✅ Login tracking completed for user ${user.email}`);
+          } catch (error) {
+            console.error(`❌ Error en el proceso de login tracking para ${user.email}:`, error);
+            logger.warn('⚠️ Error updating lastLoginAt:', error);
+            // No interrumpir el flujo de login por este error
+          }
           
           // console.log('✅ Carga completa. Perfil:', profile, 'Verificación:', verificationResult);
 
