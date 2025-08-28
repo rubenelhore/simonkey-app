@@ -13,6 +13,7 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
+import { logger } from '../utils/logger';
 
 interface StudyStreakData {
   currentStreak: number;
@@ -153,7 +154,7 @@ export class StudyStreakService {
         const session = doc.data();
         const duration = session.metrics?.sessionDuration || 0;
         if (duration > 0) {
-          console.log('[StudyStreakService] ✅ Encontrada sesión de estudio con duración:', duration);
+          logger.debug(`StudyStreakService - Found study session with duration: ${duration}`);
           return true;
         }
       }
@@ -169,7 +170,7 @@ export class StudyStreakService {
       console.log('[StudyStreakService] Resultados de quiz encontrados:', quizResultsSnap.size);
       
       if (quizResultsSnap.size > 0) {
-        console.log('[StudyStreakService] ✅ Encontrado quiz completado hoy');
+        logger.debug('StudyStreakService - Found completed quiz today');
         return true;
       }
 
@@ -184,7 +185,7 @@ export class StudyStreakService {
       console.log('[StudyStreakService] Mini quiz encontrados:', miniQuizResultsSnap.size);
       
       if (miniQuizResultsSnap.size > 0) {
-        console.log('[StudyStreakService] ✅ Encontrado mini quiz completado hoy');
+        logger.debug('StudyStreakService - Found completed mini quiz today');
         return true;
       }
 
@@ -212,7 +213,7 @@ export class StudyStreakService {
         console.log('[StudyStreakService] Datos de sesión de juego:', session);
         const duration = session.duration || 0;
         if (duration > 0 || session.completed) {
-          console.log('[StudyStreakService] ✅ Encontrada sesión de juego válida con duración:', duration, 'completada:', session.completed);
+          logger.debug(`StudyStreakService - Found valid game session with duration: ${duration}, completed: ${session.completed}`);
           return true;
         }
       }

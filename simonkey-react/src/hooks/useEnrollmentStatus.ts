@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { EnrollmentService } from '../services/enrollmentService';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { logger } from '../utils/logger';
 
 /**
  * Hook para verificar y actualizar automáticamente el estado isEnrolled del usuario
@@ -19,7 +20,7 @@ export const useEnrollmentStatus = () => {
       }
 
       try {
-        console.log('🔍 Verificando estado de inscripciones para usuario:', user.uid);
+        logger.debug(`Checking enrollment status for user: ${user.uid}`);
         
         const enrollmentService = new EnrollmentService();
         
@@ -27,9 +28,7 @@ export const useEnrollmentStatus = () => {
         const enrollments = await enrollmentService.getStudentEnrollments(user.uid);
         const hasActiveEnrollments = enrollments.length > 0;
         
-        console.log(`📊 Inscripciones encontradas: ${enrollments.length}`);
-        console.log(`📊 Estado actual isEnrolled: ${userProfile.isEnrolled}`);
-        console.log(`📊 Debería ser isEnrolled: ${hasActiveEnrollments}`);
+        logger.debug(`Enrollments found: ${enrollments.length}, current isEnrolled: ${userProfile.isEnrolled}, should be: ${hasActiveEnrollments}`);
         
         // Solo actualizar si el estado ha cambiado
         const needsUpdate = (
@@ -38,7 +37,7 @@ export const useEnrollmentStatus = () => {
         );
         
         if (needsUpdate) {
-          console.log(`🔄 Actualizando isEnrolled de ${userProfile.isEnrolled} a ${hasActiveEnrollments}`);
+          logger.info(`Updating isEnrolled from ${userProfile.isEnrolled} to ${hasActiveEnrollments}`);
           
           const userRef = doc(db, 'users', user.uid);
           await updateDoc(userRef, {
@@ -46,14 +45,14 @@ export const useEnrollmentStatus = () => {
             updatedAt: serverTimestamp()
           });
           
-          console.log(`✅ Campo isEnrolled actualizado a: ${hasActiveEnrollments}`);
+          logger.info(`isEnrolled field updated to: ${hasActiveEnrollments}`);
           
           // Recargar la página para reflejar los cambios
           setTimeout(() => {
             window.location.reload();
           }, 1000);
         } else {
-          console.log('✅ Estado isEnrolled ya está correcto, no necesita actualización');
+          logger.debug('isEnrolled status is already correct, no update needed');
         }
         
         hasChecked.current = true;

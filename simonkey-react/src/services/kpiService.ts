@@ -2,6 +2,7 @@ import { db } from './firebase';
 import { rankingService } from './rankingService';
 import { saveCurrentPositionToHistory } from '../utils/createPositionHistory';
 import { studyStreakService } from './studyStreakService';
+import { logger } from '../utils/logger';
 import { 
   doc, 
   setDoc, 
@@ -146,7 +147,6 @@ export class KPIService {
           
           // Si no hay cuadernos en idCuadernos, buscar por materias asignadas
           if (notebooks.length === 0 && userData.subjectIds && userData.subjectIds.length > 0) {
-            console.log('[KPIService] No hay cuadernos en idCuadernos, buscando por materias:', userData.subjectIds);
             
             for (const subjectId of userData.subjectIds) {
               // Buscar notebooks de esta materia
@@ -160,7 +160,6 @@ export class KPIService {
                 // Evitar duplicados
                 if (!notebooks.find(nb => nb.id === doc.id)) {
                   notebooks.push(doc);
-                  console.log('[KPIService] Agregando notebook de materia:', doc.id, doc.data().title);
                 }
               });
             }
@@ -168,7 +167,6 @@ export class KPIService {
           
           // Si aún no hay notebooks y es estudiante, buscar en learningData
           if (notebooks.length === 0 && userData.schoolRole === 'student') {
-            console.log('[KPIService] Buscando notebooks en learningData para estudiante');
             
             const learningQuery = query(
               collection(db, 'learningData'),
@@ -190,7 +188,6 @@ export class KPIService {
               const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
               if (notebookDoc.exists()) {
                 notebooks.push(notebookDoc);
-                console.log('[KPIService] Agregando notebook de learningData:', notebookId, notebookDoc.data().title);
               }
             }
           }
@@ -696,7 +693,6 @@ export class KPIService {
       // Obtener el bonus de racha actual del usuario
       const userStreak = await studyStreakService.getUserStreak(userId);
       const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
-      console.log(`[KPIService] Racha actual: ${userStreak.currentStreak} días, Bonus: ${streakBonus} pts`);
 
       // Calcular KPIs por cuaderno
       let totalScore = 0;
@@ -720,10 +716,7 @@ export class KPIService {
 
         const quizData = quizStats.get(notebookId) || { scores: [], totalTime: 0 };
         const miniQuizData = miniQuizStats.get(notebookId) || { totalTime: 0, successCount: 0, totalCount: 0 };
-        console.log(`[KPIService] Buscando gameData para cuaderno ${notebookId}`);
-        console.log(`[KPIService] gameStats tiene ${gameStats.size} entradas:`, Array.from(gameStats.keys()));
         const gameData = gameStats.get(notebookId) || { gamesPlayed: 0, totalTime: 0, totalPoints: 0 };
-        console.log(`[KPIService] gameData para cuaderno ${notebookId}:`, gameData);
         let maxScore = quizData.scores.length > 0 ? Math.max(...quizData.scores) : 0;
         
         // Si no hay scores en quizResults, intentar obtener de quizStats
@@ -731,17 +724,13 @@ export class KPIService {
           try {
             const quizStatsRef = doc(db, 'users', userId, 'quizStats', notebookId);
             const quizStatsDoc = await getDoc(quizStatsRef);
-            console.log(`[KPIService] Buscando quizStats para ${notebookId}:`, quizStatsDoc.exists());
             if (quizStatsDoc.exists()) {
               const statsData = quizStatsDoc.data();
-              console.log(`[KPIService] Datos de quizStats:`, statsData);
               if (statsData.maxScore) {
                 maxScore = statsData.maxScore;
-                console.log(`[KPIService] Score obtenido de quizStats para ${notebookId}: ${maxScore}`);
               }
             }
           } catch (error) {
-            console.log(`[KPIService] Error obteniendo quizStats para ${notebookId}:`, error);
           }
         }
         
@@ -810,29 +799,11 @@ export class KPIService {
         const gameScore = gameData.totalPoints || 0;
         const scoreCuaderno = studyScore + gameScore + streakBonus;
         
-        console.log(`[KPIService] Cálculo de score para cuaderno ${notebookId}:`, {
-          maxScore,
-          effectiveMaxScore,
-          estudiosInteligentesTotal: stats.estudiosInteligentesTotal,
-          estudiosInteligentesExitosos: stats.estudiosInteligentesExitosos,
-          estudiosInteligentesValidadosConIntensidad: validatedStudiesWithIntensity,
-          studyScore,
-          gameScore,
-          streakBonus,
-          scoreCuaderno,
-          formula: `(${effectiveMaxScore} × ${validatedStudiesWithIntensity}) + ${gameScore} + ${streakBonus} = ${scoreCuaderno}`
-        });
 
         // Obtener el ID de la materia del cuaderno
         const idMateria = notebookToMateria.get(notebookId) || '';
         const nombreCuaderno = notebook.title || notebook.name || 'Sin nombre';
 
-        console.log(`[KPIService] Asignando datos finales para cuaderno ${notebookId}:`, {
-          gameData,
-          juegosJugados: gameData.gamesPlayed,
-          tiempoJuegosTotal,
-          gamePoints: gameData.totalPoints || 0
-        });
         
         kpis.cuadernos[notebookId] = {
           scoreCuaderno,
@@ -868,11 +839,9 @@ export class KPIService {
 
         // Agregar a KPIs de materia si existe
         const materiaId = notebookToMateria.get(notebookId);
-        console.log(`[KPIService] Procesando materia para cuaderno ${notebookId}: ${materiaId}`);
         
         if (materiaId) {
           if (!kpis.materias![materiaId]) {
-            console.log(`[KPIService] Creando entrada para materia ${materiaId}`);
             kpis.materias![materiaId] = {
               scoreMateria: 0,
               percentilMateria: 0,
@@ -898,9 +867,7 @@ export class KPIService {
           kpis.materias![materiaId].conceptosDominadosMateria += stats.conceptosDominados;
           kpis.materias![materiaId].conceptosNoDominadosMateria += stats.conceptosNoDominados;
           
-          console.log(`[KPIService] Materia ${materiaId} actualizada con score: ${kpis.materias![materiaId].scoreMateria}`);
         } else {
-          console.log(`[KPIService] Cuaderno ${notebookId} no tiene materia asignada`);
         }
       }
 
@@ -935,29 +902,20 @@ export class KPIService {
       
       // Agregar el tiempo de estudio semanal a los KPIs
       kpis.tiempoEstudioSemanal = weeklyStudyTime;
-      console.log('[KPIService] Tiempo de estudio semanal calculado:', weeklyStudyTime);
       
       // Calcular el total de minutos de la semana
       const totalMinutosSemana = Object.values(weeklyStudyTime).reduce((sum, minutes) => sum + minutes, 0);
-      console.log(`[KPIService] Total de minutos esta semana: ${totalMinutosSemana}`);
 
       // Guardar KPIs en Firestore (primera fase - sin rankings)
       const kpisDocRef = doc(db, 'users', userId, 'kpis', 'dashboard');
       await setDoc(kpisDocRef, kpis);
 
-      console.log(`[KPIService] KPIs actualizados exitosamente para usuario: ${userId}`);
-      console.log(`[KPIService] KPIs guardados:`, kpis);
+      logger.info(`KPIs updated successfully for user: ${userId}`);
       
       // Agregar logs para debug del tiempo semanal
-      console.log('[KPIService] === RESUMEN DE TIEMPO SEMANAL ===');
-      Object.entries(weeklyStudyTime).forEach(([dia, minutos]) => {
-        console.log(`[KPIService] ${dia}: ${minutos} minutos (${Math.round(minutos / 60 * 10) / 10} horas)`);
-      });
-      console.log('[KPIService] ================================');
       
       // Si es usuario escolar, calcular rankings reales
       if (isSchoolUser) {
-        console.log(`[KPIService] Calculando rankings para usuario escolar...`);
         try {
           const rankings = await (rankingService as any).calculateStudentRankings(userId);
           
@@ -966,7 +924,6 @@ export class KPIService {
             if (kpis.cuadernos[notebookId]) {
               kpis.cuadernos[notebookId].posicionRanking = (ranking as any).position;
               kpis.cuadernos[notebookId].percentilCuaderno = (ranking as any).percentile;
-              console.log(`[KPIService] Cuaderno ${notebookId}: Posición ${(ranking as any).position}/${(ranking as any).totalStudents}, Percentil ${(ranking as any).percentile}%`);
             }
           }
           
@@ -974,7 +931,6 @@ export class KPIService {
           for (const [subjectId, ranking] of Object.entries(rankings.subjectRankings)) {
             if (kpis.materias && kpis.materias[subjectId]) {
               kpis.materias[subjectId].percentilMateria = (ranking as any).percentile;
-              console.log(`[KPIService] Materia ${subjectId}: Posición ${(ranking as any).position}/${(ranking as any).totalStudents}, Percentil ${(ranking as any).percentile}%`);
               
               // Guardar posición en el historial
               if (userData?.idInstitucion) {
@@ -987,7 +943,6 @@ export class KPIService {
                     (ranking as any).totalStudents,
                     kpis.materias[subjectId].scoreMateria
                   );
-                  console.log(`[KPIService] Historial de posición guardado para materia ${subjectId}`);
                 } catch (historyError) {
                   console.error(`[KPIService] Error guardando historial de posición:`, historyError);
                 }
@@ -997,11 +952,9 @@ export class KPIService {
           
           // Actualizar percentil global
           kpis.global.percentilPromedioGlobal = rankings.globalPercentile || 0;
-          console.log(`[KPIService] Percentil global actualizado: ${rankings.globalPercentile || 0}%`);
           
           // Guardar KPIs actualizados con rankings
           await setDoc(kpisDocRef, kpis);
-          console.log(`[KPIService] KPIs actualizados con rankings reales`);
           
           // Los rankings ahora se actualizan automáticamente en calculateStudentRankings
           // cuando detecta que no existen o están desactualizados
@@ -1022,8 +975,7 @@ export class KPIService {
    * Obtiene los KPIs del dashboard para un usuario
    */
   async getUserKPIs(userId: string): Promise<DashboardKPIs | null> {
-    console.log('[KPIService] ============= INICIO getUserKPIs =============');
-    console.log('[KPIService] getUserKPIs llamado con userId:', userId);
+    logger.debug(`getUserKPIs called with userId: ${userId}`);
     try {
       const kpisDocRef = doc(db, 'users', userId, 'kpis', 'dashboard');
       const kpisDoc = await getDoc(kpisDocRef);

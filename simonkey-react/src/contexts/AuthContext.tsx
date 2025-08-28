@@ -6,6 +6,7 @@ import { getUserProfile } from '../services/userService';
 import { UserProfile, UserSubscriptionType } from '../types/interfaces';
 import { checkAndFixCurrentUser } from '../utils/adminUtils';
 import { useUserType } from '../hooks/useUserType';
+import { logger } from '../utils/logger';
 
 // Maintenance mode flag - DISABLE ALL FIREBASE OPERATIONS
 const MAINTENANCE_MODE = false;
@@ -39,14 +40,13 @@ let globalAuthUnsubscribe: (() => void) | null = null;
 
 // Función de diagnóstico global
 const diagnoseAuthState = () => {
-  console.log('🔍 === DIAGNÓSTICO DE AUTENTICACIÓN ===');
-  console.log('🔐 Global Auth Listener Setup:', globalAuthListenerSetup);
-  console.log('🔐 Global Auth Unsubscribe:', globalAuthUnsubscribe ? 'Configurado' : 'No configurado');
-  console.log('👤 Usuario actual de Firebase Auth:', auth.currentUser);
-  console.log('📧 Email del usuario actual:', auth.currentUser?.email);
-  console.log('🆔 UID del usuario actual:', auth.currentUser?.uid);
-  console.log('✅ Email verificado:', auth.currentUser?.emailVerified);
-  console.log('=====================================');
+  logger.debugFunctions('=== DIAGNÓSTICO DE AUTENTICACIÓN ===');
+  logger.debugFunctions(`Global Auth Listener Setup: ${globalAuthListenerSetup}`);
+  logger.debugFunctions(`Global Auth Unsubscribe: ${globalAuthUnsubscribe ? 'Configurado' : 'No configurado'}`);
+  logger.debugFunctions(`Usuario actual de Firebase Auth: ${auth.currentUser?.email || 'No logueado'}`);
+  logger.debugFunctions(`UID del usuario actual: ${auth.currentUser?.uid || 'N/A'}`);
+  logger.debugFunctions(`Email verificado: ${auth.currentUser?.emailVerified || false}`);
+  logger.debugFunctions('=====================================');
 };
 
 // Exponer la función globalmente para diagnóstico
@@ -86,25 +86,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isEmailVerified: false,
       effectiveUserId: null,
       signOut: async () => {
-        console.log('🔧 Maintenance mode: signOut disabled');
+        logger.info('Maintenance mode: signOut disabled');
       },
       refreshUserProfile: async () => {
-        console.log('🔧 Maintenance mode: refreshUserProfile disabled');
+        logger.info('Maintenance mode: refreshUserProfile disabled');
       },
       refreshEmailVerification: async () => {
-        console.log('🔧 Maintenance mode: refreshEmailVerification disabled');
+        logger.info('Maintenance mode: refreshEmailVerification disabled');
         return false;
       },
       requiresEmailVerification: () => false,
       canAccessApp: () => false,
       logout: async () => {
-        console.log('🔧 Maintenance mode: logout disabled');
+        logger.info('Maintenance mode: logout disabled');
       },
       refreshUserData: async () => {
-        console.log('🔧 Maintenance mode: refreshUserData disabled');
+        logger.info('Maintenance mode: refreshUserData disabled');
       },
       updateVerificationState: async () => {
-        console.log('🔧 Maintenance mode: updateVerificationState disabled');
+        logger.info('Maintenance mode: updateVerificationState disabled');
         return false;
       },
     };
@@ -404,6 +404,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Función para hacer logout
   const logout = async (): Promise<void> => {
     try {
+      // Track logout before signing out
+      if (typeof window !== 'undefined' && window.amplitude && authState.user) {
+        try {
+          const amplitudeInstance = window.amplitude.getInstance();
+          amplitudeInstance.logEvent('User Logout', {
+            email: authState.user.email,
+            userId: authState.user.uid,
+            timestamp: new Date().toISOString()
+          });
+          console.log('📊 Amplitude: User logout tracked');
+        } catch (error) {
+          console.warn('⚠️ Error tracking logout in Amplitude:', error);
+        }
+      }
+      
       await auth.signOut();
       console.log('👋 Usuario deslogueado exitosamente');
     } catch (error) {
@@ -443,6 +458,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           loading: true,
           isAuthenticated: true,
         }));
+
+        // Track user login in Amplitude
+        if (typeof window !== 'undefined' && window.amplitude) {
+          try {
+            const amplitudeInstance = window.amplitude.getInstance();
+            amplitudeInstance.setUserId(user.uid);
+            amplitudeInstance.setUserProperties({
+              email: user.email,
+              displayName: user.displayName,
+              emailVerified: user.emailVerified,
+              loginMethod: user.providerData[0]?.providerId || 'unknown'
+            });
+            amplitudeInstance.logEvent('User Login', {
+              email: user.email,
+              userId: user.uid,
+              loginMethod: user.providerData[0]?.providerId || 'unknown',
+              timestamp: new Date().toISOString()
+            });
+            console.log('📊 Amplitude: User login tracked for', user.email);
+          } catch (error) {
+            console.warn('⚠️ Error tracking login in Amplitude:', error);
+          }
+        }
         
         try {
           // console.log('🔍 Iniciando carga de perfil y verificación...');
@@ -479,6 +517,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } else {
         // console.log('❌ No hay usuario autenticado');
+        
+        // Clear Amplitude user ID when logged out
+        if (typeof window !== 'undefined' && window.amplitude) {
+          try {
+            const amplitudeInstance = window.amplitude.getInstance();
+            amplitudeInstance.setUserId(null);
+            amplitudeInstance.logEvent('User Logout Complete', {
+              timestamp: new Date().toISOString()
+            });
+            console.log('📊 Amplitude: Session ended');
+          } catch (error) {
+            console.warn('⚠️ Error clearing user in Amplitude:', error);
+          }
+        }
         
         // Resetear estado cuando no hay usuario
         setAuthState({
