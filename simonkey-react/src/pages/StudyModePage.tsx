@@ -1222,6 +1222,17 @@ const StudyModePage = () => {
               </div>
               <div className="study-score-label">
                 {selectedNotebook ? 'puntos totales' : 'Selecciona un cuaderno'}
+                {selectedNotebook && (
+                  <div className="score-info-icon">
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    <div className="score-tooltip">
+                      <div className="tooltip-content">
+                        <div>= Estudio inteligente × top score quiz</div>
+                        <div>+ pts juegos + bonus racha</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
