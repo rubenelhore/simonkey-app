@@ -5,7 +5,7 @@ import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
 import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, auth } from '../services/firebase';
 
 interface User {
   id: string;
@@ -100,6 +100,11 @@ const SuperAdminPage: React.FC = () => {
     try {
       setLoading(true);
       console.log('🔄 Iniciando carga de usuarios...');
+      console.log('🔐 Usuario actual:', {
+        uid: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        isSuperAdmin: isSuperAdmin
+      });
       
       // Usar query sin límites para asegurar que se traigan todos los usuarios
       const usersQuery = query(collection(db, 'users'));
@@ -129,11 +134,27 @@ const SuperAdminPage: React.FC = () => {
       
       if (usersData.length < 65) {
         console.warn(`⚠️ PROBLEMA: Solo se cargaron ${usersData.length} usuarios de los 65 esperados`);
+        console.warn(`❌ FALTAN ${65 - usersData.length} usuarios`);
         
         // Intentar una segunda consulta para debug
         console.log('🔄 Intentando segunda consulta para debug...');
         const secondSnapshot = await getDocs(collection(db, 'users'));
         console.log(`🔍 Segunda consulta size: ${secondSnapshot.size}`);
+        
+        // También intentar contar todos los documentos con Firebase Admin
+        console.log('🔍 Intentando consulta directa con límite alto...');
+        try {
+          const highLimitQuery = query(collection(db, 'users'), limit(1000));
+          const highLimitSnapshot = await getDocs(highLimitQuery);
+          console.log(`🔍 Consulta con límite 1000: ${highLimitSnapshot.size} documentos`);
+          
+          // Log de cada documento para ver cuáles faltan
+          const loadedEmails = new Set(usersData.map(u => u.email).filter(Boolean));
+          console.log(`📧 Emails cargados (${loadedEmails.size}):`, Array.from(loadedEmails).sort());
+          
+        } catch (error) {
+          console.error('❌ Error en consulta con límite alto:', error);
+        }
       }
       
       setUsers(usersData);
