@@ -110,7 +110,8 @@ const SuperAdminPage: React.FC = () => {
         });
       });
       
-      console.log(`Total users loaded: ${usersData.length}`);
+      console.log(`📊 TOTAL USUARIOS CARGADOS: ${usersData.length}`);
+      console.log(`📄 Primeros 3 usuarios:`, usersData.slice(0, 3));
       
       setUsers(usersData);
       setFilteredUsers(usersData);
@@ -335,6 +336,20 @@ const SuperAdminPage: React.FC = () => {
         <div className="section-header">
           <h2>👥 Usuarios ({filteredUsers.length} de {users.length})</h2>
           <div className="action-buttons">
+            <button 
+              className="clear-filters-btn"
+              onClick={() => setFilters({
+                nombre: '',
+                email: '',
+                subscription: '',
+                role: '',
+                fechaCreacion: '',
+                ultimaSesion: ''
+              })}
+              disabled={loading}
+            >
+              🗑️ Limpiar Filtros
+            </button>
             <button 
               className="refresh-btn"
               onClick={loadUsers}
