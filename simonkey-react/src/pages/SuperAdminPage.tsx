@@ -52,6 +52,14 @@ const SuperAdminPage: React.FC = () => {
   React.useEffect(() => {
     if (!userTypeLoading && !isSuperAdmin) {
       navigate('/notebooks');
+    } else if (!userTypeLoading && isSuperAdmin) {
+      // Track super admin access
+      if (typeof window !== 'undefined' && window.amplitude) {
+        window.amplitude.track('Super Admin Access', {
+          page: 'SuperAdminPage',
+          timestamp: new Date().toISOString()
+        });
+      }
     }
   }, [isSuperAdmin, userTypeLoading, navigate]);
 

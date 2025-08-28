@@ -404,6 +404,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Función para hacer logout
   const logout = async (): Promise<void> => {
     try {
+      // Track logout before signing out
+      if (typeof window !== 'undefined' && window.amplitude && authState.user) {
+        window.amplitude.track('User Logout', {
+          email: authState.user.email,
+          userId: authState.user.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       await auth.signOut();
       console.log('👋 Usuario deslogueado exitosamente');
     } catch (error) {
@@ -443,6 +452,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           loading: true,
           isAuthenticated: true,
         }));
+
+        // Track user login in Amplitude
+        if (typeof window !== 'undefined' && window.amplitude) {
+          window.amplitude.setUserId(user.uid);
+          window.amplitude.identify({
+            email: user.email,
+            displayName: user.displayName,
+            emailVerified: user.emailVerified,
+            loginMethod: user.providerData[0]?.providerId || 'unknown'
+          });
+          window.amplitude.track('User Login', {
+            email: user.email,
+            userId: user.uid,
+            loginMethod: user.providerData[0]?.providerId || 'unknown',
+            timestamp: new Date().toISOString()
+          });
+        }
         
         try {
           // console.log('🔍 Iniciando carga de perfil y verificación...');
@@ -479,6 +505,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } else {
         // console.log('❌ No hay usuario autenticado');
+        
+        // Clear Amplitude user ID when logged out
+        if (typeof window !== 'undefined' && window.amplitude) {
+          window.amplitude.setUserId(null);
+          window.amplitude.track('User Logout Complete', {
+            timestamp: new Date().toISOString()
+          });
+        }
         
         // Resetear estado cuando no hay usuario
         setAuthState({
