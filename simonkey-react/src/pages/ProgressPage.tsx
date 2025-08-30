@@ -29,6 +29,7 @@ import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { getPositionHistory } from '../utils/createPositionHistory';
 import ChartLoadingPlaceholder from '../components/Charts/ChartLoadingPlaceholder';
 import { useUserType } from '../hooks/useUserType';
+import TeacherStudentAnalytics from '../components/TeacherStudentAnalytics';
 import '../styles/ProgressPage.css';
 
 // Division levels configuration - matching StudyModePage
@@ -98,6 +99,7 @@ const ProgressPage: React.FC = () => {
   const [cuadernosReales, setCuadernosReales] = useState<CuadernoData[]>([]);
   const [progress, setProgress] = useState(0);
   const [effectiveUserId, setEffectiveUserId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'mi-progreso' | 'analisis-estudiantes'>('mi-progreso');
 
   // Cargar todo al montar el componente
   useEffect(() => {
@@ -1759,7 +1761,31 @@ const ProgressPage: React.FC = () => {
 
   return (
     <>
-      <HeaderWithHamburger title="Mi Progreso" />
+      <HeaderWithHamburger title={activeTab === 'mi-progreso' ? 'Mi Progreso' : 'Análisis de Estudiantes'} />
+      
+      {/* Pestañas para profesores */}
+      {isTeacher && (
+        <div className="progress-tabs">
+          <button 
+            className={`tab-button ${activeTab === 'mi-progreso' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mi-progreso')}
+          >
+            📊 Mi Progreso
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'analisis-estudiantes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analisis-estudiantes')}
+          >
+            👥 Análisis de Estudiantes
+          </button>
+        </div>
+      )}
+
+      {/* Contenido condicional basado en la pestaña activa */}
+      {activeTab === 'analisis-estudiantes' && isTeacher ? (
+        <TeacherStudentAnalytics />
+      ) : (
+        <div>
       <div className="progress-layout">
         <div className="progress-modules-row">
           <div className={`progress-module-col ${!isSchoolUser && materias.length === 0 ? 'no-side-module' : ''}`}>
@@ -2054,6 +2080,8 @@ const ProgressPage: React.FC = () => {
           </div>
         </div>
       </div>
+        </div>
+      )}
     </>
   );
 };
