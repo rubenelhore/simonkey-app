@@ -379,8 +379,8 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - solo visible para profesores en cuadernos no inscritos */}
-            {isTeacher && !isEnrolled && (
+            {/* Botón de menú de 3 puntos - solo visible en cuadernos no inscritos */}
+            {!isEnrolled && (
               <button 
                 className="materia-menu-button"
                 onClick={handleMenuClick}
@@ -414,7 +414,7 @@ const NotebookItem: React.FC<NotebookItemProps> = ({ id, title, color, category,
               </button>
             )}
 
-            <h3 style={{ paddingRight: (!isTeacher || isEnrolled) ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: isEnrolled ? '8px' : '40px' }}>{editableTitle}</h3>
             <div className="materia-info-container">
               <span className="materia-info">
                 {conceptCount || 0} concepto{(conceptCount || 0) !== 1 ? 's' : ''}

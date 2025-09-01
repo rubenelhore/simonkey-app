@@ -57,7 +57,8 @@ export const useUserType = () => {
   const isSuperAdmin = email === 'ruben.elhore@gmail.com' || subscription === UserSubscriptionType.SUPER_ADMIN;
   
   // El nuevo sistema: isTeacher viene directamente del perfil
-  const isTeacherUser = isTeacher === true;
+  // Los super admins también tienen privilegios de profesor
+  const isTeacherUser = isTeacher === true || isSuperAdmin;
 
   return {
     isSuperAdmin,

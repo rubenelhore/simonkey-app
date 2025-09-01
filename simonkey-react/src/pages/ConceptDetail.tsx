@@ -361,15 +361,26 @@ const ConceptDetail: React.FC = () => {
           
           console.log('📊 Total de conceptos para estudiante escolar:', total);
           setTotalConcepts(total);
-        } else if (conceptoId) {
-          // Para usuarios regulares, contar solo los conceptos del documento actual
-          const conceptoRef = doc(db, 'conceptos', conceptoId);
-          const conceptoSnap = await getDoc(conceptoRef);
+        } else {
+          // Para usuarios regulares, contar TODOS los conceptos de TODOS los documentos
+          const conceptsCollection = 'conceptos';
+          const q = query(
+            collection(db, conceptsCollection),
+            where('cuadernoId', '==', notebookId)
+          );
           
-          if (conceptoSnap.exists()) {
-            const conceptos = conceptoSnap.data().conceptos;
-            setTotalConcepts(conceptos.length);
-          }
+          const querySnapshot = await getDocs(q);
+          let total = 0;
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.conceptos && Array.isArray(data.conceptos)) {
+              total += data.conceptos.length;
+            }
+          });
+          
+          console.log('📊 Total de conceptos para usuario regular:', total);
+          setTotalConcepts(total);
         }
       } catch (error) {
         console.error("Error actualizando total de conceptos:", error);
@@ -415,7 +426,7 @@ const ConceptDetail: React.FC = () => {
       conceptosArray.sort((a, b) => {
         const terminoA = a.concepto?.término || '';
         const terminoB = b.concepto?.término || '';
-        return terminoA.localeCompare(terminoB, 'es');
+        return terminoA.localeCompare(terminoB, 'es', { numeric: true, sensitivity: 'base' });
       });
       
       console.log('📊 Listener detectó cambio - Total conceptos en cuaderno:', totalConceptos, 'Anterior:', totalConcepts);
@@ -473,7 +484,17 @@ const ConceptDetail: React.FC = () => {
 
   // Sincronizar el globalIndex con la URL
   useEffect(() => {
-    if (!allConcepts.length || !conceptoId || index === undefined) return;
+    console.log('🔍 Sincronización - Estado actual:', {
+      allConceptsLength: allConcepts.length,
+      conceptoId,
+      index,
+      totalConcepts
+    });
+    
+    if (!allConcepts.length || !conceptoId || index === undefined) {
+      console.log('⏳ Esperando datos completos...');
+      return;
+    }
     
     const idx = allConcepts.findIndex(
       item => item.conceptoId === conceptoId && item.localIndex === parseInt(index)
@@ -494,6 +515,7 @@ const ConceptDetail: React.FC = () => {
         conceptoId,
         index,
         allConceptsLength: allConcepts.length,
+        totalConceptsState: totalConcepts,
         allConcepts: allConcepts.map(c => ({ 
           docId: c.conceptoId, 
           localIdx: c.localIndex, 
@@ -501,7 +523,7 @@ const ConceptDetail: React.FC = () => {
         }))
       });
     }
-  }, [allConcepts, conceptoId, index]);
+  }, [allConcepts, conceptoId, index, totalConcepts]);
 
   // Añade este efecto para persistir la preferencia de autolectura
   useEffect(() => {
@@ -600,12 +622,7 @@ const ConceptDetail: React.FC = () => {
   };
 
   const handleEditConcept = () => {
-    // Prevent school students from editing concepts
-    if (isSchoolUser) {
-      alert('Como estudiante escolar, no puedes editar conceptos.');
-      return;
-    }
-    
+    // Allow all users to edit concepts
     if (concepto) {
       setEditedConcept({ ...concepto } as Concept);
     }
@@ -990,8 +1007,8 @@ const ConceptDetail: React.FC = () => {
                   <cite>{concepto.fuente}</cite>
                 </div>
                 
-                {/* Solo mostrar acciones de edición para usuarios no escolares */}
-                {!isSchoolUser && (
+                {/* Mostrar acciones de edición para todos los usuarios */}
+                {(
                   <div className="concept-actions">
                     <button 
                       className="edit-concept-button"

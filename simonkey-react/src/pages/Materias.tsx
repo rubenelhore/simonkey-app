@@ -149,10 +149,12 @@ const Materias: React.FC = () => {
       // porque el sistema escolar fue migrado
       
       console.log('  ✅ Cargando materias para usuario regular (no escolar)');
+      console.log('  🔍 isTeacher del hook:', isTeacher);
+      console.log('  🔍 userProfile?.isTeacher:', userProfile?.isTeacher);
       setLoading(true);
       try {
-        // Verificar si el usuario es profesor (tiene isTeacher = true)
-        const isTeacher = userProfile?.isTeacher === true;
+        // Usar el isTeacher del hook useUserType que ya está disponible
+        // No redeclarar la variable isTeacher aquí
         
         // Cargar materias propias, notebooks y enrollments en paralelo
         const [materiasSnap, notebooksSnap, enrollmentsSnap] = await Promise.all([
@@ -208,6 +210,11 @@ const Materias: React.FC = () => {
                 );
                 const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
                 materiaData.studentCount = enrollmentsSnapshot.size;
+                
+                // Log solo si hay estudiantes
+                if (enrollmentsSnapshot.size > 0) {
+                  console.log(`📊 Materia "${materiaData.title}": ${enrollmentsSnapshot.size} estudiantes inscritos`);
+                }
               } catch (error) {
                 console.error(`Error counting students for materia ${docSnap.id}:`, error);
               }
@@ -843,6 +850,44 @@ const Materias: React.FC = () => {
     }
   };
 
+  const handleUnenroll = async (materiaId: string) => {
+    if (!user) return;
+    
+    try {
+      // Buscar el enrollment activo del usuario en esta materia
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('studentId', '==', user.uid),
+        where('materiaId', '==', materiaId),
+        where('status', '==', 'active')
+      );
+      
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      
+      if (enrollmentsSnapshot.empty) {
+        alert('No se encontró la inscripción en esta materia');
+        return;
+      }
+      
+      // Actualizar el estado del enrollment a 'inactive'
+      const enrollmentDoc = enrollmentsSnapshot.docs[0];
+      await updateDoc(doc(db, 'enrollments', enrollmentDoc.id), {
+        status: 'inactive',
+        unenrolledAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Usuario desenrolado de la materia ${materiaId}`);
+      
+      // Refrescar la lista de materias
+      setRefreshTrigger(prev => prev + 1);
+      
+      alert('Te has desenrolado exitosamente de la materia');
+    } catch (error) {
+      console.error('Error desenrolando de la materia:', error);
+      alert('Error al desenrolarse de la materia. Por favor, intenta de nuevo.');
+    }
+  };
+
   const handleEdit = async (id: string, newTitle: string) => {
     // Los estudiantes escolares no pueden editar materias
     if (isSchoolStudent) return;
@@ -1097,6 +1142,7 @@ const Materias: React.FC = () => {
               materias={adminMaterias}
               onDeleteMateria={handleDelete}
               onEditMateria={handleEdit}
+              onUnenrollMateria={handleUnenroll}
               onColorChange={handleColorChange}
               onCreateMateria={handleCreate}
               onViewMateria={handleView}
@@ -1186,8 +1232,8 @@ const Materias: React.FC = () => {
                     <>
                       <div className="badge-new">¡Bienvenido profesor!</div>
                       <h2 className="empty-state-title gradient-text">
-                        No tienes materias asignadas<br/>
-                        <span className="highlight">contacta a tu administrador</span>
+                        Comienza a organizar tus clases<br/>
+                        <span className="highlight">crea tu primera materia</span>
                       </h2>
                     </>
                   ) : (
@@ -1201,7 +1247,7 @@ const Materias: React.FC = () => {
                   )}
                   
                   <div className="empty-state-actions">
-                    {!isSchoolStudent && !isTeacher && (
+                    {!isSchoolStudent && (
                       <button className="create-materia-button primary pulse" onClick={() => {
                         setShowCreateModal(true);
                       }}>
@@ -1227,7 +1273,7 @@ const Materias: React.FC = () => {
                       </div>
                     )}
                     
-                    {!isTeacher && (
+                    {!isTeacher && !isSchoolStudent && (
                       <div className="quick-suggestions enhanced">
                         <span className="suggestions-label">
                           <i className="fas fa-lightbulb"></i>
@@ -1276,13 +1322,14 @@ const Materias: React.FC = () => {
           ) : (
             <MateriaList 
               materias={materias}
-              onDeleteMateria={isSchoolStudent ? undefined : handleDelete}
-              onEditMateria={isSchoolStudent ? undefined : handleEdit}
-              onColorChange={isSchoolStudent ? undefined : handleColorChange}
-              onCreateMateria={isSchoolStudent ? undefined : handleCreate}
+              onDeleteMateria={handleDelete}
+              onEditMateria={handleEdit}
+              onUnenrollMateria={handleUnenroll}
+              onColorChange={handleColorChange}
+              onCreateMateria={handleCreate}
               onViewMateria={handleView}
-              onManageInvites={!isSchoolStudent ? handleManageInvites : undefined}
-              showCreateButton={!isSchoolStudent}
+              onManageInvites={handleManageInvites}
+              showCreateButton={true}
               selectedCategory={null}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}

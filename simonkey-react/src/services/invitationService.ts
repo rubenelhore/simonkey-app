@@ -51,6 +51,8 @@ export async function createInviteCode(
     welcomeMessage?: string;
   }
 ): Promise<InviteCode> {
+  console.log('🔵 createInviteCode iniciado', { teacherId, materiaId, materiaName });
+  
   let code = generateUniqueCode();
   let attempts = 0;
   
@@ -63,6 +65,8 @@ export async function createInviteCode(
   if (attempts >= 10) {
     throw new Error('No se pudo generar un código único. Por favor, intenta de nuevo.');
   }
+
+  console.log('✅ Código único generado:', code);
 
   const inviteData: Omit<InviteCode, 'id'> = {
     code,
@@ -94,12 +98,20 @@ export async function createInviteCode(
     };
   }
 
-  const docRef = await addDoc(collection(db, 'inviteCodes'), inviteData);
-  
-  return {
-    id: docRef.id,
-    ...inviteData
-  } as InviteCode;
+  console.log('📝 Datos a guardar:', inviteData);
+
+  try {
+    const docRef = await addDoc(collection(db, 'inviteCodes'), inviteData);
+    console.log('✅ Documento creado con ID:', docRef.id);
+    
+    return {
+      id: docRef.id,
+      ...inviteData
+    } as InviteCode;
+  } catch (error) {
+    console.error('❌ Error al crear documento en Firestore:', error);
+    throw error;
+  }
 }
 
 /**

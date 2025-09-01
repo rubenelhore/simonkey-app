@@ -3,7 +3,7 @@ import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import './ContactPage.css';
-import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import SimpleHeader from '../components/SimpleHeader';
 import Footer from '../components/Footer';
 import HelpWhatsAppButton from '../components/HelpWhatsAppButton';
 
@@ -97,7 +97,7 @@ const ContactPage: React.FC = () => {
 
   return (
     <>
-      <HeaderWithHamburger title="Centro de ayuda" />
+      <SimpleHeader title="Centro de ayuda" />
       {/* Eliminar el div contact-page y dejar el contenido directo */}
       <div className="contact-hero">
         <div className="container">

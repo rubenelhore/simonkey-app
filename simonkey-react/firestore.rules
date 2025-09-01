@@ -362,8 +362,8 @@ service cloud.firestore {
       // Lectura: pública para validar códigos
       allow read: if true;
       
-      // Creación: solo profesores
-      allow create: if isTeacher() &&
+      // Creación: profesores o super admin
+      allow create: if (isTeacher() || isSuperAdmin()) &&
         request.resource.data.teacherId == request.auth.uid &&
         hasRequiredFields(['code', 'teacherId', 'materiaId', 'createdAt', 'isActive']);
       
@@ -598,9 +598,39 @@ service cloud.firestore {
     // ========================================
     match /contactMessages/{messageId} {
       allow read: if isSuperAdmin();
-      allow create: if isAuthenticated() &&
-        hasRequiredFields(['name', 'email', 'message', 'timestamp']);
+      // Permitir a cualquier persona (autenticada o no) enviar mensajes de contacto
+      allow create: if request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() > 0 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.subject is string;
       allow update, delete: if isSuperAdmin();
+    }
+
+    // ========================================
+    // REGLAS PARA COLECCIÓN: proRequests
+    // ========================================
+    match /proRequests/{requestId} {
+      // Lectura: solo super admin puede ver todas las solicitudes
+      allow read: if isSuperAdmin();
+      
+      // Creación: cualquier usuario autenticado puede solicitar Pro
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        hasRequiredFields(['userId', 'userEmail', 'userName', 'currentSubscription', 'status', 'requestedAt']) &&
+        isValidString(request.resource.data.userEmail, 254) &&
+        isValidString(request.resource.data.userName, 100) &&
+        isValidEnum(request.resource.data.status, ['pending', 'approved', 'rejected']) &&
+        request.resource.data.status == 'pending' && // Solo se puede crear como pending
+        isValidTimestamp(request.resource.data.requestedAt);
+      
+      // Actualización: solo super admin puede aprobar/rechazar
+      allow update: if isSuperAdmin();
+      
+      // Eliminación: solo super admin
+      allow delete: if isSuperAdmin();
     }
     
     // ========================================

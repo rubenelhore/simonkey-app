@@ -30,6 +30,7 @@ interface MateriaListProps {
   materias: Materia[];
   onDeleteMateria?: (id: string) => void;
   onEditMateria?: (id: string, title: string) => void;
+  onUnenrollMateria?: (id: string) => void;
   showCreateButton?: boolean;
   onCreateMateria?: (title: string, color: string, category?: string) => void;
   onColorChange?: (id: string, color: string) => void;
@@ -52,7 +53,8 @@ interface MateriaListProps {
 const MateriaList: React.FC<MateriaListProps> = ({ 
   materias, 
   onDeleteMateria, 
-  onEditMateria, 
+  onEditMateria,
+  onUnenrollMateria, 
   showCreateButton = false, 
   onCreateMateria,
   onColorChange,
@@ -443,6 +445,7 @@ const MateriaList: React.FC<MateriaListProps> = ({
                 onColorChange={onColorChange}
                 onView={onViewMateria}
                 onManageInvites={onManageInvites}
+                onUnenroll={onUnenrollMateria}
                 showActions={openActionsId === materia.id}
                 onToggleActions={handleToggleActions}
                 teacherName={materia.teacherName}

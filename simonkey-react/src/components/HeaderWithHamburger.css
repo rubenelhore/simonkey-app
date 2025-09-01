@@ -320,6 +320,11 @@
   box-sizing: border-box !important;
 }
 
+/* Excepción para ConceptDetail - mantener ancho original */
+.header-with-hamburger-container ~ * .concept-card-detail {
+  max-width: 550px !important;
+}
+
 .header-with-hamburger-container ~ * .dashboard-container {
   height: auto !important;
   overflow: visible !important;
@@ -1784,6 +1789,56 @@ body .header-with-hamburger .logo2-title-group h1 * {
   padding: 1.5rem;
   text-align: center;
   border: 1px solid #e2e8f0;
+}
+
+.upgrade-action-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.upgrade-action-section h4 {
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.upgrade-action-section p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.request-pro-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem auto;
+  min-width: 200px;
+}
+
+.request-pro-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.request-note {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
 }
 
 .upgrade-support-section h4 {

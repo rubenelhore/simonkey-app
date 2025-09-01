@@ -9,6 +9,7 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  margin-top: 60px; /* Ajuste para el nuevo header más delgado */
 }
 
 .contact-hero::before {

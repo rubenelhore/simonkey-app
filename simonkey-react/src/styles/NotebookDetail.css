@@ -1564,8 +1564,10 @@
 .preview-modal {
   background-color: white;
   border-radius: 12px;
-  width: 914px;
-  height: 273px;
+  width: 90vw;
+  max-width: 1200px;
+  height: 90vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -1615,7 +1617,8 @@
   align-items: center;
   justify-content: center;
   background-color: #fafafa;
-  min-height: 200px;
+  min-height: 0;
+  height: 100%;
 }
 
 

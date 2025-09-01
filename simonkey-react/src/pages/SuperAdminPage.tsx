@@ -43,6 +43,21 @@ interface ContactMessage {
   timestamp: any;
   userId?: string;
   status?: string;
+  read?: boolean;
+}
+
+interface ProRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  currentSubscription: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt: any;
+  processedAt?: any;
+  processedBy?: string;
+  reason?: string;
+  notes?: string;
 }
 
 const SuperAdminPage: React.FC = () => {
@@ -53,6 +68,8 @@ const SuperAdminPage: React.FC = () => {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [filteredMessages, setFilteredMessages] = useState<ContactMessage[]>([]);
+  const [proRequests, setProRequests] = useState<ProRequest[]>([]);
+  const [filteredProRequests, setFilteredProRequests] = useState<ProRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     nombre: '',
@@ -66,6 +83,12 @@ const SuperAdminPage: React.FC = () => {
     search: '',
     status: ''
   });
+  const [proFilters, setProFilters] = useState({
+    search: '',
+    status: ''
+  });
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   // Verificar si el usuario es súper admin
   React.useEffect(() => {
@@ -94,6 +117,8 @@ const SuperAdminPage: React.FC = () => {
       loadUsers();
     } else if (activeTab === 'mensajes') {
       loadMessages();
+    } else if (activeTab === 'pro') {
+      loadProRequests();
     }
   }, [activeTab]);
 
@@ -293,7 +318,7 @@ Ver consola para más detalles.`);
       setLoading(true);
       const messagesQuery = query(
         collection(db, 'contactMessages'),
-        orderBy('timestamp', 'desc')
+        orderBy('createdAt', 'desc')
       );
       const messagesSnapshot = await getDocs(messagesQuery);
       const messagesData: ContactMessage[] = [];
@@ -302,7 +327,14 @@ Ver consola para más detalles.`);
         const messageData = doc.data();
         messagesData.push({
           id: doc.id,
-          ...messageData
+          name: messageData.name || '',
+          email: messageData.email || '',
+          subject: messageData.subject || '',
+          message: messageData.message || '',
+          timestamp: messageData.createdAt || messageData.timestamp,
+          userId: messageData.userId || null,
+          status: messageData.status || 'pending',
+          read: messageData.read || false
         });
       });
       
@@ -312,6 +344,34 @@ Ver consola para más detalles.`);
       setFilteredMessages(messagesData);
     } catch (error) {
       console.error('Error loading messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProRequests = async () => {
+    try {
+      setLoading(true);
+      const proRequestsQuery = query(
+        collection(db, 'proRequests'),
+        orderBy('requestedAt', 'desc')
+      );
+      const proRequestsSnapshot = await getDocs(proRequestsQuery);
+      const proRequestsData: ProRequest[] = [];
+      
+      proRequestsSnapshot.forEach((doc) => {
+        proRequestsData.push({
+          id: doc.id,
+          ...doc.data()
+        } as ProRequest);
+      });
+      
+      console.log(`Total pro requests loaded: ${proRequestsData.length}`);
+      
+      setProRequests(proRequestsData);
+      setFilteredProRequests(proRequestsData);
+    } catch (error) {
+      console.error('Error loading pro requests:', error);
     } finally {
       setLoading(false);
     }
@@ -330,6 +390,135 @@ Ver consola para más detalles.`);
       return matchesSearch && matchesStatus;
     });
     setFilteredMessages(filtered);
+  };
+
+  const handleViewMessage = async (message: ContactMessage) => {
+    setSelectedMessage(message);
+    setShowMessageModal(true);
+    
+    // Marcar como leído si no lo está
+    if (!message.read) {
+      try {
+        await updateDoc(doc(db, 'contactMessages', message.id), {
+          read: true
+        });
+        
+        // Actualizar el estado local
+        const updatedMessages = messages.map(m => 
+          m.id === message.id ? { ...m, read: true } : m
+        );
+        setMessages(updatedMessages);
+      } catch (error) {
+        console.error('Error marking message as read:', error);
+      }
+    }
+  };
+
+  const handleUpdateMessageStatus = async (messageId: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, 'contactMessages', messageId), {
+        status: newStatus
+      });
+      
+      // Actualizar el estado local
+      const updatedMessages = messages.map(m => 
+        m.id === messageId ? { ...m, status: newStatus } : m
+      );
+      setMessages(updatedMessages);
+      
+      // Si el modal está abierto, actualizar el mensaje seleccionado
+      if (selectedMessage && selectedMessage.id === messageId) {
+        setSelectedMessage({ ...selectedMessage, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Error updating message status:', error);
+    }
+  };
+
+  // Funciones para solicitudes Pro
+  const handleApproveProRequest = async (requestId: string) => {
+    if (!confirm('¿Estás seguro de que quieres aprobar esta solicitud Pro?')) {
+      return;
+    }
+
+    try {
+      const request = proRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      // Actualizar la solicitud
+      await updateDoc(doc(db, 'proRequests', requestId), {
+        status: 'approved',
+        processedAt: serverTimestamp(),
+        processedBy: 'super_admin'
+      });
+
+      // Actualizar la suscripción del usuario a PRO
+      await updateDoc(doc(db, 'users', request.userId), {
+        subscription: 'PRO'
+      });
+
+      // Actualizar el estado local
+      const updatedRequests = proRequests.map(r => 
+        r.id === requestId 
+          ? { ...r, status: 'approved' as const, processedAt: serverTimestamp() }
+          : r
+      );
+      setProRequests(updatedRequests);
+      setFilteredProRequests(updatedRequests.filter(r => 
+        !proFilters.status || r.status === proFilters.status
+      ));
+
+      alert('¡Solicitud aprobada! El usuario ahora tiene suscripción PRO.');
+    } catch (error) {
+      console.error('Error approving pro request:', error);
+      alert('Error al aprobar la solicitud. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleRejectProRequest = async (requestId: string) => {
+    const reason = prompt('Razón del rechazo (opcional):');
+    
+    if (!confirm('¿Estás seguro de que quieres rechazar esta solicitud Pro?')) {
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'proRequests', requestId), {
+        status: 'rejected',
+        processedAt: serverTimestamp(),
+        processedBy: 'super_admin',
+        notes: reason || ''
+      });
+
+      // Actualizar el estado local
+      const updatedRequests = proRequests.map(r => 
+        r.id === requestId 
+          ? { ...r, status: 'rejected' as const, processedAt: serverTimestamp(), notes: reason || '' }
+          : r
+      );
+      setProRequests(updatedRequests);
+      setFilteredProRequests(updatedRequests.filter(r => 
+        !proFilters.status || r.status === proFilters.status
+      ));
+
+      alert('Solicitud rechazada.');
+    } catch (error) {
+      console.error('Error rejecting pro request:', error);
+      alert('Error al rechazar la solicitud. Inténtalo de nuevo.');
+    }
+  };
+
+  const filterProRequests = () => {
+    let filtered = proRequests.filter(request => {
+      const matchesSearch = !proFilters.search || 
+        request.userName.toLowerCase().includes(proFilters.search.toLowerCase()) ||
+        request.userEmail.toLowerCase().includes(proFilters.search.toLowerCase());
+      
+      const matchesStatus = !proFilters.status || request.status === proFilters.status;
+      
+      return matchesSearch && matchesStatus;
+    });
+    setFilteredProRequests(filtered);
   };
 
   // Ejecutar filtros cuando cambien
@@ -453,6 +642,10 @@ Ver consola para más detalles.`);
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    filterProRequests();
+  }, [proFilters, proRequests]);
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
@@ -826,38 +1019,64 @@ Ver consola para más detalles.`);
           <table className="simple-messages-table">
             <thead>
               <tr>
-                <th style={{ width: '15%' }}>Nombre</th>
-                <th style={{ width: '20%' }}>Email</th>
-                <th style={{ width: '20%' }}>Asunto</th>
-                <th style={{ width: '30%' }}>Mensaje</th>
-                <th style={{ width: '10%' }}>Estado</th>
-                <th style={{ width: '15%' }}>Fecha</th>
+                <th style={{ width: '120px', minWidth: '120px' }}>Nombre</th>
+                <th style={{ width: '150px', minWidth: '150px' }}>Email</th>
+                <th style={{ width: '130px', minWidth: '130px' }}>Asunto</th>
+                <th style={{ width: '200px', minWidth: '200px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Mensaje</th>
+                <th style={{ width: '80px', minWidth: '80px' }}>Estado</th>
+                <th style={{ width: '100px', minWidth: '100px' }}>Fecha</th>
+                <th style={{ width: '100px', minWidth: '100px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredMessages.map((message) => (
-                <tr key={message.id}>
-                  <td>{message.name}</td>
-                  <td>{message.email}</td>
-                  <td>{message.subject}</td>
-                  <td>
-                    <div className="message-preview">
-                      {message.message.length > 100 
-                        ? `${message.message.substring(0, 100)}...` 
+                <tr key={message.id} className={message.read ? '' : 'unread-message'}>
+                  <td style={{ width: '120px', minWidth: '120px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{message.name}</td>
+                  <td style={{ width: '150px', minWidth: '150px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href={`mailto:${message.email}`} className="email-link">
+                      {message.email}
+                    </a>
+                  </td>
+                  <td style={{ width: '130px', minWidth: '130px', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{message.subject}</td>
+                  <td style={{ width: '200px', minWidth: '200px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className="message-preview" title={message.message}>
+                      {message.message.length > 50 
+                        ? `${message.message.substring(0, 50)}...` 
                         : message.message}
                     </div>
                   </td>
-                  <td>
+                  <td style={{ width: '80px', minWidth: '80px', maxWidth: '80px', textAlign: 'center' }}>
                     <span className={`status-badge ${message.status || 'pending'}`}>
-                      {message.status === 'responded' ? 'Respondido' : 
-                       message.status === 'resolved' ? 'Resuelto' : 'Pendiente'}
+                      {message.status === 'responded' ? '✅' : 
+                       message.status === 'resolved' ? '✔️' : '⏳'}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ width: '100px', minWidth: '100px', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
                     {message.timestamp ? 
-                      new Date(message.timestamp.seconds * 1000).toLocaleDateString() : 
-                      'No disponible'
+                      (message.timestamp.seconds ? 
+                        new Date(message.timestamp.seconds * 1000).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        }) :
+                        new Date(message.timestamp).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })
+                      ) : 
+                      'Sin fecha'
                     }
+                  </td>
+                  <td style={{ width: '100px', minWidth: '100px', maxWidth: '100px', textAlign: 'center', padding: '8px' }}>
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => handleViewMessage(message)}
+                      title="Ver mensaje completo"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px' }}
+                    >
+                      👁️
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -873,6 +1092,155 @@ Ver consola para más detalles.`);
           {messages.length === 0 && (
             <div className="no-messages">
               <p>No se encontraron mensajes</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderProTab = () => {
+    if (loading) {
+      return (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Cargando solicitudes Pro...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="pro-requests-section">
+        <h2>🌟 Solicitudes Pro ({filteredProRequests.length} de {proRequests.length})</h2>
+        
+        <div className="pro-filters">
+          <input
+            type="text"
+            placeholder="Buscar por nombre o email..."
+            value={proFilters.search}
+            onChange={(e) => setProFilters({ ...proFilters, search: e.target.value })}
+            className="search-input"
+          />
+          <select
+            value={proFilters.status}
+            onChange={(e) => setProFilters({ ...proFilters, status: e.target.value })}
+            className="status-filter"
+          >
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="approved">Aprobado</option>
+            <option value="rejected">Rechazado</option>
+          </select>
+        </div>
+
+        <div className="simple-table-container">
+          <table className="simple-pro-requests-table">
+            <thead>
+              <tr>
+                <th style={{ width: '150px', minWidth: '150px' }}>Usuario</th>
+                <th style={{ width: '180px', minWidth: '180px' }}>Email</th>
+                <th style={{ width: '120px', minWidth: '120px' }}>Suscripción Actual</th>
+                <th style={{ width: '100px', minWidth: '100px', textAlign: 'center' }}>Estado</th>
+                <th style={{ width: '120px', minWidth: '120px' }}>Fecha Solicitud</th>
+                <th style={{ width: '200px', minWidth: '200px', textAlign: 'center' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProRequests.map((request) => (
+                <tr key={request.id}>
+                  <td style={{ width: '150px', minWidth: '150px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {request.userName}
+                  </td>
+                  <td style={{ width: '180px', minWidth: '180px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href={`mailto:${request.userEmail}`} className="email-link">
+                      {request.userEmail}
+                    </a>
+                  </td>
+                  <td style={{ width: '120px', minWidth: '120px', textAlign: 'center' }}>
+                    <span className={`sub-badge ${request.currentSubscription.toLowerCase()}`}>
+                      {request.currentSubscription}
+                    </span>
+                  </td>
+                  <td style={{ width: '100px', minWidth: '100px', textAlign: 'center' }}>
+                    <span className={`status-badge ${request.status}`}>
+                      {request.status === 'pending' ? '⏳ Pendiente' :
+                       request.status === 'approved' ? '✅ Aprobado' :
+                       '❌ Rechazado'}
+                    </span>
+                  </td>
+                  <td style={{ width: '120px', minWidth: '120px', fontSize: '0.8rem' }}>
+                    {request.requestedAt ? 
+                      (request.requestedAt.seconds ? 
+                        new Date(request.requestedAt.seconds * 1000).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        }) :
+                        new Date(request.requestedAt).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })
+                      ) : 
+                      'Sin fecha'
+                    }
+                  </td>
+                  <td style={{ width: '200px', minWidth: '200px', textAlign: 'center', padding: '8px' }}>
+                    {request.status === 'pending' ? (
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <button
+                          className="approve-btn"
+                          onClick={() => handleApproveProRequest(request.id)}
+                          title="Aprobar solicitud"
+                          style={{ 
+                            background: '#10b981', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 12px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          ✅ Aprobar
+                        </button>
+                        <button
+                          className="reject-btn"
+                          onClick={() => handleRejectProRequest(request.id)}
+                          title="Rechazar solicitud"
+                          style={{ 
+                            background: '#ef4444', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 12px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          ❌ Rechazar
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.8rem', color: '#666' }}>
+                        {request.status === 'approved' ? 'Procesado ✓' : 'Rechazado ✗'}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredProRequests.length === 0 && proRequests.length > 0 && (
+            <div className="no-messages">
+              <p>No se encontraron solicitudes con los filtros aplicados</p>
+            </div>
+          )}
+          
+          {proRequests.length === 0 && (
+            <div className="no-messages">
+              <p>No hay solicitudes Pro aún</p>
             </div>
           )}
         </div>
@@ -909,15 +1277,90 @@ Ver consola para más detalles.`);
             >
               📬 Mensajes
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'pro' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pro')}
+            >
+              🌟 Pro
+            </button>
           </div>
           
           <div className="tab-content">
             {activeTab === 'usuarios' && renderUsersTab()}
             {activeTab === 'profesores' && renderTeachersTab()}
             {activeTab === 'mensajes' && renderMessagesTab()}
+            {activeTab === 'pro' && renderProTab()}
           </div>
         </div>
       </div>
+
+      {/* Modal para ver mensaje completo */}
+      {showMessageModal && selectedMessage && (
+        <div className="message-modal-overlay" onClick={() => setShowMessageModal(false)}>
+          <div className="message-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="message-modal-header">
+              <h3>Mensaje de Contacto</h3>
+              <button 
+                className="close-modal-btn" 
+                onClick={() => setShowMessageModal(false)}
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="message-modal-body">
+              <div className="message-field">
+                <strong>De:</strong> {selectedMessage.name} ({selectedMessage.email})
+              </div>
+              
+              <div className="message-field">
+                <strong>Asunto:</strong> {selectedMessage.subject}
+              </div>
+              
+              <div className="message-field">
+                <strong>Fecha:</strong> {
+                  selectedMessage.timestamp ? 
+                    (selectedMessage.timestamp.seconds ? 
+                      new Date(selectedMessage.timestamp.seconds * 1000).toLocaleString('es-MX') :
+                      new Date(selectedMessage.timestamp).toLocaleString('es-MX')
+                    ) : 
+                    'Sin fecha'
+                }
+              </div>
+              
+              <div className="message-field">
+                <strong>Mensaje:</strong>
+                <div className="message-content">
+                  {selectedMessage.message}
+                </div>
+              </div>
+              
+              <div className="message-actions">
+                <strong>Estado:</strong>
+                <select 
+                  value={selectedMessage.status || 'pending'}
+                  onChange={(e) => handleUpdateMessageStatus(selectedMessage.id, e.target.value)}
+                  className="status-select"
+                >
+                  <option value="pending">⏳ Pendiente</option>
+                  <option value="responded">✅ Respondido</option>
+                  <option value="resolved">✔️ Resuelto</option>
+                </select>
+                
+                <a 
+                  href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
+                  className="reply-btn"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  📧 Responder por Email
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

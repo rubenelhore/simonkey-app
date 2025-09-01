@@ -19,8 +19,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Importar funciones de congelación programada
 // export { processScheduledFreezeUnfreeze, processScheduledFreezeUnfreezeManual } from './scheduledFreezeUnfreeze';
 
-// Exportar funciones de email
-export { sendCredentialEmail, processMailQueue } from './emailService';
+// Funciones de email removidas por conflictos de configuración
 
 // Cloud Function para actualizar contraseñas temporales
 export const setTemporaryPassword = onCall(async (request) => {
@@ -2629,9 +2628,173 @@ export const generateConceptsFromFile = onCall(
       const mimeType = getMimeType(fileName || '');
       logger.info("📄 Tipo MIME detectado", { fileName, mimeType });
 
-      // Prompt optimizado para extraer conceptos educativos
-      const prompt = `
+      // Función para detectar idioma del contenido
+      const detectLanguage = (text: string): string => {
+        const sample = text.toLowerCase().substring(0, 1000);
+        
+        // Palabras comunes en diferentes idiomas
+        const languagePatterns = {
+          english: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'],
+          spanish: ['el', 'la', 'los', 'las', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'un', 'una'],
+          french: ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'dans', 'avec', 'pour', 'par', 'sur'],
+          german: ['der', 'die', 'das', 'und', 'oder', 'aber', 'in', 'auf', 'mit', 'von', 'zu', 'für'],
+          portuguese: ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'em', 'com', 'por', 'para', 'que'],
+          italian: ['il', 'la', 'lo', 'gli', 'le', 'di', 'del', 'in', 'con', 'per', 'da', 'che']
+        };
+        
+        let bestLanguage = 'unknown';
+        let maxScore = 0;
+        
+        for (const [lang, words] of Object.entries(languagePatterns)) {
+          let score = 0;
+          for (const word of words) {
+            const regex = new RegExp(`\\b${word}\\b`, 'g');
+            const matches = sample.match(regex);
+            score += matches ? matches.length : 0;
+          }
+          
+          if (score > maxScore) {
+            maxScore = score;
+            bestLanguage = lang;
+          }
+        }
+        
+        return bestLanguage;
+      };
+
+      // Detectar idioma del contenido
+      let detectedLanguage = 'unknown';
+      
+      // Detectar idioma tanto para archivos de texto como PDFs
+      if (fileContent) {
+        if (fileType === 'text') {
+          // Para archivos de texto, detectar idioma del contenido
+          const textForLanguageDetection = Buffer.from(fileContent, 'base64').toString('utf-8');
+          detectedLanguage = detectLanguage(textForLanguageDetection);
+        } else if (fileType === 'file') {
+          // Para PDFs y otros archivos, intentar detectar por el nombre del archivo
+          const fileNameLower = fileName?.toLowerCase() || '';
+          
+          // Patrones en español en nombres de archivos
+          if (fileNameLower.includes('español') || 
+              fileNameLower.includes('espanol') || 
+              fileNameLower.includes('spanish') ||
+              fileNameLower.includes('conceptos') || 
+              fileNameLower.includes('tema') ||
+              fileNameLower.includes('capitulo') ||
+              fileNameLower.includes('materia') ||
+              fileNameLower.includes('apuntes') ||
+              /\b(el|la|los|las|de|del|en|con|por|para|un|una)\b/.test(fileNameLower)) {
+            detectedLanguage = 'spanish';
+          } else if (fileNameLower.includes('english') || 
+              fileNameLower.includes('concepts') || 
+              fileNameLower.includes('general culture') ||
+              fileNameLower.includes('essential') ||
+              /\b(the|and|of|in|to|for|with|on|by)\b/.test(fileNameLower)) {
+            detectedLanguage = 'english';
+          } else {
+            // Si no hay indicadores claros, asumir español por defecto (usuario hispanohablante)
+            detectedLanguage = 'spanish';
+          }
+        }
+        logger.info("🌐 Idioma detectado", { detectedLanguage, fileName, fileType });
+      }
+
+      // ================================
+      // SOLUCIÓN NUCLEAR: PROMPT ESPECÍFICO POR IDIOMA
+      // ================================
+      
+      let prompt: string;
+      
+      if (detectedLanguage === 'english') {
+        // PROMPT COMPLETAMENTE EN INGLÉS
+        prompt = `
+🚨🚨🚨 CRITICAL INSTRUCTION - ENGLISH DOCUMENT DETECTED 🚨🚨🚨
+
+**DOCUMENT IS IN ENGLISH**
+**YOU MUST RESPOND ONLY IN ENGLISH**
+**ABSOLUTELY NO TRANSLATION TO ANY OTHER LANGUAGE**
+
+⚠️ CRITICAL WARNING: **NEVER TRANSLATE ANYTHING** - KEEP EVERYTHING IN ENGLISH ⚠️
+
+You are an expert creating effective study flashcards. Analyze the document and extract key concepts.
+**IMPORTANT: YOU MUST KEEP EVERYTHING IN ENGLISH. DO NOT TRANSLATE.**
+
+## EXTRACTION RULES
+
+1. **Discard questions**
+   - Ignore any line containing "?" 
+   - Ignore phrases starting with interrogative words (what, which, who, where, when, why, how).
+
+2. **Identify the answer** (concept) and its brief explanation.
+
+3. **Length limits**
+   - **Term** ≤ 50 characters, no punctuation except accents.
+   - **Definition** ≤ 200 characters, clear and concise.
+   - If explanation exceeds limit, simplify while preserving meaning.
+
+4. **Term-definition independence**
+   - Term should not appear in definition and vice versa.
+
+5. **Remove duplicates**
+   - At the end, analyze the JSON. REMOVE cards with same term or definition.
+
+6. **LANGUAGE: ENGLISH - NEVER TRANSLATE**
+   - 🚫 **TRANSLATION FORBIDDEN** 🚫
+   - **DOCUMENT IS IN ENGLISH**
+   - **YOUR CONCEPTS MUST BE IN ENGLISH**
+   - **NEVER TRANSLATE THE CONCEPTS**
+   - **ALWAYS KEEP ENGLISH**
+   - **DO NOT TRANSLATE** to any other language
+   - **DOCUMENT = ENGLISH → RESPONSE = ENGLISH**
+   - **REPEAT: TRANSLATION IS STRICTLY FORBIDDEN**
+   - Terms and definitions MUST be EXACTLY in ENGLISH
+   - **DO NOT CHANGE LANGUAGE UNDER ANY CIRCUMSTANCES**
+   - **RESPOND IN ENGLISH ONLY**
+
+## RESPONSE FORMAT:
+Respond ONLY with this valid JSON:
+
+{
+  "conceptos": [
+    {
+      "termino": "Simple concept name IN ENGLISH",
+      "definicion": "Clear and concise explanation IN ENGLISH"
+    }
+  ]
+}
+
+🚫 FINAL REMINDER: **DO NOT TRANSLATE ANYTHING** 🚫
+- Document is in English → respond in English
+- **NEVER CHANGE THE DOCUMENT'S ORIGINAL LANGUAGE**
+
+EXAMPLES OF CORRECT FORMAT:
+{
+  "conceptos": [
+    {
+      "termino": "Photosynthesis",
+      "definicion": "Process by which plants convert light energy into chemical energy"
+    },
+    {
+      "termino": "Democracy", 
+      "definicion": "System of government where power is vested in the people"
+    }
+  ]
+}
+`;
+      } else {
+        // PROMPT EN ESPAÑOL PARA OTROS IDIOMAS
+        prompt = `
+🚨🚨🚨 INSTRUCCIÓN CRÍTICA - DOCUMENTO EN ESPAÑOL DETECTADO 🚨🚨🚨
+
+**EL DOCUMENTO ESTÁ EN ESPAÑOL**
+**DEBES RESPONDER ÚNICAMENTE EN ESPAÑOL**
+**PROHIBIDO TRADUCIR A CUALQUIER OTRO IDIOMA**
+
+⚠️ ADVERTENCIA CRÍTICA: **NUNCA TRADUZCAS NADA** - MANTÉN TODO EN ESPAÑOL ⚠️
+
 Eres un experto creando tarjetas de estudio efectivas. Analiza el documento y extrae los conceptos clave.
+**IMPORTANTE: DEBES MANTENER TODO EN ESPAÑOL. NO TRADUZCAS.**
 
 ## REGLAS DE EXTRACCIÓN  
 
@@ -2652,8 +2815,18 @@ Eres un experto creando tarjetas de estudio efectivas. Analiza el documento y ex
 5. **Elimina duplicados y cruces**  
    - Al finalizar, analiza el json. ELIMINA las tarjetas que tengan el mismo término o definición. OJO: Lee bien, si ves que dos json se parecen, quedate con el primero.
 
-6. **Idioma**  
-   - Mantén término y definición en el idioma original del documento.
+6. **IDIOMA: ESPAÑOL - NUNCA TRADUCIR**  
+   - 🚫 **PROHIBIDO TRADUCIR** 🚫
+   - **EL DOCUMENTO ESTÁ EN ESPAÑOL**
+   - **TUS CONCEPTOS DEBEN ESTAR EN ESPAÑOL**
+   - **NUNCA JAMÁS traduzcas los conceptos**
+   - **MANTÉN SIEMPRE EL ESPAÑOL**
+   - **NO TRADUZCAS** a ningún otro idioma
+   - **DOCUMENTO = ESPAÑOL → RESPUESTA = ESPAÑOL**
+   - **REPITO: ESTÁ TERMINANTEMENTE PROHIBIDO TRADUCIR**
+   - Los términos y definiciones DEBEN estar EXACTAMENTE en ESPAÑOL
+   - **NO CAMBIES EL IDIOMA BAJO NINGUNA CIRCUNSTANCIA**
+   - **RESPONDE EN ESPAÑOL ÚNICAMENTE**
 
 ## FORMATO DE RESPUESTA:
 Responde ÚNICAMENTE con este JSON válido:
@@ -2661,12 +2834,17 @@ Responde ÚNICAMENTE con este JSON válido:
 {
   "conceptos": [
     {
-      "termino": "Nombre simple del concepto",
-      "definicion": "Explicación clara y concisa",
+      "termino": "Nombre del concepto EN ESPAÑOL",
+      "definicion": "Explicación clara y concisa EN ESPAÑOL"
     }
   ]
 }
+
+🚫 RECORDATORIO FINAL: **NO TRADUZCAS NADA** 🚫
+- El documento está en español → responde en español
+- **NUNCA CAMBIES EL IDIOMA DEL DOCUMENTO ORIGINAL**
 `;
+      }
 
       let result;
       
@@ -2890,6 +3068,197 @@ ${chunksToProcess[i]}`;
           logger.info("✅ Conceptos extraídos con método de respaldo", { concepts });
         } else {
           throw new HttpsError("internal", "Error procesando respuesta de IA");
+        }
+      }
+
+      // ================================
+      // FILTRO NUCLEAR ANTI-ESPAÑOL
+      // ================================
+      
+      if (detectedLanguage === 'english' && concepts.conceptos && concepts.conceptos.length > 0) {
+        logger.info("🚫 Aplicando filtro anti-español para documentos en inglés...");
+        
+        // Lista de palabras comunes en español que NO deben aparecer
+        const spanishWords = [
+          'el', 'la', 'los', 'las', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'un', 'una',
+          'es', 'son', 'está', 'están', 'ser', 'estar', 'tener', 'hacer', 'ir', 'ver', 'dar',
+          'proceso', 'sistema', 'forma', 'manera', 'método', 'tipo', 'parte', 'grupo', 'conjunto',
+          'estructura', 'función', 'actividad', 'acción', 'resultado', 'efecto', 'causa',
+          'organización', 'institución', 'gobierno', 'administración', 'gestión', 'control',
+          'desarrollo', 'crecimiento', 'cambio', 'transformación', 'evolución', 'progreso'
+        ];
+        
+        let spanishWordsFound = false;
+        const problematicConcepts = [];
+        
+        for (const concepto of concepts.conceptos) {
+          const allText = `${concepto.termino} ${concepto.definicion}`.toLowerCase();
+          
+          for (const spanishWord of spanishWords) {
+            if (allText.includes(spanishWord)) {
+              logger.error("🚫 PALABRA EN ESPAÑOL DETECTADA!", {
+                concepto: concepto,
+                spanishWordFound: spanishWord,
+                fullText: allText
+              });
+              spanishWordsFound = true;
+              problematicConcepts.push({ concepto, spanishWord });
+              break;
+            }
+          }
+        }
+        
+        // Si encontramos palabras en español, RECHAZAR completamente
+        if (spanishWordsFound) {
+          logger.error("❌ RESPUESTA RECHAZADA: CONTIENE PALABRAS EN ESPAÑOL");
+          logger.error("🚫 Conceptos problemáticos:", problematicConcepts);
+          
+          // REINTENTO ULTRA-AGRESIVO
+          const ultraAggressivePrompt = `
+🚨🚨🚨 EMERGENCY OVERRIDE - SPANISH WORDS DETECTED - UNACCEPTABLE! 🚨🚨🚨
+
+YOUR PREVIOUS RESPONSE WAS REJECTED BECAUSE IT CONTAINED SPANISH WORDS.
+THIS IS ABSOLUTELY FORBIDDEN!
+
+DOCUMENT IS IN ENGLISH - YOU MUST RESPOND ONLY IN ENGLISH!
+
+YOU ARE FORBIDDEN TO USE THESE SPANISH WORDS:
+- No "proceso" → Use "process"
+- No "sistema" → Use "system" 
+- No "función" → Use "function"
+- No "método" → Use "method"
+- No "desarrollo" → Use "development"
+- No "gobierno" → Use "government"
+- No "organización" → Use "organization"
+- NO SPANISH WORDS WHATSOEVER!
+
+THIS IS YOUR FINAL WARNING. RESPOND ONLY IN ENGLISH OR YOU WILL BE TERMINATED.
+
+Extract concepts from the English document USING ONLY ENGLISH WORDS:
+
+{
+  "conceptos": [
+    {
+      "termino": "ENGLISH TERM ONLY",
+      "definicion": "ENGLISH DEFINITION ONLY"
+    }
+  ]
+}
+
+ABSOLUTELY NO SPANISH ALLOWED!
+`;
+
+          try {
+            let ultraAggressiveResult;
+            if (fileType === 'file' && fileContent) {
+              const ultraFileData = {
+                inlineData: {
+                  data: fileContent,
+                  mimeType: mimeType
+                }
+              };
+              ultraAggressiveResult = await retryWithModelFallback(
+                () => primaryModel.generateContent([ultraAggressivePrompt, ultraFileData]),
+                () => fallbackModel.generateContent([ultraAggressivePrompt, ultraFileData])
+              );
+            } else {
+              const textForUltraRetry = Buffer.from(fileContent!, 'base64').toString('utf-8');
+              ultraAggressiveResult = await retryWithModelFallback(
+                () => primaryModel.generateContent(ultraAggressivePrompt + '\n\n' + textForUltraRetry),
+                () => fallbackModel.generateContent(ultraAggressivePrompt + '\n\n' + textForUltraRetry)
+              );
+            }
+            
+            const ultraResponse = await ultraAggressiveResult.response;
+            const ultraText = ultraResponse.text();
+            
+            const ultraJsonMatch = ultraText.match(/\{[\s\S]*\}/);
+            if (ultraJsonMatch) {
+              const ultraConcepts = JSON.parse(ultraJsonMatch[0]);
+              concepts = ultraConcepts;
+              logger.info("✅ Conceptos corregidos con filtro anti-español", { concepts });
+            }
+          } catch (ultraRetryError) {
+            logger.warn("⚠️ Filtro anti-español falló, usando conceptos originales", ultraRetryError);
+          }
+        }
+      }
+
+      // VALIDACIÓN DE IDIOMA POST-PROCESAMIENTO (versión simplificada)
+      if (detectedLanguage !== 'unknown' && concepts.conceptos && concepts.conceptos.length > 0) {
+        logger.info("🔍 Validando idioma de los conceptos extraídos...");
+        
+        // Verificar idioma de los primeros 3 conceptos
+        const sampleConcepts = concepts.conceptos.slice(0, 3);
+        let wrongLanguageDetected = false;
+        
+        for (const concepto of sampleConcepts) {
+          const conceptText = `${concepto.termino} ${concepto.definicion}`;
+          const conceptLanguage = detectLanguage(conceptText);
+          
+          if (conceptLanguage !== detectedLanguage && conceptLanguage !== 'unknown') {
+            logger.warn("⚠️ Idioma incorrecto detectado en concepto", {
+              expectedLanguage: detectedLanguage,
+              detectedLanguage: conceptLanguage,
+              concepto: concepto
+            });
+            wrongLanguageDetected = true;
+            break;
+          }
+        }
+        
+        // Si se detecta idioma incorrecto, rechazar y reintentar
+        if (wrongLanguageDetected) {
+          logger.error("❌ CONCEPTOS EN IDIOMA INCORRECTO - Reintentando con prompt más agresivo");
+          
+          // Prompt más agresivo para reintentar
+          const aggressivePrompt = `
+🚨 EMERGENCY OVERRIDE - LANGUAGE VIOLATION DETECTED 🚨
+DOCUMENT IS IN ${detectedLanguage.toUpperCase()}
+YOU MUST RESPOND ONLY IN ${detectedLanguage.toUpperCase()}
+ABSOLUTELY NO TRANSLATION ALLOWED
+
+Previous attempt was rejected because you translated to the wrong language.
+This is your FINAL CHANCE. Extract concepts ONLY in ${detectedLanguage.toUpperCase()}.
+
+${prompt}`;
+
+          // Reintentar con prompt más agresivo
+          try {
+            let aggressiveResult;
+            if (fileType === 'file' && fileContent) {
+              // Para archivos, recrear fileData
+              const retryFileData = {
+                inlineData: {
+                  data: fileContent,
+                  mimeType: mimeType
+                }
+              };
+              aggressiveResult = await retryWithModelFallback(
+                () => primaryModel.generateContent([aggressivePrompt, retryFileData]),
+                () => fallbackModel.generateContent([aggressivePrompt, retryFileData])
+              );
+            } else {
+              // Para texto directo
+              const textForRetry = Buffer.from(fileContent!, 'base64').toString('utf-8');
+              aggressiveResult = await retryWithModelFallback(
+                () => primaryModel.generateContent(aggressivePrompt + '\n\n' + textForRetry),
+                () => fallbackModel.generateContent(aggressivePrompt + '\n\n' + textForRetry)
+              );
+            }
+            
+            const aggressiveResponse = await aggressiveResult.response;
+            const aggressiveText = aggressiveResponse.text();
+            
+            const aggressiveJsonMatch = aggressiveText.match(/\{[\s\S]*\}/);
+            if (aggressiveJsonMatch) {
+              const aggressiveConcepts = JSON.parse(aggressiveJsonMatch[0]);
+              concepts = aggressiveConcepts;
+              logger.info("✅ Conceptos corregidos con prompt agresivo", { concepts });
+            }
+          } catch (retryError) {
+            logger.warn("⚠️ Reintentar con prompt agresivo falló, usando conceptos originales", retryError);
+          }
         }
       }
 

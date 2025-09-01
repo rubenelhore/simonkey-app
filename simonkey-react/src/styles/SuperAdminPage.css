@@ -2045,3 +2045,416 @@
   background: linear-gradient(135deg, #ffd700, #ffed4e);
   color: #333;
 }
+
+/* Estilos para mensajes */
+.unread-message {
+  background-color: #f0f9ff;
+  font-weight: 600;
+}
+
+.email-link {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.email-link:hover {
+  text-decoration: underline;
+}
+
+.message-preview {
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.view-btn {
+  color: #6b7280;
+}
+
+.view-btn:hover {
+  color: #374151;
+}
+
+/* Asegurar visibilidad del botón de vista */
+.action-btn.view-btn {
+  min-width: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  margin: 0 auto !important;
+}
+
+/* Sobrescribir el CSS global problemático para la tabla de mensajes */
+.header-with-hamburger-container ~ * .simple-messages-table * {
+  max-width: none !important;
+}
+
+.header-with-hamburger-container ~ * .simple-messages-table td {
+  max-width: none !important;
+  width: auto !important;
+  overflow: visible !important;
+}
+
+.header-with-hamburger-container ~ * .simple-messages-table th {
+  max-width: none !important;
+  width: auto !important;
+}
+
+/* Forzar la visibilidad de la columna de acciones */
+.simple-messages-table td:nth-child(6) {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  min-width: 80px !important;
+}
+
+/* Modal para mensaje completo */
+.message-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.message-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.message-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+}
+
+.message-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-modal-btn:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.message-modal-body {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.message-field {
+  margin-bottom: 1rem;
+}
+
+.message-field strong {
+  display: block;
+  color: #374151;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.message-content {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #111827;
+}
+
+.message-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.status-select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.reply-btn {
+  background: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reply-btn:hover {
+  background: #2563eb;
+  color: white;
+}
+
+
+.simple-messages-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed !important;
+}
+
+.simple-messages-table th:nth-child(1),
+.simple-messages-table td:nth-child(1) { /* Nombre */
+  width: 15%;
+}
+
+.simple-messages-table th:nth-child(2),
+.simple-messages-table td:nth-child(2) { /* Email */
+  width: 20%;
+}
+
+.simple-messages-table th:nth-child(3),
+.simple-messages-table td:nth-child(3) { /* Mensaje */
+  width: 20% !important;
+  max-width: 150px !important;
+  min-width: 150px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.simple-messages-table th:nth-child(4),
+.simple-messages-table td:nth-child(4) { /* Estado */
+  width: 10%;
+}
+
+.simple-messages-table th:nth-child(5),
+.simple-messages-table td:nth-child(5) { /* Fecha */
+  width: 15%;
+}
+
+.simple-messages-table th:nth-child(6),
+.simple-messages-table td:nth-child(6) { /* Acciones */
+  width: 15% !important;
+  min-width: 80px !important;
+  text-align: center !important;
+  padding: 0.5rem !important;
+}
+
+.simple-messages-table th {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.simple-messages-table th:last-child {
+  border-right: none;
+}
+
+.simple-messages-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  border-right: 1px solid #f0f0f0;
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.simple-messages-table td:last-child {
+  border-right: none;
+}
+
+.simple-messages-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.simple-messages-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.responded {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.resolved {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.message-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.search-input, .status-filter {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 300px;
+}
+
+/* Estilos para solicitudes Pro */
+.pro-requests-section {
+  padding: 0;
+}
+
+.pro-requests-section h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pro-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.simple-pro-requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed !important;
+}
+
+.simple-pro-requests-table th {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.simple-pro-requests-table th:last-child {
+  border-right: none;
+}
+
+.simple-pro-requests-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  border-right: 1px solid #f0f0f0;
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.simple-pro-requests-table td:last-child {
+  border-right: none;
+}
+
+.simple-pro-requests-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.simple-pro-requests-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.approve-btn:hover {
+  background: #059669 !important;
+  transform: translateY(-1px);
+}
+
+.reject-btn:hover {
+  background: #dc2626 !important;
+  transform: translateY(-1px);
+}
+
+/* Estilos para badges de status en Pro requests */
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+

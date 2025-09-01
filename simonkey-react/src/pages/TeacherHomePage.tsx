@@ -597,10 +597,10 @@ const TeacherHomePage: React.FC = () => {
                       <FontAwesomeIcon icon={faBook} style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }} />
                       <p style={{ margin: 0, fontWeight: 600 }}>Preparando tu espacio educativo</p>
                       <p style={{ margin: '0.5rem 0', fontSize: '0.85rem', opacity: 0.8, lineHeight: 1.4 }}>
-                        Tu administrador pronto te asignará materias increíbles para transformar vidas.
+                        Crea tu primera materia para comenzar a organizar tus clases y materiales educativos.
                       </p>
                       <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', opacity: 0.6 }}>
-                        Mientras tanto, explora el calendario y prepara tus estrategias
+                        Haz clic aquí para ir a la página de materias
                       </p>
                     </div>
                   )}

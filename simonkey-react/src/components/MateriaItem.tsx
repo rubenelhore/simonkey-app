@@ -13,6 +13,7 @@ interface MateriaItemProps {
   onColorChange?: (id: string, newColor: string) => void;
   onView: (id: string) => void;
   onManageInvites?: (id: string, title: string) => void;
+  onUnenroll?: (id: string) => void;
   showActions: boolean;
   onToggleActions: (materiaId: string) => void;
   teacherName?: string;
@@ -43,6 +44,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
   onColorChange, 
   onView,
   onManageInvites,
+  onUnenroll,
   showActions, 
   onToggleActions,
   teacherName,
@@ -71,6 +73,15 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
     if (window.confirm("¿Estás seguro de que deseas eliminar esta materia?")) {
       if (onDelete) {
         onDelete(id);
+      }
+    }
+  };
+
+  const handleUnenroll = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("¿Estás seguro de que deseas desenrolarte de esta materia? Ya no tendrás acceso a su contenido.")) {
+      if (onUnenroll) {
+        onUnenroll(id);
       }
     }
   };
@@ -263,42 +274,40 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
           </div>
         ) : (
           <>
-            {/* Botón de menú de 3 puntos - solo visible para materias propias (no inscritas) y solo para profesores */}
-            {!isEnrolled && isTeacher && (
-              <button 
-                className="materia-menu-button"
-                onClick={handleMenuClick}
-                title="Opciones"
-                style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.2s ease',
-                  zIndex: 2
+            {/* Botón de menú de 3 puntos - visible para todas las materias */}
+            <button 
+              className="materia-menu-button"
+              onClick={handleMenuClick}
+              title="Opciones"
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.2s ease',
+                zIndex: 2
+              }}
+            >
+              <i 
+                className="fas fa-ellipsis-v" 
+                style={{ 
+                  fontSize: '14px', 
+                  color: '#666',
+                  transform: 'rotate(0deg)'
                 }}
-              >
-                <i 
-                  className="fas fa-ellipsis-v" 
-                  style={{ 
-                    fontSize: '14px', 
-                    color: '#666',
-                    transform: 'rotate(0deg)'
-                  }}
-                ></i>
-              </button>
-            )}
+              ></i>
+            </button>
 
-            <h3 style={{ paddingRight: (isEnrolled || !isTeacher) ? '8px' : '40px' }}>{editableTitle}</h3>
+            <h3 style={{ paddingRight: '40px' }}>{editableTitle}</h3>
             {isAdminView ? (
               <div className="materia-admin-info">
                 <span className="materia-teacher">
@@ -320,7 +329,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
                     Profesor: {teacherName}
                   </span>
                 )}
-                {(isTeacher || isTeacher) && studentCount !== undefined && (
+                {isTeacher && studentCount !== undefined && (
                   <span className="materia-students" style={{
                     fontSize: '0.85rem',
                     color: '#666',
@@ -438,7 +447,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               <span>Ver cuadernos</span>
             </button>
           )}
-          {onEdit && (
+          {onEdit && !isEnrolled && (
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -473,7 +482,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               <span>Editar nombre</span>
             </button>
           )}
-          {onColorChange && (
+          {onColorChange && !isEnrolled && (
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -508,7 +517,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               <span>Cambiar color</span>
             </button>
           )}
-          {onManageInvites && (
+          {onManageInvites && !isEnrolled && (
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -543,7 +552,7 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               <span>Gestionar invitaciones</span>
             </button>
           )}
-          {onDelete && (
+          {onDelete && !isEnrolled && (
             <>
               <div style={{ height: '1px', background: '#e0e0e0', margin: '4px 0' }}></div>
               <button 
@@ -578,6 +587,44 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
               >
                 <i className="fas fa-trash" style={{ width: '16px', textAlign: 'center' }}></i>
                 <span>Eliminar materia</span>
+              </button>
+            </>
+          )}
+          {onUnenroll && isEnrolled && (
+            <>
+              <div style={{ height: '1px', background: '#e0e0e0', margin: '4px 0' }}></div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUnenroll(e);
+                }}
+                className="dropdown-menu-item" 
+                title="Desenrolarse de la materia"
+                disabled={hasError}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  background: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: hasError ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  color: hasError ? '#ccc' : '#dc3545',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!hasError) {
+                    e.currentTarget.style.backgroundColor = '#fef2f2';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <i className="fas fa-user-times" style={{ width: '16px', textAlign: 'center' }}></i>
+                <span>Desenrolarse</span>
               </button>
             </>
           )}

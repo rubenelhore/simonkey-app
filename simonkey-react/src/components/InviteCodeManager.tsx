@@ -70,6 +70,7 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
   showTitle = true
 }) => {
   const { user } = useAuth();
+  
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -143,15 +144,32 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
   };
 
   const handleCreateCode = async () => {
-    console.log('handleCreateCode called');
-    if (!user) return;
+    console.log('🟦 handleCreateCode called');
+    console.log('🟦 Usuario actual:', user);
+    console.log('🟦 Props recibidas:', { materiaId, materiaName });
+    console.log('🟦 FormData:', formData);
+    console.log('🟦 Materias disponibles:', materias);
+    
+    if (!user) {
+      console.error('❌ No hay usuario autenticado');
+      return;
+    }
     
     const selectedMateriaId = formData.selectedMateria || materiaId;
-    const selectedMateriaName = formData.materiaName || 
+    // Arreglar el problema: el componente recibe 'materiaName' pero busca 'nombre'
+    const selectedMateriaName = materiaName || 
+      formData.materiaName || 
       materias.find(m => m.id === selectedMateriaId)?.nombre || 
-      materiaName || '';
+      '';
     
-    if (!selectedMateriaId || !selectedMateriaName) {
+    console.log('🟦 Materia seleccionada:', { 
+      id: selectedMateriaId, 
+      nombre: selectedMateriaName,
+      formData: formData 
+    });
+    
+    if (!selectedMateriaId) {
+      console.error('❌ Falta ID de la materia');
       setSnackbar({
         open: true,
         message: 'Por favor selecciona una materia',
@@ -159,6 +177,9 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
       });
       return;
     }
+    
+    // Si no tenemos el nombre, usar un valor por defecto
+    const finalMateriaName = selectedMateriaName || 'Materia sin nombre';
     
     try {
       const options: any = {};
@@ -171,12 +192,21 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         options.maxUses = formData.maxUses;
       }
       
+      console.log('🟦 Llamando a createInviteCode con:', {
+        userId: user.uid,
+        materiaId: selectedMateriaId,
+        materiaName: finalMateriaName,
+        options
+      });
+      
       const newCode = await createInviteCode(
         user.uid,
         selectedMateriaId,
-        selectedMateriaName,
+        finalMateriaName,
         options
       );
+      
+      console.log('✅ Código creado exitosamente:', newCode);
       
       setInviteCodes([newCode, ...inviteCodes]);
       setCreateDialogOpen(false);
@@ -187,11 +217,24 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         message: 'Código de invitación creado exitosamente',
         severity: 'success'
       });
-    } catch (error) {
-      console.error('Error creando código:', error);
+    } catch (error: any) {
+      console.error('❌ Error completo:', error);
+      console.error('❌ Mensaje de error:', error?.message);
+      console.error('❌ Código de error:', error?.code);
+      console.error('❌ Stack:', error?.stack);
+      
+      // Mensaje más descriptivo basado en el error
+      let errorMessage = 'Error al crear el código de invitación';
+      
+      if (error?.code === 'permission-denied') {
+        errorMessage = 'No tienes permisos para crear códigos de invitación. Asegúrate de ser un profesor.';
+      } else if (error?.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
       setSnackbar({
         open: true,
-        message: 'Error al crear el código de invitación',
+        message: errorMessage,
         severity: 'error'
       });
     }
@@ -328,21 +371,7 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
           variant="contained"
           startIcon={<Add />}
           onClick={() => {
-            console.log('Opening create dialog');
-            console.log('Current modal z-index:', (document.querySelector('.modal-overlay') as HTMLElement)?.style.zIndex);
-            console.log('Current modal content z-index:', (document.querySelector('.modal-content') as HTMLElement)?.style.zIndex);
             setCreateDialogOpen(true);
-            setTimeout(() => {
-              const muiDialog = document.querySelector('.MuiDialog-root');
-              const muiBackdrop = document.querySelector('.MuiBackdrop-root');
-              const muiPaper = document.querySelector('.MuiPaper-root');
-              const portalDiv = document.querySelector('div[style*="zIndex: 100000"]');
-              console.log('MUI Dialog z-index:', muiDialog ? window.getComputedStyle(muiDialog).zIndex : 'not found');
-              console.log('MUI Backdrop z-index:', muiBackdrop ? window.getComputedStyle(muiBackdrop).zIndex : 'not found');
-              console.log('MUI Paper z-index:', muiPaper ? window.getComputedStyle(muiPaper).zIndex : 'not found');
-              console.log('Portal Div z-index:', portalDiv ? window.getComputedStyle(portalDiv).zIndex : 'not found');
-              console.log('Dialog element:', muiDialog);
-            }, 100);
           }}
         >
           Crear Código de Invitación
@@ -492,6 +521,31 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
                           <Delete />
                         </IconButton>
                       </Tooltip>
+                    </Box>
+                    
+                    {/* Botón inferior para copiar link */}
+                    <Box mt={2}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<ContentCopy />}
+                        onClick={() => handleCopyLink(inviteCode.code)}
+                        disabled={isInactive}
+                        sx={{
+                          borderColor: '#6147FF',
+                          color: '#6147FF',
+                          '&:hover': {
+                            borderColor: '#4030D0',
+                            backgroundColor: 'rgba(97, 71, 255, 0.04)'
+                          },
+                          '&:disabled': {
+                            borderColor: 'rgba(0, 0, 0, 0.12)',
+                            color: 'rgba(0, 0, 0, 0.26)'
+                          }
+                        }}
+                      >
+                        Copiar link
+                      </Button>
                     </Box>
                   </CardContent>
                 </Card>

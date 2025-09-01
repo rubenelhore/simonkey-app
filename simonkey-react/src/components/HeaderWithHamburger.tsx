@@ -346,6 +346,33 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
     navigate('/contact');
   };
 
+  // Función para enviar solicitud Pro
+  const handleRequestPro = async () => {
+    if (!user || !userProfile) {
+      alert('Error: No se pudo obtener la información del usuario');
+      return;
+    }
+
+    try {
+      const proRequestRef = doc(collection(db, 'proRequests'));
+      await setDoc(proRequestRef, {
+        userId: user.uid,
+        userEmail: user.email,
+        userName: userProfile.nombre || userProfile.displayName || user.displayName || 'Usuario',
+        currentSubscription: subscription || 'FREE',
+        status: 'pending',
+        requestedAt: serverTimestamp(),
+        reason: 'Solicitud desde modal de upgrade'
+      });
+
+      alert('¡Solicitud enviada correctamente! Te notificaremos cuando sea procesada.');
+      setIsUpgradeModalOpen(false);
+    } catch (error) {
+      console.error('Error al enviar solicitud Pro:', error);
+      alert('Error al enviar la solicitud. Por favor, inténtalo de nuevo.');
+    }
+  };
+
   // Función helper para navegación en móvil
   const handleMobileNavigation = (path: string) => {
     setMobileSidebarOpen(false);
@@ -1018,15 +1045,18 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                 </p>
               </div>
               
-              <div className="upgrade-support-section">
-                <h4>📧 ¿Necesitas ayuda para decidir?</h4>
-                <p>Nuestro equipo de soporte está aquí para ayudarte:</p>
-                <div className="support-contact">
-                  <FontAwesomeIcon icon={faEnvelope} />
-                  <span>ruben@simonkey.ai</span>
-                </div>
-                <p className="support-note">
-                  Te responderemos en menos de 24 horas con toda la información que necesites.
+              <div className="upgrade-action-section">
+                <h4>🚀 ¿Listo para el siguiente nivel?</h4>
+                <p>Envía tu solicitud para upgrade a Pro y nuestro equipo la revisará:</p>
+                <button 
+                  className="request-pro-btn"
+                  onClick={handleRequestPro}
+                >
+                  <FontAwesomeIcon icon={faStar} />
+                  Solicitar Upgrade a Pro
+                </button>
+                <p className="request-note">
+                  Revisaremos tu solicitud y te notificaremos el resultado en tu cuenta.
                 </p>
               </div>
             </div>
