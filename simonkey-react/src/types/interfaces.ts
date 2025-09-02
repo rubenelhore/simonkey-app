@@ -344,6 +344,10 @@ export interface UserProfile {
   // Campo para indicar si el usuario está inscrito en alguna materia
   isEnrolled?: boolean;
   
+  // Campos de login tracking
+  lastLoginAt?: Timestamp;
+  lastLogin?: Timestamp;
+  
   // DEPRECATED: Campos del sistema escolar antiguo - NO USAR
   // TODO: Eliminar después de completar la migración
   /** @deprecated */

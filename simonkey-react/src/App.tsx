@@ -13,6 +13,7 @@ import Pricing from './pages/Pricing';
 import SimonkeyCarousel from './components/SimonkeyCarousel';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import Notebooks from './pages/Notebooks';
 import NotebookDetailWrapper from './pages/NotebookDetailWrapper';
@@ -410,7 +411,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!loading && !userTypeLoading) {
       // Si no está autenticado y no está en una página pública, redirigir a login
-      if (!isAuthenticated && !['/', '/login', '/signup', '/pricing', '/privacy-policy', '/terms', '/examples', '/faq', '/about', '/contact'].includes(window.location.pathname)) {
+      if (!isAuthenticated && !['/', '/login', '/signup', '/reset-password', '/pricing', '/privacy-policy', '/terms', '/examples', '/faq', '/about', '/contact'].includes(window.location.pathname)) {
         navigate('/login', { replace: true });
       }
       
@@ -459,6 +460,28 @@ const AppContent: React.FC = () => {
   // ];
   // const showHelpButton = helpPages.includes(location.pathname);
 
+  // Ruta especial para reset-password sin wrappers
+  const currentPath = location.pathname;
+  console.log('Current path:', currentPath, 'Is reset-password?', currentPath === '/reset-password');
+  
+  if (currentPath === '/reset-password') {
+    console.log('Rendering reset-password route directly');
+    return (
+      <UserContext.Provider value={{ user: user ? {
+        id: user.uid,
+        email: user.email || undefined,
+        name: user.displayName || user.email?.split('@')[0] || undefined,
+        photoURL: user.photoURL || undefined,
+        isAuthenticated: true
+      } : { isAuthenticated: false }, setUser: () => {} }}>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="*" element={<ResetPasswordPage />} />
+        </Routes>
+      </UserContext.Provider>
+    );
+  }
+
   return (
     <>
       {/* Monitor de inactividad - solo para usuarios autenticados */}
@@ -493,6 +516,7 @@ const AppContent: React.FC = () => {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route path="/join/:code" element={<JoinWithInvitePage />} />
           

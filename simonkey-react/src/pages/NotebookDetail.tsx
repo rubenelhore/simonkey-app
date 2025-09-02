@@ -1161,9 +1161,11 @@ const NotebookDetail = () => {
           conceptCount: 0
         });
       }, 5000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar concepto manual:', error);
-      alert('Error al guardar el concepto. Por favor intente nuevamente.');
+      // Mostrar mensaje de error más específico si está disponible
+      const errorMessage = error?.message || 'Error al guardar el concepto. Por favor intente nuevamente.';
+      alert(errorMessage);
     } finally {
       setCargando(false);
     }

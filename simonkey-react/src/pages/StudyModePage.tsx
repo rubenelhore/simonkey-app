@@ -141,11 +141,15 @@ const StudyModePage = () => {
         setEffectiveUserId(userId);
         
         // Ahora cargar datos del usuario en paralelo
-        const [streak, hasStudiedToday, conceptsWithMinReps] = await Promise.all([
+        const [streak, hasStudiedToday, conceptsWithMinReps, conceptStats] = await Promise.all([
           studyStreakService.getUserStreak(userId),
           studyStreakService.hasStudiedToday(userId),
-          kpiService.getConceptsWithMinRepetitions(userId, 2)
+          kpiService.getConceptsWithMinRepetitions(userId, 2),
+          kpiService.getTotalDominatedConceptsByUser(userId)
         ]);
+        
+        // Usar el mayor de los dos valores para ser más generoso con la división (igual que InicioPage)
+        const conceptsForDivision = Math.max(conceptStats.conceptosDominados, conceptsWithMinReps);
         
         // Actualizar estados
         setStreakData({
@@ -155,8 +159,8 @@ const StudyModePage = () => {
             '¡Estudia hoy para mantener tu racha!'
         });
         
-        setConceptsLearned(conceptsWithMinReps);
-        calculateDivision(conceptsWithMinReps);
+        setConceptsLearned(conceptsForDivision);
+        calculateDivision(conceptsForDivision);
         generateSuggestionsAndChallenges(streak.currentStreak);
         
       } catch (error) {
@@ -421,10 +425,10 @@ const StudyModePage = () => {
   // Calculate division based on concepts learned
   const calculateDivision = (concepts: number) => {
     let currentDivision = 'WOOD';
-    let nextMilestone = 20;
+    let nextMilestone = 25;
     
-    // Determine division based on minimum threshold for each division
-    // Using the minimum value of each division's ranges
+    // Using same logic as InicioPage - check if concepts fall within division ranges
+    // Each division has a range, not just a minimum threshold
     if (concepts >= 20000) {
       currentDivision = 'LEGEND';
       nextMilestone = 50000;
@@ -455,7 +459,12 @@ const StudyModePage = () => {
     } else if (concepts >= 25) {
       currentDivision = 'STONE';
       nextMilestone = 75;
+    } else if (concepts <= 20) {
+      // Madera range is 1-20
+      currentDivision = 'WOOD';
+      nextMilestone = 25;
     } else {
+      // Concepts between 21-24 stay in Wood until reaching Stone at 25
       currentDivision = 'WOOD';
       nextMilestone = 25;
     }

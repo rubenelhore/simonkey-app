@@ -62,7 +62,8 @@
       "Bash(touch:*)",
       "Bash(npm ls:*)",
       "Bash(firebase firestore:delete:*)",
-      "Bash(open /Users/rubenelhore/Documents/simonkey-app-fresh/simonkey-react/showLogs.html)"
+      "Bash(open /Users/rubenelhore/Documents/simonkey-app-fresh/simonkey-react/showLogs.html)",
+      "Bash(nslookup:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

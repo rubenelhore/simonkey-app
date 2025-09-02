@@ -10,6 +10,18 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "www.simonkey.ai",
+        "destination": "https://simonkey.ai",
+        "type": 301
+      },
+      {
+        "source": "www.simonkey.ai/**",
+        "destination": "https://simonkey.ai/:splat",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "**",

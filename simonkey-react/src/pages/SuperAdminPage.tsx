@@ -22,6 +22,7 @@ interface User {
   lastLogoutAt?: any;
   lastLogout?: any;
   lastSignOut?: any;
+  lastActivity?: any;
   updatedAt?: any;
   notebookCount?: number;
   conceptsCreatedThisWeek?: number;

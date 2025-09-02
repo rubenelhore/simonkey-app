@@ -26,23 +26,7 @@ export class UnifiedNotebookService {
    * Obtiene un notebook por ID, buscando primero en notebooks y luego en schoolNotebooks
    */
   static async getNotebook(notebookId: string): Promise<Notebook | null> {
-    // Primero intentar en schoolNotebooks si el ID parece ser de un notebook escolar
-    // o si sabemos que el usuario es escolar
-    try {
-      const schoolDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
-      if (schoolDoc.exists()) {
-        const data = schoolDoc.data();
-        return {
-          id: schoolDoc.id,
-          type: 'school',
-          ...data
-        } as Notebook;
-      }
-    } catch (error) {
-      console.log('No se pudo acceder a schoolNotebooks, intentando notebooks regulares...');
-    }
-    
-    // Si no existe en schoolNotebooks, buscar en notebooks regulares
+    // Primero intentar en notebooks regulares (más común para usuarios free)
     try {
       const regularDoc = await getDoc(doc(db, 'notebooks', notebookId));
       if (regularDoc.exists()) {
@@ -54,7 +38,24 @@ export class UnifiedNotebookService {
         } as Notebook;
       }
     } catch (error) {
-      console.log('No se pudo acceder a notebooks regulares');
+      console.log('Error accediendo a notebooks regulares:', error);
+    }
+    
+    // Si no existe en notebooks regulares, intentar en schoolNotebooks
+    // Solo si el usuario tiene permisos para acceder a esa colección
+    try {
+      const schoolDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
+      if (schoolDoc.exists()) {
+        const data = schoolDoc.data();
+        return {
+          id: schoolDoc.id,
+          type: 'school',
+          ...data
+        } as Notebook;
+      }
+    } catch (error) {
+      // Es normal que usuarios free no puedan acceder a schoolNotebooks
+      console.log('No se pudo acceder a schoolNotebooks (esto es normal para usuarios free)');
     }
     
     return null;
@@ -293,7 +294,8 @@ export class UnifiedNotebookService {
   static async getConceptsCollection(notebookId: string): Promise<string> {
     const notebook = await this.getNotebook(notebookId);
     if (!notebook) {
-      throw new Error('Notebook not found');
+      console.error(`No se encontró el notebook con ID: ${notebookId}`);
+      throw new Error('No se pudo encontrar el cuaderno. Por favor, verifica que el cuaderno existe y que tienes permisos para acceder a él.');
     }
     
     return notebook.type === 'school' ? 'schoolConcepts' : 'conceptos';
