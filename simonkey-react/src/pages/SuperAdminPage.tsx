@@ -4,7 +4,7 @@ import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
-import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit, where } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { GoogleAuthProvider } from 'firebase/auth';
 
@@ -15,6 +15,17 @@ interface User {
   email?: string;
   subscription?: string;
   schoolRole?: string;
+  isTeacher?: boolean;
+  scoreGlobal?: number;
+  kpisData?: {
+    global?: {
+      scoreGlobal?: number;
+    };
+  };
+  idMaterias?: string[];
+  subjectIds?: string[];
+  enrolledTeachers?: string[];
+  teacherNames?: string;
   createdAt?: any;
   lastLoginAt?: any;
   lastLogin?: any;
@@ -78,7 +89,8 @@ const SuperAdminPage: React.FC = () => {
     subscription: '',
     role: '',
     fechaCreacion: '',
-    ultimaSesion: ''
+    ultimaSesion: '',
+    profesores: ''
   });
   const [messageFilters, setMessageFilters] = useState({
     search: '',
@@ -145,13 +157,182 @@ const SuperAdminPage: React.FC = () => {
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         console.log(`👤 Cargando usuario: ${userData.email || userData.displayName || doc.id}`);
+        
+        // Debug: verificar TODOS los campos del usuario para encontrar relaciones
+        const possibleSubjectFields = [
+          'idMaterias', 'subjectIds', 'subjects', 'materias', 'enrolledSubjects', 
+          'assignedSubjects', 'schoolSubjects', 'classes', 'clases', 'courses',
+          'idInstitucion', 'idEscuela', 'schoolId', 'institution', 'escola'
+        ];
+        
+        const userFields = Object.keys(userData);
+        const subjectRelatedFields = userFields.filter(field => 
+          possibleSubjectFields.includes(field) || 
+          field.toLowerCase().includes('subject') ||
+          field.toLowerCase().includes('materia') ||
+          field.toLowerCase().includes('class') ||
+          field.toLowerCase().includes('school') ||
+          field.toLowerCase().includes('teacher') ||
+          field.toLowerCase().includes('profesor')
+        );
+        
+        if (subjectRelatedFields.length > 0) {
+          console.log(`  🔍 Campos relacionados con materias/escuelas:`, 
+            subjectRelatedFields.map(field => `${field}: ${JSON.stringify(userData[field])}`));
+        }
+        
+        // Debug específico para materias
+        if (userData.idMaterias && userData.idMaterias.length > 0) {
+          console.log(`  📚 Tiene ${userData.idMaterias.length} materias:`, userData.idMaterias);
+        } else if (userData.subjectIds && userData.subjectIds.length > 0) {
+          console.log(`  📚 Tiene ${userData.subjectIds.length} subjectIds:`, userData.subjectIds);
+        } else {
+          console.log(`  📚 Sin materias asignadas (idMaterias: ${userData.idMaterias}, subjectIds: ${userData.subjectIds})`);
+        }
+        
+        // Log algunos usuarios específicos con score para ver su estructura completa
+        if (userData.email && (
+          userData.email.includes('ruben') || 
+          userData.email.includes('santiago') ||
+          userData.email === '0265630@up.edu.mx' // usuario con score alto
+        )) {
+          console.log(`  🔍 ESTRUCTURA COMPLETA de ${userData.email}:`, userData);
+        }
+        
         usersData.push({
           id: doc.id,
           ...userData
         });
       });
+
+      // Cargar KPIs para todos los usuarios
+      console.log('📊 Cargando KPIs de usuarios...');
+      let usuariosConKPIs = 0;
       
+      // Cargar KPIs y profesores enrolados para todos los usuarios (en paralelo para ser más eficiente)
+      const dataPromises = usersData.map(async (user, index) => {
+        const promises = [];
+        
+        // Promise para KPIs
+        const kpiPromise = (async () => {
+          try {
+            const kpiDoc = await getDoc(doc(db, 'users', user.id, 'kpis', 'dashboard'));
+            
+            if (kpiDoc.exists()) {
+              const kpiData = kpiDoc.data();
+              usersData[index].kpisData = kpiData;
+              const scoreGlobal = kpiData?.global?.scoreGlobal || 0;
+              usersData[index].scoreGlobal = scoreGlobal;
+              
+              if (scoreGlobal > 0) {
+                console.log(`✅ KPIs cargados para ${user.email || user.displayName}: ${scoreGlobal.toLocaleString()} puntos`);
+                return 1;
+              }
+            }
+            return 0;
+          } catch (error) {
+            return 0;
+          }
+        })();
+        
+        // Promise para profesores enrolados usando la colección enrollments
+        const teachersPromise = (async () => {
+          try {
+            console.log(`🔍 Buscando enrollments para usuario: ${user.email || user.displayName} (ID: ${user.id})`);
+            
+            // Buscar todos los enrollments donde este usuario es el estudiante
+            const enrollmentsQuery = query(
+              collection(db, 'enrollments'),
+              where('studentId', '==', user.id)
+            );
+            
+            const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+            console.log(`📋 Enrollments encontrados para ${user.email || user.displayName}: ${enrollmentsSnapshot.size}`);
+            
+            if (enrollmentsSnapshot.size === 0) {
+              console.log(`⚠️ Usuario ${user.email || user.displayName} no tiene enrollments`);
+              return [];
+            }
+            
+            // Extraer los teacherIds únicos de los enrollments
+            const teacherIds = new Set();
+            enrollmentsSnapshot.forEach((doc) => {
+              const enrollment = doc.data();
+              if (enrollment.teacherId) {
+                teacherIds.add(enrollment.teacherId);
+                console.log(`  📚 Enrollment encontrado: teacherId=${enrollment.teacherId}, materiaId=${enrollment.materiaId}`);
+              }
+            });
+            
+            const uniqueTeacherIds = Array.from(teacherIds);
+            console.log(`👨‍🏫 Profesores únicos encontrados para ${user.email || user.displayName}:`, uniqueTeacherIds);
+            
+            if (uniqueTeacherIds.length === 0) return [];
+            
+            // Obtener nombres de los profesores
+            const teacherPromises = uniqueTeacherIds.map(async (teacherId) => {
+              try {
+                const teacherDoc = await getDoc(doc(db, 'users', teacherId));
+                if (teacherDoc.exists()) {
+                  const teacherData = teacherDoc.data();
+                  const teacherName = teacherData.displayName || teacherData.nombre || teacherId;
+                  console.log(`  👨‍🏫 Profesor ${teacherId}: ${teacherName}`);
+                  return teacherName;
+                }
+                console.log(`  ⚠️ Profesor ${teacherId}: documento no encontrado`);
+                return teacherId;
+              } catch (error) {
+                console.error(`  ❌ Error obteniendo profesor ${teacherId}:`, error);
+                return teacherId;
+              }
+            });
+            
+            const teacherNames = await Promise.all(teacherPromises);
+            usersData[index].enrolledTeachers = uniqueTeacherIds;
+            usersData[index].teacherNames = teacherNames.join(', ');
+            
+            if (teacherNames.length > 0) {
+              console.log(`✅ Profesores cargados para ${user.email || user.displayName}: ${teacherNames.join(', ')}`);
+            }
+            
+            return teacherNames;
+          } catch (error) {
+            console.error(`❌ Error cargando profesores para ${user.email || user.displayName}:`, error);
+            return [];
+          }
+        })();
+        
+        promises.push(kpiPromise, teachersPromise);
+        const [kpiResult] = await Promise.all(promises);
+        return kpiResult;
+      });
+      
+      // Esperar a que todas las promesas terminen
+      const results = await Promise.all(dataPromises);
+      usuariosConKPIs = results.reduce((sum, result) => sum + result, 0);
+      
+      console.log(`📊 Usuarios con KPIs: ${usuariosConKPIs} de ${usersData.length} verificados`);
+      
+      // Verificar que todos los usuarios importantes tengan sus KPIs cargados
+      const usuariosImportantes = usersData.filter(u => 
+        u.email?.includes('ruben') || 
+        u.email?.includes('santiago') ||
+        u.scoreGlobal > 5000
+      );
+      
+      if (usuariosImportantes.length > 0) {
+        console.log(`👑 Usuarios con scores altos encontrados:`, 
+          usuariosImportantes.map(u => ({
+            email: u.email,
+            scoreGlobal: u.scoreGlobal || 0
+          }))
+        );
+      }
+
       console.log(`📊 TOTAL USUARIOS CARGADOS: ${usersData.length} (esperados: 65)`);
+      
+      // INVESTIGACIÓN: Explorar colecciones relacionadas con materias/profesores
+      await investigateDataStructure();
       console.log(`📄 Primeros 5 usuarios:`, usersData.slice(0, 5).map(u => ({
         id: u.id,
         email: u.email,
@@ -225,6 +406,83 @@ const SuperAdminPage: React.FC = () => {
       console.error('❌ Error details:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para investigar la estructura de datos
+  const investigateDataStructure = async () => {
+    try {
+      console.log('🔍 INVESTIGANDO ESTRUCTURA DE DATOS...');
+      
+      // 1. Explorar schoolSubjects
+      console.log('📚 Explorando colección schoolSubjects...');
+      const subjectsSnapshot = await getDocs(query(collection(db, 'schoolSubjects'), limit(5)));
+      console.log(`📊 Total documentos en schoolSubjects: ${subjectsSnapshot.size}`);
+      
+      subjectsSnapshot.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`  📖 Materia ${index + 1}:`, {
+          id: doc.id,
+          nombre: data.nombre,
+          idProfesor: data.idProfesor,
+          idEscuela: data.idEscuela || data.idColegio,
+          campos: Object.keys(data)
+        });
+      });
+      
+      // 2. Explorar si hay enrollments o relaciones en otras colecciones
+      const possibleCollections = [
+        'enrollments', 'studentEnrollments', 'subjectEnrollments', 
+        'classrooms', 'studentSubjects', 'userSubjects',
+        'schoolEnrollments', 'materiaEstudiantes'
+      ];
+      
+      for (const collectionName of possibleCollections) {
+        try {
+          const snapshot = await getDocs(query(collection(db, collectionName), limit(1)));
+          if (snapshot.size > 0) {
+            console.log(`✅ Encontrada colección: ${collectionName} (${snapshot.size}+ documentos)`);
+            snapshot.forEach((doc) => {
+              console.log(`  📋 Ejemplo de ${collectionName}:`, {
+                id: doc.id,
+                data: doc.data(),
+                campos: Object.keys(doc.data())
+              });
+            });
+          }
+        } catch (error) {
+          // Colección no existe
+        }
+      }
+      
+      // 3. Buscar un usuario con score alto para ver si tiene subcolecciones
+      const highScoreUser = users.find(u => u.scoreGlobal > 5000);
+      if (highScoreUser) {
+        console.log(`🔍 Explorando subcolecciones del usuario con score alto: ${highScoreUser.email}`);
+        const userRef = doc(db, 'users', highScoreUser.id);
+        
+        // Intentar obtener posibles subcolecciones
+        const possibleSubcollections = [
+          'subjects', 'materias', 'enrollments', 'classes', 'courses'
+        ];
+        
+        for (const subcollectionName of possibleSubcollections) {
+          try {
+            const subSnapshot = await getDocs(query(collection(userRef, subcollectionName), limit(3)));
+            if (subSnapshot.size > 0) {
+              console.log(`  ✅ Subcolección encontrada: users/${highScoreUser.id}/${subcollectionName}`);
+              subSnapshot.forEach((subDoc) => {
+                console.log(`    📄 ${subDoc.id}:`, subDoc.data());
+              });
+            }
+          } catch (error) {
+            // Subcolección no existe
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error investigando estructura:', error);
     }
   };
 
@@ -304,12 +562,23 @@ Ver consola para más detalles.`);
       const nombre = (user.displayName || user.nombre || '').toLowerCase();
       const email = (user.email || '').toLowerCase();
       const subscription = (user.subscription || 'free').toLowerCase();
-      const role = (user.schoolRole || 'individual').toLowerCase();
+      const profesores = (user.teacherNames || '').toLowerCase();
+      
+      // Filtro para isTeacher
+      let passesTeacherFilter = true;
+      if (filters.role === 'teacher') {
+        passesTeacherFilter = user.isTeacher === true;
+      } else if (filters.role === 'individual') {
+        passesTeacherFilter = user.isTeacher === false || user.isTeacher === undefined;
+      } else if (filters.role === 'admin') {
+        passesTeacherFilter = user.schoolRole === 'admin';
+      }
       
       return nombre.includes(filters.nombre.toLowerCase()) &&
              email.includes(filters.email.toLowerCase()) &&
              subscription.includes(filters.subscription.toLowerCase()) &&
-             role.includes(filters.role.toLowerCase());
+             profesores.includes(filters.profesores.toLowerCase()) &&
+             passesTeacherFilter;
     });
     setFilteredUsers(filtered);
   };
@@ -688,7 +957,8 @@ Ver consola para más detalles.`);
                 subscription: '',
                 role: '',
                 fechaCreacion: '',
-                ultimaSesion: ''
+                ultimaSesion: '',
+                profesores: ''
               })}
               disabled={loading}
             >
@@ -755,7 +1025,7 @@ Ver consola para más detalles.`);
                   </div>
                 </th>
                 <th style={{ width: '14%', textAlign: 'center' }}>
-                  Rol
+                  isTeacher
                   <div className="filter-input">
                     <select
                       value={filters.role}
@@ -763,15 +1033,27 @@ Ver consola para más detalles.`);
                       className="header-filter"
                     >
                       <option value="">Todos</option>
-                      <option value="individual">Individual</option>
-                      <option value="teacher">Teacher</option>
+                      <option value="teacher">True</option>
+                      <option value="individual">False</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>
                 </th>
-                <th style={{ width: '14%', textAlign: 'center' }}>Fecha Creación</th>
-                <th style={{ width: '18%', textAlign: 'center' }}>Última Sesión</th>
-                <th style={{ width: '12%', textAlign: 'center' }}>Duración Sesión</th>
+                <th style={{ width: '12%', textAlign: 'center' }}>Fecha Creación</th>
+                <th style={{ width: '14%', textAlign: 'center' }}>Última Sesión</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>Score Global</th>
+                <th style={{ width: '16%', textAlign: 'center' }}>
+                  Profesores Enrolados
+                  <div className="filter-input">
+                    <input
+                      type="text"
+                      placeholder="Filtrar profesores..."
+                      value={filters.profesores || ''}
+                      onChange={(e) => setFilters({...filters, profesores: e.target.value})}
+                      className="header-filter"
+                    />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -789,15 +1071,17 @@ Ver consola para más detalles.`);
                     </span>
                   </td>
                   <td style={{ width: '14%' }}>
-                    {user.schoolRole || 'individual'}
+                    <span className={`teacher-badge ${user.isTeacher ? 'is-teacher' : 'not-teacher'}`}>
+                      {user.isTeacher ? 'True' : 'False'}
+                    </span>
                   </td>
-                  <td style={{ width: '14%' }}>
+                  <td style={{ width: '12%' }}>
                     {user.createdAt ? 
                       new Date(user.createdAt.seconds * 1000).toLocaleDateString() : 
                       'No disponible'
                     }
                   </td>
-                  <td style={{ width: '18%' }}>
+                  <td style={{ width: '14%' }}>
                     {(() => {
                       // Recopilar TODAS las posibles fechas de login/actividad
                       const dates = [];
@@ -901,56 +1185,44 @@ Ver consola para más detalles.`);
                       );
                     })()}
                   </td>
-                  <td style={{ width: '12%' }}>
+                  <td style={{ width: '10%' }}>
                     {(() => {
-                      // Solo mostrar datos reales de duración de sesión
-                      const realDuration = user.sessionDuration || user.lastSessionDuration || user.sessionTime || 
-                                         user.totalSessionTime || user.activeTime || user.timeSpent;
+                      const score = user.scoreGlobal || user.kpisData?.global?.scoreGlobal || 0;
                       
-                      if (realDuration && typeof realDuration === 'number') {
-                        // Convertir a minutos si está en segundos o milisegundos
-                        let minutes = realDuration;
-                        if (realDuration > 1000) {
-                          minutes = Math.floor(realDuration / (1000 * 60)); // De milisegundos a minutos
-                        } else if (realDuration > 300) {
-                          minutes = Math.floor(realDuration / 60); // De segundos a minutos
-                        }
-                        
-                        if (minutes > 0) {
-                          if (minutes > 60) {
-                            const hours = Math.floor(minutes / 60);
-                            const mins = minutes % 60;
-                            return `${hours}h ${mins}m`;
-                          }
-                          return `${minutes}m`;
-                        }
+                      if (score > 0) {
+                        return (
+                          <span style={{ 
+                            fontWeight: 'bold', 
+                            color: score >= 20000 ? '#16a34a' : 
+                                   score >= 10000 ? '#ea580c' : 
+                                   score >= 1000 ? '#d97706' :
+                                   '#dc2626' 
+                          }}>
+                            {score.toLocaleString()}
+                          </span>
+                        );
+                      } else {
+                        return <span style={{ color: '#6b7280', fontStyle: 'italic' }}>Sin datos</span>;
                       }
-                      
-                      // Si tenemos campos de login y logout reales, calcular la diferencia
-                      const loginTime = user.lastLoginAt || user.lastLogin || user.lastSignIn;
-                      const logoutTime = user.lastLogoutAt || user.lastLogout || user.lastSignOut;
-                      
-                      if (loginTime && logoutTime) {
-                        try {
-                          const loginDate = loginTime.seconds ? new Date(loginTime.seconds * 1000) : new Date(loginTime);
-                          const logoutDate = logoutTime.seconds ? new Date(logoutTime.seconds * 1000) : new Date(logoutTime);
-                          const diffMs = logoutDate.getTime() - loginDate.getTime();
-                          const minutes = Math.floor(diffMs / (1000 * 60));
-                          if (minutes > 0) {
-                            if (minutes > 60) {
-                              const hours = Math.floor(minutes / 60);
-                              const mins = minutes % 60;
-                              return `${hours}h ${mins}m`;
-                            }
-                            return `${minutes}m`;
-                          }
-                        } catch (error) {
-                          console.error('Error calculating session duration:', error);
-                        }
-                      }
-                      
-                      return 'Sin datos';
                     })()}
+                  </td>
+                  <td style={{ width: '16%' }}>
+                    {user.teacherNames ? (
+                      <div style={{ 
+                        fontSize: '0.8rem',
+                        color: '#374151',
+                        maxHeight: '40px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }} title={user.teacherNames}>
+                        {user.teacherNames.length > 30 ? 
+                          `${user.teacherNames.substring(0, 30)}...` : 
+                          user.teacherNames
+                        }
+                      </div>
+                    ) : (
+                      <span style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.8rem' }}>Sin profesores</span>
+                    )}
                   </td>
                 </tr>
               ))}

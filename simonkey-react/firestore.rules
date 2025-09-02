@@ -356,6 +356,38 @@ service cloud.firestore {
     }
     
     // ========================================
+    // REGLAS PARA COLECCIÓN: schoolSubjects
+    // ========================================
+    match /schoolSubjects/{subjectId} {
+      // Lectura: profesores creadores, estudiantes inscritos, o super admin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (resource.data.idProfesor == request.auth.uid && isTeacher()) ||
+        // Permitir a estudiantes con enrollments activos leer las materias
+        exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + subjectId)) ||
+        // Permitir a cualquier usuario autenticado leer info básica de materias
+        isAuthenticated()
+      );
+      
+      // Creación: profesores autenticados
+      allow create: if isTeacher() &&
+        request.resource.data.idProfesor == request.auth.uid &&
+        hasRequiredFields(['nombre', 'idProfesor']);
+      
+      // Actualización: profesor creador o super admin
+      allow update: if isAuthenticated() && (
+        (resource.data.idProfesor == request.auth.uid && isTeacher()) ||
+        isSuperAdmin()
+      );
+      
+      // Eliminación: profesor creador o super admin
+      allow delete: if isAuthenticated() && (
+        (resource.data.idProfesor == request.auth.uid && isTeacher()) ||
+        isSuperAdmin()
+      );
+    }
+
+    // ========================================
     // REGLAS PARA COLECCIÓN: inviteCodes
     // ========================================
     match /inviteCodes/{codeId} {
@@ -549,6 +581,11 @@ service cloud.firestore {
     // ========================================
     // REGLAS PARA COLECCIONES DE KPIs Y MÉTRICAS
     // ========================================
+    match /kpis/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow write: if isOwner(userId) || isSuperAdmin();
+    }
+    
     match /userKPIs/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
       allow write: if isOwner(userId) || isSuperAdmin();
