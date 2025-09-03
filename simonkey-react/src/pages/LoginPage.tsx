@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import './LoginPage.css';
 import simonLogo from '/img/favicon.svg';
 // Importar todas las funciones de Firebase desde un solo lugar
@@ -20,6 +22,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -141,14 +144,27 @@ const LoginPage: React.FC = () => {
           
           <div className="form-group">
             <label htmlFor="password">Contraseña</label>
-            <input 
-              type="password" 
-              id="password" 
-              value={password} 
-              onChange={handlePasswordChange} 
-              placeholder="Tu contraseña"
-              disabled={isLoading}
-            />
+            <div className="password-input-container">
+              <input 
+                type={showPassword ? "text" : "password"}
+                id="password" 
+                value={password} 
+                onChange={handlePasswordChange} 
+                placeholder="Tu contraseña"
+                disabled={isLoading}
+              />
+              <button 
+                type="button" 
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon 
+                  icon={showPassword ? faEye : faEyeSlash} 
+                  style={{ color: '#999', fontSize: '14px' }}
+                />
+              </button>
+            </div>
           </div>
           
           <button 

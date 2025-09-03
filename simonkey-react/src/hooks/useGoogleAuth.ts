@@ -169,7 +169,6 @@ export const useGoogleAuth = () => {
   // Función para manejar el resultado del redirect
   const handleRedirectResult = async () => {
     try {
-      console.log('🔍 Verificando resultado del redirect...');
       const result = await getRedirectResult(auth);
       
       if (result) {
@@ -189,8 +188,6 @@ export const useGoogleAuth = () => {
         await processGoogleUser(user, isSignup);
         
         console.log('✅ Procesamiento post-redirect completado');
-      } else {
-        console.log('ℹ️ No hay resultado de redirect pendiente');
       }
     } catch (error) {
       console.error('❌ Error procesando redirect result:', error);
