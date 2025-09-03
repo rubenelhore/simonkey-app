@@ -73,7 +73,15 @@
   }
   
   .form-group {
-    margin-bottom: 0;
+    margin-bottom: 20px;
+  }
+  
+  .form-group-email,
+  .form-group-username,
+  .form-group-birthdate,
+  .form-group-password,
+  .form-group-confirm-password {
+    margin-bottom: 0 !important;
   }
   
   .form-group label {
@@ -97,6 +105,48 @@
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(74, 107, 255, 0.2);
+  }
+
+  /* Password input container */
+  .password-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .password-input-container input {
+    padding-right: 50px;
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    transition: opacity 0.3s ease;
+  }
+
+  .password-toggle:hover {
+    opacity: 0.7;
+  }
+
+  .password-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* Error state for inputs */
+  .error-input {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.2) !important;
   }
   
   .signup-button {
@@ -130,7 +180,11 @@
     border-radius: var(--border-radius);
     margin-bottom: 20px;
     font-size: 14px;
-    text-align: center;
+    text-align: center !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
   
   /* Inicio de sesión social */

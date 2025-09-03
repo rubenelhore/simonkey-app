@@ -15,6 +15,8 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { sendVerificationEmail } from '../services/emailVerificationService';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +30,14 @@ const SignupPage: React.FC = () => {
   const [birthdate, setBirthdate] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [visiblePassword, setVisiblePassword] = useState<'none' | 'password' | 'confirmPassword'>('none');
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: boolean;
+    username?: boolean;
+    password?: boolean;
+    confirmPassword?: boolean;
+    birthdate?: boolean;
+  }>({});
   
   // Manejar resultado de redirect al cargar la página
   useEffect(() => {
@@ -37,75 +47,94 @@ const SignupPage: React.FC = () => {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     setError(null);
+    setFieldErrors(prev => ({ ...prev, email: false }));
   };
   
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value);
     setError(null);
+    setFieldErrors(prev => ({ ...prev, username: false }));
   };
   
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     setError(null);
+    setFieldErrors(prev => ({ ...prev, password: false }));
   };
   
   const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setConfirmPassword(e.target.value);
     setError(null);
+    setFieldErrors(prev => ({ ...prev, confirmPassword: false }));
   };
   
   const handleBirthdateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBirthdate(e.target.value);
     setError(null);
+    setFieldErrors(prev => ({ ...prev, birthdate: false }));
   };
   
   const validateForm = (): boolean => {
+    const errors: typeof fieldErrors = {};
+    let firstErrorMessage = '';
+    
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Ingresa un correo electrónico válido');
-      return false;
+      if (!firstErrorMessage) firstErrorMessage = 'Ingresa un correo electrónico válido';
+      errors.email = true;
     }
     
     // Validar nombre de usuario
     if (username.length < 3) {
-      setError('El nombre de usuario debe tener al menos 3 caracteres');
-      return false;
+      if (!firstErrorMessage) firstErrorMessage = 'El nombre de usuario debe tener al menos 3 caracteres';
+      errors.username = true;
     }
     
     // Validar contraseña
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return false;
+      if (!firstErrorMessage) firstErrorMessage = 'La contraseña debe tener al menos 6 caracteres';
+      errors.password = true;
     }
     
     // Validar que las contraseñas coincidan
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return false;
+      if (!firstErrorMessage) firstErrorMessage = 'Las contraseñas no coinciden';
+      errors.password = true;
+      errors.confirmPassword = true;
     }
     
     // Validar fecha de nacimiento
     if (!birthdate) {
-      setError('Por favor, ingresa tu fecha de nacimiento');
-      return false;
+      if (!firstErrorMessage) firstErrorMessage = 'Por favor, ingresa tu fecha de nacimiento';
+      errors.birthdate = true;
+    } else {
+      const birthdateDate = new Date(birthdate);
+      const year = birthdateDate.getFullYear();
+      
+      // Verificar rango de años (1950-2020)
+      if (year < 1950 || year > 2020) {
+        if (!firstErrorMessage) firstErrorMessage = 'La fecha introducida no es válida';
+        errors.birthdate = true;
+      } else {
+        // Verificar que sea mayor de 13 años (solo si está en el rango válido)
+        const today = new Date();
+        let age = today.getFullYear() - year;
+        const m = today.getMonth() - birthdateDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthdateDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 13) {
+          if (!firstErrorMessage) firstErrorMessage = 'Debes tener al menos 13 años para registrarte';
+          errors.birthdate = true;
+        }
+      }
     }
     
-    // Verificar que sea mayor de 13 años
-    const today = new Date();
-    const birthdateDate = new Date(birthdate);
-    let age = today.getFullYear() - birthdateDate.getFullYear();
-    const m = today.getMonth() - birthdateDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthdateDate.getDate())) {
-      age--;
-    }
-    
-    if (age < 13) {
-      setError('Debes tener al menos 13 años para registrarte');
-      return false;
-    }
-    
-    return true;
+    setError(firstErrorMessage || null);
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
   const handleSignup = async (e: React.FormEvent) => {
@@ -221,8 +250,8 @@ const SignupPage: React.FC = () => {
           <p className="divider">O regístrate con email</p>
         </div>
         
-        <form onSubmit={handleSignup} className="signup-form">
-          <div className="form-group">
+        <form onSubmit={handleSignup} className="signup-form" noValidate>
+          <div className="form-group form-group-email">
             <label htmlFor="email">Correo electrónico</label>
             <input 
               type="email" 
@@ -231,10 +260,11 @@ const SignupPage: React.FC = () => {
               onChange={handleEmailChange} 
               placeholder="ejemplo@correo.com"
               disabled={isLoading}
+              className={fieldErrors.email ? 'error-input' : ''}
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-username">
             <label htmlFor="username">Nombre de usuario</label>
             <input 
               type="text" 
@@ -243,43 +273,75 @@ const SignupPage: React.FC = () => {
               onChange={handleUsernameChange} 
               placeholder="Tu nombre de usuario"
               disabled={isLoading}
+              className={fieldErrors.username ? 'error-input' : ''}
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-birthdate">
             <label htmlFor="birthdate">Fecha de nacimiento</label>
             <input 
               type="date" 
               id="birthdate" 
               value={birthdate} 
               onChange={handleBirthdateChange} 
-              max={new Date().toISOString().split('T')[0]}
+              min="1950-01-01"
+              max="2020-12-31"
               disabled={isLoading}
+              className={fieldErrors.birthdate ? 'error-input' : ''}
+              onInvalid={(e) => e.preventDefault()}
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-password">
             <label htmlFor="password">Contraseña</label>
-            <input 
-              type="password" 
-              id="password" 
-              value={password} 
-              onChange={handlePasswordChange} 
-              placeholder="Tu contraseña"
-              disabled={isLoading}
-            />
+            <div className="password-input-container">
+              <input 
+                type={visiblePassword === 'password' ? "text" : "password"} 
+                id="password" 
+                value={password} 
+                onChange={handlePasswordChange} 
+                placeholder="Tu contraseña"
+                disabled={isLoading}
+                className={fieldErrors.password ? 'error-input' : ''}
+              />
+              <button 
+                type="button"
+                className="password-toggle"
+                onClick={() => setVisiblePassword(visiblePassword === 'password' ? 'none' : 'password')}
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon 
+                  icon={visiblePassword === 'password' ? faEye : faEyeSlash} 
+                  style={{ color: '#9ca3af', fontSize: '14px' }}
+                />
+              </button>
+            </div>
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-confirm-password">
             <label htmlFor="confirmPassword">Confirmar contraseña</label>
-            <input 
-              type="password" 
-              id="confirmPassword" 
-              value={confirmPassword} 
-              onChange={handleConfirmPasswordChange} 
-              placeholder="Confirma tu contraseña"
-              disabled={isLoading}
-            />
+            <div className="password-input-container">
+              <input 
+                type={visiblePassword === 'confirmPassword' ? "text" : "password"} 
+                id="confirmPassword" 
+                value={confirmPassword} 
+                onChange={handleConfirmPasswordChange} 
+                placeholder="Confirma tu contraseña"
+                disabled={isLoading}
+                className={fieldErrors.confirmPassword ? 'error-input' : ''}
+              />
+              <button 
+                type="button"
+                className="password-toggle"
+                onClick={() => setVisiblePassword(visiblePassword === 'confirmPassword' ? 'none' : 'confirmPassword')}
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon 
+                  icon={visiblePassword === 'confirmPassword' ? faEye : faEyeSlash} 
+                  style={{ color: '#9ca3af', fontSize: '14px' }}
+                />
+              </button>
+            </div>
           </div>
           
           <button 

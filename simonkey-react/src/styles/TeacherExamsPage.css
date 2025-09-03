@@ -1,6 +1,6 @@
 .teacher-exams-page {
   padding: 2rem;
-  background: #f8fafc;
+  background: transparent;
   min-height: calc(100vh - 64px);
   width: 100%;
 }
@@ -9,7 +9,7 @@
 .content-wrapper:has(.teacher-exams-page),
 .content-wrapper:has(.teacher-exams-loading) {
   margin-left: 60px;
-  padding-top: 64px;
+  padding-top: 0;
   width: calc(100vw - 60px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -67,6 +67,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.95rem;
+  margin-left: auto;
 }
 
 .create-exam-button-main:hover:not(:disabled) {
@@ -97,6 +98,8 @@
   flex-wrap: wrap;
   border: none !important;
   border-bottom: none !important;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .filter-btn {

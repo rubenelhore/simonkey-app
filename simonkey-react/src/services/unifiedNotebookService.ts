@@ -312,19 +312,37 @@ export class UnifiedNotebookService {
     const notebooks: Notebook[] = [];
     
     // Buscar en notebooks regulares por materia y usuario
+    // Nota: Removemos el orderBy para evitar requerir un índice compuesto
     const notebooksQuery = query(
       collection(db, 'notebooks'),
       where('materiaId', 'in', materiaIds),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
     
     const notebooksSnapshot = await getDocs(notebooksQuery);
     
+    // Convertir a array y ordenar manualmente por createdAt
+    const notebooksArray: any[] = [];
     notebooksSnapshot.forEach(doc => {
       const data = doc.data();
-      notebooks.push({
+      notebooksArray.push({
         id: doc.id,
+        data,
+        createdAt: data.createdAt
+      });
+    });
+    
+    // Ordenar por createdAt descendente
+    notebooksArray.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+    
+    // Procesar los notebooks ordenados
+    notebooksArray.forEach(({ id, data }) => {
+      notebooks.push({
+        id,
         type: 'personal',
         ...data
       } as Notebook);
