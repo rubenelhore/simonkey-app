@@ -23,7 +23,7 @@ interface CalendarEvent {
 const TeacherHomePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const teacherName = userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Profesor';
+  const teacherName = userProfile?.nombre || userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Profesor';
   
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);

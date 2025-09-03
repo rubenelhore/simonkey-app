@@ -60,7 +60,7 @@ interface UserPreferences {
 }
 
 const ProfilePage: React.FC = () => {
-  const { user, userProfile, loading: authLoading, logout } = useAuth();
+  const { user, userProfile, loading: authLoading, logout, refreshUserData } = useAuth();
   const { schoolRole, isSchoolUser, isSchoolStudent, isSuperAdmin, subscription } = useUserType();
   const navigate = useNavigate();
   
@@ -112,6 +112,8 @@ const ProfilePage: React.FC = () => {
   });
   
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -166,6 +168,8 @@ const ProfilePage: React.FC = () => {
   
   useEffect(() => {
     if (userProfile) {
+      console.log('UserProfile updated in useEffect:', userProfile);
+      
       setEditedProfile({
         nombre: userProfile.nombre || '',
         username: userProfile.username || '',
@@ -211,18 +215,27 @@ const ProfilePage: React.FC = () => {
     if (!user) return;
     
     setSaving(true);
+    setSaveError('');
+    setSaveSuccess('');
+    
     try {
       let updateData: any = {};
       
       if (section === 'personal') {
+        // Validar campos requeridos
+        if (!editedProfile.nombre || editedProfile.nombre.trim() === '') {
+          setSaveError('El nombre es requerido');
+          return;
+        }
+        
         updateData = {
-          nombre: editedProfile.nombre,
-          username: editedProfile.username,
-          bio: editedProfile.bio,
+          nombre: editedProfile.nombre.trim(),
+          username: editedProfile.username?.trim(),
+          bio: editedProfile.bio?.trim(),
           birthdate: editedProfile.birthdate,
-          location: editedProfile.location,
+          location: editedProfile.location?.trim(),
           interests: editedProfile.interests,
-          learningGoal: editedProfile.learningGoal,
+          learningGoal: editedProfile.learningGoal?.trim(),
           photoURL: editedProfile.photoURL,
           updatedAt: new Date()
         };
@@ -233,10 +246,36 @@ const ProfilePage: React.FC = () => {
         };
       }
 
+      console.log('Updating user profile:', { userId: user.uid, updateData });
+      
       await updateDoc(doc(db, 'users', user.uid), updateData);
+      
+      console.log('Profile updated successfully, refreshing user data...');
+      
+      // Refrescar los datos del usuario para que se reflejen en la UI
+      await refreshUserData();
+      
+      setSaveSuccess('¡Perfil actualizado correctamente!');
       setEditingSection(null);
-    } catch (error) {
+      
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => setSaveSuccess(''), 3000);
+      
+    } catch (error: any) {
       console.error('Error updating profile:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      // Mensajes de error más específicos
+      if (error.code === 'permission-denied') {
+        setSaveError('No tienes permisos para actualizar tu perfil. Intenta cerrar sesión e iniciar sesión nuevamente.');
+      } else if (error.code === 'unavailable') {
+        setSaveError('Servicio temporalmente no disponible. Por favor, intenta de nuevo en unos momentos.');
+      } else if (error.code === 'network-error' || error.code === 'offline') {
+        setSaveError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      } else {
+        setSaveError(`Error al actualizar el perfil: ${error.message || 'Error desconocido'}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -877,6 +916,35 @@ const ProfilePage: React.FC = () => {
                       </div>
                     </div>
                     
+                    {/* Mensajes de éxito y error */}
+                    {saveSuccess && (
+                      <div className="save-success" style={{ 
+                        color: '#10b981', 
+                        background: '#f0fdf4', 
+                        padding: '0.75rem', 
+                        borderRadius: '0.5rem', 
+                        marginBottom: '1rem',
+                        border: '1px solid #86efac'
+                      }}>
+                        <i className="fas fa-check-circle"></i>
+                        {saveSuccess}
+                      </div>
+                    )}
+                    
+                    {saveError && (
+                      <div className="save-error" style={{ 
+                        color: '#dc2626', 
+                        background: '#fef2f2', 
+                        padding: '0.75rem', 
+                        borderRadius: '0.5rem', 
+                        marginBottom: '1rem',
+                        border: '1px solid #fca5a5'
+                      }}>
+                        <i className="fas fa-exclamation-circle"></i>
+                        {saveError}
+                      </div>
+                    )}
+                    
                     <div className="form-actions">
                       <button 
                         onClick={() => handleSaveSection('personal')}
@@ -896,7 +964,11 @@ const ProfilePage: React.FC = () => {
                         )}
                       </button>
                       <button 
-                        onClick={() => setEditingSection(null)}
+                        onClick={() => {
+                          setEditingSection(null);
+                          setSaveError('');
+                          setSaveSuccess('');
+                        }}
                         className="btn-secondary"
                       >
                         Cancelar

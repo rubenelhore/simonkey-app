@@ -183,7 +183,7 @@ const JoinWithInvitePage: React.FC = () => {
         code,
         studentId,
         userProfile?.email || registrationData.email,
-        userProfile?.displayName || registrationData.nombre
+        userProfile?.nombre || userProfile?.displayName || registrationData.nombre
       );
       
       if (result.success) {
@@ -425,7 +425,7 @@ const JoinWithInvitePage: React.FC = () => {
                 ) : (
                   <Box>
                     <Alert severity="success" sx={{ mb: 2 }}>
-                      Ya tienes una sesión iniciada como {userProfile?.displayName}
+                      Ya tienes una sesión iniciada como {userProfile?.nombre || userProfile?.displayName}
                     </Alert>
                     <Button
                       variant="contained"

@@ -53,7 +53,7 @@ const InicioPage: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile, user } = useAuth();
   const { isTeacher, isSchoolStudent, isSchoolAdmin, isSchoolTutor } = useUserType();
-  const userName = userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Santiago';
+  const userName = userProfile?.nombre || userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Santiago';
   const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [weeklyProgress, setWeeklyProgress] = useState<string>('0%');
