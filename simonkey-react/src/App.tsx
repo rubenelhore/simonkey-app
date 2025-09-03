@@ -52,6 +52,7 @@ import './utils/debugExams';
 import './utils/verifyStudentExams';
 import './utils/cleanStudentData';
 import './utils/debugTeacherKpis';
+import './utils/debugNotifications';
 import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';

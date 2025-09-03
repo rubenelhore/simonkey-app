@@ -20,12 +20,26 @@ class GlobalNotificationListener {
 
     console.log('🚀 Inicializando listeners globales de notificaciones...');
 
-    // Inicializar listeners para cuadernos y documentos
-    notificationService.listenForNewNotebooks();
-    notificationService.listenForNewDocuments();
+    try {
+      // Inicializar listeners para cuadernos y documentos
+      console.log('📚 Configurando listener para cuadernos...');
+      notificationService.listenForNewNotebooks();
+      
+      console.log('📄 Configurando listener para documentos...');
+      notificationService.listenForNewDocuments();
 
-    this.isInitialized = true;
-    console.log('✅ Listeners globales inicializados correctamente');
+      this.isInitialized = true;
+      console.log('✅ Listeners globales inicializados correctamente');
+      
+      // Hacer disponible el debug
+      (window as any).notificationListenerStatus = () => {
+        console.log('📡 Estado del listener global:', this.isInitialized);
+        return this.isInitialized;
+      };
+      
+    } catch (error) {
+      console.error('❌ Error inicializando listeners globales:', error);
+    }
   }
 
   // Verificar si ya están inicializados

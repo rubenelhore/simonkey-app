@@ -198,7 +198,7 @@ export class NotificationService {
           snapshot.docChanges().forEach(async (change) => {
             if (change.type === 'added') {
               const notebookData = change.doc.data();
-              const notebook = { id: change.doc.id, ...notebookData };
+              const notebook = { id: change.doc.id, ...notebookData } as any;
               
               // Solo procesar cuadernos recién creados (últimos 30 segundos)
               const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
@@ -324,7 +324,7 @@ export class NotificationService {
             snapshot.docChanges().forEach(async (change) => {
               if (change.type === 'added') {
                 const documentData = change.doc.data();
-                const document = { id: change.doc.id, ...documentData };
+                const document = { id: change.doc.id, ...documentData } as any;
                 
                 // Solo procesar documentos recién creados (últimos 30 segundos)
                 const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
