@@ -39,10 +39,12 @@ import { globalNotificationListener } from '../services/globalNotificationListen
             )
           );
           
-          recentDocs.forEach((docSnap, index) => {
+          let idx = 0;
+          recentDocs.forEach((docSnap) => {
             const docData = docSnap.data();
             const createdAt = docData.createdAt?.toDate();
-            console.log(`  ${index + 1}. ${docData.title || docData.name} - ${createdAt?.toLocaleString()}`);
+            console.log(`  ${idx + 1}. ${docData.title || docData.name} - ${createdAt?.toLocaleString()}`);
+            idx++;
           });
         }
       } catch (error) {
@@ -80,10 +82,12 @@ import { globalNotificationListener } from '../services/globalNotificationListen
       
       console.log(`🔔 Usuario tiene ${notificationsSnapshot.size} notificaciones:`);
       
-      notificationsSnapshot.forEach((notifDoc, index) => {
+      let notifIdx = 0;
+      notificationsSnapshot.forEach((notifDoc) => {
         const notifData = notifDoc.data();
         const createdAt = notifData.createdAt?.toDate();
-        console.log(`  ${index + 1}. [${notifData.type}] ${notifData.title} - ${createdAt?.toLocaleString()} - Leída: ${notifData.isRead}`);
+        console.log(`  ${notifIdx + 1}. [${notifData.type}] ${notifData.title} - ${createdAt?.toLocaleString()} - Leída: ${notifData.isRead}`);
+        notifIdx++;
       });
     }
     

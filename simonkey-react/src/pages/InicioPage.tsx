@@ -191,7 +191,10 @@ const InicioPage: React.FC = () => {
     
     // Check localStorage cache first
     const cachedMaterias = getCachedData(`materias_${user.uid}`);
-    const cacheValid = cachedMaterias && isCacheValid(cachedMaterias.timestamp);
+    // Invalidar caché si tiene exactamente 5 materias (probablemente del límite anterior)
+    const cacheValid = cachedMaterias && 
+                       isCacheValid(cachedMaterias.timestamp) && 
+                       (!cachedMaterias.data || cachedMaterias.data.length !== 5);
     
     
     // TEMPORALMENTE deshabilitado el cache para debug de enrolled courses
@@ -303,14 +306,14 @@ const InicioPage: React.FC = () => {
         return a.dominioPercentage - b.dominioPercentage;
       });
       
-      // Take only top 5
-      const topMaterias = materiasWithDominio.slice(0, 5);
+      // Show all materias sorted by dominio (no limit)
+      // const topMaterias = materiasWithDominio.slice(0, 5); // Removed limit
       
       
-      setMateriasByDominio(topMaterias);
+      setMateriasByDominio(materiasWithDominio); // Use all materias
       
       // Update localStorage cache
-      setCachedData(`materias_${user.uid}`, topMaterias, Date.now());
+      setCachedData(`materias_${user.uid}`, materiasWithDominio, Date.now());
       materiasLoadedRef.current = true;
     } catch (error) {
       console.error('Error fetching materias by dominio:', error);
@@ -618,6 +621,11 @@ const InicioPage: React.FC = () => {
       const cachedEvents = getCachedData(`events_${user.uid}`);
       const cachedMainData = getCachedData(`main_data_${user.uid}`);
       
+      // Limpiar caché si tiene exactamente 5 materias (límite anterior)
+      if (cachedMaterias?.data?.length === 5) {
+        localStorage.removeItem(`inicio_cache_materias_${user.uid}`);
+      }
+      
       // Load main data from cache
       if (cachedMainData && isCacheValid(cachedMainData.timestamp)) {
         const data = cachedMainData.data;
@@ -816,7 +824,16 @@ const InicioPage: React.FC = () => {
                   {materiasLoading ? (
                     <p className="loading-text">Cargando materias...</p>
                   ) : materiasByDominio.length > 0 ? (
-                    <div className="materias-list">
+                    <div 
+                      className={`materias-list ${materiasByDominio.length > 5 ? 'has-scroll' : ''}`}
+                      onScroll={(e) => {
+                        // Opcionalmente podemos agregar lógica de scroll aquí
+                        const element = e.currentTarget;
+                        if (element.scrollHeight > element.clientHeight) {
+                          element.classList.add('has-scroll');
+                        }
+                      }}
+                    >
                       {materiasByDominio.map((materia, index) => {
                         // Determine dominio level for styling
                         const getDominioLevel = (percentage: number) => {

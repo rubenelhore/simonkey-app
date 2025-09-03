@@ -896,15 +896,15 @@ const AppContent: React.FC = () => {
           }} />
         )}
         
-        {/* Modal de completar perfil */}
-        <ProfileCompletionModal
+        {/* Modal de completar perfil - DESHABILITADO TEMPORALMENTE */}
+        {/* <ProfileCompletionModal
           isOpen={showProfileCompletion}
           onClose={() => setShowProfileCompletion(false)}
           onComplete={(data) => {
             // Perfil completado
             setShowProfileCompletion(false);
           }}
-        />
+        /> */}
         
         {/* TourOverlay controlado por TourContext - solo se muestra si email verificado */}
         {isEmailVerified && <TourOverlay />}

@@ -115,6 +115,33 @@ html, body {
   box-sizing: border-box;
 }
 
+/* Fix específico para scroll en móvil */
+@media (max-width: 768px) {
+  html {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  body {
+    overflow-y: visible !important;
+    position: relative;
+    min-height: 100vh;
+  }
+  
+  /* Asegurar que el contenido principal tenga espacio para el header fijo */
+  #root > div:first-child {
+    padding-top: 70px;
+  }
+  
+  /* Fix específico para la homepage */
+  .homepage-wrapper {
+    overflow-x: hidden;
+    overflow-y: visible;
+    position: relative;
+    min-height: 100vh;
+  }
+}
+
 .rbc-current-time-indicator {
   position: absolute;
   z-index: 2;

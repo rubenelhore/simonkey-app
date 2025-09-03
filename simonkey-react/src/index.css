@@ -18,9 +18,14 @@
   box-sizing: border-box;
 }
 
-html, body {
+html {
   overflow-x: hidden;
   max-width: 100%;
+  /* Fix para scroll en móvil */
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  /* Fix para iOS Safari */
+  height: 100%;
 }
 
 body {
@@ -28,6 +33,14 @@ body {
   color: var(--dark);
   background-color: #FFFFFF;
   line-height: 1.6;
+  /* Fix para scroll en móvil */
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Fix para iOS Safari */
+  position: relative;
+  width: 100%;
 }
 
 /* Hacer la barra de progreso de dominio más delgada */

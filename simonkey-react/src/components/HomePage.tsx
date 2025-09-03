@@ -46,7 +46,7 @@ const HomePage: React.FC = () => {
   }, [location]);
 
   return (
-    <div>
+    <div className="homepage-wrapper">
       <Header />
       <Hero />
       
