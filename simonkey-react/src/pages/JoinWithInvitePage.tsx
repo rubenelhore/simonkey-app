@@ -144,8 +144,11 @@ const JoinWithInvitePage: React.FC = () => {
       
       await setDoc(doc(db, 'users', userCredential.user.uid), userProfileData);
       
-      // Proceder con la inscripción
+      // Proceder con la inscripción automáticamente después del registro
+      console.log('Usuario registrado exitosamente, procediendo con inscripción automática...');
       await handleEnrollment(userCredential.user.uid);
+      
+      // La inscripción exitosa redirigirá automáticamente en handleEnrollment
     } catch (error: any) {
       console.error('Error en registro:', error);
       if (error.code === 'auth/email-already-in-use') {
@@ -170,6 +173,12 @@ const JoinWithInvitePage: React.FC = () => {
     try {
       setEnrolling(true);
       
+      // Si el usuario fue recién creado, esperar un momento para asegurar que Firestore esté listo
+      if (userId && !user) {
+        console.log('Esperando sincronización de usuario recién creado...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       const result = await useInviteCode(
         code,
         studentId,
@@ -179,6 +188,7 @@ const JoinWithInvitePage: React.FC = () => {
       
       if (result.success) {
         setActiveStep(2); // Mostrar éxito
+        console.log('Inscripción exitosa, redirigiendo en 3 segundos...');
         setTimeout(() => {
           navigate('/inicio');
         }, 3000);
@@ -308,13 +318,20 @@ const JoinWithInvitePage: React.FC = () => {
                       <Button
                         variant="contained"
                         startIcon={<Login />}
-                        onClick={() => navigate('/login', { state: { returnTo: `/join/${code}` } })}
+                        onClick={() => navigate('/login', { state: { returnTo: `/join/${code}`, inviteCode: code } })}
                       >
                         Iniciar Sesión
                       </Button>
                       <Typography variant="body2" alignSelf="center">
                         o
                       </Typography>
+                      <Button
+                        variant="outlined"
+                        startIcon={<AppRegistration />}
+                        onClick={() => navigate('/signup', { state: { inviteCode: code } })}
+                      >
+                        Crear Cuenta
+                      </Button>
                     </Box>
                     
                     <Divider sx={{ my: 3 }}>

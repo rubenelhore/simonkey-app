@@ -56,6 +56,8 @@ import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+// Importar el listener global de notificaciones
+import { globalNotificationListener } from './services/globalNotificationListener';
 import JoinSimonkeyBannerInline from './components/JoinSimonkeyBannerInline';
 import AboutSimonkeyInline from './components/AboutSimonkeyInline';
 // Sistema de profesores independientes
@@ -337,6 +339,13 @@ const AppContent: React.FC = () => {
   
   // Hook para verificar y actualizar automáticamente el estado de inscripciones
   useEnrollmentStatus();
+
+  // Inicializar listeners globales de notificaciones una sola vez
+  useEffect(() => {
+    if (!globalNotificationListener.getInitializationStatus()) {
+      globalNotificationListener.initialize();
+    }
+  }, []);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
     // Para usuarios nuevos, no confiar solo en localStorage

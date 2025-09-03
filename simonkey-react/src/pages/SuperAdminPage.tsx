@@ -272,7 +272,7 @@ const SuperAdminPage: React.FC = () => {
             // Obtener nombres de los profesores
             const teacherPromises = uniqueTeacherIds.map(async (teacherId) => {
               try {
-                const teacherDoc = await getDoc(doc(db, 'users', teacherId));
+                const teacherDoc = await getDoc(doc(db, 'users', teacherId as string));
                 if (teacherDoc.exists()) {
                   const teacherData = teacherDoc.data();
                   const teacherName = teacherData.displayName || teacherData.nombre || teacherId;
@@ -288,7 +288,7 @@ const SuperAdminPage: React.FC = () => {
             });
             
             const teacherNames = await Promise.all(teacherPromises);
-            usersData[index].enrolledTeachers = uniqueTeacherIds;
+            usersData[index].enrolledTeachers = uniqueTeacherIds as string[];
             usersData[index].teacherNames = teacherNames.join(', ');
             
             if (teacherNames.length > 0) {
@@ -304,12 +304,12 @@ const SuperAdminPage: React.FC = () => {
         
         promises.push(kpiPromise, teachersPromise);
         const [kpiResult] = await Promise.all(promises);
-        return kpiResult;
+        return kpiResult as number;
       });
       
       // Esperar a que todas las promesas terminen
       const results = await Promise.all(dataPromises);
-      usuariosConKPIs = results.reduce((sum, result) => sum + result, 0);
+      usuariosConKPIs = results.reduce((sum: number, result: number) => sum + result, 0);
       
       console.log(`📊 Usuarios con KPIs: ${usuariosConKPIs} de ${usersData.length} verificados`);
       
@@ -317,7 +317,7 @@ const SuperAdminPage: React.FC = () => {
       const usuariosImportantes = usersData.filter(u => 
         u.email?.includes('ruben') || 
         u.email?.includes('santiago') ||
-        u.scoreGlobal > 5000
+        (u.scoreGlobal || 0) > 5000
       );
       
       if (usuariosImportantes.length > 0) {
@@ -419,9 +419,9 @@ const SuperAdminPage: React.FC = () => {
       const subjectsSnapshot = await getDocs(query(collection(db, 'schoolSubjects'), limit(5)));
       console.log(`📊 Total documentos en schoolSubjects: ${subjectsSnapshot.size}`);
       
-      subjectsSnapshot.forEach((doc, index) => {
+      subjectsSnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log(`  📖 Materia ${index + 1}:`, {
+        console.log(`  📖 Materia:`, {
           id: doc.id,
           nombre: data.nombre,
           idProfesor: data.idProfesor,
@@ -456,7 +456,7 @@ const SuperAdminPage: React.FC = () => {
       }
       
       // 3. Buscar un usuario con score alto para ver si tiene subcolecciones
-      const highScoreUser = users.find(u => u.scoreGlobal > 5000);
+      const highScoreUser = users.find(u => (u.scoreGlobal || 0) > 5000);
       if (highScoreUser) {
         console.log(`🔍 Explorando subcolecciones del usuario con score alto: ${highScoreUser.email}`);
         const userRef = doc(db, 'users', highScoreUser.id);

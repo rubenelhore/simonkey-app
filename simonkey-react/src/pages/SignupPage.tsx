@@ -11,13 +11,15 @@ import {
 import { signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, firestore } from '../services/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { createUserProfile, getUserProfile } from '../services/userService';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { sendVerificationEmail } from '../services/emailVerificationService';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { handleGoogleAuth, handleRedirectResult, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const [email, setEmail] = useState<string>('');
   const [username, setUsername] = useState<string>('');
@@ -151,8 +153,18 @@ const SignupPage: React.FC = () => {
       }
       
       console.log('Registro exitoso');
-      // Redirigir al usuario a la página de verificación de email
-      navigate('/verify-email');
+      
+      // Verificar si hay un código de invitación pendiente
+      const inviteCode = searchParams.get('inviteCode') || location.state?.inviteCode;
+      
+      if (inviteCode) {
+        // Si hay código de invitación, ir directamente a la página de join
+        console.log('Redirigiendo a join con código:', inviteCode);
+        navigate(`/join/${inviteCode}`, { replace: true });
+      } else {
+        // Si no, ir a la página de verificación de email
+        navigate('/verify-email');
+      }
     } catch (err: any) {
       let errorMessage = 'Error al registrarse';
       if (err.code === 'auth/email-already-in-use') {

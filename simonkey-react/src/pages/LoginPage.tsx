@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { createUserProfile, getUserProfile } from '../services/userService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,6 +21,8 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { handleGoogleAuth, handleRedirectResult, isLoading: googleLoading, error: googleError } = useGoogleAuth();
   const { isAuthenticated, isEmailVerified, loading: authLoading, userProfile } = useAuth();
   
@@ -70,9 +72,19 @@ const LoginPage: React.FC = () => {
         return;
       }
       
-      // Usuario válido, redirigir a la página de inicio
-      console.log("🚀 Login exitoso, redirigiendo a inicio...");
-      navigate('/inicio', { replace: true });
+      // Usuario válido, verificar si hay un código de invitación pendiente
+      const inviteCode = searchParams.get('inviteCode') || location.state?.inviteCode || location.state?.returnTo?.includes('/join/') && location.state.returnTo.split('/join/')[1];
+      
+      if (inviteCode) {
+        console.log("🚀 Login exitoso, redirigiendo a join con código:", inviteCode);
+        navigate(`/join/${inviteCode}`, { replace: true });
+      } else if (location.state?.returnTo) {
+        console.log("🚀 Login exitoso, redirigiendo a:", location.state.returnTo);
+        navigate(location.state.returnTo, { replace: true });
+      } else {
+        console.log("🚀 Login exitoso, redirigiendo a inicio...");
+        navigate('/inicio', { replace: true });
+      }
     } catch (error: any) {
       console.error("Error en login:", error);
       let errorMessage = "Error al iniciar sesión";

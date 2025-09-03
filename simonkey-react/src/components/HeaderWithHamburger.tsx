@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db, collection, query, where, getDocs } from '../services/firebase';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
 import { UserSubscriptionType, Notebook } from '../types/interfaces';
+import { notificationService, NotificationData } from '../services/notificationService';
 import './HeaderWithHamburger.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -61,6 +62,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [todayEvents, setTodayEvents] = useState<{ id: string; title: string; type: string }[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [smartEvents, setSmartEvents] = useState<{ id: string; title: string; notebookId: string }[]>([]);
+  const [recentNotifications, setRecentNotifications] = useState<NotificationData[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [isTeacherLocal, setIsTeacherLocal] = useState(false);
@@ -233,11 +235,66 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
         }
       }
       setSmartEvents(smartEventsList);
-      setHasNotification(todayEvents.length > 0 || smartEventsList.length > 0);
+      updateNotificationState();
     }
     fetchSmartEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, notebooks, todayEvents]);
+
+  // Cargar notificaciones no leídas al inicializar
+  useEffect(() => {
+    if (!user) return;
+
+    const loadUnreadNotifications = async () => {
+      try {
+        const unreadNotifications = await notificationService.getUnreadNotifications(user.uid);
+        setRecentNotifications(unreadNotifications);
+        console.log('📬 Notificaciones no leídas cargadas:', unreadNotifications.length);
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+      }
+    };
+
+    loadUnreadNotifications();
+  }, [user]);
+
+  // Configurar listener para notificaciones en tiempo real (solo para refrescar la lista)
+  useEffect(() => {
+    if (!user) return;
+
+    const notificationsQuery = query(
+      collection(db, 'notifications'),
+      where('userId', '==', user.uid),
+      where('isRead', '==', false),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      const notifications: NotificationData[] = [];
+      snapshot.forEach(doc => {
+        notifications.push({ id: doc.id, ...doc.data() } as NotificationData);
+      });
+      
+      setRecentNotifications(notifications);
+      console.log('🔔 Notificaciones actualizadas en tiempo real:', notifications.length);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Función para actualizar el estado de notificación
+  const updateNotificationState = () => {
+    const hasEvents = todayEvents.length > 0;
+    const hasSmartEvents = smartEvents.length > 0;
+    const hasRecentNotifications = recentNotifications.length > 0;
+    
+    setHasNotification(hasEvents || hasSmartEvents || hasRecentNotifications);
+  };
+
+  // Actualizar estado de notificación cuando cambian las notificaciones
+  useEffect(() => {
+    updateNotificationState();
+  }, [todayEvents, smartEvents, recentNotifications]);
 
   // Función de depuración para verificar y actualizar superadmin
   const checkAndUpdateSuperAdmin = async () => {
@@ -856,12 +913,85 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           >
             ×
           </button>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 600, color: '#1f2937' }}>
-            🔔 Notificaciones
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#1f2937' }}>
+              🔔 Notificaciones
+            </h3>
+            {recentNotifications.length > 0 && (
+              <button
+                onClick={async () => {
+                  await notificationService.markAllAsRead(user!.uid);
+                  console.log('✅ Todas las notificaciones marcadas como leídas');
+                }}
+                style={{
+                  background: 'none',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#6147FF';
+                  e.currentTarget.style.color = '#6147FF';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.color = '#6b7280';
+                }}
+              >
+                Marcar todas como leídas
+              </button>
+            )}
+          </div>
           <div>
-            {todayEvents.length > 0 || smartEvents.length > 0 ? (
+            {todayEvents.length > 0 || smartEvents.length > 0 || recentNotifications.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Notificaciones recientes de documentos y cuadernos */}
+                {recentNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    style={{ 
+                      cursor: 'pointer', 
+                      padding: '12px', 
+                      backgroundColor: notification.type === 'new_notebook' ? '#fef3e2' : '#f0f9ff',
+                      borderRadius: 8,
+                      border: notification.type === 'new_notebook' ? '1px solid #fed7aa' : '1px solid #bae6fd',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={async () => {
+                      // Marcar como leída
+                      await notificationService.markAsRead(notification.id);
+                      setShowNotifications(false);
+                      // Navegar a la materia correspondiente
+                      navigate(`/materias/${notification.materiaId}`);
+                    }}
+                    onMouseEnter={(e) => {
+                      const hoverColor = notification.type === 'new_notebook' ? '#fed7aa' : '#bae6fd';
+                      e.currentTarget.style.backgroundColor = hoverColor;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      const originalColor = notification.type === 'new_notebook' ? '#fef3e2' : '#f0f9ff';
+                      e.currentTarget.style.backgroundColor = originalColor;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: notification.type === 'new_notebook' ? '#ea580c' : '#0369a1', marginBottom: '4px' }}>
+                      {notification.title}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                      {notification.message}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                      {notification.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Eventos de calendario */}
                 {todayEvents.map((event) => (
                   <div
                     key={event.id}
@@ -891,6 +1021,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
                     </div>
                   </div>
                 ))}
+                
+                {/* Estudios inteligentes */}
                 {smartEvents.map((event) => (
                   <div
                     key={event.id}

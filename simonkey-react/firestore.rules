@@ -695,6 +695,48 @@ service cloud.firestore {
       // Eliminación: nunca (datos históricos)
       allow delete: if false;
     }
+
+    // ========================================
+    // REGLAS PARA COLECCIÓN: notifications
+    // ========================================
+    match /notifications/{notificationId} {
+      // Lectura: propietario de la notificación o super admin
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) ||
+        isSuperAdmin()
+      );
+      
+      // Creación: sistema o profesores (para crear notificaciones para estudiantes)
+      allow create: if isAuthenticated() && (
+        // Sistema creando notificaciones automáticas
+        request.resource.data.userId is string &&
+        hasRequiredFields(['type', 'title', 'message', 'materiaId', 'materiaName', 'teacherName', 'createdAt', 'isRead', 'userId', 'contentId']) &&
+        isValidEnum(request.resource.data.type, ['new_notebook', 'new_document']) &&
+        isValidString(request.resource.data.title, 200) &&
+        isValidString(request.resource.data.message, 500) &&
+        isValidString(request.resource.data.materiaId, 100) &&
+        isValidString(request.resource.data.materiaName, 200) &&
+        isValidString(request.resource.data.teacherName, 200) &&
+        isValidString(request.resource.data.contentId, 100) &&
+        request.resource.data.isRead == false // Nueva notificación siempre no leída
+      );
+      
+      // Actualización: propietario para marcar como leída o super admin
+      allow update: if isAuthenticated() && (
+        (isOwner(resource.data.userId) && 
+         // Solo permitir cambiar isRead y readAt
+         request.resource.data.userId == resource.data.userId &&
+         request.resource.data.type == resource.data.type &&
+         request.resource.data.title == resource.data.title &&
+         request.resource.data.message == resource.data.message &&
+         request.resource.data.materiaId == resource.data.materiaId &&
+         request.resource.data.contentId == resource.data.contentId) ||
+        isSuperAdmin()
+      );
+      
+      // Eliminación: super admin solamente (para limpiar notificaciones antiguas)
+      allow delete: if isSuperAdmin();
+    }
     
     // ========================================
     // REGLAS ESPECIALES PARA SUPER ADMIN
