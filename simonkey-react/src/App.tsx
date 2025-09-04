@@ -23,6 +23,7 @@ import ExplainConceptPage from './pages/ExplainConceptPage';
 import SharedNotebook from './pages/SharedNotebook';
 import VoiceSettingsPage from './pages/VoiceSettingsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import DevelopmentPage from './pages/DevelopmentPage';
 // Nuevas importaciones
 import InteractiveTour from './components/Onboarding/InteractiveTour';
 import OnboardingComponent from './components/Onboarding/OnboardingComponent';
@@ -825,6 +826,13 @@ const AppContent: React.FC = () => {
             path="/super-admin"
             element={<SuperAdminRoute />}
           />
+          
+          {/* Ruta para el área de desarrollo - Solo para developers y beta testers */}
+          <Route
+            path="/development"
+            element={<DevelopmentPage />}
+          />
+          
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/exams" element={
             isAuthenticated ? (
