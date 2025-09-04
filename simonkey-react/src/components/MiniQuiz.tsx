@@ -783,24 +783,41 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
 
     return (
-      <div className="mini-quiz-session-container">
-        {/* Pregunta */}
-        <div className="mini-quiz-question-container">
-          <div className="question-definition">
-            <h3>Definición:</h3>
+      <div className="quiz-question-modern">
+        <div className="quiz-progress-container">
+          <div className="quiz-progress-bar">
+            <div 
+              className="quiz-progress-fill" 
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <div className="quiz-progress-text">
+            Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}
+          </div>
+        </div>
+        
+        <div className="quiz-question-card">
+          <div className="quiz-question-header">
+            <div className="quiz-question-icon">
+              <i className="fas fa-quote-left"></i>
+            </div>
+            <h3>Definición</h3>
+          </div>
+          
+          <div className="quiz-question-content">
             <p>{question.definition}</p>
-            <div className="question-source">
-              <span>Fuente: {question.source}</span>
+            <div className="quiz-question-source">
+              <i className="fas fa-book-open"></i>
+              <span>{question.source}</span>
             </div>
           </div>
         </div>
 
-        {/* Opciones de respuesta */}
-        <div className="mini-quiz-options-container">
-          {question.options.map((option) => (
+        <div className="quiz-options-grid">
+          {question.options.map((option, index) => (
             <button
               key={option.id}
-              className={`mini-quiz-option ${
+              className={`quiz-option-card ${
                 selectedOption === option.id 
                   ? option.isCorrect 
                     ? 'correct' 
@@ -809,20 +826,30 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
               } ${selectedOption ? 'disabled' : ''}`}
               onClick={() => handleAnswerSelection(option.id)}
               disabled={selectedOption !== null}
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <span className="option-text">{option.term}</span>
+              <div className="option-content">
+                <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                <span className="option-text">{option.term}</span>
+              </div>
               {selectedOption === option.id && (
-                <i className={`fas ${option.isCorrect ? 'fa-check' : 'fa-times'}`}></i>
+                <div className="option-result-icon">
+                  <i className={`fas ${option.isCorrect ? 'fa-check' : 'fa-times'}`}></i>
+                </div>
               )}
             </button>
           ))}
         </div>
 
-        {/* Feedback */}
+        {/* Feedback mejorado */}
         {showFeedback && (
-          <div className={`mini-quiz-feedback ${feedbackType}`}>
-            <i className={`fas ${feedbackType === 'success' ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
-            <span>{feedbackMessage}</span>
+          <div className={`quiz-feedback-modern ${feedbackType}`}>
+            <div className="feedback-icon">
+              <i className={`fas ${feedbackType === 'success' ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
+            </div>
+            <div className="feedback-content">
+              <span className="feedback-text">{feedbackMessage}</span>
+            </div>
           </div>
         )}
       </div>
@@ -878,48 +905,106 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
     const questionsAnswered = responses.length;
     const totalQuestions = questionsRef.current.length;
     const wasTimeUp = questionsAnswered < totalQuestions;
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
 
     return (
-      <div className="mini-quiz-results">
-        <div className="results-header">
-          <i className={`fas ${passed ? 'fa-trophy' : 'fa-times-circle'}`}></i>
-          <h2>
-            {wasTimeUp ? '¡Tiempo Agotado!' : (passed ? '¡Mini Quiz Completado!' : 'Mini Quiz Fallido')}
-          </h2>
+      <div className="quiz-results-modern">
+        <div className="results-background">
+          <div className="results-particles"></div>
         </div>
         
-
-        <div className="results-message">
-          {wasTimeUp ? (
-            <div className="time-up-message">
-              <p>Se acabó el tiempo. Respondiste {questionsAnswered} de {totalQuestions} preguntas.</p>
-              <p>Tu calificación basada en las respuestas dadas: {finalScore}/10</p>
-              {passed ? (
-                <p>¡Aprobaste! Tu estudio inteligente ha sido validado.</p>
-              ) : (
-                <p>No aprobaste. Necesitas al menos 8/10 para validar el estudio inteligente.</p>
-              )}
+        <div className="results-card">
+          <div className="results-icon-container">
+            <div className={`results-icon-circle ${passed ? 'success' : 'failure'}`}>
+              <i className={`fas ${passed ? 'fa-trophy' : 'fa-times'}`}></i>
             </div>
-          ) : passed ? (
-            <div className="success-message">
-              <p>¡Excelente! Has aprobado el mini quiz con una calificación de {finalScore}/10.</p>
-              <p>Tu estudio inteligente ha sido validado y contabilizado.</p>
+          </div>
+          
+          <h2 className="results-title">
+            {wasTimeUp ? '¡Tiempo Agotado!' : (passed ? '¡Felicidades!' : 'Sigue Practicando')}
+          </h2>
+          
+          <div className="results-score-display">
+            <div className="score-circle">
+              <svg className="score-ring" width="200" height="200">
+                <circle
+                  className="score-ring-bg"
+                  stroke="#e0e0e0"
+                  strokeWidth="10"
+                  fill="transparent"
+                  r="90"
+                  cx="100"
+                  cy="100"
+                />
+                <circle
+                  className="score-ring-progress"
+                  stroke={passed ? '#00D4AA' : '#FF5757'}
+                  strokeWidth="10"
+                  fill="transparent"
+                  r="90"
+                  cx="100"
+                  cy="100"
+                  style={{
+                    strokeDasharray: `${2 * Math.PI * 90}`,
+                    strokeDashoffset: `${2 * Math.PI * 90 * (1 - percentage / 100)}`,
+                    transform: 'rotate(-90deg)',
+                    transformOrigin: 'center'
+                  }}
+                />
+              </svg>
+              <div className="score-text">
+                <span className="score-number">{finalScore}</span>
+                <span className="score-divider">/</span>
+                <span className="score-total">10</span>
+              </div>
             </div>
-          ) : (
-            <div className="failure-message">
-              <p>Tu calificación fue de {finalScore}/10. Necesitas al menos 8/10 para aprobar.</p>
-              <p>Tu estudio inteligente no será contabilizado. Vuelve a intentarlo mañana.</p>
+          </div>
+          
+          <div className="results-stats-modern">
+            <div className="stat-card-modern">
+              <i className="fas fa-check-circle"></i>
+              <span className="stat-value">{correctAnswers}</span>
+              <span className="stat-label">Correctas</span>
             </div>
-          )}
-        </div>
-
-        <div className="results-actions">
+            <div className="stat-card-modern">
+              <i className="fas fa-times-circle"></i>
+              <span className="stat-value">{totalQuestions - correctAnswers}</span>
+              <span className="stat-label">Incorrectas</span>
+            </div>
+            <div className="stat-card-modern">
+              <i className="fas fa-percentage"></i>
+              <span className="stat-value">{percentage}%</span>
+              <span className="stat-label">Precisión</span>
+            </div>
+          </div>
+          
+          <div className="results-message-modern">
+            {wasTimeUp ? (
+              <>
+                <p className="message-main">Respondiste {questionsAnswered} de {totalQuestions} preguntas</p>
+                <p className="message-sub">
+                  {passed ? '✓ Tu estudio inteligente ha sido validado' : '✗ Necesitas 8/10 para validar tu estudio'}
+                </p>
+              </>
+            ) : passed ? (
+              <>
+                <p className="message-main">¡Excelente trabajo!</p>
+                <p className="message-sub">Tu estudio inteligente ha sido validado</p>
+              </>
+            ) : (
+              <>
+                <p className="message-main">No te desanimes</p>
+                <p className="message-sub">Inténtalo nuevamente mañana para validar tu estudio</p>
+              </>
+            )}
+          </div>
+          
           <button
-            className="action-button primary"
+            className="results-button-finish"
             onClick={() => onComplete(passed, finalScore)}
           >
-            <i className="fas fa-check"></i>
-            Finalizar
+            <span>Continuar</span>
+            <i className="fas fa-arrow-right"></i>
           </button>
         </div>
       </div>
@@ -972,29 +1057,48 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   // Renderizar introducción al mini quiz
   const renderMiniQuizIntro = () => {
     return (
-      <div className="mini-quiz-intro">
-        <div className="intro-header">
+      <div className="mini-quiz-intro-clean">
+        <div className="quiz-intro-header">
           <i className="fas fa-graduation-cap"></i>
           <h2>Mini Quiz de Validación</h2>
         </div>
         
-        <div className="intro-content">
+        <div className="quiz-intro-info">
+          <div className="quiz-stats-row">
+            <div className="quiz-stat">
+              <i className="fas fa-question-circle"></i>
+              <span>{QUIZ_CONFIG.QUESTION_COUNT} preguntas</span>
+            </div>
+            <div className="quiz-stat">
+              <i className="fas fa-clock"></i>
+              <span>45 segundos</span>
+            </div>
+            <div className="quiz-stat">
+              <i className="fas fa-trophy"></i>
+              <span>8/10 para aprobar</span>
+            </div>
+          </div>
+          
+          <div className="quiz-notebook-badge">
+            <i className="fas fa-book"></i>
+            <span>{notebookTitle}</span>
+          </div>
         </div>
         
-        <div className="intro-actions">
+        <div className="quiz-intro-actions">
           <button
-            className="action-button secondary"
+            className="quiz-btn-secondary"
             onClick={handleBackClick}
           >
             <i className="fas fa-arrow-left"></i>
             Regresar
           </button>
           <button
-            className="action-button primary"
+            className="quiz-btn-primary"
             onClick={beginMiniQuiz}
           >
+            Comenzar Quiz
             <i className="fas fa-play"></i>
-            Iniciar Mini Quiz
           </button>
         </div>
       </div>
