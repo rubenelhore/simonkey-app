@@ -44,7 +44,7 @@ const Notebooks: React.FC = () => {
   const isFreeUser = subscription === 'free';
 
   // Debug log para verificar el estado de isSuperAdmin
-  console.log('Notebooks - isSuperAdmin:', isSuperAdmin);
+  // console.log('Notebooks - isSuperAdmin:', isSuperAdmin);
 
   // UNIFICADO: Ya no redirigimos a estudiantes escolares, usamos la misma vista
   // Los estudiantes escolares ahora usan la misma interfaz que usuarios free/pro
@@ -571,39 +571,72 @@ const Notebooks: React.FC = () => {
   // Si estamos dentro de una materia, filtrar solo los notebooks de esa materia
   // Los profesores escolares no necesitan filtrado porque ya vienen filtrados del servicio
   if (materiaId && !isSchoolAdmin && !isTeacher) {
-    console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA');
-    console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
-    console.log('  - materiaId buscado:', materiaId);
-    console.log('  - isSchoolStudent:', isSchoolStudent);
+    // console.log('🔍 FILTRANDO NOTEBOOKS POR MATERIA');
+    // console.log('  - Notebooks antes de filtrar:', effectiveNotebooks.length);
+    // console.log('  - materiaId buscado:', materiaId);
+    // console.log('  - isSchoolStudent:', isSchoolStudent);
     
     effectiveNotebooks = effectiveNotebooks.filter(notebook => {
       // Para estudiantes escolares el campo es 'idMateria', para usuarios regulares es 'materiaId'
       const notebookMateriaId = isSchoolStudent ? notebook.idMateria : notebook.materiaId;
-      console.log(`  - Notebook ${notebook.id}: campo=${isSchoolStudent ? 'idMateria' : 'materiaId'}=${notebookMateriaId}, buscado=${materiaId}`);
+      // console.log(`  - Notebook ${notebook.id}: campo=${isSchoolStudent ? 'idMateria' : 'materiaId'}=${notebookMateriaId}, buscado=${materiaId}`);
       return notebookMateriaId === materiaId;
     });
     
-    console.log('  - Notebooks después de filtrar:', effectiveNotebooks.length);
-    console.log('  - Notebooks filtrados:', effectiveNotebooks.map(n => ({ id: n.id, title: n.title, idMateria: n.idMateria })));
+    // console.log('  - Notebooks después de filtrar:', effectiveNotebooks.length);
+    // console.log('  - Notebooks filtrados:', effectiveNotebooks.map(n => ({ id: n.id, title: n.title, idMateria: n.idMateria })));
   }
 
-  // Ahora sí, calcula el domainProgress para todos los cuadernos
+  // Calcular progreso bajo demanda para evitar bucles infinitos
+  const calculateProgressForNotebook = async (notebookId: string) => {
+    if (notebooksDomainProgress.has(notebookId)) return; // Ya calculado
+    
+    try {
+      const progress = await getDomainProgressForNotebook(notebookId);
+      setNotebooksDomainProgress(prev => new Map(prev).set(notebookId, progress));
+    } catch (error) {
+      console.error(`Error calculating progress for notebook ${notebookId}:`, error);
+    }
+  };
+
+  // Calcular progreso de todos los notebooks en paralelo
   useEffect(() => {
-    const calculateAllDomainProgress = async () => {
-      if (!effectiveNotebooks || effectiveNotebooks.length === 0) return;
-      const progressMap = new Map();
-      for (const notebook of effectiveNotebooks) {
-        try {
-          const progress = await getDomainProgressForNotebook(notebook.id);
-          progressMap.set(notebook.id, progress);
-        } catch (error) {
-          console.error(`Error calculating progress for notebook ${notebook.id}:`, error);
+    if (!effectiveNotebooks || effectiveNotebooks.length === 0) return;
+    
+    const timeoutId = setTimeout(async () => {
+      // Calcular todos los progresos en paralelo
+      const progressPromises = effectiveNotebooks.map(async (notebook) => {
+        if (!notebooksDomainProgress.has(notebook.id)) {
+          try {
+            const progress = await getDomainProgressForNotebook(notebook.id);
+            return { notebookId: notebook.id, progress };
+          } catch (error) {
+            console.error(`Error calculating progress for notebook ${notebook.id}:`, error);
+            return null;
+          }
         }
+        return null;
+      });
+
+      // Esperar a que todos terminen
+      const results = await Promise.all(progressPromises);
+      
+      // Actualizar todos los progresos al mismo tiempo
+      if (results.some(result => result !== null)) {
+        setNotebooksDomainProgress(prev => {
+          const newMap = new Map(prev);
+          results.forEach(result => {
+            if (result) {
+              newMap.set(result.notebookId, result.progress);
+            }
+          });
+          return newMap;
+        });
       }
-      setNotebooksDomainProgress(progressMap);
-    };
-    calculateAllDomainProgress();
-  }, [notebooks?.length, schoolNotebooks?.length, adminNotebooks?.length, enrolledMateriaNotebooks?.length, user?.uid, materiaId]);
+    }, 500); // Esperar 500ms antes de calcular
+
+    return () => clearTimeout(timeoutId);
+  }, [effectiveNotebooks?.length]); // Solo depende de la longitud
   
   // Función temporal de debug
   useEffect(() => {

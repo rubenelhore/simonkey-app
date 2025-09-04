@@ -97,6 +97,11 @@ const Materias: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isProcessingUrl, setIsProcessingUrl] = useState(false);
+  
+  // Estados para el modal de confirmación de desenrolarse
+  const [showUnenrollModal, setShowUnenrollModal] = useState(false);
+  const [unenrollMateriaId, setUnenrollMateriaId] = useState<string>('');
+  const [unenrollMateriaTitle, setUnenrollMateriaTitle] = useState<string>('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMateriaForInvite, setSelectedMateriaForInvite] = useState<{id: string, title: string} | null>(null);
   
@@ -874,22 +879,33 @@ const Materias: React.FC = () => {
     }
   }, [isSchoolStudent, isSchoolAdmin, userProfile, user]);
 
-  const handleUnenroll = useCallback(async (materiaId: string) => {
-    if (!user) return;
+  // Función para mostrar el modal de confirmación
+  const handleUnenrollClick = useCallback((materiaId: string, materiaTitle: string) => {
+    setUnenrollMateriaId(materiaId);
+    setUnenrollMateriaTitle(materiaTitle);
+    setShowUnenrollModal(true);
+  }, []);
+
+  // Función para confirmar el desenrolamiento
+  const confirmUnenroll = useCallback(async () => {
+    if (!user || !unenrollMateriaId) return;
     
     try {
       // Buscar el enrollment activo del usuario en esta materia
       const enrollmentsQuery = query(
         collection(db, 'enrollments'),
         where('studentId', '==', user.uid),
-        where('materiaId', '==', materiaId),
+        where('materiaId', '==', unenrollMateriaId),
         where('status', '==', 'active')
       );
       
       const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
       
       if (enrollmentsSnapshot.empty) {
-        alert('No se encontró la inscripción en esta materia');
+        setShowUnenrollModal(false);
+        setToastMessage('No se encontró la inscripción en esta materia');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
         return;
       }
       
@@ -900,17 +916,35 @@ const Materias: React.FC = () => {
         unenrolledAt: serverTimestamp()
       });
       
-      console.log(`✅ Usuario desenrolado de la materia ${materiaId}`);
+      console.log(`✅ Usuario desenrolado de la materia ${unenrollMateriaId}`);
+      
+      // Cerrar modal
+      setShowUnenrollModal(false);
+      setUnenrollMateriaId('');
+      setUnenrollMateriaTitle('');
       
       // Refrescar la lista de materias
       setRefreshTrigger(prev => prev + 1);
       
-      alert('Te has desenrolado exitosamente de la materia');
+      // Mostrar toast de éxito
+      setToastMessage('Te has desenrolado exitosamente de la materia');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
       console.error('Error desenrolando de la materia:', error);
-      alert('Error al desenrolarse de la materia. Por favor, intenta de nuevo.');
+      setShowUnenrollModal(false);
+      setToastMessage('Error al desenrolarse de la materia. Por favor, intenta de nuevo.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
-  }, [user]);
+  }, [user, unenrollMateriaId]);
+
+  const handleUnenroll = useCallback(async (materiaId: string) => {
+    // Esta función ahora solo busca el título y llama a handleUnenrollClick
+    const materia = materias.find(m => m.id === materiaId);
+    const materiaTitle = materia?.title || 'esta materia';
+    handleUnenrollClick(materiaId, materiaTitle);
+  }, [materias, handleUnenrollClick]);
 
   const handleEdit = useCallback(async (id: string, newTitle: string) => {
     // Los estudiantes escolares no pueden editar materias
@@ -1148,7 +1182,7 @@ const Materias: React.FC = () => {
 
   // Efecto para bloquear el body cuando cualquier modal está abierto
   useEffect(() => {
-    if (showCreateModal || showJoinModal) {
+    if (showCreateModal || showJoinModal || showUnenrollModal) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
@@ -1158,7 +1192,7 @@ const Materias: React.FC = () => {
     return () => {
       document.body.classList.remove('modal-open');
     };
-  }, [showCreateModal, showJoinModal]);
+  }, [showCreateModal, showJoinModal, showUnenrollModal]);
 
   if (loading || authLoading) {
     return (
@@ -1720,6 +1754,68 @@ const Materias: React.FC = () => {
                     showTitle={false}
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de confirmación para desenrolarse */}
+      {showUnenrollModal && (
+        <div className="modal-overlay" onClick={() => setShowUnenrollModal(false)}>
+          <div className="modal-content create-materia-modal-new" onClick={(e) => e.stopPropagation()}>
+            {/* Header simplificado */}
+            <div className="modal-header-simple">
+              <button 
+                className="close-button-simple" 
+                onClick={() => setShowUnenrollModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-main-content">
+              <div className="modal-icon">
+                <i className="fas fa-user-times" style={{ color: '#dc3545', fontSize: '2.5rem' }}></i>
+              </div>
+              <h2 className="modal-title">Confirmar Desenrolamiento</h2>
+              <p className="modal-subtitle">
+                ¿Estás seguro de que quieres desenrolarte de la materia <strong>"{unenrollMateriaTitle}"</strong>?
+              </p>
+              
+              <div className="confirmation-warning" style={{
+                background: '#fff3cd',
+                border: '1px solid #ffeaa7',
+                borderRadius: '8px',
+                padding: '16px',
+                margin: '20px 0',
+                color: '#856404'
+              }}>
+                <i className="fas fa-exclamation-triangle" style={{ marginRight: '8px', color: '#f39c12' }}></i>
+                Esta acción no se puede deshacer. Perderás acceso a todos los contenidos de esta materia.
+              </div>
+              
+              <div className="modal-actions" style={{ gap: '12px', marginTop: '24px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowUnenrollModal(false)}
+                  className="btn-cancel"
+                  style={{ flex: '1' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmUnenroll}
+                  className="btn-create"
+                  style={{ 
+                    flex: '1',
+                    background: '#dc3545',
+                    borderColor: '#dc3545'
+                  }}
+                >
+                  Desenrolarse
+                </button>
               </div>
             </div>
           </div>

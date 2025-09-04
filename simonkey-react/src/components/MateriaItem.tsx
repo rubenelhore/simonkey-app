@@ -79,10 +79,8 @@ const MateriaItem: React.FC<MateriaItemProps> = ({
 
   const handleUnenroll = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("¿Estás seguro de que deseas desenrolarte de esta materia? Ya no tendrás acceso a su contenido.")) {
-      if (onUnenroll) {
-        onUnenroll(id);
-      }
+    if (onUnenroll) {
+      onUnenroll(id);
     }
   };
 

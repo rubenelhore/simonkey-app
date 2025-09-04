@@ -516,22 +516,6 @@ const MateriaList: React.FC<MateriaListProps> = ({
             ))}
           </div>
           
-          {/* Botón para calcular progreso de todas las materias */}
-          {onCalculateAllProgress && materias.some(m => !m.domainProgress) && (
-            <div className="calculate-all-progress-section">
-              <button 
-                className="calculate-all-progress-button"
-                onClick={onCalculateAllProgress}
-                disabled={Object.values(progressLoadingStates).some(loading => loading)}
-              >
-                <i className="fas fa-chart-line"></i>
-                {Object.values(progressLoadingStates).some(loading => loading) 
-                  ? 'Calculando progreso...' 
-                  : `Calcular progreso de ${materias.filter(m => !m.domainProgress).length} materias restantes`
-                }
-              </button>
-            </div>
-          )}
         </div>
       )}
 
