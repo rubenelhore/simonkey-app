@@ -1,5 +1,5 @@
 // src/pages/Materias.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, Timestamp, getDoc } from 'firebase/firestore';
@@ -16,6 +16,7 @@ import MateriaList from '../components/MateriaList';
 import { useAutoMigration } from '../hooks/useAutoMigration';
 // import { useSchoolStudentData } from '../hooks/useSchoolStudentData'; // deprecated
 import { getDomainProgressForMateria } from '../utils/domainProgress';
+import { cachedQuery, optimizedCount, batchedQuery } from '../utils/firebaseOptimizer';
 import InviteCodeManager from '../components/InviteCodeManager';
 import EnrolledStudentsManager from '../components/EnrolledStudentsManager';
 
@@ -41,25 +42,17 @@ interface Materia {
 }
 
 const Materias: React.FC = () => {
-  console.log('🎯 MATERIAS COMPONENT MOUNTED - TEACHER VERSION');
-  
   const { user, userProfile, loading: authLoading } = useAuth();
   const { isSchoolUser, isSchoolStudent, isSchoolAdmin, isTeacher } = useUserType();
   const [materias, setMaterias] = useState<Materia[]>([]);
   // Inicializar loading basado en el tipo de usuario
-  const [loading, setLoading] = useState(() => {
-    // Para profesores escolares, empezar con true ya que cargaremos sus materias
-    if (isTeacher) return true;
-    // Para otros usuarios también empezar con true
-    return true;
-  });
-  
-  // Log inmediato del estado de loading
-  console.log('📌 Loading state actual:', loading);
+  const [loading, setLoading] = useState(true);
+  const [materiasLoaded, setMateriasLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [progressLoadingStates, setProgressLoadingStates] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const { migrationStatus, migrationMessage } = useAutoMigration();
   // const { schoolSubjects, schoolNotebooks, loading: schoolLoading } = useSchoolStudentData(); // deprecated
@@ -67,10 +60,6 @@ const Materias: React.FC = () => {
   const schoolNotebooks: any[] = [];
   const schoolLoading = false;
   
-  console.log('📚 Materias.tsx - Estado actual:');
-  console.log('  - isTeacher:', isTeacher);
-  console.log('  - isSchoolStudent:', isSchoolStudent);
-  console.log('  - user:', user?.uid);
   // console.log('📚 user:', user);
   // console.log('📚 userProfile:', userProfile);
   // console.log('📚 isSchoolStudent:', isSchoolStudent);
@@ -106,75 +95,124 @@ const Materias: React.FC = () => {
     '#6147FF', '#FF6B6B', '#4CAF50', '#FFD700', '#FF8C00', '#9C27B0'
   ];
 
-  // Cargar materias del usuario
-  useEffect(() => {
-    const loadMaterias = async () => {
-      console.log('📂 useEffect loadMaterias - Iniciando');
-      console.log('  - user:', user?.uid);
-      console.log('  - isTeacher:', isTeacher);
-      console.log('  - isSchoolStudent:', isSchoolStudent);
-      console.log('  - isSchoolAdmin:', isSchoolAdmin);
-      
-      if (!user || authLoading) {
-        console.log('  ❌ No hay usuario o aún cargando auth, saliendo');
-        setLoading(false);
-        return;
-      }
-      
-      // Verificar que el usuario tenga un token válido antes de hacer consultas
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        console.log('  ❌ No hay currentUser en Firebase Auth, esperando...');
-        setLoading(false);
-        return;
-      }
+  // Función optimizada para cargar materias básicas rápidamente
+  const loadBasicMaterias = useCallback(async () => {
+    if (!user || authLoading) {
+      console.log('  ❌ No hay usuario o aún cargando auth, saliendo');
+      setLoading(false);
+      return;
+    }
+    
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.log('  ❌ No hay currentUser en Firebase Auth, esperando...');
+      setLoading(false);
+      return;
+    }
 
-      // Verificar que el token del usuario no esté expirado
+    // Verificar token
+    try {
+      await currentUser.getIdToken(false);
+      console.log('  ✅ Token de usuario válido');
+    } catch (error) {
+      console.log('  ⚠️ Error verificando token, refrescando...', error);
       try {
-        await currentUser.getIdToken(false); // false = no force refresh, solo verificar
-        console.log('  ✅ Token de usuario válido');
-      } catch (error) {
-        console.log('  ⚠️ Error verificando token, refrescando...', error);
-        try {
-          await currentUser.getIdToken(true); // true = force refresh
-          console.log('  ✅ Token refrescado exitosamente');
-        } catch (refreshError) {
-          console.log('  ❌ Error refrescando token:', refreshError);
-          setLoading(false);
-          return;
+        await currentUser.getIdToken(true);
+        console.log('  ✅ Token refrescado exitosamente');
+      } catch (refreshError) {
+        console.log('  ❌ Error refrescando token:', refreshError);
+        setLoading(false);
+        return;
+      }
+    }
+    
+    setLoading(true);
+    try {
+      // PASO 1: Cargar materias básicas sin datos pesados
+      const [materiasSnap, enrollmentsSnap] = await Promise.all([
+        getDocs(query(
+          collection(db, 'materias'),
+          where('userId', '==', user.uid)
+        )),
+        getDocs(query(
+          collection(db, 'enrollments'),
+          where('studentId', '==', user.uid),
+          where('status', '==', 'active')
+        ))
+      ]);
+
+      // Construir materias básicas sin conteos pesados
+      const materiasData: Materia[] = materiasSnap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        title: docSnap.data().title,
+        color: docSnap.data().color || '#6147FF',
+        category: docSnap.data().category,
+        userId: docSnap.data().userId,
+        createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+        updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+        notebookCount: 0, // Se actualizará después
+        studentCount: 0,  // Se actualizará después
+        isEnrolled: false
+      }));
+
+      // Agregar materias inscritas básicas
+      for (const enrollmentDoc of enrollmentsSnap.docs) {
+        const enrollmentData = enrollmentDoc.data();
+        const materiaId = enrollmentData.materiaId;
+        
+        if (!materiasData.find(m => m.id === materiaId)) {
+          try {
+            const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+            if (materiaDoc.exists()) {
+              const materiaData = materiaDoc.data();
+              materiasData.push({
+                id: materiaId,
+                title: materiaData.title || enrollmentData.materiaName || 'Materia del profesor',
+                color: materiaData.color || '#6147FF',
+                category: materiaData.category || 'enrolled',
+                userId: enrollmentData.teacherId,
+                createdAt: materiaData.createdAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
+                updatedAt: materiaData.updatedAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
+                notebookCount: 0, // Se actualizará después
+                conceptCount: 0,  // Se actualizará después
+                teacherName: '', // Se actualizará después
+                isEnrolled: true
+              });
+            }
+          } catch (error) {
+            console.error(`Error loading enrolled materia ${materiaId}:`, error);
+          }
         }
       }
-      
-      // Ya no verificamos isSchoolStudent, isTeacher, isSchoolAdmin
-      // porque el sistema escolar fue migrado
-      
-      console.log('  ✅ Cargando materias para usuario regular (no escolar)');
-      console.log('  🔍 isTeacher del hook:', isTeacher);
-      console.log('  🔍 userProfile?.isTeacher:', userProfile?.isTeacher);
-      setLoading(true);
-      try {
-        // Usar el isTeacher del hook useUserType que ya está disponible
-        // No redeclarar la variable isTeacher aquí
-        
-        // Cargar materias propias, notebooks y enrollments en paralelo
-        const [materiasSnap, notebooksSnap, enrollmentsSnap] = await Promise.all([
-          getDocs(query(
-            collection(db, 'materias'),
-            where('userId', '==', user.uid)
-          )),
-          getDocs(query(
-            collection(db, 'notebooks'),
-            where('userId', '==', user.uid)
-          )),
-          // Cargar materias donde el usuario está inscrito como estudiante
-          getDocs(query(
-            collection(db, 'enrollments'),
-            where('studentId', '==', user.uid),
-            where('status', '==', 'active')
-          ))
-        ]);
 
-        // Crear un mapa de conteo de notebooks por materiaId
+      // MOSTRAR MATERIAS INMEDIATAMENTE
+      setMaterias(materiasData);
+      setError(null);
+      console.log('  ✅ Materias básicas cargadas:', materiasData.length);
+      setMateriasLoaded(true);
+      setLoading(false); // Quitar loading inmediatamente
+      
+      // PASO 2: Cargar datos adicionales en segundo plano
+      loadAdditionalData(materiasData);
+      
+    } catch (err) {
+      console.error('❌ Error cargando materias:', err);
+      setError(err as Error);
+      setLoading(false);
+      setMateriasLoaded(true);
+    }
+  }, [user, authLoading, isTeacher]);
+
+  // Función para cargar datos adicionales en segundo plano
+  const loadAdditionalData = useCallback(async (currentMaterias: Materia[]) => {
+    if (!user) return;
+    
+    try {
+      // Cargar notebooks para materias propias
+      const notebooksPromise = getDocs(query(
+        collection(db, 'notebooks'),
+        where('userId', '==', user.uid)
+      )).then(notebooksSnap => {
         const notebookCountMap: Record<string, number> = {};
         notebooksSnap.docs.forEach(doc => {
           const materiaId = doc.data().materiaId;
@@ -182,210 +220,186 @@ const Materias: React.FC = () => {
             notebookCountMap[materiaId] = (notebookCountMap[materiaId] || 0) + 1;
           }
         });
+        return notebookCountMap;
+      });
 
-        // Construir las materias propias con su conteo de notebooks
-        const materiasData: Materia[] = await Promise.all(
-          materiasSnap.docs.map(async (docSnap) => {
-            const materiaData = {
-              id: docSnap.id,
-              title: docSnap.data().title,
-              color: docSnap.data().color || '#6147FF',
-              category: docSnap.data().category,
-              userId: docSnap.data().userId,
-              createdAt: docSnap.data().createdAt?.toDate() || new Date(),
-              updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
-              notebookCount: notebookCountMap[docSnap.id] || 0,
-              studentCount: 0,
-              isEnrolled: false // Materia propia del usuario (no inscrita)
-            };
-            
-            // Si es profesor, contar estudiantes inscritos en esta materia
-            if (isTeacher) {
-              try {
-                const enrollmentsQuery = query(
-                  collection(db, 'enrollments'),
-                  where('teacherId', '==', user.uid),
-                  where('materiaId', '==', docSnap.id),
-                  where('status', '==', 'active')
-                );
-                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
-                materiaData.studentCount = enrollmentsSnapshot.size;
-                
-                // Log solo si hay estudiantes
-                if (enrollmentsSnapshot.size > 0) {
-                  console.log(`📊 Materia "${materiaData.title}": ${enrollmentsSnapshot.size} estudiantes inscritos`);
-                }
-              } catch (error) {
-                console.error(`Error counting students for materia ${docSnap.id}:`, error);
-              }
-            }
-            
-            return materiaData;
-          })
-        );
-
-        // Agregar materias donde el usuario está inscrito como estudiante
-        for (const enrollmentDoc of enrollmentsSnap.docs) {
-          const enrollmentData = enrollmentDoc.data();
-          const materiaId = enrollmentData.materiaId;
-          const materiaName = enrollmentData.materiaName;
-          const teacherId = enrollmentData.teacherId;
-          
-          // No agregar si ya existe en las materias propias
-          if (!materiasData.find(m => m.id === materiaId)) {
-            try {
-              // Obtener la información real de la materia del profesor
-              const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
-              
-              // Obtener información del profesor
-              let teacherName = '';
-              try {
-                const teacherDoc = await getDoc(doc(db, 'users', teacherId));
-                if (teacherDoc.exists()) {
-                  const teacherData = teacherDoc.data();
-                  teacherName = teacherData.displayName || teacherData.nombre || 'Profesor';
-                }
-              } catch (error) {
-                console.error(`Error loading teacher info for ${teacherId}:`, error);
-              }
-              
-              // Contar notebooks del PROFESOR para esta materia (no del estudiante)
-              const teacherNotebooksQuery = query(
-                collection(db, 'notebooks'),
-                where('userId', '==', teacherId),
-                where('materiaId', '==', materiaId)
-              );
-              const teacherNotebooksSnap = await getDocs(teacherNotebooksQuery);
-              
-              // Contar conceptos totales en todos los notebooks del profesor para esta materia
-              let totalConceptCount = 0;
-              for (const notebookDoc of teacherNotebooksSnap.docs) {
-                const notebookId = notebookDoc.id;
-                try {
-                  // Buscar conceptos en la subcolección concepts del notebook
-                  const conceptsQuery = collection(db, 'notebooks', notebookId, 'concepts');
-                  const conceptsSnapshot = await getDocs(conceptsQuery);
-                  totalConceptCount += conceptsSnapshot.size;
-                  
-                  // También buscar en la colección conceptos (legacy)
-                  const legacyConceptsQuery = query(
-                    collection(db, 'conceptos'),
-                    where('cuadernoId', '==', notebookId)
-                  );
-                  const legacyConceptsSnapshot = await getDocs(legacyConceptsQuery);
-                  
-                  // Los documentos de conceptos legacy pueden tener arrays de conceptos
-                  legacyConceptsSnapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    if (data.conceptos && Array.isArray(data.conceptos)) {
-                      totalConceptCount += data.conceptos.length;
-                    } else {
-                      // Si es un concepto individual
-                      totalConceptCount += 1;
-                    }
-                  });
-                } catch (error) {
-                  console.error(`Error counting concepts for notebook ${notebookId}:`, error);
-                }
-              }
-              
-              if (materiaDoc.exists()) {
-                const materiaData = materiaDoc.data();
-                materiasData.push({
-                  id: materiaId,
-                  title: materiaData.title || materiaName || 'Materia del profesor',
-                  color: materiaData.color || '#6147FF', // Usar el color real de la materia
-                  category: materiaData.category || 'enrolled',
-                  userId: teacherId, // El profesor es el dueño
-                  createdAt: materiaData.createdAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
-                  updatedAt: materiaData.updatedAt?.toDate() || enrollmentData.enrolledAt?.toDate() || new Date(),
-                  notebookCount: teacherNotebooksSnap.size, // Cuadernos del profesor, no del estudiante
-                  conceptCount: totalConceptCount, // Agregar conteo de conceptos
-                  teacherName: teacherName, // Agregar nombre del profesor
-                  isEnrolled: true // Marcar como materia inscrita
-                });
-              } else {
-                // Si por alguna razón no existe la materia, usar datos del enrollment
-                materiasData.push({
-                  id: materiaId,
-                  title: materiaName || 'Materia del profesor',
-                  color: '#6147FF',
-                  category: 'enrolled',
-                  userId: teacherId,
-                  createdAt: enrollmentData.enrolledAt?.toDate() || new Date(),
-                  updatedAt: enrollmentData.enrolledAt?.toDate() || new Date(),
-                  notebookCount: 0,
-                  conceptCount: 0, // Agregar conteo de conceptos
-                  teacherName: teacherName, // Agregar nombre del profesor
-                  isEnrolled: true // Marcar como materia inscrita
-                });
-              }
-            } catch (error) {
-              console.error(`Error loading enrolled materia ${materiaId}:`, error);
-            }
+      // Cargar conteos de estudiantes para profesores (optimizado)
+      const studentCountsPromise = isTeacher ? batchedQuery(
+        currentMaterias.filter(m => !m.isEnrolled),
+        async (materia) => {
+          try {
+            const count = await optimizedCount('enrollments', [
+              { field: 'teacherId', operator: '==', value: user.uid },
+              { field: 'materiaId', operator: '==', value: materia.id },
+              { field: 'status', operator: '==', value: 'active' }
+            ]);
+            return { id: materia.id, count };
+          } catch (error) {
+            console.error(`Error counting students for ${materia.id}:`, error);
+            return { id: materia.id, count: 0 };
           }
-        }
+        },
+        3, // lotes de 3 materias
+        150 // 150ms entre lotes
+      ) : Promise.resolve([]);
 
-        // Calcular el dominio para cada materia en paralelo
-        const materiasWithProgress = await Promise.all(
-          materiasData.map(async (materia) => {
-            try {
-              const domainProgress = await getDomainProgressForMateria(materia.id);
-              return { ...materia, domainProgress };
-            } catch (error) {
-              console.error(`Error calculating domain for materia ${materia.id}:`, error);
-              return materia;
-            }
-          })
-        );
+      // Cargar información de profesores para materias inscritas (optimizado)
+      const teacherInfoPromise = batchedQuery(
+        currentMaterias.filter(m => m.isEnrolled),
+        async (materia) => {
+          try {
+            const teacherDoc = await getDoc(doc(db, 'users', materia.userId));
+            const teacherName = teacherDoc.exists() 
+              ? (teacherDoc.data().displayName || teacherDoc.data().nombre || 'Profesor')
+              : 'Profesor';
+            return { id: materia.id, teacherName };
+          } catch (error) {
+            console.error(`Error loading teacher for ${materia.id}:`, error);
+            return { id: materia.id, teacherName: 'Profesor' };
+          }
+        },
+        5, // lotes de 5 profesores
+        100 // 100ms entre lotes
+      );
 
-        setMaterias(materiasWithProgress);
-        setError(null);
-        console.log('  ✅ Materias cargadas exitosamente:', materiasWithProgress.length);
-      } catch (err) {
-        console.error('❌ Error cargando materias:', err);
+      // Ejecutar todas las promesas en paralelo
+      const [notebookCounts, studentCounts, teacherInfo] = await Promise.all([
+        notebooksPromise,
+        studentCountsPromise,
+        teacherInfoPromise
+      ]);
+
+      // Actualizar materias con los datos cargados
+      setMaterias(prev => prev.map(materia => {
+        const updates: Partial<Materia> = {};
         
-        // Verificar si es un error de permisos de Firestore
-        if (err instanceof Error) {
-          if (err.message.includes('Missing or insufficient permissions')) {
-            console.error('🔒 Error de permisos - verificando autenticación...');
-            // Intentar obtener token fresco
-            try {
-              const currentUser = auth.currentUser;
-              if (currentUser) {
-                await currentUser.getIdToken(true);
-                console.log('🔄 Token refrescado, reintentando en 1 segundo...');
-                // Reintentar después de un breve delay
-                setTimeout(() => {
-                  setRefreshTrigger(prev => prev + 1);
-                }, 1000);
-                return;
-              }
-            } catch (tokenError) {
-              console.error('❌ Error refrescando token:', tokenError);
-            }
+        // Actualizar notebook count para materias propias
+        if (!materia.isEnrolled) {
+          updates.notebookCount = notebookCounts[materia.id] || 0;
+        }
+        
+        // Actualizar student count para profesores
+        if (isTeacher && !materia.isEnrolled) {
+          const studentCount = studentCounts.find(sc => sc.id === materia.id);
+          if (studentCount) {
+            updates.studentCount = studentCount.count;
           }
         }
         
-        setError(err as Error);
-      } finally {
-        console.log('  ✅ Finalizando carga de materias, setLoading(false)');
-        setLoading(false);
+        // Actualizar teacher name para materias inscritas
+        if (materia.isEnrolled) {
+          const teacher = teacherInfo.find(ti => ti.id === materia.id);
+          if (teacher) {
+            updates.teacherName = teacher.teacherName;
+          }
+        }
+        
+        return { ...materia, ...updates };
+      }));
+      
+      console.log('✅ Datos adicionales cargados');
+      
+    } catch (error) {
+      console.error('Error loading additional data:', error);
+    }
+  }, [user, isTeacher]);
+
+  // Función para calcular progreso de dominio bajo demanda
+  const calculateDomainProgress = useCallback(async (materiaId: string) => {
+    // Evitar cálculos duplicados
+    if (progressLoadingStates[materiaId]) return;
+    
+    setProgressLoadingStates(prev => ({ ...prev, [materiaId]: true }));
+    
+    try {
+      const domainProgress = await getDomainProgressForMateria(materiaId);
+      
+      setMaterias(prev => prev.map(materia => 
+        materia.id === materiaId 
+          ? { ...materia, domainProgress }
+          : materia
+      ));
+      
+      console.log(`✅ Progreso calculado para materia ${materiaId}`);
+    } catch (error) {
+      console.error(`Error calculating domain for materia ${materiaId}:`, error);
+    } finally {
+      setProgressLoadingStates(prev => ({ ...prev, [materiaId]: false }));
+    }
+  }, [progressLoadingStates]);
+
+  // Efecto para calcular progreso de las primeras 3 materias después de cargar
+  useEffect(() => {
+    if (materiasLoaded && materias.length > 0 && !loading) {
+      // Calcular progreso solo para las primeras 3 materias (las más visibles)
+      const visibleMaterias = materias.slice(0, 3);
+      
+      // Retrasar ligeramente para no bloquear la UI
+      setTimeout(() => {
+        visibleMaterias.forEach(materia => {
+          if (!materia.domainProgress) {
+            calculateDomainProgress(materia.id);
+          }
+        });
+      }, 500);
+    }
+  }, [materiasLoaded, materias, loading, calculateDomainProgress]);
+
+  // Función para calcular progreso de todas las materias restantes
+  const calculateAllRemainingProgress = useCallback(async () => {
+    const materiasWithoutProgress = materias.filter(materia => !materia.domainProgress);
+    
+    if (materiasWithoutProgress.length === 0) {
+      console.log('✅ Todas las materias ya tienen progreso calculado');
+      return;
+    }
+    
+    console.log(`🔄 Calculando progreso para ${materiasWithoutProgress.length} materias restantes...`);
+    
+    // Calcular en lotes de 2 para no saturar
+    for (let i = 0; i < materiasWithoutProgress.length; i += 2) {
+      const batch = materiasWithoutProgress.slice(i, i + 2);
+      
+      await Promise.all(
+        batch.map(materia => calculateDomainProgress(materia.id))
+      );
+      
+      // Pausa entre lotes
+      if (i + 2 < materiasWithoutProgress.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
-    };
-    loadMaterias();
-  }, [user, refreshTrigger, isSchoolStudent, isTeacher, isSchoolAdmin, authLoading]);
+    }
+    
+    console.log('✅ Progreso calculado para todas las materias');
+  }, [materias, calculateDomainProgress]);
 
-  // Log para debugging
-  console.log('🔍 Materias - Estado actual del componente:', {
-    loading,
-    authLoading,
-    schoolLoading,
-    isTeacher,
-    materiasLength: materias.length,
-    isSchoolStudent,
-    isSchoolAdmin
-  });
+  // Función para manejar cuando una materia entra en el viewport
+  const handleMateriaInView = useCallback((materiaId: string) => {
+    const materia = materias.find(m => m.id === materiaId);
+    if (materia && !materia.domainProgress && !progressLoadingStates[materiaId]) {
+      console.log(`👁️ Materia ${materiaId} visible, calculando progreso...`);
+      calculateDomainProgress(materiaId);
+    }
+  }, [materias, calculateDomainProgress, progressLoadingStates]);
+
+  // Efecto principal para cargar materias
+  useEffect(() => {
+    loadBasicMaterias();
+  }, [loadBasicMaterias, refreshTrigger]);
+
+  // Memoizar materias filtradas para evitar re-renders
+  const filteredMaterias = useMemo(() => {
+    if (!selectedCategory) return materias;
+    return materias.filter(materia => materia.category === selectedCategory);
+  }, [materias, selectedCategory]);
+
+  // Memoizar si debemos mostrar el botón crear
+  const shouldShowCreateButton = useMemo(() => {
+    if (isSchoolStudent) return false;
+    if (isSchoolAdmin) return !!selectedTeacher && selectedStudents.length > 0;
+    return true;
+  }, [isSchoolStudent, isSchoolAdmin, selectedTeacher, selectedStudents.length]);
+
 
   // Función para cargar exámenes de estudiante - OPTIMIZADA
   const loadStudentExams = async () => {
@@ -710,7 +724,7 @@ const Materias: React.FC = () => {
     loadFilteredMaterias();
   }, [isSchoolAdmin, userProfile, user, selectedTeacher, selectedStudents, refreshTrigger]);
 
-  const handleCreate = async (title: string, color: string, category?: string) => {
+  const handleCreate = useCallback(async (title: string, color: string, category?: string) => {
     // Los estudiantes escolares no pueden crear materias
     if (isSchoolStudent) return;
     if (!user) return;
@@ -775,9 +789,9 @@ const Materias: React.FC = () => {
       console.error('Error creating materia:', error);
       throw error;
     }
-  };
+  }, [isSchoolStudent, user, isSchoolAdmin, selectedTeacher, userProfile, selectedStudents]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     // Los estudiantes escolares no pueden eliminar materias
     if (isSchoolStudent) return;
     try {
@@ -848,9 +862,9 @@ const Materias: React.FC = () => {
       console.error('Error deleting materia:', error);
       alert('Error al eliminar la materia. Por favor, intenta de nuevo.');
     }
-  };
+  }, [isSchoolStudent, isSchoolAdmin, userProfile, user]);
 
-  const handleUnenroll = async (materiaId: string) => {
+  const handleUnenroll = useCallback(async (materiaId: string) => {
     if (!user) return;
     
     try {
@@ -886,9 +900,9 @@ const Materias: React.FC = () => {
       console.error('Error desenrolando de la materia:', error);
       alert('Error al desenrolarse de la materia. Por favor, intenta de nuevo.');
     }
-  };
+  }, [user]);
 
-  const handleEdit = async (id: string, newTitle: string) => {
+  const handleEdit = useCallback(async (id: string, newTitle: string) => {
     // Los estudiantes escolares no pueden editar materias
     if (isSchoolStudent) return;
     if (!user) return;
@@ -916,9 +930,9 @@ const Materias: React.FC = () => {
       console.error('Error updating materia:', error);
       throw error;
     }
-  };
+  }, [isSchoolStudent, user]);
 
-  const handleColorChange = async (id: string, newColor: string) => {
+  const handleColorChange = useCallback(async (id: string, newColor: string) => {
     // Los estudiantes escolares no pueden cambiar colores
     if (isSchoolStudent) return;
     if (!user) return;
@@ -934,49 +948,55 @@ const Materias: React.FC = () => {
     } catch (error) {
       console.error('Error updating materia color:', error);
     }
-  };
+  }, [isSchoolStudent, user]);
 
-  const handleView = (materiaId: string) => {
+  const handleView = useCallback((materiaId: string) => {
+    // Calcular progreso antes de navegar si no existe
+    const materia = materias.find(m => m.id === materiaId);
+    if (materia && !materia.domainProgress && !progressLoadingStates[materiaId]) {
+      calculateDomainProgress(materiaId);
+    }
+    
     // Find the materia to get its name
     // Si es admin, buscar en adminMaterias, si no en materias
     const materiasList = isSchoolAdmin ? adminMaterias : materias;
-    const materia = materiasList.find(m => m.id === materiaId);
-    if (!materia) return;
+    const materiaToView = materiasList.find(m => m.id === materiaId);
+    if (!materiaToView) return;
     
     // Los estudiantes escolares van a una página especial que muestra tanto notebooks como exámenes
     if (isSchoolStudent) {
-      const encodedName = encodeURIComponent(materia.title);
+      const encodedName = encodeURIComponent(materiaToView.title);
       navigate(`/school/student/materia/${encodedName}`);
     } else if (isSchoolAdmin) {
       // Los admin navegan a la vista de notebooks del profesor
       navigate(`/school/teacher/materias/${materiaId}/notebooks`);
     } else {
       // Los demás usuarios navegan a la ruta normal usando nombre-id de la materia
-      const materiaName = materia.title || materia.nombre;
+      const materiaName = materiaToView.title || materiaToView.nombre;
       const encodedNameWithId = encodeURIComponent(`${materiaName}-${materiaId}`);
       navigate(`/materias/${encodedNameWithId}/notebooks`);
     }
-  };
+  }, [materias, adminMaterias, isSchoolAdmin, isSchoolStudent, navigate, calculateDomainProgress, progressLoadingStates]);
 
-  const handleManageInvites = (materiaId: string, materiaTitle: string) => {
+  const handleManageInvites = useCallback((materiaId: string, materiaTitle: string) => {
     setSelectedMateriaForInvite({ id: materiaId, title: materiaTitle });
     setShowInviteModal(true);
-  };
+  }, []);
 
-  const handleCategorySelect = (category: string | null) => {
+  const handleCategorySelect = useCallback((category: string | null) => {
     setSelectedCategory(category);
-  };
+  }, []);
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = useCallback(() => {
     setShowCategoryModal(true);
-  };
+  }, []);
 
-  const handleClearSelectedCategory = () => {
+  const handleClearSelectedCategory = useCallback(() => {
     setSelectedCategory(null);
-  };
+  }, []);
 
   // Funciones para el modal
-  const handleCreateMateria = async (e: React.FormEvent) => {
+  const handleCreateMateria = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newMateriaTitle.trim()) {
@@ -1004,9 +1024,9 @@ const Materias: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [newMateriaTitle, isSubmitting, newMateriaColor, handleCreate]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleCreateMateria(e as any);
     } else if (e.key === 'Escape') {
@@ -1014,7 +1034,7 @@ const Materias: React.FC = () => {
       setNewMateriaTitle('');
       setErrorMessage('');
     }
-  };
+  }, [handleCreateMateria]);
 
 
 
@@ -1033,7 +1053,6 @@ const Materias: React.FC = () => {
   }, [showCreateModal]);
 
   if (loading || authLoading) {
-    console.log('🔄 Materias - Mostrando loading:', { loading, authLoading });
     return (
       <div className="materias-container">
         <HeaderWithHamburger title="Mis Materias" />
@@ -1172,11 +1191,6 @@ const Materias: React.FC = () => {
   }
 
   // Vista normal para todos los usuarios
-  console.log('🎨 Materias - Renderizando vista principal');
-  console.log('  - isTeacher:', isTeacher);
-  console.log('  - materias:', materias.length);
-  console.log('  - loading:', loading);
-  console.log('  - authLoading:', authLoading);
   
   return (
     <>
@@ -1321,7 +1335,7 @@ const Materias: React.FC = () => {
             </>
           ) : (
             <MateriaList 
-              materias={materias}
+              materias={filteredMaterias}
               onDeleteMateria={handleDelete}
               onEditMateria={handleEdit}
               onUnenrollMateria={handleUnenroll}
@@ -1329,8 +1343,11 @@ const Materias: React.FC = () => {
               onCreateMateria={handleCreate}
               onViewMateria={handleView}
               onManageInvites={handleManageInvites}
-              showCreateButton={true}
-              selectedCategory={null}
+              showCreateButton={shouldShowCreateButton}
+              selectedCategory={selectedCategory}
+              onMateriaInView={handleMateriaInView}
+              onCalculateAllProgress={calculateAllRemainingProgress}
+              progressLoadingStates={progressLoadingStates}
               showCreateModal={showCreateModal}
               setShowCreateModal={setShowCreateModal}
               examsByMateria={examsByMateria}

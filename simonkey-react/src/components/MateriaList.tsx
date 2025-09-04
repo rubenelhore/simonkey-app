@@ -1,5 +1,5 @@
 // src/components/MateriaList.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import MateriaItem from './MateriaItem';
 import { useAuth } from '../contexts/AuthContext';
 import { auth, db } from '../services/firebase';
@@ -48,6 +48,9 @@ interface MateriaListProps {
   isSchoolStudent?: boolean;
   isSchoolTeacher?: boolean;
   isTeacher?: boolean;
+  onMateriaInView?: (materiaId: string) => void;
+  onCalculateAllProgress?: () => void;
+  progressLoadingStates?: Record<string, boolean>;
 }
 
 const MateriaList: React.FC<MateriaListProps> = ({ 
@@ -71,7 +74,10 @@ const MateriaList: React.FC<MateriaListProps> = ({
   examsByMateria = {},
   isSchoolStudent = false,
   isSchoolTeacher = false,
-  isTeacher = false
+  isTeacher = false,
+  onMateriaInView,
+  onCalculateAllProgress,
+  progressLoadingStates = {}
 }) => {
   const { user } = useAuth();
   const [newMateriaTitle, setNewMateriaTitle] = useState('');
@@ -81,12 +87,50 @@ const MateriaList: React.FC<MateriaListProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const materiaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string>('');
   const materiaListRef = useRef<HTMLDivElement>(null);
   const [showAddMateriaModal, setShowAddMateriaModal] = useState(false);
   const [categoryToAddMateria, setCategoryToAddMateria] = useState<string | null>(null);
+
+  // Configurar Intersection Observer para lazy loading del progreso
+  useEffect(() => {
+    if (!onMateriaInView) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const materiaId = entry.target.getAttribute('data-materia-id');
+            if (materiaId) {
+              onMateriaInView(materiaId);
+              // Dejar de observar esta materia después de calcular su progreso
+              observerRef.current?.unobserve(entry.target);
+            }
+          }
+        });
+      },
+      {
+        rootMargin: '50px', // Empezar a cargar 50px antes de que sea visible
+        threshold: 0.1 // Activar cuando al menos 10% sea visible
+      }
+    );
+
+    // Observar todas las materias actuales que no tienen progreso
+    materiaRefs.current.forEach((element, materiaId) => {
+      const materia = materias.find(m => m.id === materiaId);
+      if (materia && !materia.domainProgress && !progressLoadingStates[materiaId]) {
+        observerRef.current?.observe(element);
+      }
+    });
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [materias, onMateriaInView, progressLoadingStates]);
   const [selectedMateriasToAdd, setSelectedMateriasToAdd] = useState<string[]>([]);
 
   // Color presets para las materias - mismos colores que los cuadernos
@@ -431,35 +475,63 @@ const MateriaList: React.FC<MateriaListProps> = ({
             </div>
           )}
           <div className="materia-grid" ref={materiaListRef}>
-            {materiasBySelectedCategory.map(materia => (
-              <MateriaItem
+            {materiasBySelectedCategory.map((materia, index) => (
+              <div 
                 key={materia.id}
-                id={materia.id}
-                title={materia.title}
-                color={materia.color}
-                category={materia.category}
-                notebookCount={materia.notebookCount || 0}
-                conceptCount={materia.conceptCount}
-                onDelete={onDeleteMateria}
-                onEdit={onEditMateria}
-                onColorChange={onColorChange}
-                onView={onViewMateria}
-                onManageInvites={onManageInvites}
-                onUnenroll={onUnenrollMateria}
-                showActions={openActionsId === materia.id}
-                onToggleActions={handleToggleActions}
-                teacherName={materia.teacherName}
-                studentCount={materia.studentCount}
-                isAdminView={isAdminView}
-                exams={examsByMateria[materia.id] || []}
-                isSchoolStudent={isSchoolStudent}
-                isSchoolTeacher={isTeacher}
-                isTeacher={isTeacher}
-                isEnrolled={materia.isEnrolled}
-                domainProgress={materia.domainProgress}
-              />
+                ref={el => {
+                  if (el) {
+                    materiaRefs.current.set(materia.id, el);
+                  } else {
+                    materiaRefs.current.delete(materia.id);
+                  }
+                }}
+                data-materia-id={materia.id}
+              >
+                <MateriaItem
+                  id={materia.id}
+                  title={materia.title}
+                  color={materia.color}
+                  category={materia.category}
+                  notebookCount={materia.notebookCount || 0}
+                  conceptCount={materia.conceptCount}
+                  onDelete={onDeleteMateria}
+                  onEdit={onEditMateria}
+                  onColorChange={onColorChange}
+                  onView={onViewMateria}
+                  onManageInvites={onManageInvites}
+                  onUnenroll={onUnenrollMateria}
+                  showActions={openActionsId === materia.id}
+                  onToggleActions={handleToggleActions}
+                  teacherName={materia.teacherName}
+                  studentCount={materia.studentCount}
+                  isAdminView={isAdminView}
+                  exams={examsByMateria[materia.id] || []}
+                  isSchoolStudent={isSchoolStudent}
+                  isSchoolTeacher={isTeacher}
+                  isTeacher={isTeacher}
+                  isEnrolled={materia.isEnrolled}
+                  domainProgress={materia.domainProgress}
+                />
+              </div>
             ))}
           </div>
+          
+          {/* Botón para calcular progreso de todas las materias */}
+          {onCalculateAllProgress && materias.some(m => !m.domainProgress) && (
+            <div className="calculate-all-progress-section">
+              <button 
+                className="calculate-all-progress-button"
+                onClick={onCalculateAllProgress}
+                disabled={Object.values(progressLoadingStates).some(loading => loading)}
+              >
+                <i className="fas fa-chart-line"></i>
+                {Object.values(progressLoadingStates).some(loading => loading) 
+                  ? 'Calculando progreso...' 
+                  : `Calcular progreso de ${materias.filter(m => !m.domainProgress).length} materias restantes`
+                }
+              </button>
+            </div>
+          )}
         </div>
       )}
 

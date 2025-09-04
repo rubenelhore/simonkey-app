@@ -23,6 +23,50 @@
   to { transform: rotate(360deg); }
 }
 
+/* Sección para calcular progreso de todas las materias */
+.calculate-all-progress-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(97, 71, 255, 0.05), rgba(97, 71, 255, 0.02));
+  border: 1px solid rgba(97, 71, 255, 0.1);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.calculate-all-progress-button {
+  background: linear-gradient(135deg, #6147FF, #8B5DFF);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(97, 71, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto;
+  min-width: 200px;
+  justify-content: center;
+}
+
+.calculate-all-progress-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(97, 71, 255, 0.4);
+}
+
+.calculate-all-progress-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.calculate-all-progress-button i {
+  font-size: 1.1rem;
+}
+
 .loading-container p {
   color: #8E8E93;
   font-size: 1rem;
