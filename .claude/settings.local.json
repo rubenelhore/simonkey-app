@@ -63,7 +63,13 @@
       "Bash(npm ls:*)",
       "Bash(firebase firestore:delete:*)",
       "Bash(open /Users/rubenelhore/Documents/simonkey-app-fresh/simonkey-react/showLogs.html)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(git log:*)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components\\CookieConsent/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components\\CookieConsent/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

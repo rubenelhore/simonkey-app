@@ -450,6 +450,16 @@
   }
 }
 
+
+/* Body scroll lock */
+body.cookie-modal-open {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  left: 0;
+  right: 0;
+}
+
 /* Animation */
 @keyframes modalFadeIn {
   from {

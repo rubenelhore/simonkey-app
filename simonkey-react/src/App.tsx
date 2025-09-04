@@ -14,6 +14,7 @@ import SimonkeyCarousel from './components/SimonkeyCarousel';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import PasswordActionPage from './pages/PasswordActionPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import Notebooks from './pages/Notebooks';
 import NotebookDetailWrapper from './pages/NotebookDetailWrapper';
@@ -527,6 +528,7 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/password-action" element={<PasswordActionPage />} />
           <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route path="/join/:code" element={<JoinWithInvitePage />} />
           

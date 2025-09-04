@@ -64,9 +64,15 @@ const Header: React.FC = () => {
     }
   };
 
-  // Hide sidebar on homepage
+  // Hide sidebar on homepage, examples page, faq page, about page, contact page, terms and privacy-policy
   const isHomePage = location.pathname === '/';
-  const shouldShowSidebar = !isHomePage;
+  const isExamplesPage = location.pathname === '/examples';
+  const isFAQPage = location.pathname === '/faq';
+  const isAboutPage = location.pathname === '/about';
+  const isContactPage = location.pathname === '/contact';
+  const isTermsPage = location.pathname === '/terms';
+  const isPrivacyPage = location.pathname === '/privacy-policy';
+  const shouldShowSidebar = !isHomePage && !isExamplesPage && !isFAQPage && !isAboutPage && !isContactPage && !isTermsPage && !isPrivacyPage;
 
   return (
     <>
@@ -167,7 +173,16 @@ const Header: React.FC = () => {
               </button>
               
               {/* Logo y texto Simonkey */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link 
+                to="/" 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}
+                onClick={() => {
+                  // Hacer scroll al top siempre, con un pequeño delay para navegación
+                  setTimeout(() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }, 100);
+                }}
+              >
                 <img 
                   src="/img/favicon.svg" 
                   alt="Simonkey Logo" 
@@ -181,7 +196,7 @@ const Header: React.FC = () => {
                 }}>
                   Simonkey
                 </span>
-              </div>
+              </Link>
             </div>
             
             {/* Botón hamburguesa móvil a la derecha */}

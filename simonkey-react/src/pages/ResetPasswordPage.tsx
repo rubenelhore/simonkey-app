@@ -28,7 +28,13 @@ const ResetPasswordPage: React.FC = () => {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      // Configurar la URL de acción personalizada
+      const actionCodeSettings = {
+        url: `${window.location.origin}/password-action`,
+        handleCodeInApp: false,
+      };
+      
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
       setSuccess(true);
     } catch (error: any) {
       console.error('Error al enviar email de recuperación:', error);
@@ -99,7 +105,7 @@ const ResetPasswordPage: React.FC = () => {
                 setEmail(e.target.value);
                 setError(null);
               }}
-              placeholder="tu@email.com"
+              placeholder="tucorreo@mail.com"
               required
               disabled={isLoading}
             />

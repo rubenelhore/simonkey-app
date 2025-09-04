@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCookieConsent, CookiePreferences } from '../../hooks/useCookieConsent';
 import './CookiePreferencesModal.css';
 
@@ -13,6 +13,25 @@ const CookiePreferencesModal: React.FC<CookiePreferencesModalProps> = ({
 }) => {
   const { preferences, giveConsent, rejectAll } = useCookieConsent();
   const [localPreferences, setLocalPreferences] = useState<CookiePreferences>(preferences);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Store current scroll position
+      const scrollY = window.scrollY;
+      
+      // Add class to body to prevent scroll
+      document.body.classList.add('cookie-modal-open');
+      document.body.style.top = `-${scrollY}px`;
+      
+      return () => {
+        // Restore everything
+        document.body.classList.remove('cookie-modal-open');
+        document.body.style.top = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
