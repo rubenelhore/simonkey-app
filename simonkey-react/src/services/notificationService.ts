@@ -18,10 +18,10 @@ import { db } from './firebase';
 
 export interface NotificationData {
   id: string;
-  type: 'new_notebook' | 'new_document';
+  type: 'new_notebook' | 'new_document' | 'new_concept';
   title: string;
   message: string;
-  materiaId: string;
+  materiaId: string | null;
   materiaName: string;
   teacherName: string;
   createdAt: Timestamp;
