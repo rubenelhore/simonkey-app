@@ -246,14 +246,8 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: schoolNotebooks (legacy - para compatibilidad)
     // ========================================
     match /schoolNotebooks/{notebookId} {
-      // Lectura: permitir a profesores, estudiantes inscritos, y super admin
-      allow read: if isAuthenticated() && (
-        isSuperAdmin() ||
-        isTeacher() ||
-        isEnrolledUser() ||
-        // Permitir acceso temporal durante migración
-        isAuthenticated()
-      );
+      // Lectura: permitir a cualquier usuario autenticado (para listeners de notificaciones)
+      allow read: if isAuthenticated();
       
       // No permitir creación de nuevos schoolNotebooks (deprecated)
       allow create: if false;
@@ -385,6 +379,35 @@ service cloud.firestore {
         (resource.data.idProfesor == request.auth.uid && isTeacher()) ||
         isSuperAdmin()
       );
+      
+      // ========================================
+      // SUBCOLECCIÓN: documents
+      // ========================================
+      match /documents/{documentId} {
+        // Lectura: profesor creador, estudiantes inscritos, o super admin
+        allow read: if isAuthenticated() && (
+          isSuperAdmin() ||
+          // Obtener datos de la materia padre
+          (get(/databases/$(database)/documents/schoolSubjects/$(subjectId)).data.idProfesor == request.auth.uid && isTeacher()) ||
+          // Permitir a estudiantes con enrollments activos
+          exists(/databases/$(database)/documents/enrollments/$(request.auth.uid + '_' + subjectId)) ||
+          isAuthenticated()
+        );
+        
+        // Creación: profesor de la materia
+        allow create: if isAuthenticated() && isTeacher() &&
+          get(/databases/$(database)/documents/schoolSubjects/$(subjectId)).data.idProfesor == request.auth.uid;
+        
+        // Actualización: profesor de la materia
+        allow update: if isAuthenticated() && isTeacher() &&
+          get(/databases/$(database)/documents/schoolSubjects/$(subjectId)).data.idProfesor == request.auth.uid;
+        
+        // Eliminación: profesor de la materia o super admin
+        allow delete: if isAuthenticated() && (
+          (isTeacher() && get(/databases/$(database)/documents/schoolSubjects/$(subjectId)).data.idProfesor == request.auth.uid) ||
+          isSuperAdmin()
+        );
+      }
     }
 
     // ========================================
@@ -711,7 +734,7 @@ service cloud.firestore {
         // Sistema creando notificaciones automáticas
         request.resource.data.userId is string &&
         hasRequiredFields(['type', 'title', 'message', 'materiaId', 'materiaName', 'teacherName', 'createdAt', 'isRead', 'userId', 'contentId']) &&
-        isValidEnum(request.resource.data.type, ['new_notebook', 'new_document']) &&
+        isValidEnum(request.resource.data.type, ['new_notebook', 'new_document', 'new_concept']) &&
         isValidString(request.resource.data.title, 200) &&
         isValidString(request.resource.data.message, 500) &&
         isValidString(request.resource.data.materiaId, 100) &&

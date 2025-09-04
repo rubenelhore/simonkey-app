@@ -337,12 +337,15 @@ const AppContent: React.FC = () => {
   // Hook para verificar y actualizar automáticamente el estado de inscripciones
   useEnrollmentStatus();
 
-  // Inicializar listeners globales de notificaciones una sola vez
+  // Inicializar listeners globales de notificaciones cuando el usuario esté autenticado
   useEffect(() => {
-    if (!globalNotificationListener.getInitializationStatus()) {
+    if (isAuthenticated && user && !loading) {
+      console.log('🔄 Usuario autenticado, asegurando que los listeners estén activos...');
+      // Resetear y reinicializar para asegurar que siempre funcionen
+      globalNotificationListener.reset();
       globalNotificationListener.initialize();
     }
-  }, []);
+  }, [isAuthenticated, user, loading]);
 
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);

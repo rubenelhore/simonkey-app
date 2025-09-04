@@ -13,6 +13,7 @@ import {
   updateDoc,
   deleteDoc
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { db } from './firebase';
 
 export interface NotificationData {
@@ -412,6 +413,376 @@ export class NotificationService {
       this.cleanup();
     };
   }
+
+  // Método de prueba para crear notificación manualmente
+  async testCreateConceptNotification(studentId: string, conceptId: string): Promise<void> {
+    try {
+      console.log('🧪 Creando notificación de prueba para estudiante:', studentId);
+      
+      const notificationData = {
+        type: 'new_concept' as const,
+        title: `📝 Nuevo concepto de prueba`,
+        message: `Se ha agregado un nuevo concepto de prueba`,
+        materiaId: 'test',
+        materiaName: 'Materia de prueba',
+        teacherName: 'Profesor de prueba',
+        createdAt: Timestamp.now(),
+        isRead: false,
+        userId: studentId,
+        contentId: conceptId
+      };
+
+      await this.saveNotification(notificationData);
+      console.log('✅ Notificación de prueba creada exitosamente');
+    } catch (error) {
+      console.error('❌ Error creando notificación de prueba:', error);
+    }
+  }
+
+  // Listener para nuevos conceptos - SOLO para profesores
+  listenForNewConceptsAsTeacher(): () => void {
+    const setupListener = async () => {
+      try {
+        // Verificar si el usuario actual es profesor
+        const auth = getAuth();
+        const user = auth.currentUser;
+        
+        if (!user) {
+          console.log('⚠️ Usuario no autenticado, saltando listener de conceptos');
+          return;
+        }
+
+        // Verificar si es profesor
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const isTeacher = userDoc.exists() && userDoc.data()?.isTeacher === true;
+        
+        if (!isTeacher) {
+          console.log('👤 Usuario no es profesor, saltando listener de conceptos');
+          return;
+        }
+
+        console.log('👩‍🏫 Usuario es profesor, configurando listener de conceptos...');
+        
+        // Crear listeners para ambas colecciones de conceptos
+        const collections = ['conceptos', 'schoolConcepts'];
+        
+        collections.forEach(collectionName => {
+          // Solo escuchar conceptos creados por este profesor
+          const conceptsQuery = query(
+            collection(db, collectionName),
+            where('usuarioId', '==', user.uid), // Solo conceptos del profesor actual
+            orderBy('createdAt', 'desc'),
+            limit(5) // Limitar para mejor rendimiento
+          );
+
+          const unsubscribe = onSnapshot(conceptsQuery, async (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+              if (change.type === 'added') {
+                const conceptData = change.doc.data();
+                const concept = { id: change.doc.id, ...conceptData } as any;
+                
+                // Solo procesar conceptos recién creados (últimos 2 minutos)
+                const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+                const conceptCreatedAt = concept.createdAt?.toDate() || new Date();
+                
+                if (conceptCreatedAt <= twoMinutesAgo) {
+                  return; // No procesar conceptos antiguos
+                }
+
+                console.log('🔔 Nuevo concepto del profesor detectado:', {
+                  concepto: concept.concepto || concept.title,
+                  cuadernoId: concept.cuadernoId,
+                  createdAt: conceptCreatedAt,
+                  creatorId: concept.usuarioId || concept.userId
+                });
+
+                // Procesar notificaciones para estudiantes
+                await this.processConceptNotifications(concept);
+              }
+            });
+          });
+
+          this.listeners.push(unsubscribe);
+        });
+      } catch (error) {
+        console.error('Error configurando listener de conceptos del profesor:', error);
+      }
+    };
+
+    setupListener();
+    
+    // Retornar función de limpieza
+    return () => {
+      this.cleanup();
+    };
+  }
+
+  // Procesamiento de notificaciones para estudiantes (movido a método separado)
+  private async processConceptNotifications(concept: any): Promise<void> {
+    try {
+      // Obtener información del cuaderno
+      let notebookInfo = { materiaId: null, title: 'Cuaderno desconocido' };
+      if (concept.cuadernoId) {
+        try {
+          // Buscar primero en notebooks
+          let notebookDoc = await getDoc(doc(db, 'notebooks', concept.cuadernoId));
+          if (!notebookDoc.exists()) {
+            // Si no existe, buscar en schoolNotebooks
+            notebookDoc = await getDoc(doc(db, 'schoolNotebooks', concept.cuadernoId));
+          }
+          
+          if (notebookDoc.exists()) {
+            const notebookData = notebookDoc.data();
+            notebookInfo = {
+              materiaId: notebookData.materiaId || notebookData.idMateria,
+              title: notebookData.title || 'Cuaderno desconocido'
+            };
+          }
+        } catch (error) {
+          console.error('Error obteniendo información del cuaderno:', error);
+        }
+      }
+
+      if (!notebookInfo.materiaId) {
+        console.log('No se pudo obtener materiaId para el concepto, saltando notificación');
+        return;
+      }
+
+      // Buscar todos los estudiantes enrolados en esta materia
+      console.log('🔍 Buscando estudiantes enrolados en materia:', notebookInfo.materiaId);
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('materiaId', '==', notebookInfo.materiaId)
+      );
+      
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      console.log(`📚 Encontrados ${enrollmentsSnapshot.size} estudiantes enrolados`);
+      
+      // Obtener información de la materia
+      let materiaInfo = { nombre: 'Materia desconocida', idProfesor: '' };
+      try {
+        const materiaDoc = await getDoc(doc(db, 'materias', notebookInfo.materiaId));
+        if (materiaDoc.exists()) {
+          const materiaData = materiaDoc.data();
+          materiaInfo = {
+            nombre: materiaData.title || materiaData.nombre || 'Materia desconocida',
+            idProfesor: materiaData.userId || ''
+          };
+        }
+      } catch (error) {
+        console.error('Error obteniendo información de materia:', error);
+      }
+      
+      // Solo notificar si el creador del concepto es el profesor de la materia
+      const conceptCreatorId = concept.usuarioId || concept.userId;
+      if (conceptCreatorId !== materiaInfo.idProfesor) {
+        console.log('⏭️ No se notifica - el creador no es el profesor de la materia');
+        console.log('   Creador del concepto:', conceptCreatorId);
+        console.log('   Profesor de la materia:', materiaInfo.idProfesor);
+        return;
+      }
+
+      // Obtener nombre del profesor
+      let teacherName = 'Profesor desconocido';
+      if (materiaInfo.idProfesor) {
+        try {
+          const teacherDoc = await getDoc(doc(db, 'users', materiaInfo.idProfesor));
+          if (teacherDoc.exists()) {
+            const teacherData = teacherDoc.data();
+            teacherName = teacherData.displayName || teacherData.nombre || materiaInfo.idProfesor;
+          }
+        } catch (error) {
+          console.error('Error obteniendo datos del profesor:', error);
+        }
+      }
+
+      // Crear notificaciones para cada estudiante enrolado
+      const notificationPromises = enrollmentsSnapshot.docs.map(async (enrollmentDoc) => {
+        const enrollmentData = enrollmentDoc.data();
+        const studentId = enrollmentData.studentId;
+        
+        console.log('📨 Procesando notificación para estudiante:', studentId);
+        
+        // No crear notificación para el creador del concepto
+        if (studentId === concept.usuarioId || studentId === concept.userId) {
+          console.log('⏭️ Saltando notificación - el estudiante es el creador del concepto');
+          return;
+        }
+
+        // Verificar si ya existe esta notificación
+        const exists = await this.notificationExists(studentId, concept.id, 'new_concept');
+        if (exists) {
+          console.log('Notificación de concepto ya existe para estudiante:', studentId);
+          return;
+        }
+
+        // Crear notificación
+        const notificationData = {
+          type: 'new_concept' as const,
+          title: `📝 Nuevo concepto: ${concept.concepto || concept.title || 'Concepto'}`,
+          message: `${teacherName} agregó un nuevo concepto en el cuaderno "${notebookInfo.title}" de ${materiaInfo.nombre}`,
+          materiaId: notebookInfo.materiaId,
+          materiaName: materiaInfo.nombre,
+          teacherName,
+          createdAt: concept.createdAt || Timestamp.now(),
+          isRead: false,
+          userId: studentId,
+          contentId: concept.id
+        };
+
+        console.log('💾 Creando notificación para estudiante:', studentId);
+        return this.saveNotification(notificationData);
+      });
+
+      await Promise.all(notificationPromises);
+      console.log('✅ Notificaciones de concepto creadas para estudiantes enrolados');
+    } catch (error) {
+      console.error('Error procesando notificaciones de concepto:', error);
+    }
+  }
+
+  // Listener para nuevos materiales - crea notificaciones para estudiantes enrolados
+  listenForNewMaterials(): () => void {
+    const setupListener = async () => {
+      try {
+        console.log('📎 Configurando listener para nuevos materiales...');
+        
+        // Crear listener para la colección materials
+        const materialsQuery = query(
+          collection(db, 'materials'),
+          orderBy('createdAt', 'desc'),
+          limit(10) // Limitar para mejor rendimiento
+        );
+
+        const unsubscribe = onSnapshot(materialsQuery, async (snapshot) => {
+          snapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added') {
+              const materialData = change.doc.data();
+              const material = { id: change.doc.id, ...materialData } as any;
+              
+              // Solo procesar materiales recién creados (últimos 30 segundos)
+              const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+              const materialCreatedAt = material.createdAt?.toDate() || new Date();
+              
+              if (materialCreatedAt <= thirtySecondsAgo) {
+                return; // No procesar materiales antiguos
+              }
+
+              console.log('🔔 Nuevo material detectado:', material.name || material.title);
+              await this.processMaterialNotifications(material);
+            }
+          });
+        });
+
+        this.listeners.push(unsubscribe);
+      } catch (error) {
+        console.error('Error configurando listener de materiales:', error);
+      }
+    };
+
+    setupListener();
+    
+    // Retornar función de limpieza
+    return () => {
+      this.cleanup();
+    };
+  }
+
+  // Procesar notificaciones para un material específico
+  private async processMaterialNotifications(material: any): Promise<void> {
+    try {
+      console.log('🔍 Procesando notificaciones para material:', material.name);
+
+      // Obtener información del notebook del material
+      if (!material.notebookId) {
+        console.log('⚠️ Material sin notebookId, saltando notificaciones');
+        return;
+      }
+
+      const notebookDoc = await getDoc(doc(db, 'notebooks', material.notebookId));
+      if (!notebookDoc.exists()) {
+        console.log('⚠️ Notebook no encontrado para el material:', material.notebookId);
+        return;
+      }
+
+      const notebookInfo = notebookDoc.data();
+      if (!notebookInfo.materiaId) {
+        console.log('⚠️ Notebook sin materiaId, saltando notificaciones');
+        return;
+      }
+
+      // Obtener información de la materia
+      const materiaDoc = await getDoc(doc(db, 'schoolSubjects', notebookInfo.materiaId));
+      if (!materiaDoc.exists()) {
+        console.log('⚠️ Materia no encontrada:', notebookInfo.materiaId);
+        return;
+      }
+
+      const materiaInfo = materiaDoc.data();
+
+      // Buscar todos los estudiantes enrolados en esta materia
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('subjectId', '==', notebookInfo.materiaId)
+      );
+      
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+
+      // Obtener nombre del profesor
+      let teacherName = 'Profesor desconocido';
+      if (material.userId) {
+        try {
+          const teacherDoc = await getDoc(doc(db, 'users', material.userId));
+          if (teacherDoc.exists()) {
+            const teacherData = teacherDoc.data();
+            teacherName = teacherData.displayName || teacherData.nombre || material.userId;
+          }
+        } catch (error) {
+          console.error('Error obteniendo datos del profesor:', error);
+        }
+      }
+
+      // Crear notificaciones para cada estudiante enrolado
+      const notificationPromises = enrollmentsSnapshot.docs.map(async (enrollmentDoc) => {
+        const enrollmentData = enrollmentDoc.data();
+        const studentId = enrollmentData.studentId;
+        
+        // No crear notificación para quien subió el material
+        if (studentId === material.userId) {
+          return;
+        }
+
+        // Verificar si ya existe esta notificación
+        const exists = await this.notificationExists(studentId, material.id, 'new_document');
+        if (exists) {
+          console.log('Notificación de material ya existe para estudiante:', studentId);
+          return;
+        }
+
+        // Crear notificación
+        const notificationData = {
+          type: 'new_document' as const,
+          title: `📎 Nuevo material: ${material.name || 'Material'}`,
+          message: `${teacherName} subió un nuevo material en el cuaderno "${notebookInfo.title}" de ${materiaInfo.nombre}`,
+          materiaId: notebookInfo.materiaId,
+          materiaName: materiaInfo.nombre || 'Materia desconocida',
+          teacherName,
+          createdAt: material.createdAt || Timestamp.now(),
+          isRead: false,
+          userId: studentId,
+          contentId: material.id
+        };
+
+        return this.saveNotification(notificationData);
+      });
+
+      await Promise.all(notificationPromises);
+      console.log('✅ Notificaciones de material creadas para estudiantes enrolados');
+    } catch (error) {
+      console.error('Error procesando notificaciones de material:', error);
+    }
+  }
+
 
   // Limpiar todos los listeners
   cleanup(): void {

@@ -46,6 +46,7 @@ interface ConceptDoc {
 const NotebookDetail = () => {
   const { notebookName } = useParams<{ notebookName: string }>();
   const [notebookId, setNotebookId] = useState<string | null>(null);
+  const [notebook, setNotebook] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -310,6 +311,7 @@ const NotebookDetail = () => {
         
         if (notebook) {
           setCuaderno(notebook);
+          setNotebook(notebook); // Also set for permission checks
           console.log('📚 Notebook loaded:', {
             id: notebook.id,
             idMateria: (notebook as any).idMateria,
@@ -803,9 +805,6 @@ const NotebookDetail = () => {
         throw new Error('El cuaderno no existe');
       }
       
-      // console.log('- Notebook data:', notebook);
-      // console.log('- Notebook type:', notebook.type);
-      // console.log('- Current user:', auth.currentUser.uid);
       
       // Verificar permisos según el tipo de notebook
       if (notebook.type === 'personal' && notebook.userId !== auth.currentUser.uid) {
@@ -1589,7 +1588,12 @@ const NotebookDetail = () => {
                           <i className="fas fa-eye"></i>
                           Ver
                         </button>
-                        {(!isSchoolStudent && !isSchoolAdmin) && (
+                        {(!isSchoolStudent && !isSchoolAdmin) && cuaderno && auth.currentUser && (
+                          // Personal notebook: only owner can delete
+                          (cuaderno.type === 'personal' && cuaderno.userId === auth.currentUser.uid) ||
+                          // School notebook: teachers and admins can delete (not students)
+                          (cuaderno.type === 'school' && (isTeacher || isSchoolAdmin))
+                        ) && (
                           <button 
                             className="dropdown-item delete"
                             onClick={(e) => {
@@ -1822,8 +1826,13 @@ const NotebookDetail = () => {
             ) : (
               <>
                 <div className="concept-cards">
-                  {/* Add Concepts Card - Always first */}
-                  {!isSchoolStudent && (
+                  {/* Add Concepts Card - Only if user can modify this notebook */}
+                  {!isSchoolStudent && cuaderno && auth.currentUser && (
+                    // Personal notebook: only owner can add concepts
+                    (cuaderno.type === 'personal' && cuaderno.userId === auth.currentUser.uid) ||
+                    // School notebook: teachers and admins can add concepts (not students)
+                    (cuaderno.type === 'school' && (isTeacher || isSchoolAdmin))
+                  ) && (
                     <div 
                       className="concept-card add-concept-card"
                       onClick={() => openModalWithTab('upload')}

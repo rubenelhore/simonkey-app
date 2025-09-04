@@ -27,6 +27,13 @@ class GlobalNotificationListener {
       
       console.log('📄 Configurando listener para documentos...');
       notificationService.listenForNewDocuments();
+      
+      console.log('📎 Configurando listener para materiales...');
+      notificationService.listenForNewMaterials();
+      
+      // Solo los profesores pueden escuchar conceptos (para evitar problemas de permisos)
+      console.log('💡 Configurando listener para conceptos (solo profesores)...');
+      notificationService.listenForNewConceptsAsTeacher();
 
       this.isInitialized = true;
       console.log('✅ Listeners globales inicializados correctamente');
@@ -37,6 +44,12 @@ class GlobalNotificationListener {
         return this.isInitialized;
       };
       
+      // Función de prueba para crear notificación manual
+      (window as any).testConceptNotification = (studentId: string, conceptId: string = 'test') => {
+        console.log('🧪 Ejecutando prueba de notificación de concepto...');
+        return notificationService.testCreateConceptNotification(studentId, conceptId);
+      };
+      
     } catch (error) {
       console.error('❌ Error inicializando listeners globales:', error);
     }
@@ -45,6 +58,12 @@ class GlobalNotificationListener {
   // Verificar si ya están inicializados
   getInitializationStatus(): boolean {
     return this.isInitialized;
+  }
+
+  // Resetear estado para permitir reinicialización (útil para testing y logout/login)
+  reset(): void {
+    console.log('🔄 Reseteando listeners globales...');
+    this.isInitialized = false;
   }
 }
 
