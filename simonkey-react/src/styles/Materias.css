@@ -1382,8 +1382,110 @@ div.modal-overlay div.modal-content.invite-modal-content {
   font-size: 0.875rem;
 }
 
+/* Success message */
+.success-message {
+  background: #d1fae5;
+  border: 1px solid #34d399;
+  border-radius: 6px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: #065f46;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Toast notification for success */
+.success-toast {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #d1fae5;
+  border: 1px solid #34d399;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #065f46;
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-width: 300px;
+  max-width: 500px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.success-toast i {
+  font-size: 1.1rem;
+  color: #059669;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Hide toast animation */
+.success-toast.hiding {
+  animation: slideUp 0.3s ease-in forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+}
+
+/* URL processing indicator */
+.url-processing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  color: #6147FF;
+  font-size: 0.85rem;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.url-processing-indicator svg {
+  font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .error-icon {
   font-size: 1rem;
+}
+
+/* Placeholder styling for smaller text */
+.modal-input::placeholder {
+  font-size: 0.75rem;
 }
 
 /* Modal footer */
@@ -2973,6 +3075,70 @@ body:has(.modal-overlay) .alert {
   transform: translateY(-1px) scale(1);
 }
 
+/* Container for create and join buttons */
+.create-buttons-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Join class button styles */
+.join-class-button {
+  position: relative;
+  background: transparent;
+  color: white;
+  border: none;
+  padding: 0;
+  border-radius: 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  min-width: 280px;
+}
+
+.join-class-button .button-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  border-radius: 18px;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.join-class-button .button-content {
+  position: relative;
+  z-index: 1;
+  padding: 18px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.join-class-button:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+}
+
+.join-class-button:hover .button-bg {
+  background: linear-gradient(135deg, #5b6a7d 0%, #3e4b5a 100%);
+}
+
+.join-class-button:active {
+  transform: translateY(-1px) scale(1);
+}
+
 .quick-suggestions {
   display: flex;
   flex-direction: column;
@@ -3228,6 +3394,20 @@ body:has(.modal-overlay) .alert {
     font-size: 2rem;
   }
   
+  /* Mobile styles for buttons container */
+  .create-buttons-container {
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 300px;
+  }
+  
+  .create-materia-button.primary,
+  .join-class-button {
+    min-width: auto;
+    width: 100%;
+    max-width: 300px;
+  }
+  
   .empty-state-description {
     font-size: 1rem;
     padding: 0 1rem;
@@ -3280,4 +3460,5 @@ body:has(.modal-overlay) .alert {
     min-width: 260px !important;
   }
 }
+
 

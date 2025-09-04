@@ -19,6 +19,7 @@ import { getDomainProgressForMateria } from '../utils/domainProgress';
 import { cachedQuery, optimizedCount, batchedQuery } from '../utils/firebaseOptimizer';
 import InviteCodeManager from '../components/InviteCodeManager';
 import EnrolledStudentsManager from '../components/EnrolledStudentsManager';
+import { useInviteCode } from '../services/invitationService';
 
 interface Materia {
   id: string;
@@ -87,6 +88,15 @@ const Materias: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [institutionName, setInstitutionName] = useState<string>('');
+  
+  // Estados para el modal de unirse a clase
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joiningClass, setJoiningClass] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isProcessingUrl, setIsProcessingUrl] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMateriaForInvite, setSelectedMateriaForInvite] = useState<{id: string, title: string} | null>(null);
   
@@ -1036,11 +1046,109 @@ const Materias: React.FC = () => {
     }
   }, [handleCreateMateria]);
 
+  // Funciones para unirse a clase
+  const handleJoinClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!joinCode.trim()) {
+      setErrorMessage('Por favor, ingresa el código de la clase.');
+      return;
+    }
+
+    if (joiningClass || !user) return;
+    setJoiningClass(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      // Extraer código si es una URL
+      const codeToUse = extractCodeFromUrl(joinCode.trim());
+      
+      // Usar el servicio de invitación para inscribirse directamente
+      const result = await useInviteCode(
+        codeToUse,
+        user.uid,
+        user.email || undefined,
+        userProfile?.nombre || userProfile?.displayName || undefined
+      );
+
+      if (result.success && result.enrollment) {
+        // Mostrar toast de éxito
+        showSuccessToast(`¡Te has inscrito exitosamente en "${result.enrollment.materiaName}"!`);
+        
+        // Cerrar el modal inmediatamente
+        setShowJoinModal(false);
+        setJoinCode('');
+        setErrorMessage('');
+        setSuccessMessage('');
+        
+        // Refrescar la lista de materias para mostrar la nueva inscripción
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        setErrorMessage(result.error || 'Error al unirse a la clase.');
+      }
+    } catch (error) {
+      console.error('Error joining class:', error);
+      setErrorMessage('Error al unirse a la clase. Por favor, intenta de nuevo.');
+    } finally {
+      setJoiningClass(false);
+    }
+  };
+
+  const handleJoinKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleJoinClass(e as any);
+    } else if (e.key === 'Escape') {
+      setShowJoinModal(false);
+      setJoinCode('');
+      setErrorMessage('');
+      setSuccessMessage('');
+    }
+  };
+
+  // Función para mostrar toast de éxito
+  const showSuccessToast = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    
+    // Auto-ocultar después de 4 segundos
+    setTimeout(() => {
+      setShowToast(false);
+    }, 4000);
+  };
+
+  // Función para extraer código de URL de Simonkey
+  const extractCodeFromUrl = (url: string): string => {
+    try {
+      // Detectar si es una URL de Simonkey join
+      const joinPattern = /(?:https?:\/\/)?(?:www\.)?simonkey\.ai\/join\/([A-Z0-9]{6,8})/i;
+      const match = url.match(joinPattern);
+      
+      if (match && match[1]) {
+        return match[1].toUpperCase();
+      }
+      
+      // Si no coincide con el patrón, pero contiene /join/, intentar extraer el código después del último /
+      if (url.includes('/join/')) {
+        const parts = url.split('/');
+        const lastPart = parts[parts.length - 1];
+        // Validar que sea un código válido (6-8 caracteres alfanuméricos)
+        if (/^[A-Z0-9]{6,8}$/i.test(lastPart)) {
+          return lastPart.toUpperCase();
+        }
+      }
+    } catch (error) {
+      console.log('Error extracting code from URL:', error);
+    }
+    
+    return url; // Devolver la entrada original si no se puede extraer
+  };
 
 
-  // Efecto para bloquear el body cuando el modal está abierto
+
+  // Efecto para bloquear el body cuando cualquier modal está abierto
   useEffect(() => {
-    if (showCreateModal) {
+    if (showCreateModal || showJoinModal) {
       document.body.classList.add('modal-open');
     } else {
       document.body.classList.remove('modal-open');
@@ -1050,7 +1158,7 @@ const Materias: React.FC = () => {
     return () => {
       document.body.classList.remove('modal-open');
     };
-  }, [showCreateModal]);
+  }, [showCreateModal, showJoinModal]);
 
   if (loading || authLoading) {
     return (
@@ -1262,15 +1370,27 @@ const Materias: React.FC = () => {
                   
                   <div className="empty-state-actions">
                     {!isSchoolStudent && (
-                      <button className="create-materia-button primary pulse" onClick={() => {
-                        setShowCreateModal(true);
-                      }}>
-                        <div className="button-bg"></div>
-                        <span className="button-content">
-                          <i className="fas fa-plus"></i>
-                          Crear mi primera materia
-                        </span>
-                      </button>
+                      <div className="create-buttons-container">
+                        <button className="create-materia-button primary pulse" onClick={() => {
+                          setShowCreateModal(true);
+                        }}>
+                          <div className="button-bg"></div>
+                          <span className="button-content">
+                            <i className="fas fa-plus"></i>
+                            Crear mi primera materia
+                          </span>
+                        </button>
+                        
+                        <button className="join-class-button secondary" onClick={() => {
+                          setShowJoinModal(true);
+                        }}>
+                          <div className="button-bg"></div>
+                          <span className="button-content">
+                            <i className="fas fa-users"></i>
+                            Unirme a una clase
+                          </span>
+                        </button>
+                      </div>
                     )}
                     
                     {isTeacher && (
@@ -1454,6 +1574,106 @@ const Materias: React.FC = () => {
         </div>
       )}
       
+      {/* Modal para unirse a clase */}
+      {showJoinModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowJoinModal(false);
+          setJoinCode('');
+          setErrorMessage('');
+          setSuccessMessage('');
+        }}>
+          <div className="modal-content create-materia-modal-new" onClick={(e) => e.stopPropagation()}>
+            {/* Header simplificado */}
+            <div className="modal-header-simple">
+              <button 
+                className="close-button-simple" 
+                onClick={() => {
+                  setShowJoinModal(false);
+                  setJoinCode('');
+                  setErrorMessage('');
+                  setSuccessMessage('');
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            {/* Contenido principal */}
+            <div className="modal-main-content">
+              <div className="modal-icon">
+                <i className="fas fa-users" style={{ color: '#6147FF', fontSize: '2.5rem' }}></i>
+              </div>
+              <h2 className="modal-title">Unirse a una Clase</h2>
+              <p className="modal-subtitle">Ingresa el código de invitación o pega el enlace que te proporcionó tu profesor</p>
+              
+              <form onSubmit={handleJoinClass} className="modal-form">
+                <div className="input-group">
+                  <input
+                    id="joinCode"
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      setJoinCode(inputValue);
+                      // Limpiar mensaje de error al cambiar el input
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    onPaste={() => {
+                      // No hacer nada en el onPaste, dejar que el usuario vea lo que pegó
+                    }}
+                    onKeyDown={handleJoinKeyPress}
+                    placeholder="Pega el enlace o escribe el código (ej: ABC123)"
+                    className="modal-input"
+                    autoFocus
+                    required
+                    disabled={joiningClass}
+                    maxLength={200}
+                    style={{ 
+                      textTransform: 'uppercase', 
+                      letterSpacing: joinCode.length <= 8 ? '2px' : '0.5px', 
+                      textAlign: 'center', 
+                      fontSize: joinCode.length > 8 ? '0.9rem' : '1.2rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  />
+                  {isProcessingUrl && (
+                    <div className="url-processing-indicator">
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                      <span>Extrayendo código...</span>
+                    </div>
+                  )}
+                </div>
+                
+                {errorMessage && (
+                  <div className="error-message">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    {errorMessage}
+                  </div>
+                )}
+                
+                {successMessage && (
+                  <div className="success-message">
+                    <i className="fas fa-check-circle"></i>
+                    {successMessage}
+                  </div>
+                )}
+                
+                <div className="modal-actions">
+                  <button 
+                    type="submit" 
+                    className="modal-button primary"
+                    disabled={joiningClass || !joinCode.trim()}
+                  >
+                    <i className="fas fa-sign-in-alt"></i>
+                    {joiningClass ? 'Uniéndose...' : 'Unirse a Clase'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Modal para gestionar invitaciones */}
       {showInviteModal && selectedMateriaForInvite && (
         <div className="modal-overlay" style={{ zIndex: 998 }} onClick={() => setShowInviteModal(false)}>
@@ -1503,6 +1723,14 @@ const Materias: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Toast notification for success messages */}
+      {showToast && (
+        <div className="success-toast">
+          <i className="fas fa-check-circle"></i>
+          {toastMessage}
         </div>
       )}
     </>

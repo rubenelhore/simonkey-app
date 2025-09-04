@@ -25,7 +25,6 @@ import VoiceSettingsPage from './pages/VoiceSettingsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import DevelopmentPage from './pages/DevelopmentPage';
 // Nuevas importaciones
-import InteractiveTour from './components/Onboarding/InteractiveTour';
 import OnboardingComponent from './components/Onboarding/OnboardingComponent';
 import ProfileCompletionModal from './components/ProfileCompletion/ProfileCompletionModal';
 import MobileNavigation from './components/Mobile/MobileNavigation';
@@ -79,9 +78,6 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 // Importar el nuevo AuthProvider y useAuth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-// Importar el nuevo sistema de tour
-import { TourProvider } from './contexts/TourContext';
-import TourOverlay from './components/Onboarding/TourOverlay';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
 import { useEnrollmentStatus } from './hooks/useEnrollmentStatus';
@@ -324,9 +320,7 @@ const AppWrapper: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <TourProvider>
-          <AppContent />
-        </TourProvider>
+        <AppContent />
       </Router>
     </AuthProvider>
   );
@@ -350,39 +344,8 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
-    // Para usuarios nuevos, no confiar solo en localStorage
-    // Empezar como false y sincronizar con userProfile cuando esté disponible
-    const completed = localStorage.getItem('hasCompletedOnboarding') === 'true';
-    // Estado inicial de onboarding desde localStorage
-    // Si no hay userProfile todavía, ser conservador y mostrar onboarding si no está explícitamente completado
-    return completed;
-  });
-  
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
-  
-  // Sincronizar con el perfil de usuario cuando esté disponible
-  useEffect(() => {
-    // Verificando estado de onboarding con perfil de usuario
-    
-    if (userProfile) {
-      // Si el perfil existe, usar su estado de onboarding
-      if (userProfile.hasCompletedOnboarding === true) {
-        // Usuario ha completado onboarding según perfil
-        if (!hasCompletedOnboarding) {
-          setHasCompletedOnboarding(true);
-          localStorage.setItem('hasCompletedOnboarding', 'true');
-        }
-      } else if (userProfile.hasCompletedOnboarding === false || !userProfile.hasCompletedOnboarding) {
-        // Usuario nuevo o no ha completado onboarding - mostrando onboarding
-        if (hasCompletedOnboarding) {
-          setHasCompletedOnboarding(false);
-          localStorage.removeItem('hasCompletedOnboarding');
-        }
-      }
-    }
-  }, [userProfile, isEmailVerified]);
 
 
 
@@ -395,15 +358,6 @@ const AppContent: React.FC = () => {
 
   // Mostrar mensaje de ayuda en consola
   useEffect(() => {
-    // Función para resetear el tutorial (solo para testing)
-    (window as any).resetTutorial = () => {
-      console.log('🔄 Reseteando tutorial para testing...');
-      localStorage.removeItem('hasCompletedOnboarding');
-      localStorage.removeItem('tourStep');
-      setHasCompletedOnboarding(false);
-      // Tutorial reseteado - recarga la página para verlo
-    };
-    
     // Función para mostrar el modal de completar perfil
     (window as any).showProfileModal = () => {
       console.log('📝 Mostrando modal de completar perfil...');
@@ -886,38 +840,6 @@ const AppContent: React.FC = () => {
           />
         </Routes>
         
-        {/* Tutorial interactivo - persiste en todas las rutas */}
-        {/* Solo mostrar el tour si:
-            1. Usuario autenticado
-            2. No es universitario
-            3. No ha completado el onboarding
-            4. Email verificado (para evitar que se encime con la pantalla de verificación)
-        */}
-        {isAuthenticated && !isUniversityUser && !hasCompletedOnboarding && isEmailVerified && (
-          <InteractiveTour onComplete={() => {
-            // InteractiveTour completado - marcando como completado permanentemente
-            setHasCompletedOnboarding(true);
-            localStorage.setItem('hasCompletedOnboarding', 'true');
-            
-            // Mostrar modal de completar perfil después del tutorial
-            setTimeout(() => {
-              setShowProfileCompletion(true);
-            }, 1000);
-          }} />
-        )}
-        
-        {/* Modal de completar perfil - DESHABILITADO TEMPORALMENTE */}
-        {/* <ProfileCompletionModal
-          isOpen={showProfileCompletion}
-          onClose={() => setShowProfileCompletion(false)}
-          onComplete={(data) => {
-            // Perfil completado
-            setShowProfileCompletion(false);
-          }}
-        /> */}
-        
-        {/* TourOverlay controlado por TourContext - solo se muestra si email verificado */}
-        {isEmailVerified && <TourOverlay />}
         
         {showMobileNav && location.pathname !== '/super-admin' ? <MobileNavigation /> : null}
         {/* Sistema de gestión de cookies - siempre visible */}
