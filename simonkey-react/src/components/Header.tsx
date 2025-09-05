@@ -64,7 +64,8 @@ const Header: React.FC = () => {
     }
   };
 
-  // Hide sidebar on homepage, examples page, faq page, about page, contact page, terms and privacy-policy
+  // Hide sidebar on homepage, examples page, faq page, about page, contact page, terms, privacy-policy and pricing
+  // Force rebuild: 2024-09-04-v2
   const isHomePage = location.pathname === '/';
   const isExamplesPage = location.pathname === '/examples';
   const isFAQPage = location.pathname === '/faq';
@@ -72,7 +73,11 @@ const Header: React.FC = () => {
   const isContactPage = location.pathname === '/contact';
   const isTermsPage = location.pathname === '/terms';
   const isPrivacyPage = location.pathname === '/privacy-policy';
-  const shouldShowSidebar = !isHomePage && !isExamplesPage && !isFAQPage && !isAboutPage && !isContactPage && !isTermsPage && !isPrivacyPage;
+  const isPricingPage = location.pathname === '/pricing';
+  const shouldShowSidebar = !isHomePage && !isExamplesPage && !isFAQPage && !isAboutPage && !isContactPage && !isTermsPage && !isPrivacyPage && !isPricingPage;
+  
+  // Debug log para verificar
+  console.log('Header render - isPricingPage:', isPricingPage, 'shouldShowSidebar:', shouldShowSidebar);
 
   return (
     <>

@@ -34,6 +34,7 @@ import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
+import VoiceRecognitionPage from './pages/VoiceRecognitionPage';
 import UniversityDashboard from './pages/UniversityDashboard';
 import UniversityCursos from './pages/UniversityCursos';
 import UniversityBiblioteca from './pages/UniversityBiblioteca';
@@ -723,6 +724,18 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <GamesPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+
+          {/* Ruta para reconocimiento de voz */}
+          <Route
+            path="/voice-recognition"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <VoiceRecognitionPage />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

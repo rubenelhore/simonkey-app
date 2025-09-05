@@ -64,6 +64,8 @@ const StudySessionPage = () => {
   const [sessionActive, setSessionActive] = useState<boolean>(false);
   const [sessionComplete, setSessionComplete] = useState<boolean>(false);
   const [showIntro, setShowIntro] = useState<boolean>(true);
+  const [freeStudySessionValid, setFreeStudySessionValid] = useState<boolean>(false);
+  const [freeStudySessionDuration, setFreeStudySessionDuration] = useState<number>(0);
   const [feedback, setFeedback] = useState<{
     visible: boolean;
     message: string;
@@ -592,11 +594,20 @@ const StudySessionPage = () => {
       if (studyMode === StudyMode.FREE) {
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        // Check if session lasted at least 1 minute (60 seconds)
+        const sessionDurationMinutes = metrics.timeSpent / 60;
+        const sessionValid = sessionDurationMinutes >= 1;
+        
         await studyService.logStudyActivity(
           userKey,
           'session_completed',
-          `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados`
+          `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, duración: ${sessionDurationMinutes.toFixed(1)} minutos${sessionValid ? ' (válida)' : ' (muy corta)'}`
         );
+        
+        // Store session validation status for display
+        setFreeStudySessionValid(sessionValid);
+        setFreeStudySessionDuration(sessionDurationMinutes);
         
         setSessionComplete(true);
         setSessionActive(false);
@@ -926,11 +937,25 @@ const StudySessionPage = () => {
                         <i className="fas fa-arrow-left"></i>
                       </button>
                       
-                      <div className="card-counter">
-                        <span className="card-number">{currentIndex}</span>
-                        <span className="card-divider">/</span>
-                        <span className="card-total">{totalConcepts}</span>
-                      </div>
+                      {studyMode === StudyMode.SMART ? (
+                        <div className="card-counter">
+                          <span className="card-number">{currentIndex}</span>
+                          <span className="card-divider">/</span>
+                          <span className="card-total">{totalConcepts}</span>
+                        </div>
+                      ) : (
+                        <div className="free-study-header">
+                          <div className={`study-timer ${metrics.timeSpent >= 60 ? 'valid-time' : ''}`}>
+                            <i className="fas fa-clock"></i>
+                            <span className="timer-display">{formatStudyTime(metrics.timeSpent)}</span>
+                          </div>
+                          <div className="card-counter">
+                            <span className="card-number">{currentIndex}</span>
+                            <span className="card-divider">/</span>
+                            <span className="card-total">{totalConcepts}</span>
+                          </div>
+                        </div>
+                      )}
                       
                       {sessionReviewQueue.length > 0 && (
                         <div className="immediate-review-indicator">
@@ -989,6 +1014,10 @@ const StudySessionPage = () => {
                     ? '¡Estudio Inteligente Validado!' 
                     : studyMode === StudyMode.SMART && !miniQuizPassed
                     ? 'Estudio Inteligente Completado'
+                    : studyMode === StudyMode.FREE && freeStudySessionValid
+                    ? '✅ ¡Estudio Libre Validado!'
+                    : studyMode === StudyMode.FREE && !freeStudySessionValid
+                    ? '❌ Estudio Libre Muy Corto'
                     : '¡Sesión completada!'
                   }
                 </div>
@@ -997,6 +1026,10 @@ const StudySessionPage = () => {
                     ? `¡Excelente! Aprobaste con ${miniQuizScore}/10`
                     : studyMode === StudyMode.SMART && !miniQuizPassed
                     ? `Obtuviste ${miniQuizScore}/10. Necesitas 8/10 para validar.`
+                    : studyMode === StudyMode.FREE && freeStudySessionValid
+                    ? `¡Genial! Estudiaste ${freeStudySessionDuration.toFixed(1)} minutos y ganaste 0.1 sesiones de estudio`
+                    : studyMode === StudyMode.FREE && !freeStudySessionValid
+                    ? `Solo estudiaste ${freeStudySessionDuration.toFixed(1)} minutos. Necesitas al menos 1 minuto para ganar sesiones de estudio.`
                     : '¡Buen trabajo! Sigue así.'
                   }
                 </div>
@@ -1007,15 +1040,17 @@ const StudySessionPage = () => {
                     <div className="stat-label">Conceptos</div>
                   </div>
                   <div className="stat-card">
-                    <i className="fas fa-star"></i>
-                    <div className="stat-value">{Array.from(conceptFinalResults.values()).filter(q => q === ResponseQuality.MASTERED).length}</div>
-                    <div className="stat-label">Dominados</div>
-                  </div>
-                  <div className="stat-card">
                     <i className="fas fa-clock"></i>
                     <div className="stat-value">{formatStudyTime(metrics.timeSpent)}</div>
                     <div className="stat-label">Tiempo</div>
                   </div>
+                  {studyMode === StudyMode.FREE && freeStudySessionValid && (
+                    <div className="stat-card highlighted">
+                      <i className="fas fa-trophy"></i>
+                      <div className="stat-value">+0.1</div>
+                      <div className="stat-label">Sesiones de Estudio</div>
+                    </div>
+                  )}
                 </div>
                 <button
                   className="back-to-study-btn"

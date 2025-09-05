@@ -1,13 +1,13 @@
 // src/pages/StudyModePage.tsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { Notebook } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock } from '@fortawesome/free-solid-svg-icons';
+import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock, faMicrophone } from '@fortawesome/free-solid-svg-icons';
 import { useUserType } from '../hooks/useUserType';
 // import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
@@ -38,6 +38,8 @@ const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEV
 
 const StudyModePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { selectedNotebook: passedNotebook, maintainSelection } = location.state || {};
   const { isSchoolStudent, subscription, isTeacher } = useUserType();
   // const { schoolNotebooks, schoolSubjects } = useSchoolStudentData(); // deprecated
   // Usar useMemo para evitar recrear arrays en cada render
@@ -71,6 +73,8 @@ const StudyModePage = () => {
   const [smartStudyCount, setSmartStudyCount] = useState<number>(0);
   const [maxQuizScore, setMaxQuizScore] = useState<number>(0);
   const [freeStudyCount, setFreeStudyCount] = useState<number>(0);
+  const [freeStudySessionsEarned, setFreeStudySessionsEarned] = useState<number>(0);
+  const [voiceRecognitionCount, setVoiceRecognitionCount] = useState<number>(0);
   const [notebookRanking, setNotebookRanking] = useState<{
     userPosition: number;
     totalUsers: number;
@@ -102,6 +106,18 @@ const StudyModePage = () => {
   const [viewingDivision, setViewingDivision] = useState<keyof typeof DIVISION_LEVELS>('WOOD');
   const [showMedalDetails, setShowMedalDetails] = useState(false);
   const [showNotebookError, setShowNotebookError] = useState(false);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState({
+    totalStudySessions: 0,
+    smartStudyPoints: 0,
+    voiceRecognitionPoints: 0,
+    freeStudyPoints: 0,
+    totalMultiplierPoints: 0,
+    maxQuizScore: 0,
+    gamePoints: 0,
+    streakBonus: 0,
+    finalScore: 0
+  });
 
   // Load persisted selection on component mount
   useEffect(() => {
@@ -112,6 +128,30 @@ const StudyModePage = () => {
       setSelectedNotebook(persistedSelection.notebook);
     }
   }, []);
+
+  // Handle passed notebook from voice recognition
+  useEffect(() => {
+    if (passedNotebook && maintainSelection && materias.length > 0) {
+      console.log('Restaurando cuaderno desde voice recognition:', passedNotebook);
+      
+      // Find the materia that contains this notebook
+      const matchingMateria = materias.find(materia => 
+        materia.id === passedNotebook.materiaId || 
+        (passedNotebook as any).idMateria === materia.id
+      );
+      
+      if (matchingMateria) {
+        console.log('Materia encontrada para el cuaderno:', matchingMateria.nombre || matchingMateria.title);
+        setSelectedMateria(matchingMateria);
+        setSelectedNotebook(passedNotebook);
+        
+        // Save the selection
+        studySessionPersistence.saveSelection(passedNotebook, matchingMateria);
+      } else {
+        console.log('No se encontró materia para el cuaderno:', passedNotebook.title);
+      }
+    }
+  }, [passedNotebook, maintainSelection, materias]);
 
   // Reset score when no notebook is selected
   useEffect(() => {
@@ -552,7 +592,7 @@ const StudyModePage = () => {
     
     // Generate daily challenges (2 options that change daily)
     const allChallenges = [
-      { text: 'Completa un Estudio Inteligente en menos de 2 minutos', boost: '+50% XP' },
+      { text: 'Completa un Repaso Inteligente en menos de 2 minutos', boost: '+50% XP' },
       { text: 'Domina 5 conceptos seguidos sin fallar ninguno', boost: '+25 puntos' },
       { text: 'Completa un Quiz con puntuación perfecta (10/10)', boost: '+100 puntos' },
       { text: 'Estudia durante 15 minutos sin parar', boost: '+30% XP' },
@@ -622,6 +662,8 @@ const StudyModePage = () => {
     setSmartStudyCount(0);
     setMaxQuizScore(0);
     setFreeStudyCount(0);
+    setFreeStudySessionsEarned(0);
+    setVoiceRecognitionCount(0);
     setGamePoints(0);
     
     if (!effectiveUserId) return;
@@ -733,7 +775,8 @@ const StudyModePage = () => {
         notebookPoints,
         userStreak,
         smartStudySessions,
-        freeStudyCount
+        freeStudyCount,
+        voiceRecognitionSessions
       ] = await Promise.all([
         // Quiz stats
         getDoc(doc(db, 'users', effectiveUserId, 'quizStats', notebook.id)),
@@ -756,6 +799,15 @@ const StudyModePage = () => {
           where('userId', '==', effectiveUserId),
           where('notebookId', '==', notebook.id),
           where('mode', '==', 'free'),
+          limit(100) // Limitar para performance
+        )),
+        // Voice recognition sessions (get docs to sum sessionScore)
+        getDocs(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', effectiveUserId),
+          where('notebookId', '==', notebook.id),
+          where('mode', '==', 'voice_recognition'),
+          where('validated', '==', true),
           limit(100) // Limitar para performance
         ))
       ]);
@@ -793,15 +845,49 @@ const StudyModePage = () => {
       setSmartStudyCount(smartStudyPoints);
       setFreeStudyCount(freeStudyCount);
       
-      // Calculate final score
+      // Calculate total voice recognition sessions earned
+      let voiceRecognitionSessionsEarned = 0;
+      voiceRecognitionSessions.forEach((doc) => {
+        const sessionData = doc.data();
+        const sessionScore = sessionData.sessionScore || sessionData.finalSessionScore || 0;
+        voiceRecognitionSessionsEarned += sessionScore;
+      });
+      setVoiceRecognitionCount(voiceRecognitionSessionsEarned);
+      
+      // Calculate accumulated study sessions from free study (0.1 per valid session)
+      const freeStudySessionsEarned = freeStudyCount * 0.1;
+      setFreeStudySessionsEarned(freeStudySessionsEarned);
+      
+      // Calculate final score with new formula:
+      // (Estudio inteligente + Estudio Activo + Estudio Libre) × (top score quiz + pts juegos + bonus racha)
       const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
-      const studyScore = smartStudyPoints * maxQuizScoreValue;
-      const totalScore = studyScore + gamePointsValue + streakBonus;
+      
+      // Total sesiones de estudio
+      const totalStudySessions = smartStudyPoints + voiceRecognitionSessionsEarned + freeStudySessionsEarned;
+      
+      // Total puntos multiplicadores
+      const totalMultiplierPoints = maxQuizScoreValue + gamePointsValue + streakBonus;
+      
+      // Score final
+      const totalScore = totalStudySessions * totalMultiplierPoints;
       
       setNotebookScore({
         score: totalScore,
         level: Math.floor(totalScore / 50) + 1,
         progress: totalScore % 50
+      });
+
+      // Update score breakdown for modal
+      setScoreBreakdown({
+        totalStudySessions,
+        smartStudyPoints,
+        voiceRecognitionPoints: voiceRecognitionSessionsEarned,
+        freeStudyPoints: freeStudySessionsEarned,
+        totalMultiplierPoints,
+        maxQuizScore: maxQuizScoreValue,
+        gamePoints: gamePointsValue,
+        streakBonus,
+        finalScore: totalScore
       });
       
       // Load ranking if school student - en background
@@ -1236,14 +1322,32 @@ const StudyModePage = () => {
                     <FontAwesomeIcon icon={faInfoCircle} />
                     <div className="score-tooltip">
                       <div className="tooltip-content">
-                        <div>= Estudio inteligente × top score quiz</div>
-                        <div>+ pts juegos + bonus racha</div>
+                        <div>= (Est. Inteligente + Est. Activo + Est. Libre)</div>
+                        <div>× (Quiz + Juegos + Racha)</div>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Score Breakdown Module */}
+            {selectedNotebook && (
+              <div className="score-breakdown-module">
+                <button 
+                  className="score-breakdown-trigger"
+                  onClick={() => setShowScoreBreakdown(true)}
+                  title="Ver desglose detallado del score"
+                >
+                  <div className="breakdown-preview">
+                    <span className="breakdown-title">Cálculo Score</span>
+                    <span className="breakdown-formula">
+                      {scoreBreakdown.totalStudySessions.toFixed(1)} × {scoreBreakdown.totalMultiplierPoints}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1262,7 +1366,7 @@ const StudyModePage = () => {
               <div className="function-icon">
                 <FontAwesomeIcon icon={faBrain} />
               </div>
-              <h3>Estudio Inteligente</h3>
+              <h3>Repaso Inteligente</h3>
               {!selectedNotebook ? (
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : studyAvailability.available ? (
@@ -1299,6 +1403,76 @@ const StudyModePage = () => {
             </div>
 
             <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => selectedNotebook && navigate('/voice-recognition', {
+                state: {
+                  selectedNotebook: selectedNotebook,
+                  skipNotebookSelection: true
+                }
+              })}
+            >
+              {selectedNotebook && (
+                <div className="voice-recognition-badge">#{(voiceRecognitionCount || 0).toFixed(1)}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Practica definiciones con tu voz">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faMicrophone} />
+              </div>
+              <h3>Estudio Activo</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => handleStudyMode('free')}
+            >
+              {selectedNotebook && (
+                <div className="free-study-badge">#{freeStudySessionsEarned.toFixed(1)}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Practica a tu propio ritmo">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faBook} />
+              </div>
+              <h3>Estudio Libre</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Disponible</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="study-function-card study-sessions-summary">
+              <div className="function-info-icon" data-tooltip="Suma total de todas tus sesiones de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon sessions-number">
+                {selectedNotebook ? scoreBreakdown.totalStudySessions.toFixed(1) : '0.0'}
+              </div>
+              <h3>Sesiones de Estudio</h3>
+              {!selectedNotebook && (
+                <p className="function-status">Selecciona un cuaderno</p>
+              )}
+            </div>
+
+            <div 
               className={`study-function-card ${!selectedNotebook || !quizAvailability.available ? 'disabled' : ''}`}
               onClick={() => handleStudyMode('quiz')}
             >
@@ -1330,32 +1504,6 @@ const StudyModePage = () => {
 
             <div 
               className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
-              onClick={() => handleStudyMode('free')}
-            >
-              {selectedNotebook && (
-                <div className="free-study-badge">#{freeStudyCount || 0}</div>
-              )}
-              <div className="function-info-icon" data-tooltip="Practica a tu propio ritmo">
-                <i className="fas fa-info-circle"></i>
-              </div>
-              <div className="function-icon">
-                <FontAwesomeIcon icon={faBook} />
-              </div>
-              <h3>Estudio Libre</h3>
-              {!selectedNotebook ? (
-                <p className="function-status">Selecciona un cuaderno</p>
-              ) : (
-                <>
-                  <p className="function-status available">Disponible</p>
-                  <button className="function-btn">
-                    <FontAwesomeIcon icon={faPlay} /> Iniciar
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div 
-              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
               onClick={() => handleStudyMode('games')}
             >
               {selectedNotebook && (
@@ -1379,9 +1527,39 @@ const StudyModePage = () => {
                 </>
               )}
             </div>
+            <div className="study-function-card">
+              {selectedNotebook && (
+                <div className="streak-bonus-badge">Pts: {scoreBreakdown.streakBonus}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Bonus por días consecutivos estudiando">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faFire} />
+              </div>
+              <h3>Bonus Racha</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <p className="function-status available">Puntos acumulados</p>
+              )}
+            </div>
+
+            <div className="study-function-card base-points-summary">
+              <div className="function-info-icon" data-tooltip="Score máximo quiz + juegos + bonus racha">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon points-number">
+                {selectedNotebook ? scoreBreakdown.totalMultiplierPoints : '0'}
+              </div>
+              <h3>Puntos Base</h3>
+              {!selectedNotebook && (
+                <p className="function-status">Selecciona un cuaderno</p>
+              )}
+            </div>
           </div>
 
-          {/* AI-Powered Study Section */}
+          {/* AI-Powered Study Section - HIDDEN
           <div className="ai-study-section">
             <div className="ai-section-header">
               <div className="ai-badge">
@@ -1427,6 +1605,7 @@ const StudyModePage = () => {
               </div>
             </div>
           </div>
+          */}
         </div>
       </main>
 
@@ -1513,6 +1692,119 @@ const StudyModePage = () => {
                   ✨ Estudia {divisionData.nextMilestone - divisionData.progress} conceptos más y consigue tu siguiente medalla
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Score Breakdown Modal */}
+      {showScoreBreakdown && selectedNotebook && (
+        <div className="modal-overlay" onClick={() => setShowScoreBreakdown(false)}>
+          <div className="score-breakdown-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>📊 Desglose Detallado del Score</h3>
+              <button className="close-modal" onClick={() => setShowScoreBreakdown(false)}>
+                ×
+              </button>
+            </div>
+            
+            <div className="score-breakdown-content">
+              {/* Formula Display */}
+              <div className="formula-display">
+                <div className="formula-title">🧮 Fórmula de Cálculo</div>
+                <div className="formula-equation">
+                  <span className="sessions-part">(Sesiones de Estudio)</span>
+                  <span className="multiply-symbol">×</span>
+                  <span className="multipliers-part">(Puntos Multiplicadores)</span>
+                </div>
+              </div>
+
+              {/* Sessions Breakdown */}
+              <div className="breakdown-section sessions-section">
+                <h4>📚 Sesiones de Estudio</h4>
+                <div className="breakdown-items">
+                  <div className="breakdown-item">
+                    <span className="item-icon">🧠</span>
+                    <span className="item-label">Estudio Inteligente</span>
+                    <span className="item-value">{scoreBreakdown.smartStudyPoints.toFixed(1)}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="item-icon">🎤</span>
+                    <span className="item-label">Estudio Activo (Voz)</span>
+                    <span className="item-value">{scoreBreakdown.voiceRecognitionPoints.toFixed(1)}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="item-icon">📖</span>
+                    <span className="item-label">Estudio Libre</span>
+                    <span className="item-value">{scoreBreakdown.freeStudyPoints.toFixed(1)}</span>
+                  </div>
+                  <div className="breakdown-total">
+                    <span className="total-label">Total Sesiones</span>
+                    <span className="total-value">{scoreBreakdown.totalStudySessions.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Multipliers Breakdown */}
+              <div className="breakdown-section multipliers-section">
+                <h4>⚡ Puntos Multiplicadores</h4>
+                <div className="breakdown-items">
+                  <div className="breakdown-item">
+                    <span className="item-icon">❓</span>
+                    <span className="item-label">Mejor Score Quiz</span>
+                    <span className="item-value">{scoreBreakdown.maxQuizScore}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="item-icon">🎮</span>
+                    <span className="item-label">Puntos de Juegos</span>
+                    <span className="item-value">{scoreBreakdown.gamePoints}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="item-icon">🔥</span>
+                    <span className="item-label">Bonus por Racha</span>
+                    <span className="item-value">{scoreBreakdown.streakBonus}</span>
+                  </div>
+                  <div className="breakdown-total">
+                    <span className="total-label">Total Multiplicadores</span>
+                    <span className="total-value">{scoreBreakdown.totalMultiplierPoints}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Calculation */}
+              <div className="final-calculation">
+                <div className="calculation-display">
+                  <span className="sessions-value">{scoreBreakdown.totalStudySessions.toFixed(1)}</span>
+                  <span className="multiply-symbol">×</span>
+                  <span className="multipliers-value">{scoreBreakdown.totalMultiplierPoints}</span>
+                  <span className="equals-symbol">=</span>
+                  <span className="final-score">{Math.round(scoreBreakdown.finalScore).toLocaleString()}</span>
+                </div>
+                <div className="calculation-label">🎯 Score Final</div>
+              </div>
+
+              {/* Tips Section */}
+              <div className="score-tips">
+                <h4>💡 Consejos para Mejorar tu Score</h4>
+                <div className="tips-grid">
+                  <div className="tip-item">
+                    <span className="tip-icon">📈</span>
+                    <span>Completa más sesiones de estudio</span>
+                  </div>
+                  <div className="tip-item">
+                    <span className="tip-icon">🏆</span>
+                    <span>Mejora tu puntuación en Quiz</span>
+                  </div>
+                  <div className="tip-item">
+                    <span className="tip-icon">🎯</span>
+                    <span>Juega para ganar puntos extra</span>
+                  </div>
+                  <div className="tip-item">
+                    <span className="tip-icon">🔥</span>
+                    <span>Mantén tu racha diaria</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

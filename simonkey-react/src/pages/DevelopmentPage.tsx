@@ -41,8 +41,9 @@ const DevelopmentPage: React.FC = () => {
       id: 'voice-recognition',
       title: 'Reconocimiento de Voz',
       description: 'Pruebas de Web Speech API para respuestas por voz',
-      status: 'planning',
-      icon: '🎤'
+      status: 'ready',
+      icon: '🎤',
+      route: '/voice-recognition'
     },
     {
       id: 'fill-blank',

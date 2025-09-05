@@ -25,12 +25,20 @@ const Hero: React.FC = () => {
             </div>
           </div>
             <div className="hero-image">
-            <img
-              src="/img/imagen.jpg"
-              alt="Simio Simón estudiando"
-              className="hero-img"
-              style={{ width: '70%', height: 'auto' }}
-            />
+            <div style={{ 
+              backgroundColor: '#f9fafb', 
+              borderRadius: '10px', 
+              display: 'inline-block',
+              width: '70%',
+              padding: '10px'
+            }}>
+              <img
+                src="/img/imagen.png"
+                alt="Simio Simón estudiando"
+                className="hero-img"
+                style={{ width: '100%', height: 'auto', display: 'block', backgroundColor: '#f9fafb' }}
+              />
+            </div>
             </div>
         </div>
       </div>

@@ -2398,6 +2398,15 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
+.intro-description {
+  text-align: center;
+  font-size: 1.1rem;
+  color: var(--mini-quiz-text-medium);
+  font-weight: 500;
+  margin: 1rem 0;
+  padding: 0.5rem;
+}
+
 .intro-section {
   margin-bottom: 1rem;
   padding: 0.75rem;
