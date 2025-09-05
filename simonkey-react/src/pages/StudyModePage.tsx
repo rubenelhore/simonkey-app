@@ -1432,7 +1432,7 @@ const StudyModePage = () => {
           <div className="study-functions">
           <div 
               className={`study-function-card ${!selectedNotebook || studyAvailability.totalConcepts === 0 ? 'disabled' : ''}`}
-              onClick={() => selectedNotebook && studyAvailability.totalConcepts > 0 && handleStudyMode('smart')}
+              onClick={() => selectedNotebook && studyAvailability.totalConcepts && studyAvailability.totalConcepts > 0 && handleStudyMode('smart')}
             >
               {selectedNotebook && (
                 <div className="study-count-badge">#{smartStudyCount || 0}</div>
