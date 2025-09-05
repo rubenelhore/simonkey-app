@@ -15,6 +15,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+const { getPromptByLanguage } = require('./prompt-nuclear');
 
 // Importar funciones de congelación programada
 // export { processScheduledFreezeUnfreeze, processScheduledFreezeUnfreezeManual } from './scheduledFreezeUnfreeze';
@@ -2628,38 +2629,125 @@ export const generateConceptsFromFile = onCall(
       const mimeType = getMimeType(fileName || '');
       logger.info("📄 Tipo MIME detectado", { fileName, mimeType });
 
-      // Función para detectar idioma del contenido
+      // Función mejorada para detectar idioma del contenido con mayor precisión
       const detectLanguage = (text: string): string => {
-        const sample = text.toLowerCase().substring(0, 1000);
+        // Tomar una muestra más grande para mejor detección
+        const sample = text.toLowerCase().substring(0, 2000);
+        const originalSample = text.substring(0, 2000); // Mantener original para detección de caracteres griegos
         
-        // Palabras comunes en diferentes idiomas
+        // Palabras comunes y exclusivas de cada idioma (ampliada para mejor precisión)
         const languagePatterns = {
-          english: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'],
-          spanish: ['el', 'la', 'los', 'las', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'un', 'una'],
-          french: ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'dans', 'avec', 'pour', 'par', 'sur'],
-          german: ['der', 'die', 'das', 'und', 'oder', 'aber', 'in', 'auf', 'mit', 'von', 'zu', 'für'],
-          portuguese: ['o', 'a', 'os', 'as', 'de', 'do', 'da', 'em', 'com', 'por', 'para', 'que'],
-          italian: ['il', 'la', 'lo', 'gli', 'le', 'di', 'del', 'in', 'con', 'per', 'da', 'che']
+          english: {
+            common: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might'],
+            exclusive: ['the', 'is', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'should']
+          },
+          spanish: {
+            common: ['el', 'la', 'los', 'las', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'un', 'una', 'es', 'está', 'son', 'como', 'más', 'pero', 'su', 'al', 'lo', 'todo', 'esta', 'entre'],
+            exclusive: ['está', 'están', 'estás', 'español', 'también', 'más', 'qué', 'cómo', 'dónde', 'cuándo']
+          },
+          italian: {
+            common: ['il', 'la', 'lo', 'gli', 'le', 'di', 'del', 'della', 'dei', 'delle', 'in', 'con', 'per', 'da', 'che', 'è', 'sono', 'come', 'più', 'ma', 'suo', 'tutto', 'questo', 'tra'],
+            exclusive: ['è', 'sono', 'degli', 'dalla', 'nella', 'sulla', 'può', 'già', 'però', 'così', 'città', 'perché']
+          },
+          greek: {
+            common: ['και', 'το', 'τα', 'του', 'της', 'των', 'με', 'σε', 'για', 'από', 'στο', 'στη', 'στα', 'είναι', 'ότι', 'που', 'θα', 'να'],
+            exclusive: ['είναι', 'έχει', 'αυτό', 'αυτή', 'αυτά', 'πολύ', 'μόνο', 'όλα', 'κάθε', 'πάνω', 'μέσα']
+          },
+          latin: {
+            common: ['et', 'in', 'est', 'non', 'ad', 'cum', 'ex', 'de', 'per', 'pro', 'sed', 'ut', 'si', 'qui', 'quae', 'quod', 'esse', 'aut', 'vel', 'nec', 'iam', 'tamen', 'enim'],
+            exclusive: ['esse', 'est', 'sunt', 'erat', 'erant', 'fuit', 'esse', 'potest', 'facit', 'habet', 'dicit', 'quod', 'quid', 'quia', 'ergo', 'igitur', 'autem']
+          }
         };
         
-        let bestLanguage = 'unknown';
-        let maxScore = 0;
+        // Sistema de puntuación mejorado
+        const scores: { [key: string]: number } = {
+          english: 0,
+          spanish: 0,
+          italian: 0,
+          greek: 0,
+          latin: 0
+        };
         
-        for (const [lang, words] of Object.entries(languagePatterns)) {
-          let score = 0;
-          for (const word of words) {
-            const regex = new RegExp(`\\b${word}\\b`, 'g');
-            const matches = sample.match(regex);
-            score += matches ? matches.length : 0;
-          }
+        // Primero, detectar caracteres griegos (alta prioridad)
+        if (/[α-ωΑ-Ω]/.test(originalSample)) {
+          scores.greek += 50; // Fuerte indicador de griego
           
-          if (score > maxScore) {
-            maxScore = score;
-            bestLanguage = lang;
+          // Detectar caracteres politónicos (acentos griegos)
+          if (/[άέήίόύώΆΈΉΊΌΎΏἀἁἂἃἄἅἆἇἈἉἊἋἌἍἎἏὰάᾶᾱᾰᾳᾴᾷᾀᾁᾂᾃᾄᾅᾆᾇ]/.test(originalSample)) {
+            scores.greek += 30; // Bonus adicional por griego politónico
           }
         }
         
-        return bestLanguage;
+        // Contar palabras comunes para todos los idiomas
+        for (const [lang, patterns] of Object.entries(languagePatterns)) {
+          const { common, exclusive } = patterns;
+          
+          // Para griego, usar el sample original
+          const searchSample = lang === 'greek' ? originalSample.toLowerCase() : sample;
+          
+          // Puntos por palabras comunes
+          for (const word of common) {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            const matches = searchSample.match(regex);
+            if (matches) {
+              scores[lang] += matches.length;
+            }
+          }
+          
+          // Puntos extra por palabras exclusivas (más peso)
+          for (const word of exclusive) {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            const matches = searchSample.match(regex);
+            if (matches) {
+              scores[lang] += matches.length * 2; // Doble peso para palabras exclusivas
+            }
+          }
+        }
+        
+        // Detectar caracteres especiales del español
+        if (/[áéíóúñü¿¡]/i.test(sample)) {
+          scores.spanish += 10; // Bonus significativo por caracteres españoles
+        }
+        
+        // Detectar caracteres especiales del italiano
+        if (/[àèéìòù]/i.test(sample)) {
+          scores.italian += 8; // Bonus por caracteres italianos
+        }
+        
+        // Detectar patrones de gramática inglesa
+        if (/\b(i'm|you're|it's|we're|they're|i've|you've|we've|they've|hasn't|haven't|doesn't|don't|won't|can't|couldn't|wouldn't|shouldn't)\b/i.test(sample)) {
+          scores.english += 15; // Bonus por contracciones en inglés
+        }
+        
+        // Detectar terminaciones latinas comunes
+        if (/\b\w+(us|um|am|ae|arum|is|ibus|orum|ibus)\b/gi.test(sample)) {
+          scores.latin += 10; // Bonus por terminaciones latinas
+        }
+        
+        // Log para debug
+        logger.info("🔍 Detección de idioma - Puntuaciones", {
+          english: scores.english,
+          spanish: scores.spanish,
+          italian: scores.italian,
+          greek: scores.greek,
+          latin: scores.latin,
+          sampleLength: sample.length,
+          hasGreekChars: /[α-ωΑ-Ω]/.test(originalSample),
+          hasPolytonicGreek: /[άέήίόύώ]/.test(originalSample)
+        });
+        
+        // Determinar el idioma con mayor puntuación
+        let maxScore = 0;
+        let detectedLang = 'spanish'; // Por defecto español
+        
+        for (const [lang, score] of Object.entries(scores)) {
+          if (score > maxScore) {
+            maxScore = score;
+            detectedLang = lang;
+          }
+        }
+        
+        return detectedLang;
       };
 
       // Detectar idioma del contenido
@@ -2701,151 +2789,16 @@ export const generateConceptsFromFile = onCall(
       }
 
       // ================================
-      // SOLUCIÓN NUCLEAR: PROMPT ESPECÍFICO POR IDIOMA
+      // USAR PROMPT ESPECÍFICO POR IDIOMA DESDE MÓDULO NUCLEAR
       // ================================
       
-      let prompt: string;
+      // Obtener el prompt apropiado según el idioma detectado
+      const prompt = getPromptByLanguage(detectedLanguage);
       
-      if (detectedLanguage === 'english') {
-        // PROMPT COMPLETAMENTE EN INGLÉS
-        prompt = `
-🚨🚨🚨 CRITICAL INSTRUCTION - ENGLISH DOCUMENT DETECTED 🚨🚨🚨
-
-**DOCUMENT IS IN ENGLISH**
-**YOU MUST RESPOND ONLY IN ENGLISH**
-**ABSOLUTELY NO TRANSLATION TO ANY OTHER LANGUAGE**
-
-⚠️ CRITICAL WARNING: **NEVER TRANSLATE ANYTHING** - KEEP EVERYTHING IN ENGLISH ⚠️
-
-You are an expert creating effective study flashcards. Analyze the document and extract key concepts.
-**IMPORTANT: YOU MUST KEEP EVERYTHING IN ENGLISH. DO NOT TRANSLATE.**
-
-## EXTRACTION RULES
-
-1. **Discard questions**
-   - Ignore any line containing "?" 
-   - Ignore phrases starting with interrogative words (what, which, who, where, when, why, how).
-
-2. **Identify the answer** (concept) and its brief explanation.
-
-3. **Length limits**
-   - **Term** ≤ 50 characters, no punctuation except accents.
-   - **Definition** ≤ 200 characters, clear and concise.
-   - If explanation exceeds limit, simplify while preserving meaning.
-
-4. **Term-definition independence**
-   - Term should not appear in definition and vice versa.
-
-5. **Remove duplicates**
-   - At the end, analyze the JSON. REMOVE cards with same term or definition.
-
-6. **LANGUAGE: ENGLISH - NEVER TRANSLATE**
-   - 🚫 **TRANSLATION FORBIDDEN** 🚫
-   - **DOCUMENT IS IN ENGLISH**
-   - **YOUR CONCEPTS MUST BE IN ENGLISH**
-   - **NEVER TRANSLATE THE CONCEPTS**
-   - **ALWAYS KEEP ENGLISH**
-   - **DO NOT TRANSLATE** to any other language
-   - **DOCUMENT = ENGLISH → RESPONSE = ENGLISH**
-   - **REPEAT: TRANSLATION IS STRICTLY FORBIDDEN**
-   - Terms and definitions MUST be EXACTLY in ENGLISH
-   - **DO NOT CHANGE LANGUAGE UNDER ANY CIRCUMSTANCES**
-   - **RESPOND IN ENGLISH ONLY**
-
-## RESPONSE FORMAT:
-Respond ONLY with this valid JSON:
-
-{
-  "conceptos": [
-    {
-      "termino": "Simple concept name IN ENGLISH",
-      "definicion": "Clear and concise explanation IN ENGLISH"
-    }
-  ]
-}
-
-🚫 FINAL REMINDER: **DO NOT TRANSLATE ANYTHING** 🚫
-- Document is in English → respond in English
-- **NEVER CHANGE THE DOCUMENT'S ORIGINAL LANGUAGE**
-
-EXAMPLES OF CORRECT FORMAT:
-{
-  "conceptos": [
-    {
-      "termino": "Photosynthesis",
-      "definicion": "Process by which plants convert light energy into chemical energy"
-    },
-    {
-      "termino": "Democracy", 
-      "definicion": "System of government where power is vested in the people"
-    }
-  ]
-}
-`;
-      } else {
-        // PROMPT EN ESPAÑOL PARA OTROS IDIOMAS
-        prompt = `
-🚨🚨🚨 INSTRUCCIÓN CRÍTICA - DOCUMENTO EN ESPAÑOL DETECTADO 🚨🚨🚨
-
-**EL DOCUMENTO ESTÁ EN ESPAÑOL**
-**DEBES RESPONDER ÚNICAMENTE EN ESPAÑOL**
-**PROHIBIDO TRADUCIR A CUALQUIER OTRO IDIOMA**
-
-⚠️ ADVERTENCIA CRÍTICA: **NUNCA TRADUZCAS NADA** - MANTÉN TODO EN ESPAÑOL ⚠️
-
-Eres un experto creando tarjetas de estudio efectivas. Analiza el documento y extrae los conceptos clave.
-**IMPORTANTE: DEBES MANTENER TODO EN ESPAÑOL. NO TRADUZCAS.**
-
-## REGLAS DE EXTRACCIÓN  
-
-1. **Descarta las preguntas**  
-   - Ignora cualquier línea que contenga "¿" o "?"  
-   - Ignora frases que empiecen con palabras interrogativas (qué, cuál, quién, dónde, cuándo, por qué, how, who, what, which).
-
-2. **Identifica la respuesta** (concepto) y su explicación breve.  
-
-3. **Límites de longitud**  
-   - **Término** ≤ 50 caracteres, sin signos de puntuación salvo tildes.  
-   - **Definición** ≤ 200 caracteres, clara y concisa.  
-   - Si la explicación excede el límite, simplifícala conservando el sentido.
-
-4. **Independencia término‑definición**  
-   - El término no debe aparecer en la definición ni la definición en el término.
-
-5. **Elimina duplicados y cruces**  
-   - Al finalizar, analiza el json. ELIMINA las tarjetas que tengan el mismo término o definición. OJO: Lee bien, si ves que dos json se parecen, quedate con el primero.
-
-6. **IDIOMA: ESPAÑOL - NUNCA TRADUCIR**  
-   - 🚫 **PROHIBIDO TRADUCIR** 🚫
-   - **EL DOCUMENTO ESTÁ EN ESPAÑOL**
-   - **TUS CONCEPTOS DEBEN ESTAR EN ESPAÑOL**
-   - **NUNCA JAMÁS traduzcas los conceptos**
-   - **MANTÉN SIEMPRE EL ESPAÑOL**
-   - **NO TRADUZCAS** a ningún otro idioma
-   - **DOCUMENTO = ESPAÑOL → RESPUESTA = ESPAÑOL**
-   - **REPITO: ESTÁ TERMINANTEMENTE PROHIBIDO TRADUCIR**
-   - Los términos y definiciones DEBEN estar EXACTAMENTE en ESPAÑOL
-   - **NO CAMBIES EL IDIOMA BAJO NINGUNA CIRCUNSTANCIA**
-   - **RESPONDE EN ESPAÑOL ÚNICAMENTE**
-
-## FORMATO DE RESPUESTA:
-Responde ÚNICAMENTE con este JSON válido:
-
-{
-  "conceptos": [
-    {
-      "termino": "Nombre del concepto EN ESPAÑOL",
-      "definicion": "Explicación clara y concisa EN ESPAÑOL"
-    }
-  ]
-}
-
-🚫 RECORDATORIO FINAL: **NO TRADUZCAS NADA** 🚫
-- El documento está en español → responde en español
-- **NUNCA CAMBIES EL IDIOMA DEL DOCUMENTO ORIGINAL**
-`;
-      }
-
+      logger.info("📝 Usando prompt para idioma", { 
+        detectedLanguage,
+        promptLength: prompt.length 
+      });
       let result;
       
       // Si es un archivo (PDF, imagen, etc.), usar la funcionalidad de archivos de Gemini
