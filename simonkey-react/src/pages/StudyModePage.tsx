@@ -1340,7 +1340,7 @@ const StudyModePage = () => {
                     <FontAwesomeIcon icon={faInfoCircle} />
                     <div className="score-tooltip">
                       <div className="tooltip-content">
-                        <div>SESIONES × PUNTOS BASE</div>
+                        <div>SUMA DE PUNTOS</div>
                       </div>
                     </div>
                   </div>
