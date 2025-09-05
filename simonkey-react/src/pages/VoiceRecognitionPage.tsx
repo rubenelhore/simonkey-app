@@ -71,6 +71,7 @@ const VoiceRecognitionPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsToLoadConcepts, setNeedsToLoadConcepts] = useState(false);
+  const [queuedCount, setQueuedCount] = useState(0);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
 
@@ -265,6 +266,7 @@ const VoiceRecognitionPage: React.FC = () => {
     // Inicializar la sesión
     setCurrentConceptIndex(0);
     setResults([]);
+    setQueuedCount(0); // Reset queue counter when starting new session
     setCurrentStep('practice');
   };
 
@@ -335,6 +337,13 @@ const VoiceRecognitionPage: React.FC = () => {
     const newResults = [...results, result];
     setResults(newResults);
     
+    // Si este era un concepto que estaba en cola (después del índice original), decrementar el contador
+    const originalConceptCount = INTENSITY_OPTIONS.find(opt => opt.id === selectedIntensity)?.conceptCount || 5;
+    
+    if (currentConceptIndex >= originalConceptCount && queuedCount > 0) {
+      setQueuedCount(prev => Math.max(0, prev - 1));
+    }
+    
     if (currentConceptIndex < concepts.length - 1) {
       setCurrentConceptIndex(currentConceptIndex + 1);
     } else {
@@ -354,13 +363,15 @@ const VoiceRecognitionPage: React.FC = () => {
     ];
     setConcepts(updatedConcepts);
     
-    // Si no hay más conceptos después del actual, mantenerse en el mismo índice
-    // Si hay más conceptos, el índice ya apunta al siguiente concepto
-    if (currentConceptIndex >= updatedConcepts.length - 1) {
-      // Era el último concepto, ahora el índice debe ser 0 ya que movimos todos hacia atrás
-      setCurrentConceptIndex(Math.min(currentConceptIndex, updatedConcepts.length - 1));
+    // Incrementar el contador de elementos en cola
+    setQueuedCount(prev => prev + 1);
+    
+    // Avanzar al siguiente concepto sin cambiar el índice (ya que removimos el actual)
+    // Si era el último concepto, volver al índice 0
+    if (currentConceptIndex >= updatedConcepts.length) {
+      setCurrentConceptIndex(0);
     }
-    // Si no era el último, el currentConceptIndex ya apunta al siguiente concepto automáticamente
+    // Si no era el último, el índice ya apunta al siguiente concepto automáticamente
   };
 
   const resetSession = () => {
@@ -672,6 +683,7 @@ const VoiceRecognitionPage: React.FC = () => {
             onResult={handleVoiceResult}
             onRetry={handleRetry}
             onBack={() => setCurrentStep('intensity-selection')}
+            queuedCount={queuedCount}
           />
         )}
         {currentStep === 'results' && renderResults()}

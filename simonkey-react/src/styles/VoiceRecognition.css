@@ -205,6 +205,38 @@
   max-width: 700px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
+}
+
+.exit-button-voice {
+  position: fixed;
+  top: 90px;
+  left: 280px;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+  color: #6b7280;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 100;
+}
+
+.exit-button-voice:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.exit-button-voice svg {
+  font-size: 18px;
 }
 
 .practice-header {
@@ -268,7 +300,16 @@
   font-weight: bold;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
   flex-shrink: 0;
-  padding: 0 12px;
+  padding: 0 20px;
+  white-space: nowrap;
+  width: auto;
+}
+
+.queued-indicator {
+  color: #fbbf24;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-left: 8px;
 }
 
 .concept-title {
@@ -335,6 +376,30 @@
   transform: scale(1.1);
 }
 
+.speak-button.speaking {
+  background: #ef4444;
+  animation: pulse-speak 1.5s infinite;
+}
+
+.speak-button.speaking:hover {
+  background: #dc2626;
+}
+
+@keyframes pulse-speak {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
 /* Voice Interaction */
 .voice-interaction {
   background: white;
@@ -385,6 +450,31 @@
 
 .mic-button.ready:hover {
   box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.1);
+}
+
+.mic-button.listening {
+  background: #10b981 !important;
+  animation: pulse 2s infinite;
+}
+
+.mic-button.listening:hover {
+  background: #059669 !important;
+  box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 .mic-button span {
@@ -878,6 +968,12 @@
     margin-bottom: 20px;
   }
   
+  .exit-button-voice {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+  }
+  
   .module-info h1 {
     font-size: 2rem;
   }
@@ -1240,6 +1336,73 @@
 .action-button-compact:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Override loading spinner for disabled buttons in voice recognition */
+.voice-practice-container .btn-primary:disabled {
+  cursor: not-allowed !important;
+  position: static !important;
+}
+
+.voice-practice-container .btn-primary:disabled::after {
+  display: none !important;
+}
+
+.show-definition-btn {
+  margin-top: 16px;
+  padding: 12px 24px;
+  font-size: 14px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  color: #475569;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.show-definition-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.question-text {
+  color: #4f46e5;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.gave-up-text {
+  color: #f59e0b;
+  font-weight: 500;
+  margin-top: 16px;
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.gave-up-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.gave-up-actions .btn-primary {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
 }
 
 /* Responsive adjustments */

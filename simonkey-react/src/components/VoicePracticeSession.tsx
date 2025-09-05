@@ -7,7 +7,8 @@ import {
   faArrowRight, 
   faCheckCircle, 
   faTimesCircle,
-  faSpinner
+  faSpinner,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import { voiceRecognitionService, VoiceRecognitionResult, ComparisonResult } from '../services/voiceRecognitionService';
 
@@ -31,6 +32,7 @@ interface VoicePracticeSessionProps {
   onResult: (result: VoiceResult) => void;
   onRetry: () => void;
   onBack: () => void;
+  queuedCount?: number;
 }
 
 type PracticeState = 'ready' | 'listening' | 'processing' | 'feedback';
@@ -40,7 +42,8 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
   currentConceptIndex,
   onResult,
   onRetry,
-  onBack
+  onBack,
+  queuedCount = 0
 }) => {
   const [practiceState, setPracticeState] = useState<PracticeState>('ready');
   const [userTranscript, setUserTranscript] = useState('');
@@ -50,6 +53,9 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
   const [listeningTimer, setListeningTimer] = useState(0);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualInputText, setManualInputText] = useState('');
+  const [showDefinition, setShowDefinition] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   
   const currentConcept = concepts[currentConceptIndex];
   const isLastConcept = currentConceptIndex === concepts.length - 1;
@@ -57,6 +63,13 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
   // Verificar permisos de micrófono al montar
   useEffect(() => {
     checkMicrophoneSetup();
+    
+    // Cleanup: stop speech synthesis when component unmounts
+    return () => {
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+      }
+    };
   }, []);
 
   // Timer para el estado de escucha
@@ -149,6 +162,12 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
     setError(null);
     setShowManualInput(false);
     setManualInputText('');
+    setShowDefinition(false);
+    setGaveUp(false);
+    setIsSpeaking(false);
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
   };
 
   const handleManualSubmit = async () => {
@@ -182,10 +201,31 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
 
   const speakDefinition = () => {
     if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(currentConcept.definition);
-      utterance.lang = 'es-ES';
-      utterance.rate = 0.8;
-      speechSynthesis.speak(utterance);
+      if (isSpeaking) {
+        // Stop speaking
+        speechSynthesis.cancel();
+        setIsSpeaking(false);
+      } else {
+        // Start speaking
+        speechSynthesis.cancel(); // Cancel any ongoing speech first
+        const utterance = new SpeechSynthesisUtterance(currentConcept.definition);
+        utterance.lang = 'es-ES';
+        utterance.rate = 0.8;
+        
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+        };
+        
+        utterance.onend = () => {
+          setIsSpeaking(false);
+        };
+        
+        utterance.onerror = () => {
+          setIsSpeaking(false);
+        };
+        
+        speechSynthesis.speak(utterance);
+      }
     }
   };
 
@@ -193,6 +233,22 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
     if (listeningTimer < 5) return 'Escuchando...';
     if (listeningTimer < 10) return 'Sigue hablando...';
     return 'Procesando respuesta...';
+  };
+
+  const handleTryAgain = () => {
+    // Reset local state to try the same concept again (don't move to queue)
+    setPracticeState('ready');
+    setUserTranscript('');
+    setComparisonResult(null);
+    setError(null);
+    setShowManualInput(false);
+    setManualInputText('');
+    setShowDefinition(false);
+    setGaveUp(false);
+    setIsSpeaking(false);
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
   };
 
   if (error && !microphonePermission) {
@@ -216,14 +272,15 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
 
   return (
     <div className="voice-practice-container">
+      <button 
+        className="exit-button-voice"
+        onClick={onBack}
+        title="Salir de la práctica"
+      >
+        <FontAwesomeIcon icon={faTimes} />
+      </button>
       <div className="practice-header">
         <div className="progress-info">
-          <div className="progress-bar">
-            <div 
-              className="progress-fill"
-              style={{ width: `${((currentConceptIndex + 1) / concepts.length) * 100}%` }}
-            />
-          </div>
         </div>
       </div>
 
@@ -231,6 +288,9 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
         <div className="concept-header">
           <div className="concept-number">
             {currentConceptIndex + 1}/{concepts.length}
+            {queuedCount > 0 && (
+              <span className="queued-indicator"> (+{queuedCount} en cola)</span>
+            )}
           </div>
           <h2 className="concept-title">
             <span className="concept-highlight">{currentConcept.concept}</span>
@@ -242,11 +302,11 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
             <div className="definition-container">
               <p className="definition-text">{currentConcept.definition}</p>
               <button 
-                className="speak-button"
+                className={`speak-button ${isSpeaking ? 'speaking' : ''}`}
                 onClick={speakDefinition}
-                title="Escuchar definición"
+                title={isSpeaking ? "Detener audio" : "Escuchar definición"}
               >
-                <FontAwesomeIcon icon={faVolumeUp} />
+                <FontAwesomeIcon icon={isSpeaking ? faStop : faVolumeUp} />
               </button>
             </div>
           </div>
@@ -254,39 +314,91 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
       </div>
 
       <div className="voice-interaction">
-        {practiceState === 'ready' && (
+        {(practiceState === 'ready' || practiceState === 'listening') && (
           <div className="voice-ready">
-            <h3>¡Tu turno!</h3>
-            <p>Di la definición de este concepto</p>
+            <h3>{gaveUp ? '¡Recuerda esta definición!' : '¡Tu turno!'}</h3>
+            {!showDefinition && <p>{practiceState === 'listening' ? getListeningStatusText() : 'Di la definición de este concepto'}</p>}
             
-            {!showManualInput ? (
-              <>
-                <button 
-                  className="mic-button ready"
-                  onClick={startListening}
-                  disabled={!microphonePermission}
-                >
-                  <FontAwesomeIcon icon={faMicrophone} />
-                  <span>Comenzar a Hablar</span>
-                </button>
-                
-                <div className="alternative-input">
-                  <p>¿No puedes usar el micrófono?</p>
+            {showDefinition && gaveUp && (
+              <div className="definition-section">
+                <div className="definition-container">
+                  <p className="definition-text">{currentConcept.definition}</p>
                   <button 
-                    className="btn btn-outline"
-                    onClick={() => setShowManualInput(true)}
+                    className={`speak-button ${isSpeaking ? 'speaking' : ''}`}
+                    onClick={speakDefinition}
+                    title={isSpeaking ? "Detener audio" : "Escuchar definición"}
                   >
-                    Escribir Respuesta
+                    <FontAwesomeIcon icon={isSpeaking ? faStop : faVolumeUp} />
                   </button>
                 </div>
+                <p className="gave-up-text">Esta pregunta se moverá al final para que la intentes de nuevo</p>
+                <div className="gave-up-actions">
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      // Move concept to end of queue
+                      onRetry();
+                      // Reset state for next concept
+                      setShowDefinition(false);
+                      setGaveUp(false);
+                      setPracticeState('ready');
+                      setUserTranscript('');
+                      setComparisonResult(null);
+                      setError(null);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faArrowRight} />
+                    Continuar
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {!showManualInput && !gaveUp && (
+              <>
+                <button 
+                  className={`mic-button ${practiceState === 'listening' ? 'listening' : 'ready'}`}
+                  onClick={practiceState === 'listening' ? stopListening : startListening}
+                  disabled={!microphonePermission}
+                >
+                  <FontAwesomeIcon icon={practiceState === 'listening' ? faStop : faMicrophone} />
+                  <span>{practiceState === 'listening' ? 'Escuchando...' : 'Comenzar a Hablar'}</span>
+                </button>
+                
+                {practiceState !== 'listening' && (
+                  <button 
+                    className="btn btn-outline show-definition-btn"
+                    onClick={() => {
+                      setShowDefinition(true);
+                      setGaveUp(true);
+                    }}
+                  >
+                    No lo sé
+                  </button>
+                )}
+                
+                {practiceState !== 'listening' && (
+                  <div className="alternative-input">
+                    <p>¿No puedes usar el micrófono?</p>
+                    <button 
+                      className="btn btn-outline"
+                      onClick={() => setShowManualInput(true)}
+                    >
+                      Escribir Respuesta
+                    </button>
+                  </div>
+                )}
               </>
-            ) : (
+            )}
+            
+            {showManualInput && (
               <div className="manual-input-section">
                 <h4>Escribe la definición:</h4>
                 <textarea
                   className="manual-input-textarea"
                   value={manualInputText}
                   onChange={(e) => setManualInputText(e.target.value)}
+                  onPaste={(e) => e.preventDefault()}
                   placeholder="Escribe aquí la definición del concepto..."
                   rows={4}
                   autoFocus
@@ -314,28 +426,6 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
           </div>
         )}
 
-        {practiceState === 'listening' && (
-          <div className="voice-listening">
-            <div className="listening-animation">
-              <div className="mic-icon-animated">
-                <FontAwesomeIcon icon={faMicrophone} />
-              </div>
-              <div className="sound-waves">
-                <div className="wave"></div>
-                <div className="wave"></div>
-                <div className="wave"></div>
-              </div>
-            </div>
-            <p className="listening-status">{getListeningStatusText()}</p>
-            <button 
-              className="stop-button"
-              onClick={stopListening}
-            >
-              <FontAwesomeIcon icon={faStop} />
-              Detener
-            </button>
-          </div>
-        )}
 
         {practiceState === 'processing' && (
           <div className="voice-processing">
@@ -374,17 +464,7 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
             <div className="feedback-actions">
               <button 
                 className="btn btn-outline"
-                onClick={() => {
-                  // Reset local state
-                  setPracticeState('ready');
-                  setUserTranscript('');
-                  setComparisonResult(null);
-                  setError(null);
-                  setShowManualInput(false);
-                  setManualInputText('');
-                  // Move concept to end of queue and go to next
-                  onRetry();
-                }}
+                onClick={handleTryAgain}
               >
                 Intentar de Nuevo
               </button>
