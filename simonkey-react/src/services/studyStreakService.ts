@@ -218,6 +218,29 @@ export class StudyStreakService {
         }
       }
 
+      // Verificar sesiones de Estudio Activo (reconocimiento de voz)
+      const voiceStudySessionsQuery = query(
+        collection(db, 'studySessions'),
+        where('userId', '==', userId),
+        where('startTime', '>=', Timestamp.fromDate(startOfDay)),
+        where('startTime', '<', Timestamp.fromDate(endOfDay)),
+        where('mode', '==', 'voice_recognition')
+      );
+
+      const voiceStudySessionsSnap = await getDocs(voiceStudySessionsQuery);
+      console.log('[StudyStreakService] Sesiones de Estudio Activo encontradas:', voiceStudySessionsSnap.size);
+      
+      // Verificar si hay al menos una sesión de voz validada con duración > 0
+      for (const doc of voiceStudySessionsSnap.docs) {
+        const session = doc.data();
+        const duration = session.metrics?.sessionDuration || 0;
+        const isValidated = session.validated === true;
+        if (duration > 0 && isValidated) {
+          logger.debug(`StudyStreakService - Found voice study session with duration: ${duration}, validated: ${isValidated}`);
+          return true;
+        }
+      }
+
       console.log('[StudyStreakService] ❌ No se encontró actividad de estudio hoy');
       return false;
     } catch (error) {
