@@ -75,6 +75,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   
   // Usar useRef para guardar el score actual y evitar que se pierda
   const currentScoreRef = useRef<number>(0);
+  
 
   // Configuración del timer para mini quiz (45 segundos)
   const timerConfig = {
@@ -299,6 +300,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
   const startMiniQuiz = async () => {
     try {
       console.log('[MINI QUIZ] Preparando mini quiz...');
+      
       setLoading(true);
       
       // PRIORIZAR: Si tenemos conceptos de sesión, usar directamente sin cargar del cuaderno
