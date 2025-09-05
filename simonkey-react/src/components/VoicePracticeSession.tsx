@@ -464,7 +464,23 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
             <div className="feedback-actions">
               <button 
                 className="btn btn-outline"
-                onClick={handleTryAgain}
+                onClick={() => {
+                  // Move concept to end of queue (same as "No lo sé")
+                  onRetry();
+                  // Reset state for next concept
+                  setShowDefinition(false);
+                  setGaveUp(false);
+                  setPracticeState('ready');
+                  setUserTranscript('');
+                  setComparisonResult(null);
+                  setError(null);
+                  setShowManualInput(false);
+                  setManualInputText('');
+                  setIsSpeaking(false);
+                  if ('speechSynthesis' in window) {
+                    speechSynthesis.cancel();
+                  }
+                }}
               >
                 Intentar de Nuevo
               </button>
