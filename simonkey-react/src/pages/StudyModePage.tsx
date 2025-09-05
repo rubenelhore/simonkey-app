@@ -120,6 +120,7 @@ const StudyModePage = () => {
     finalScore: 0
   });
   const [materiaRanking, setMateriaRanking] = useState<{ position: number; total: number } | null>(null);
+  const [materiaRankingLoading, setMateriaRankingLoading] = useState<boolean>(false);
 
   // Load persisted selection on component mount ONLY if explicitly requested
   useEffect(() => {
@@ -649,6 +650,7 @@ const StudyModePage = () => {
   const handleSelectNotebook = async (notebook: Notebook, materia?: any) => {
     // Limpiar ranking inmediatamente al cambiar de notebook
     setMateriaRanking(null);
+    setMateriaRankingLoading(true);
     
     // Verificar el estado actual del notebook desde la base de datos
     try {
@@ -931,8 +933,11 @@ const StudyModePage = () => {
   const loadMateriaRankingWithMateria = async (notebook: Notebook, materia: any) => {
     if (!effectiveUserId || !materia) {
       setMateriaRanking(null);
+      setMateriaRankingLoading(false);
       return;
     }
+    
+    setMateriaRankingLoading(true);
     
     try {
       console.log('Loading materia ranking for:', materia.id, 'userId:', effectiveUserId);
@@ -946,6 +951,7 @@ const StudyModePage = () => {
           position: 1,
           total: 1
         });
+        setMateriaRankingLoading(false);
         return;
       }
       
@@ -983,6 +989,8 @@ const StudyModePage = () => {
     } catch (error) {
       console.error('Error loading materia ranking:', error);
       setMateriaRanking(null);
+    } finally {
+      setMateriaRankingLoading(false);
     }
   };
   
@@ -1489,7 +1497,8 @@ const StudyModePage = () => {
               <div className="metric-content">
                 <span className="metric-label">Posición</span>
                 <span className="metric-value" style={{ fontSize: '0.9rem' }}>
-                  {materiaRanking && selectedNotebook && selectedMateria ? `${materiaRanking.position} de ${materiaRanking.total}` : '1 de 1'}
+                  {materiaRankingLoading ? 'Cargando...' : 
+                   (materiaRanking && selectedNotebook && selectedMateria ? `${materiaRanking.position} de ${materiaRanking.total}` : '1 de 1')}
                 </span>
               </div>
             </div>

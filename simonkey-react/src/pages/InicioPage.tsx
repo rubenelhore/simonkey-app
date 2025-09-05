@@ -255,44 +255,47 @@ const InicioPage: React.FC = () => {
         return;
       }
       
-      // Calculate dominio for each materia
-      const materiasWithDominio: MateriaWithDominio[] = [];
+      // Calculate dominio for each materia - OPTIMIZED with parallel queries
+      console.log(`🚀 Calculating dominio for ${materiasSnapshot.docs.length} materias in parallel...`);
       
-      for (const materiaDoc of materiasSnapshot.docs) {
+      // Create parallel promises for all materia domain progress
+      const materiaPromises = materiasSnapshot.docs.map(async (materiaDoc: any) => {
         const materiaData = materiaDoc.data();
+        const materiaTitle = materiaData.nombre || materiaData.title || 'Sin nombre';
+        
         try {
-          // Calcular progreso de dominio para todas las materias
+          // Calculate domain progress (this is where the slowness was)
           const domainProgress = await getDomainProgressForMateria(materiaDoc.id);
           
           const dominioPercentage = domainProgress.total > 0 
             ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
             : 0;
           
-          // Para materias escolares, usar el campo 'nombre' en lugar de 'title'
-          const materiaTitle = materiaData.nombre || materiaData.title || 'Sin nombre';
-          
-          materiasWithDominio.push({
+          return {
             id: materiaDoc.id,
             title: materiaTitle,
             color: materiaData.color || '#6147FF',
             dominioPercentage,
             totalConcepts: domainProgress.total,
             dominatedConcepts: domainProgress.dominated
-          });
+          };
         } catch (error) {
           console.error(`Error calculating dominio for materia ${materiaDoc.id}:`, error);
-          // Include materia with 0% dominio if error
-          const materiaTitle = materiaData.nombre || materiaData.title || 'Sin nombre';
-          materiasWithDominio.push({
+          // Return materia with 0% dominio if error
+          return {
             id: materiaDoc.id,
             title: materiaTitle,
             color: materiaData.color || '#6147FF',
             dominioPercentage: 0,
             totalConcepts: 0,
             dominatedConcepts: 0
-          });
+          };
         }
-      }
+      });
+      
+      // Wait for all domain progress calculations to complete
+      const materiasWithDominio = await Promise.all(materiaPromises);
+      console.log(`✅ Dominio calculation completed for ${materiasWithDominio.length} materias`);
       
       materiasWithDominio.forEach(m => {
         console.log(`  - ${m.title}: ${m.dominioPercentage}% (${m.dominatedConcepts}/${m.totalConcepts})`);

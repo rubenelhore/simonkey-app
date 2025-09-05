@@ -17,6 +17,10 @@ export interface MateriaRanking {
   isCurrentUser?: boolean;
 }
 
+// Cache for ranking results (5 minutes TTL)
+const rankingCache = new Map<string, { data: MateriaRanking[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export class MateriaRankingService {
   /**
    * Get ranking for a specific materia based on enrollments
@@ -28,6 +32,22 @@ export class MateriaRankingService {
   ): Promise<MateriaRanking[]> {
     try {
       console.log('📊 Getting materia ranking for:', { materiaId, currentUserId, teacherId });
+      
+      // Check cache first
+      const cacheKey = `${materiaId}-${teacherId || 'auto'}`;
+      const cached = rankingCache.get(cacheKey);
+      const now = Date.now();
+      
+      if (cached && (now - cached.timestamp) < CACHE_TTL) {
+        console.log('📊 Using cached ranking data');
+        // Update isCurrentUser flag for the current user
+        const cachedRankings = cached.data.map(ranking => ({
+          ...ranking,
+          isCurrentUser: ranking.nombre === 'Tú' || ranking.isCurrentUser,
+          nombre: ranking.isCurrentUser ? 'Tú' : ranking.nombre
+        }));
+        return cachedRankings;
+      }
       
       // If no teacherId provided, try to get it from the materia
       let effectiveTeacherId = teacherId;
@@ -79,68 +99,65 @@ export class MateriaRankingService {
         return [];
       }
       
-      // Get KPIs for all enrolled students
+      // Get KPIs for all enrolled students - OPTIMIZED with parallel queries
       const rankings: MateriaRanking[] = [];
       
-      for (const studentId of studentIds) {
+      // Create parallel promises for all student data
+      const studentPromises = studentIds.map(async (studentId) => {
         try {
           console.log(`📊 Getting data for student: ${studentId}`);
           
+          // Parallel queries for user data and KPIs
+          const [userDoc, kpisDoc] = await Promise.all([
+            getDoc(doc(db, 'users', studentId)).catch(() => null),
+            getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard')).catch(() => null)
+          ]);
+          
           // Get student's name
           let studentName = 'Usuario';
-          try {
-            const userDoc = await getDoc(doc(db, 'users', studentId));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              studentName = userData.displayName || userData.nombre || userData.email || 'Usuario';
-              console.log(`✅ Got student name: ${studentName}`);
-            }
-          } catch (userError) {
-            console.log(`⚠️ Could not read user document for ${studentId}:`, userError);
+          if (userDoc?.exists()) {
+            const userData = userDoc.data();
+            studentName = userData.displayName || userData.nombre || userData.email || 'Usuario';
           }
           
           // Get student's KPIs for this materia
           let score = 0;
-          try {
-            // KPIs are stored in users/{userId}/kpis/dashboard
-            const kpisDoc = await getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard'));
-            if (kpisDoc.exists()) {
-              const kpisData = kpisDoc.data();
-              console.log(`📊 KPIs data for ${studentName}:`, {
-                hasMaterias: !!kpisData.materias,
-                materiaIds: kpisData.materias ? Object.keys(kpisData.materias) : [],
-                targetMateriaId: materiaId,
-                materiaData: kpisData.materias?.[materiaId]
-              });
-              
-              // Check if this materia exists in their KPIs
-              if (kpisData.materias && kpisData.materias[materiaId]) {
-                score = Math.ceil(kpisData.materias[materiaId].scoreMateria || 0);
-                console.log(`✅ Got student score from materia: ${score}`);
-              } else if (kpisData.global?.scoreGlobal) {
-                // Fallback to global score if materia score not found
-                console.log(`⚠️ No score for materia ${materiaId}, using global score`);
-                score = Math.ceil(kpisData.global.scoreGlobal || 0);
-                console.log(`✅ Got student global score: ${score}`);
-              }
-            } else {
-              console.log(`⚠️ No KPIs document found for ${studentId} at path: users/${studentId}/kpis/dashboard`);
+          if (kpisDoc?.exists()) {
+            const kpisData = kpisDoc.data();
+            
+            // Check if this materia exists in their KPIs
+            if (kpisData.materias && kpisData.materias[materiaId]) {
+              score = Math.ceil(kpisData.materias[materiaId].scoreMateria || 0);
+              console.log(`✅ Got student score from materia: ${score}`);
+            } else if (kpisData.global?.scoreGlobal) {
+              // Fallback to global score if materia score not found
+              score = Math.ceil(kpisData.global.scoreGlobal || 0);
+              console.log(`✅ Got student global score: ${score}`);
             }
-          } catch (kpiError) {
-            console.log(`⚠️ Could not read KPIs for ${studentId}:`, kpiError);
           }
           
-          rankings.push({
+          return {
             posicion: 0, // Will be set after sorting
             nombre: studentId === currentUserId ? 'Tú' : studentName,
             score: score,
             isCurrentUser: studentId === currentUserId
-          });
+          };
           
         } catch (error) {
           console.warn(`Could not get data for student ${studentId}:`, error);
+          // Return a default entry even if there's an error
+          return {
+            posicion: 0,
+            nombre: studentId === currentUserId ? 'Tú' : 'Usuario',
+            score: 0,
+            isCurrentUser: studentId === currentUserId
+          };
         }
-      }
+      });
+      
+      // Wait for all student data to be fetched
+      const studentRankings = await Promise.all(studentPromises);
+      rankings.push(...studentRankings);
       
       // Sort by score (descending)
       rankings.sort((a, b) => b.score - a.score);
@@ -151,6 +168,9 @@ export class MateriaRankingService {
       });
       
       console.log(`📊 Ranking calculated with ${rankings.length} students`);
+      
+      // Cache the results
+      rankingCache.set(cacheKey, { data: rankings, timestamp: now });
       
       // Return all students
       return rankings;
