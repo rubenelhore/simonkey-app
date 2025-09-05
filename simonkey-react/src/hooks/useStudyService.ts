@@ -881,12 +881,29 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         }
         
         // 7. Combinar conceptos nuevos y conceptos para repaso
-        const allReviewableConcepts = [...newConcepts, ...conceptsForReview];
+        let allReviewableConcepts = [...newConcepts, ...conceptsForReview];
+        
+        // 8. Fallback: Si no hay conceptos disponibles según SM-3, usar 3 conceptos aleatorios
+        if (allReviewableConcepts.length === 0 && allNotebookConcepts.length > 0) {
+          console.log('🔄 FALLBACK: No hay conceptos según SM-3, seleccionando 3 conceptos aleatorios...');
+          
+          // Mezclar todos los conceptos del cuaderno aleatoriamente
+          const shuffledConcepts = [...allNotebookConcepts].sort(() => Math.random() - 0.5);
+          
+          // Tomar hasta 3 conceptos aleatorios
+          allReviewableConcepts = shuffledConcepts.slice(0, Math.min(3, shuffledConcepts.length));
+          
+          console.log('🎲 Seleccionados conceptos aleatorios:', {
+            total: allReviewableConcepts.length,
+            conceptos: allReviewableConcepts.map(c => ({ id: c.id, término: c.término }))
+          });
+        }
         
         console.log('🎯 🚨 ESTUDIO INTELIGENTE - Conceptos disponibles para HOY:', allReviewableConcepts.length);
         console.log('📋 Desglose:', {
           conceptosNuevos: newConcepts.length,
           conceptosListosParaRepaso: conceptsForReview.length,
+          conceptosAleatorios: (allReviewableConcepts.length === 0 || (newConcepts.length === 0 && conceptsForReview.length === 0)) && allReviewableConcepts.length > 0 ? allReviewableConcepts.length : 0,
           total: allReviewableConcepts.length
         });
         
@@ -1034,12 +1051,19 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         console.log('✅ Contando solo conceptos listos para hoy (respetando SM-3)');
         
         // 6. El total de conceptos disponibles para estudio inteligente
-        const totalReviewable = newConceptIds.length + availableForStudy.length;
+        let totalReviewable = newConceptIds.length + availableForStudy.length;
+        
+        // 7. Fallback: Si no hay conceptos disponibles según SM-3, contar 3 conceptos aleatorios (o todos si hay menos de 3)
+        if (totalReviewable === 0 && allNotebookConcepts.length > 0) {
+          totalReviewable = Math.min(3, allNotebookConcepts.length);
+          console.log('🔄 FALLBACK: No hay conceptos según SM-3, contando conceptos aleatorios:', totalReviewable);
+        }
         
         console.log('🎯 Total de conceptos disponibles para estudio inteligente:', totalReviewable);
         console.log('📋 Desglose:', {
           conceptosNuevos: newConceptIds.length,
           conceptosParaRepaso: readyForReview.length,
+          conceptosAleatorios: (newConceptIds.length === 0 && availableForStudy.length === 0) && totalReviewable > 0 ? totalReviewable : 0,
           total: totalReviewable
         });
         

@@ -1203,7 +1203,11 @@ const QuizModePage: React.FC = () => {
           <div className="intro-actions">
             <button
               className="action-button secondary"
-              onClick={() => navigate('/study')}
+              onClick={() => navigate('/study', { 
+                state: { 
+                  maintainSelection: true 
+                } 
+              })}
             >
               <i className="fas fa-times"></i>
               Cancelar
@@ -1395,7 +1399,11 @@ const QuizModePage: React.FC = () => {
             </button>
             <button 
               className="action-btn primary"
-              onClick={() => navigate('/study')}
+              onClick={() => navigate('/study', { 
+                state: { 
+                  maintainSelection: true 
+                } 
+              })}
             >
               <i className="fas fa-arrow-left"></i>
               Volver a Estudio

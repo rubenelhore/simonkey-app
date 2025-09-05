@@ -9,7 +9,7 @@
 /* Header Styles */
 .voice-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 0;
 }
 
 .back-button {
@@ -35,7 +35,7 @@
 }
 
 .module-info {
-  padding: 20px;
+  padding: 20px 20px 0 20px;
 }
 
 .module-icon {
@@ -763,7 +763,17 @@
   background: #f9fafb;
   border-radius: 12px;
   padding: 20px;
-  margin-top: 20px;
+  margin: 20px auto 0;
+  max-width: 800px !important;
+  width: fit-content !important;
+}
+
+/* Override the global max-width rule specifically for scoring-breakdown */
+.header-with-hamburger-container ~ * * .scoring-breakdown,
+.header-with-hamburger-container ~ * .scoring-breakdown,
+div.scoring-breakdown {
+  max-width: 800px !important;
+  width: fit-content !important;
 }
 
 .scoring-breakdown h4 {
@@ -821,9 +831,9 @@
 
 .score-overview {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  margin-bottom: 40px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 0;
 }
 
 .score-stat {
@@ -903,6 +913,18 @@
   display: flex;
   gap: 16px;
   justify-content: center;
+}
+
+.results-actions .btn {
+  width: auto !important;
+  flex: none !important;
+  min-width: 180px;
+  max-width: 250px;
+}
+
+.results-actions .btn-primary:hover {
+  background-color: rgb(97, 71, 255) !important;
+  border-color: rgb(97, 71, 255) !important;
 }
 
 /* Error States */

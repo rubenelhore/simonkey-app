@@ -875,17 +875,17 @@ const StudyModePage = () => {
       setFreeStudySessionsEarned(freeStudySessionsEarned);
       
       // Calculate final score with new formula:
-      // (Estudio inteligente + Estudio Activo + Estudio Libre) × (top score quiz + pts juegos + bonus racha)
+      // (Estudio inteligente + Estudio Activo + Estudio Libre) + (top score quiz + pts juegos + bonus racha)
       const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
       
-      // Total sesiones de estudio
-      const totalStudySessions = smartStudyPoints + voiceRecognitionSessionsEarned + freeStudySessionsEarned;
+      // Total puntos de sesiones de estudio (multiplicados por 1000 para mostrar en UI)
+      const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionSessionsEarned * 1000) + (freeStudySessionsEarned * 1000);
       
-      // Total puntos multiplicadores
+      // Total puntos multiplicadores (quiz + juegos + bonus racha)
       const totalMultiplierPoints = maxQuizScoreValue + gamePointsValue + streakBonus;
       
-      // Score final
-      const totalScore = totalStudySessions * totalMultiplierPoints;
+      // Score final - NUEVA FÓRMULA: SUMA SIMPLE
+      const totalScore = totalStudyPoints + totalMultiplierPoints;
       
       setNotebookScore({
         score: totalScore,
@@ -895,10 +895,10 @@ const StudyModePage = () => {
 
       // Update score breakdown for modal
       setScoreBreakdown({
-        totalStudySessions,
-        smartStudyPoints,
-        voiceRecognitionPoints: voiceRecognitionSessionsEarned,
-        freeStudyPoints: freeStudySessionsEarned,
+        totalStudySessions: totalStudyPoints, // Ahora es la suma de puntos de estudio
+        smartStudyPoints: smartStudyPoints * 1000,
+        voiceRecognitionPoints: voiceRecognitionSessionsEarned * 1000,
+        freeStudyPoints: freeStudySessionsEarned * 1000,
         totalMultiplierPoints,
         maxQuizScore: maxQuizScoreValue,
         gamePoints: gamePointsValue,
@@ -1096,11 +1096,7 @@ const StudyModePage = () => {
     setShowNotebookError(false);
     
     // Additional validations for specific modes
-    if (mode === 'smart' && !studyAvailability.available) {
-      // Smart study not available - don't navigate, just return
-      console.log('Smart study not available - staying on current page');
-      return;
-    }
+    // Smart study is now always available (removed availability check)
     
     if (mode === 'quiz' && !quizAvailability.available) {
       // Quiz not available - don't navigate, just return  
@@ -1406,7 +1402,7 @@ const StudyModePage = () => {
                 </span>
               </div>
             </div>
-            <div className="metric-card">
+            <div className="metric-card" style={{ display: 'none' }}>
               <div className="metric-info-icon" data-tooltip="Suma total de todas tus sesiones de estudio">
                 <i className="fas fa-info-circle"></i>
               </div>
@@ -1418,7 +1414,7 @@ const StudyModePage = () => {
                 </span>
               </div>
             </div>
-            <div className="metric-card">
+            <div className="metric-card" style={{ display: 'none' }}>
               <div className="metric-info-icon" data-tooltip="Score máximo quiz + juegos + bonus racha">
                 <i className="fas fa-info-circle"></i>
               </div>
@@ -1435,8 +1431,8 @@ const StudyModePage = () => {
           {/* Study Functions */}
           <div className="study-functions">
           <div 
-              className={`study-function-card ${!selectedNotebook || !studyAvailability.available ? 'disabled' : ''}`}
-              onClick={() => handleStudyMode('smart')}
+              className={`study-function-card ${!selectedNotebook || studyAvailability.totalConcepts === 0 ? 'disabled' : ''}`}
+              onClick={() => selectedNotebook && studyAvailability.totalConcepts > 0 && handleStudyMode('smart')}
             >
               {selectedNotebook && (
                 <div className="study-count-badge">#{smartStudyCount || 0}</div>
@@ -1450,36 +1446,18 @@ const StudyModePage = () => {
               <h3>Repaso Inteligente</h3>
               {!selectedNotebook ? (
                 <p className="function-status">Selecciona un cuaderno</p>
-              ) : studyAvailability.available ? (
+              ) : studyAvailability.totalConcepts === 0 ? (
                 <>
-                  <p className="function-status available">Sesiones: {smartStudyCount || 0}</p>
+                  <p className="function-status available">Puntos: {((smartStudyCount || 0) * 1000).toFixed(0)}</p>
+                  <p className="function-status unavailable">Agrega conceptos al cuaderno</p>
+                </>
+              ) : (
+                <>
+                  <p className="function-status available">Puntos: {((smartStudyCount || 0) * 1000).toFixed(0)}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
                 </>
-              ) : (
-                <p className="function-status unavailable">
-                  {(() => {
-                    // Si se alcanzó el límite diario
-                    if ((studyAvailability as any).limitReason === 'Ya usado hoy') {
-                      return 'Disponible mañana';
-                    }
-                    // Si el cuaderno está vacío
-                    if (!studyAvailability.totalConcepts || studyAvailability.totalConcepts === 0) {
-                      return 'Agrega conceptos al cuaderno';
-                    }
-                    // Si hay conceptos pero ya se estudiaron todos hoy
-                    if (studyAvailability.hasStudiedConcepts && studyAvailability.nextAvailable) {
-                      return formatTimeUntil(studyAvailability.nextAvailable);
-                    }
-                    // Si todos los conceptos ya fueron dominados completamente
-                    if (studyAvailability.hasStudiedConcepts && !studyAvailability.nextAvailable) {
-                      return '¡Todos los conceptos dominados! 🎉';
-                    }
-                    // Caso por defecto
-                    return 'No hay conceptos disponibles';
-                  })()}
-                </p>
               )}
             </div>
 
@@ -1506,7 +1484,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Sesiones: {(voiceRecognitionCount || 0).toFixed(1)}</p>
+                  <p className="function-status available">Puntos: {((voiceRecognitionCount || 0) * 1000).toFixed(0)}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1532,7 +1510,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Sesiones: {freeStudySessionsEarned.toFixed(1)}</p>
+                  <p className="function-status available">Puntos: {(freeStudySessionsEarned * 1000).toFixed(0)}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1571,7 +1549,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : quizAvailability.available ? (
                 <>
-                  <p className="function-status available">Puntos Base: {maxQuizScore}</p>
+                  <p className="function-status available">Puntos: {maxQuizScore}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1601,7 +1579,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Puntos Base: {gamePoints || 0}</p>
+                  <p className="function-status available">Puntos: {gamePoints || 0}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>

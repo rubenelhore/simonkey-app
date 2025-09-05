@@ -507,7 +507,12 @@ const VoiceRecognitionPage: React.FC = () => {
           <div className="intro-actions-compact">
             <button 
               className="action-button-compact secondary"
-              onClick={() => skipNotebookSelection ? navigate('/study') : setCurrentStep('notebook-selection')}
+              onClick={() => skipNotebookSelection ? navigate('/study', {
+                state: {
+                  selectedNotebook: selectedNotebook,
+                  maintainSelection: true
+                }
+              }) : setCurrentStep('notebook-selection')}
             >
               <FontAwesomeIcon icon={faArrowLeft} />
               Volver
@@ -559,7 +564,6 @@ const VoiceRecognitionPage: React.FC = () => {
         <div className="voice-header">
           <div className="module-info">
             <h1>¡Sesión Completada!</h1>
-            <p>Cuaderno: <strong>{selectedNotebook?.title}</strong></p>
           </div>
         </div>
 
@@ -570,7 +574,7 @@ const VoiceRecognitionPage: React.FC = () => {
             <FontAwesomeIcon icon={sessionValid ? faCheckCircle : faExclamationTriangle} />
           </div>
           <div className="validation-info">
-            <h3>{sessionValid ? '✅ Sesión Validada' : '❌ Sesión No Validada'}</h3>
+            <h3>{sessionValid ? 'Sesión Validada' : 'Sesión No Validada'}</h3>
             <p>
               {sessionValid 
                 ? `¡Excelente! Tienes ${correctPercentage.toFixed(0)}% de respuestas correctas`
@@ -593,44 +597,30 @@ const VoiceRecognitionPage: React.FC = () => {
             </div>
             {sessionValid && (
               <div className="score-stat highlighted">
-                <span className="score-number">{finalSessionScore.toFixed(1)}</span>
-                <span className="score-label">Sesiones de Estudio</span>
+                <span className="score-number">{(finalSessionScore * 1000).toFixed(0)}</span>
+                <span className="score-label">Puntos Ganados</span>
               </div>
             )}
           </div>
           
           {sessionValid && (
             <div className="scoring-breakdown">
-              <h4>💪 Desglose de Puntuación</h4>
+              <h4>Desglose de Puntuación</h4>
               <div className="breakdown-item">
                 <span>Intensidad {selectedIntensity.charAt(0).toUpperCase() + selectedIntensity.slice(1)}:</span>
-                <span>{baseSessions} sesiones base</span>
+                <span>{(baseSessions * 1000).toFixed(0)} puntos</span>
               </div>
               <div className="breakdown-item">
-                <span>Multiplicador por precisión ({averageScore.toFixed(0)}%):</span>
+                <span>Multiplicador ({averageScore.toFixed(0)}%):</span>
                 <span>×{scoreMultiplier}</span>
               </div>
               <div className="breakdown-total">
                 <span><strong>Total:</strong></span>
-                <span><strong>{finalSessionScore.toFixed(1)} sesiones de estudio</strong></span>
+                <span><strong>{(finalSessionScore * 1000).toFixed(0)} puntos</strong></span>
               </div>
             </div>
           )}
 
-          <div className="results-details">
-            <h3>Detalle de Respuestas</h3>
-            {results.map((result, index) => (
-              <div key={index} className={`result-item ${result.isCorrect ? 'correct' : 'incorrect'}`}>
-                <div className="result-header">
-                  <span className="concept-name">{result.concept}</span>
-                  <span className="score-badge">{result.score}%</span>
-                </div>
-                <div className="result-response">
-                  <p><strong>Tu respuesta:</strong> {result.userResponse}</p>
-                </div>
-              </div>
-            ))}
-          </div>
 
           <div className="results-actions">
             <button 

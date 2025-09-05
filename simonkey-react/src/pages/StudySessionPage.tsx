@@ -710,7 +710,7 @@ const StudySessionPage = () => {
               <div className="header-icon-compact">
                 <i className="fas fa-brain"></i>
               </div>
-              <h2>Estudio Inteligente</h2>
+              <h2>Repaso Inteligente</h2>
             </div>
             
             <div className="intro-content-compact">
@@ -798,7 +798,11 @@ const StudySessionPage = () => {
             <div className="intro-actions-compact">
               <button
                 className="action-button-compact secondary"
-                onClick={() => navigate('/study')}
+                onClick={() => navigate('/study', { 
+                  state: { 
+                    maintainSelection: true 
+                  } 
+                })}
               >
                 <i className="fas fa-arrow-left"></i>
                 Volver
@@ -845,7 +849,11 @@ const StudySessionPage = () => {
             <div className="intro-actions">
               <button
                 className="action-button secondary"
-                onClick={() => navigate('/study')}
+                onClick={() => navigate('/study', { 
+                  state: { 
+                    maintainSelection: true 
+                  } 
+                })}
               >
                 <i className="fas fa-times"></i>
                 Cancelar
@@ -931,7 +939,11 @@ const StudySessionPage = () => {
                     <div className="session-header-minimal">
                       <button 
                         className="back-button-study"
-                        onClick={() => navigate('/study')}
+                        onClick={() => navigate('/study', { 
+                          state: { 
+                            maintainSelection: true 
+                          } 
+                        })}
                         title="Regresar a estudio"
                       >
                         <i className="fas fa-arrow-left"></i>
@@ -1011,9 +1023,9 @@ const StudySessionPage = () => {
                 </div>
                 <div className="session-complete-title">
                   {studyMode === StudyMode.SMART && miniQuizPassed 
-                    ? '¡Estudio Inteligente Validado!' 
+                    ? '¡Repaso Inteligente Validado!' 
                     : studyMode === StudyMode.SMART && !miniQuizPassed
-                    ? 'Estudio Inteligente Completado'
+                    ? 'Repaso Inteligente Completado'
                     : studyMode === StudyMode.FREE && freeStudySessionValid
                     ? '✅ ¡Estudio Libre Validado!'
                     : studyMode === StudyMode.FREE && !freeStudySessionValid
@@ -1044,17 +1056,32 @@ const StudySessionPage = () => {
                     <div className="stat-value">{formatStudyTime(metrics.timeSpent)}</div>
                     <div className="stat-label">Tiempo</div>
                   </div>
+                  {/* Mostrar puntos ganados */}
+                  {studyMode === StudyMode.SMART && miniQuizPassed && (
+                    <div className="stat-card highlighted">
+                      <i className="fas fa-star"></i>
+                      <div className="stat-value">
+                        +{studyIntensity === StudyIntensity.WARM_UP ? 500 : 
+                           studyIntensity === StudyIntensity.PROGRESS ? 1000 : 2000}
+                      </div>
+                      <div className="stat-label">Puntos Ganados</div>
+                    </div>
+                  )}
                   {studyMode === StudyMode.FREE && freeStudySessionValid && (
                     <div className="stat-card highlighted">
-                      <i className="fas fa-trophy"></i>
-                      <div className="stat-value">+0.1</div>
-                      <div className="stat-label">Sesiones de Estudio</div>
+                      <i className="fas fa-star"></i>
+                      <div className="stat-value">+100</div>
+                      <div className="stat-label">Puntos Ganados</div>
                     </div>
                   )}
                 </div>
                 <button
                   className="back-to-study-btn"
-                  onClick={() => navigate('/study')}
+                  onClick={() => navigate('/study', { 
+                    state: { 
+                      maintainSelection: true 
+                    } 
+                  })}
                 >
                   Volver al estudio
                 </button>
