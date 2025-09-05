@@ -34,20 +34,39 @@ interface MateriaWithDominio {
   dominatedConcepts: number;
 }
 
-// División levels configuration
-const DIVISION_LEVELS = {
-  WOOD: { name: 'Madera', icon: '🪵', color: '#8B4513', ranges: [1, 5, 10, 15, 20] },
-  STONE: { name: 'Piedra', icon: '⛰️', color: '#808080', ranges: [25, 35, 45, 55, 65] },
-  BRONZE: { name: 'Bronce', icon: '🥉', color: '#CD7F32', ranges: [75, 90, 110, 130, 150] },
-  SILVER: { name: 'Plata', icon: '🥈', color: '#C0C0C0', ranges: [170, 200, 230, 260, 300] },
-  GOLD: { name: 'Oro', icon: '🥇', color: '#FFD700', ranges: [330, 380, 430, 480, 550] },
-  RUBY: { name: 'Rubí', icon: '💎', color: '#E0115F', ranges: [600, 700, 850, 1000, 1200] },
-  JADE: { name: 'Jade', icon: '💚', color: '#50C878', ranges: [1400, 1650, 1900, 2200, 2500] },
-  CRYSTAL: { name: 'Cristal', icon: '💙', color: '#0F52BA', ranges: [2800, 3200, 3700, 4200, 4800] },
-  COSMIC: { name: 'Cósmico', icon: '💜', color: '#9966CC', ranges: [5400, 6100, 6900, 7800, 8800] },
-  VOID: { name: 'Vacío', icon: '⚫', color: '#1C1C1C', ranges: [10000, 11500, 13000, 15000, 17000] },
-  LEGEND: { name: 'Leyenda', icon: '⭐', color: '#FF6B35', ranges: [20000, 25000, 30000, 40000, 50000] }
-};
+// División levels configuration - 30 niveles basados en Score Global (5,000 puntos por nivel)
+const DIVISION_LEVELS = [
+  { name: 'Madera', icon: '🪵', minScore: 0, maxScore: 4999 },
+  { name: 'Piedra', icon: '🪨', minScore: 5000, maxScore: 9999 },
+  { name: 'Hierro', icon: '⚙️', minScore: 10000, maxScore: 14999 },
+  { name: 'Bronce', icon: '🥉', minScore: 15000, maxScore: 19999 },
+  { name: 'Plata', icon: '🥈', minScore: 20000, maxScore: 24999 },
+  { name: 'Oro', icon: '🥇', minScore: 25000, maxScore: 29999 },
+  { name: 'Platino', icon: '💍', minScore: 30000, maxScore: 34999 },
+  { name: 'Esmeralda', icon: '💚', minScore: 35000, maxScore: 39999 },
+  { name: 'Rubí', icon: '❤️', minScore: 40000, maxScore: 44999 },
+  { name: 'Zafiro', icon: '💙', minScore: 45000, maxScore: 49999 },
+  { name: 'Diamante', icon: '💎', minScore: 50000, maxScore: 54999 },
+  { name: 'Amatista', icon: '💜', minScore: 55000, maxScore: 59999 },
+  { name: 'Ópalo', icon: '🌈', minScore: 60000, maxScore: 64999 },
+  { name: 'Jade', icon: '🟢', minScore: 65000, maxScore: 69999 },
+  { name: 'Cristal', icon: '🔮', minScore: 70000, maxScore: 74999 },
+  { name: 'Prisma', icon: '🔷', minScore: 75000, maxScore: 79999 },
+  { name: 'Aurora', icon: '🌅', minScore: 80000, maxScore: 84999 },
+  { name: 'Eclipse', icon: '🌑', minScore: 85000, maxScore: 89999 },
+  { name: 'Lunar', icon: '🌙', minScore: 90000, maxScore: 94999 },
+  { name: 'Solar', icon: '☀️', minScore: 95000, maxScore: 99999 },
+  { name: 'Estelar', icon: '⭐', minScore: 100000, maxScore: 104999 },
+  { name: 'Nebulosa', icon: '🌌', minScore: 105000, maxScore: 109999 },
+  { name: 'Galaxia', icon: '🌠', minScore: 110000, maxScore: 114999 },
+  { name: 'Cósmico', icon: '💫', minScore: 115000, maxScore: 119999 },
+  { name: 'Cuántico', icon: '⚛️', minScore: 120000, maxScore: 124999 },
+  { name: 'Dimensional', icon: '🌀', minScore: 125000, maxScore: 129999 },
+  { name: 'Temporal', icon: '⏳', minScore: 130000, maxScore: 134999 },
+  { name: 'Infinito', icon: '♾️', minScore: 135000, maxScore: 139999 },
+  { name: 'Divino', icon: '👑', minScore: 140000, maxScore: 144999 },
+  { name: 'Leyenda', icon: '🏆', minScore: 145000, maxScore: Infinity }
+];
 
 const InicioPage: React.FC = () => {
   const navigate = useNavigate();
@@ -124,42 +143,22 @@ const InicioPage: React.FC = () => {
     };
   }, [user?.uid]);
 
-  // Calculate division based on concepts learned
-  const calculateDivision = (concepts: number) => {
-    let divisionKey = 'WOOD';
+  // Calculate division based on global score
+  const calculateDivision = (globalScore: number) => {
+    // Encontrar la división correspondiente al score
+    let currentDivision = DIVISION_LEVELS[0]; // Por defecto Madera
     
-    
-    // Ordenar las divisiones por su valor mínimo para procesarlas en orden
-    const divisionsInOrder = Object.entries(DIVISION_LEVELS).sort((a, b) => {
-      const minA = Math.min(...a[1].ranges);
-      const minB = Math.min(...b[1].ranges);
-      return minA - minB;
-    });
-    
-    // Find current division based on concepts
-    for (const [key, data] of divisionsInOrder) {
-      const minInDivision = Math.min(...data.ranges);
-      const maxInDivision = Math.max(...data.ranges);
-      console.log(`  - ${key}: rango ${minInDivision}-${maxInDivision}, conceptos actuales: ${concepts}`);
-      
-      if (concepts >= minInDivision && concepts <= maxInDivision) {
-        // El usuario está en esta división
-        divisionKey = key;
-        console.log(`  ✓ DIVISIÓN ENCONTRADA: ${key}`);
-      } else if (concepts > maxInDivision) {
-        // El usuario superó esta división, continuar buscando
-        divisionKey = key; // Mantener esta como la más alta alcanzada hasta ahora
-        console.log(`  ↑ Superó ${key}, continuando...`);
-      } else {
-        // El usuario no alcanza esta división, usar la anterior
-        console.log(`  ✗ No alcanza ${key}, usando la división anterior`);
+    for (const division of DIVISION_LEVELS) {
+      if (globalScore >= division.minScore && globalScore <= division.maxScore) {
+        currentDivision = division;
         break;
       }
     }
     
-    const division = DIVISION_LEVELS[divisionKey as keyof typeof DIVISION_LEVELS];
-    setCurrentDivision({ name: division.name, icon: division.icon });
-    return { name: division.name, icon: division.icon }; // Return the division for immediate use
+    console.log(`🏆 Score Global: ${globalScore} -> División: ${currentDivision.name} ${currentDivision.icon}`);
+    
+    setCurrentDivision({ name: currentDivision.name, icon: currentDivision.icon });
+    return { name: currentDivision.name, icon: currentDivision.icon };
   };
 
   // Check if cache is valid (5 minutes)
@@ -450,20 +449,11 @@ const InicioPage: React.FC = () => {
         const scoreValue = Math.ceil(globalScore);
         setCurrentScore(scoreValue);
         
-        // Obtener conceptos dominados y calcular división
-        const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
-        
-        // También obtener conceptos con repeticiones >= 2 (otra métrica alternativa)
-        const conceptsWithRepetitions = await kpiService.kpiService.getConceptsWithMinRepetitions(user.uid, 2);
-        
-        // Usar el mayor de los dos valores para ser más generoso con la división
-        const conceptsForDivision = Math.max(conceptStats.conceptosDominados, conceptsWithRepetitions);
-        
-        const calculatedDivision = calculateDivision(conceptsForDivision);
+        // Calcular división basada en Score Global
+        const calculatedDivision = calculateDivision(scoreValue);
         
         // Actualizar datos del módulo de Progreso
         console.log('KPIs Data:', kpisData);
-        console.log('Concept Stats:', conceptStats);
         
         if (kpisData) {
           // Calcular tiempo total en minutos
@@ -526,6 +516,9 @@ const InicioPage: React.FC = () => {
           
           const activeNotebooks = ownNotebooksQuery.size + enrolledNotebooksCount;
           
+          // Obtener conceptos dominados para el módulo de progreso
+          const conceptStats = await kpiService.kpiService.getTotalDominatedConceptsByUser(user.uid);
+          
           const newProgressData = {
             conceptsDominated: conceptStats.conceptosDominados || 0,
             totalTime: totalMinutes,
@@ -586,7 +579,7 @@ const InicioPage: React.FC = () => {
           }
           
           const defaultProgressData = {
-            conceptsDominated: conceptStats?.conceptosDominados || 0,
+            conceptsDominated: 0,
             totalTime: 0,
             successRate: 0,
             activeNotebooks: 0
@@ -808,7 +801,7 @@ const InicioPage: React.FC = () => {
             </div>
             
             <div className="metric-card">
-              <div className="metric-info-icon" data-tooltip="Tu división actual basada en conceptos dominados">
+              <div className="metric-info-icon" data-tooltip="Tu división actual basada en tu Score Global (cada 5,000 puntos subes de división)">
                 <i className="fas fa-info-circle"></i>
               </div>
               <FontAwesomeIcon icon={faMedal} className="metric-icon division" />

@@ -34,20 +34,39 @@ import { getDomainProgressForNotebook } from '../utils/domainProgress';
 import { useUserType } from '../hooks/useUserType';
 import '../styles/ProgressPage.css';
 
-// Division levels configuration - matching StudyModePage
-const DIVISION_LEVELS = {
-  WOOD: { name: 'Madera', icon: '🪵', min: 0, max: 24 },
-  STONE: { name: 'Piedra', icon: '⛰️', min: 25, max: 74 },
-  BRONZE: { name: 'Bronce', icon: '🥉', min: 75, max: 169 },
-  SILVER: { name: 'Plata', icon: '🥈', min: 170, max: 329 },
-  GOLD: { name: 'Oro', icon: '🥇', min: 330, max: 599 },
-  RUBY: { name: 'Rubí', icon: '💎', min: 600, max: 1399 },
-  JADE: { name: 'Jade', icon: '💚', min: 1400, max: 2799 },
-  CRYSTAL: { name: 'Cristal', icon: '💙', min: 2800, max: 5399 },
-  COSMIC: { name: 'Cósmico', icon: '💜', min: 5400, max: 9999 },
-  VOID: { name: 'Vacío', icon: '⚫', min: 10000, max: 19999 },
-  LEGEND: { name: 'Leyenda', icon: '⭐', min: 20000, max: Infinity }
-};
+// División levels configuration - 30 niveles basados en Score Global (5,000 puntos por nivel)
+const DIVISION_LEVELS = [
+  { name: 'Madera', icon: '🪵', minScore: 0, maxScore: 4999 },
+  { name: 'Piedra', icon: '🪨', minScore: 5000, maxScore: 9999 },
+  { name: 'Hierro', icon: '⚙️', minScore: 10000, maxScore: 14999 },
+  { name: 'Bronce', icon: '🥉', minScore: 15000, maxScore: 19999 },
+  { name: 'Plata', icon: '🥈', minScore: 20000, maxScore: 24999 },
+  { name: 'Oro', icon: '🥇', minScore: 25000, maxScore: 29999 },
+  { name: 'Platino', icon: '💍', minScore: 30000, maxScore: 34999 },
+  { name: 'Esmeralda', icon: '💚', minScore: 35000, maxScore: 39999 },
+  { name: 'Rubí', icon: '❤️', minScore: 40000, maxScore: 44999 },
+  { name: 'Zafiro', icon: '💙', minScore: 45000, maxScore: 49999 },
+  { name: 'Diamante', icon: '💎', minScore: 50000, maxScore: 54999 },
+  { name: 'Amatista', icon: '💜', minScore: 55000, maxScore: 59999 },
+  { name: 'Ópalo', icon: '🌈', minScore: 60000, maxScore: 64999 },
+  { name: 'Jade', icon: '🟢', minScore: 65000, maxScore: 69999 },
+  { name: 'Cristal', icon: '🔮', minScore: 70000, maxScore: 74999 },
+  { name: 'Prisma', icon: '🔷', minScore: 75000, maxScore: 79999 },
+  { name: 'Aurora', icon: '🌅', minScore: 80000, maxScore: 84999 },
+  { name: 'Eclipse', icon: '🌑', minScore: 85000, maxScore: 89999 },
+  { name: 'Lunar', icon: '🌙', minScore: 90000, maxScore: 94999 },
+  { name: 'Solar', icon: '☀️', minScore: 95000, maxScore: 99999 },
+  { name: 'Estelar', icon: '⭐', minScore: 100000, maxScore: 104999 },
+  { name: 'Nebulosa', icon: '🌌', minScore: 105000, maxScore: 109999 },
+  { name: 'Galaxia', icon: '🌠', minScore: 110000, maxScore: 114999 },
+  { name: 'Cósmico', icon: '💫', minScore: 115000, maxScore: 119999 },
+  { name: 'Cuántico', icon: '⚛️', minScore: 120000, maxScore: 124999 },
+  { name: 'Dimensional', icon: '🌀', minScore: 125000, maxScore: 129999 },
+  { name: 'Temporal', icon: '⏳', minScore: 130000, maxScore: 134999 },
+  { name: 'Infinito', icon: '♾️', minScore: 135000, maxScore: 139999 },
+  { name: 'Divino', icon: '👑', minScore: 140000, maxScore: 144999 },
+  { name: 'Leyenda', icon: '🏆', minScore: 145000, maxScore: Infinity }
+];
 
 // Lazy load de los componentes de gráficos
 const PositionHistoryChart = lazy(() => import('../components/Charts/PositionHistoryChart'));
@@ -1778,7 +1797,7 @@ const ProgressPage: React.FC = () => {
 
   const [studyTimeData, setStudyTimeData] = useState<StudyTimeData[]>([]);
   const [conceptProgressData, setConceptProgressData] = useState<ConceptProgressData[]>([]);
-  const [viewingDivision, setViewingDivision] = useState<keyof typeof DIVISION_LEVELS>('WOOD');
+  const [viewingDivision, setViewingDivision] = useState<number>(0);
   const [conceptsLearned, setConceptsLearned] = useState(0);
 
   // Ya no necesitamos datos de ejemplo, usamos cuadernosReales
@@ -1810,38 +1829,32 @@ const ProgressPage: React.FC = () => {
     
     loadConceptsLearned();
   }, []);
-  const getCurrentDivision = (concepts: number): keyof typeof DIVISION_LEVELS => {
-    for (const [key, level] of Object.entries(DIVISION_LEVELS)) {
-      if (concepts >= level.min && concepts <= level.max) {
-        return key as keyof typeof DIVISION_LEVELS;
+  const getCurrentDivision = (score: number): number => {
+    for (let i = 0; i < DIVISION_LEVELS.length; i++) {
+      if (score >= DIVISION_LEVELS[i].minScore && score <= DIVISION_LEVELS[i].maxScore) {
+        return i;
       }
     }
-    return 'WOOD';
+    return 0; // Madera por defecto
   };
-  const currentDivision = getCurrentDivision(conceptsLearned);
+  const currentDivision = getCurrentDivision(globalScore);
   
   // Division navigation
-  const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEVELS)[];
-  
   const navigateToPreviousDivision = () => {
-    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
-    if (currentIndex > 0) {
-      setViewingDivision(DIVISION_KEYS[currentIndex - 1]);
+    if (viewingDivision > 0) {
+      setViewingDivision(viewingDivision - 1);
     }
   };
   
   const navigateToNextDivision = () => {
-    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
-    if (currentIndex < DIVISION_KEYS.length - 1) {
-      setViewingDivision(DIVISION_KEYS[currentIndex + 1]);
+    if (viewingDivision < DIVISION_LEVELS.length - 1) {
+      setViewingDivision(viewingDivision + 1);
     }
   };
   
   // Update viewing division when current division changes
   useEffect(() => {
-    if (currentDivision) {
-      setViewingDivision(currentDivision);
-    }
+    setViewingDivision(currentDivision);
   }, [currentDivision]);
   
   // Métricas adicionales de los KPIs
@@ -2151,7 +2164,7 @@ const ProgressPage: React.FC = () => {
                 </div>
               </div>
               <div className="metric-card">
-                <div className="metric-info-icon" data-tooltip="Tu división actual basada en conceptos dominados">
+                <div className="metric-info-icon" data-tooltip="Tu división actual basada en tu Score Global (cada 5,000 puntos subes de división)">
                   <i className="fas fa-info-circle"></i>
                 </div>
                 <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="medal" className="svg-inline--fa fa-medal metric-icon division" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -2159,7 +2172,12 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">División</span>
-                  <span className="metric-value"><span style={{marginRight: '0.5rem', fontSize: '1.2rem'}}>🥉</span>Bronce</span>
+                  <span className="metric-value">
+                    <span style={{marginRight: '0.5rem', fontSize: '1.2rem'}}>
+                      {DIVISION_LEVELS[currentDivision].icon}
+                    </span>
+                    {DIVISION_LEVELS[currentDivision].name}
+                  </span>
                 </div>
               </div>
               <div className="metric-card">

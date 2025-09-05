@@ -14,28 +14,44 @@ import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { studyStreakService } from '../services/studyStreakService';
 import { useStudyService } from '../hooks/useStudyService';
 import { gamePointsService } from '../services/gamePointsService';
-import { kpiService } from '../services/kpiService';
+import { kpiService, getKPIsFromCache } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
 import { MateriaRankingService } from '../services/materiaRankingService';
 import { studySessionPersistence } from '../utils/studySessionPersistence';
 
-// División levels configuration
-const DIVISION_LEVELS = {
-  WOOD: { name: 'Madera', icon: '🪵', color: '#8B4513', ranges: [1, 5, 10, 15, 20] },
-  STONE: { name: 'Piedra', icon: '⛰️', color: '#808080', ranges: [25, 35, 45, 55, 65] },
-  BRONZE: { name: 'Bronce', icon: '🥉', color: '#CD7F32', ranges: [75, 90, 110, 130, 150] },
-  SILVER: { name: 'Plata', icon: '🥈', color: '#C0C0C0', ranges: [170, 200, 230, 260, 300] },
-  GOLD: { name: 'Oro', icon: '🥇', color: '#FFD700', ranges: [330, 380, 430, 480, 550] },
-  RUBY: { name: 'Rubí', icon: '💎', color: '#E0115F', ranges: [600, 700, 850, 1000, 1200] },
-  JADE: { name: 'Jade', icon: '💚', color: '#50C878', ranges: [1400, 1650, 1900, 2200, 2500] },
-  CRYSTAL: { name: 'Cristal', icon: '💙', color: '#0F52BA', ranges: [2800, 3200, 3700, 4200, 4800] },
-  COSMIC: { name: 'Cósmico', icon: '💜', color: '#9966CC', ranges: [5400, 6100, 6900, 7800, 8800] },
-  VOID: { name: 'Vacío', icon: '⚫', color: '#1C1C1C', ranges: [10000, 11500, 13000, 15000, 17000] },
-  LEGEND: { name: 'Leyenda', icon: '⭐', color: '#FF6B35', ranges: [20000, 25000, 30000, 40000, 50000] }
-};
-
-// Get array of division keys for navigation
-const DIVISION_KEYS = Object.keys(DIVISION_LEVELS) as (keyof typeof DIVISION_LEVELS)[];
+// División levels configuration - 30 niveles basados en Score Global (5,000 puntos por nivel)
+const DIVISION_LEVELS = [
+  { name: 'Madera', icon: '🪵', minScore: 0, maxScore: 4999 },
+  { name: 'Piedra', icon: '🪨', minScore: 5000, maxScore: 9999 },
+  { name: 'Hierro', icon: '⚙️', minScore: 10000, maxScore: 14999 },
+  { name: 'Bronce', icon: '🥉', minScore: 15000, maxScore: 19999 },
+  { name: 'Plata', icon: '🥈', minScore: 20000, maxScore: 24999 },
+  { name: 'Oro', icon: '🥇', minScore: 25000, maxScore: 29999 },
+  { name: 'Platino', icon: '💍', minScore: 30000, maxScore: 34999 },
+  { name: 'Esmeralda', icon: '💚', minScore: 35000, maxScore: 39999 },
+  { name: 'Rubí', icon: '❤️', minScore: 40000, maxScore: 44999 },
+  { name: 'Zafiro', icon: '💙', minScore: 45000, maxScore: 49999 },
+  { name: 'Diamante', icon: '💎', minScore: 50000, maxScore: 54999 },
+  { name: 'Amatista', icon: '💜', minScore: 55000, maxScore: 59999 },
+  { name: 'Ópalo', icon: '🌈', minScore: 60000, maxScore: 64999 },
+  { name: 'Jade', icon: '🟢', minScore: 65000, maxScore: 69999 },
+  { name: 'Cristal', icon: '🔮', minScore: 70000, maxScore: 74999 },
+  { name: 'Prisma', icon: '🔷', minScore: 75000, maxScore: 79999 },
+  { name: 'Aurora', icon: '🌅', minScore: 80000, maxScore: 84999 },
+  { name: 'Eclipse', icon: '🌑', minScore: 85000, maxScore: 89999 },
+  { name: 'Lunar', icon: '🌙', minScore: 90000, maxScore: 94999 },
+  { name: 'Solar', icon: '☀️', minScore: 95000, maxScore: 99999 },
+  { name: 'Estelar', icon: '⭐', minScore: 100000, maxScore: 104999 },
+  { name: 'Nebulosa', icon: '🌌', minScore: 105000, maxScore: 109999 },
+  { name: 'Galaxia', icon: '🌠', minScore: 110000, maxScore: 114999 },
+  { name: 'Cósmico', icon: '💫', minScore: 115000, maxScore: 119999 },
+  { name: 'Cuántico', icon: '⚛️', minScore: 120000, maxScore: 124999 },
+  { name: 'Dimensional', icon: '🌀', minScore: 125000, maxScore: 129999 },
+  { name: 'Temporal', icon: '⏳', minScore: 130000, maxScore: 134999 },
+  { name: 'Infinito', icon: '♾️', minScore: 135000, maxScore: 139999 },
+  { name: 'Divino', icon: '👑', minScore: 140000, maxScore: 144999 },
+  { name: 'Leyenda', icon: '🏆', minScore: 145000, maxScore: Infinity }
+];
 
 const StudyModePage = () => {
   const navigate = useNavigate();
@@ -101,10 +117,11 @@ const StudyModePage = () => {
     nextMilestone: 5 
   });
   const [conceptsLearned, setConceptsLearned] = useState(0);
+  const [globalScore, setGlobalScore] = useState(0); // Score Global para calcular división
   const [notebookScore, setNotebookScore] = useState({ score: 0, level: 1, progress: 0 });
   const [challenges, setChallenges] = useState<{text: string, boost: string}[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [viewingDivision, setViewingDivision] = useState<keyof typeof DIVISION_LEVELS>('WOOD');
+  const [viewingDivision, setViewingDivision] = useState<number>(0); // Índice de la división actual
   const [showMedalDetails, setShowMedalDetails] = useState(false);
   const [showNotebookError, setShowNotebookError] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
@@ -193,15 +210,19 @@ const StudyModePage = () => {
         setEffectiveUserId(userId);
         
         // Ahora cargar datos del usuario en paralelo
-        const [streak, hasStudiedToday, conceptsWithMinReps, conceptStats] = await Promise.all([
+        const [streak, hasStudiedToday, conceptStats, kpisData] = await Promise.all([
           studyStreakService.getUserStreak(userId),
           studyStreakService.hasStudiedToday(userId),
-          kpiService.getConceptsWithMinRepetitions(userId, 2),
-          kpiService.getTotalDominatedConceptsByUser(userId)
+          kpiService.getTotalDominatedConceptsByUser(userId),
+          getKPIsFromCache(userId)
         ]);
         
-        // Usar el mayor de los dos valores para ser más generoso con la división (igual que InicioPage)
-        const conceptsForDivision = Math.max(conceptStats.conceptosDominados, conceptsWithMinReps);
+        // Obtener Score Global para calcular división
+        const scoreGlobal = Math.ceil(kpisData?.global?.scoreGlobal || 0);
+        setGlobalScore(scoreGlobal);
+        
+        // Mantener conceptos para el módulo de progreso
+        const conceptsForDisplay = conceptStats.conceptosDominados;
         
         // Actualizar estados
         setStreakData({
@@ -218,8 +239,8 @@ const StudyModePage = () => {
           streakBonus: calculatedStreakBonus
         }));
         
-        setConceptsLearned(conceptsForDivision);
-        calculateDivision(conceptsForDivision);
+        setConceptsLearned(conceptsForDisplay);
+        calculateDivision(scoreGlobal);
         generateSuggestionsAndChallenges(streak.currentStreak);
         
       } catch (error) {
@@ -481,76 +502,50 @@ const StudyModePage = () => {
   }, [selectedMateria, isSchoolStudent, schoolNotebooks]);
 
 
-  // Calculate division based on concepts learned
-  const calculateDivision = (concepts: number) => {
-    let currentDivision = 'WOOD';
-    let nextMilestone = 25;
+  // Calculate division based on global score
+  const calculateDivision = (score: number) => {
+    // Encontrar la división correspondiente al score
+    let currentDivisionIndex = 0;
+    let currentDivisionData = DIVISION_LEVELS[0];
     
-    // Using same logic as InicioPage - check if concepts fall within division ranges
-    // Each division has a range, not just a minimum threshold
-    if (concepts >= 20000) {
-      currentDivision = 'LEGEND';
-      nextMilestone = 50000;
-    } else if (concepts >= 10000) {
-      currentDivision = 'VOID';
-      nextMilestone = 20000;
-    } else if (concepts >= 5400) {
-      currentDivision = 'COSMIC';
-      nextMilestone = 10000;
-    } else if (concepts >= 2800) {
-      currentDivision = 'CRYSTAL';
-      nextMilestone = 5400;
-    } else if (concepts >= 1400) {
-      currentDivision = 'JADE';
-      nextMilestone = 2800;
-    } else if (concepts >= 600) {
-      currentDivision = 'RUBY';
-      nextMilestone = 1400;
-    } else if (concepts >= 330) {
-      currentDivision = 'GOLD';
-      nextMilestone = 600;
-    } else if (concepts >= 170) {
-      currentDivision = 'SILVER';
-      nextMilestone = 330;
-    } else if (concepts >= 75) {
-      currentDivision = 'BRONZE';
-      nextMilestone = 170;
-    } else if (concepts >= 25) {
-      currentDivision = 'STONE';
-      nextMilestone = 75;
-    } else if (concepts <= 20) {
-      // Madera range is 1-20
-      currentDivision = 'WOOD';
-      nextMilestone = 25;
-    } else {
-      // Concepts between 21-24 stay in Wood until reaching Stone at 25
-      currentDivision = 'WOOD';
-      nextMilestone = 25;
+    for (let i = 0; i < DIVISION_LEVELS.length; i++) {
+      if (score >= DIVISION_LEVELS[i].minScore && score <= DIVISION_LEVELS[i].maxScore) {
+        currentDivisionIndex = i;
+        currentDivisionData = DIVISION_LEVELS[i];
+        break;
+      }
     }
     
+    // Calcular el próximo hito (siguiente división)
+    const nextDivision = currentDivisionIndex < DIVISION_LEVELS.length - 1 
+      ? DIVISION_LEVELS[currentDivisionIndex + 1]
+      : null;
+    
+    const nextMilestone = nextDivision ? nextDivision.minScore : score + 5000;
+    
+    console.log(`🏆 Score Global: ${score} -> División: ${currentDivisionData.name} ${currentDivisionData.icon}`);
+    
     setDivisionData({
-      current: currentDivision,
-      progress: concepts,
+      current: currentDivisionData.name,
+      progress: score,
       total: nextMilestone,
       nextMilestone
     });
     
-    // Set viewing division to current division
-    setViewingDivision(currentDivision as keyof typeof DIVISION_LEVELS);
+    // Set viewing division to current division index
+    setViewingDivision(currentDivisionIndex);
   };
 
   // Navigation functions for divisions
   const navigateToPreviousDivision = () => {
-    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
-    if (currentIndex > 0) {
-      setViewingDivision(DIVISION_KEYS[currentIndex - 1]);
+    if (viewingDivision > 0) {
+      setViewingDivision(viewingDivision - 1);
     }
   };
 
   const navigateToNextDivision = () => {
-    const currentIndex = DIVISION_KEYS.indexOf(viewingDivision);
-    if (currentIndex < DIVISION_KEYS.length - 1) {
-      setViewingDivision(DIVISION_KEYS[currentIndex + 1]);
+    if (viewingDivision < DIVISION_LEVELS.length - 1) {
+      setViewingDivision(viewingDivision + 1);
     }
   };
 
@@ -1324,11 +1319,11 @@ const StudyModePage = () => {
                       {DIVISION_LEVELS[viewingDivision].icon}
                     </div>
                     <div className="corner-medal-content">
-                      {viewingDivision === divisionData.current && (
+                      {DIVISION_LEVELS[viewingDivision].name === divisionData.current && (
                         <div className="corner-medal-label">Tu división actual</div>
                       )}
                       <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
-                      <div className="corner-medal-progress">{conceptsLearned} conceptos</div>
+                      <div className="corner-medal-progress">{globalScore.toLocaleString()} Score Global</div>
                     </div>
                   </div>
                 </div>
@@ -1786,7 +1781,7 @@ const StudyModePage = () => {
               <button 
                 className="division-nav-btn"
                 onClick={navigateToPreviousDivision}
-                disabled={DIVISION_KEYS.indexOf(viewingDivision) === 0}
+                disabled={viewingDivision === 0}
               >
                 <FontAwesomeIcon icon={faChevronLeft} />
               </button>
@@ -1800,9 +1795,9 @@ const StudyModePage = () => {
                     División {DIVISION_LEVELS[viewingDivision].name}
                   </div>
                   <div className="division-status">
-                    {viewingDivision === divisionData.current ? (
+                    {DIVISION_LEVELS[viewingDivision].name === divisionData.current ? (
                       <span className="current-division">División actual</span>
-                    ) : DIVISION_KEYS.indexOf(viewingDivision) < DIVISION_KEYS.indexOf(divisionData.current as keyof typeof DIVISION_LEVELS) ? (
+                    ) : globalScore >= DIVISION_LEVELS[viewingDivision].minScore ? (
                       <span className="completed-division">Completada</span>
                     ) : (
                       <span className="locked-division">Bloqueada</span>
@@ -1814,7 +1809,7 @@ const StudyModePage = () => {
               <button 
                 className="division-nav-btn"
                 onClick={navigateToNextDivision}
-                disabled={DIVISION_KEYS.indexOf(viewingDivision) === DIVISION_KEYS.length - 1}
+                disabled={viewingDivision === DIVISION_LEVELS.length - 1}
               >
                 <FontAwesomeIcon icon={faChevronRight} />
               </button>
@@ -1822,35 +1817,33 @@ const StudyModePage = () => {
 
             {/* Medals Grid */}
             <div className="medals-grid">
-              {DIVISION_LEVELS[viewingDivision].ranges.map((requiredConcepts, index) => {
-                const isEarned = getMedalStatus(requiredConcepts);
-                const isCurrentTarget = viewingDivision === divisionData.current && requiredConcepts === divisionData.nextMilestone;
-                
-                return (
-                  <div 
-                    key={`${viewingDivision}-${requiredConcepts}`}
-                    className={`medal-item ${isEarned ? 'earned' : 'locked'} ${isCurrentTarget ? 'current-target' : ''}`}
-                  >
-                    <div 
-                      className="medal-icon"
-                      style={{ 
-                        color: isEarned ? DIVISION_LEVELS[viewingDivision].color : '#ccc',
-                        borderColor: isCurrentTarget ? DIVISION_LEVELS[viewingDivision].color : 'transparent'
-                      }}
-                    >
-                      <FontAwesomeIcon icon={faMedal} />
-                    </div>
-                    <div className="medal-requirement">{requiredConcepts}</div>
-                  </div>
-                );
-              })}
+              {/* Mostrar la medalla de la división actual */}
+              <div 
+                className={`medal-item ${globalScore >= DIVISION_LEVELS[viewingDivision].minScore ? 'earned' : 'locked'} ${DIVISION_LEVELS[viewingDivision].name === divisionData.current ? 'current-target' : ''}`}
+              >
+                <div 
+                  className="medal-icon"
+                  style={{ 
+                    fontSize: '3rem'
+                  }}
+                >
+                  {DIVISION_LEVELS[viewingDivision].icon}
+                </div>
+                <div className="medal-requirement">
+                  {DIVISION_LEVELS[viewingDivision].minScore.toLocaleString()} - {
+                    DIVISION_LEVELS[viewingDivision].maxScore === Infinity 
+                      ? '∞' 
+                      : DIVISION_LEVELS[viewingDivision].maxScore.toLocaleString()
+                  } pts
+                </div>
+              </div>
             </div>
 
             {/* Motivational Message */}
             <div className="medal-motivation-message">
-              {viewingDivision === divisionData.current && divisionData.progress < divisionData.nextMilestone && (
+              {DIVISION_LEVELS[viewingDivision].name === divisionData.current && divisionData.progress < divisionData.nextMilestone && (
                 <div className="motivation-text">
-                  ✨ Estudia {divisionData.nextMilestone - divisionData.progress} conceptos más y consigue tu siguiente medalla
+                  ✨ Gana {(divisionData.nextMilestone - divisionData.progress).toLocaleString()} puntos más para alcanzar la siguiente división
                 </div>
               )}
             </div>
