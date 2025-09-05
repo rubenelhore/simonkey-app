@@ -155,7 +155,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
           }}
         >
           <i className="fas fa-redo"></i>
-          <span>Revisar después</span>
+          <span>Difícil</span>
         </button>
         <button 
           className="eval-button mastered"
@@ -171,7 +171,7 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
           }}
         >
           <i className="fas fa-check-double"></i>
-          <span>Dominado</span>
+          <span>Fácil</span>
         </button>
       </div>
     );

@@ -463,15 +463,38 @@ const InicioPage: React.FC = () => {
         console.log('Concept Stats:', conceptStats);
         
         if (kpisData) {
-          // Calcular tiempo total en horas
+          // Calcular tiempo total en minutos
           const totalMinutes = kpisData.global?.tiempoEstudioGlobal || 0;
-          const totalHours = Math.round(totalMinutes / 60);
           
-          // Calcular tasa de éxito (usar percentil como indicador de éxito)
-          const successRate = Math.round(kpisData.global?.percentilPromedioGlobal || 0);
+          // Obtener número de materias del usuario
+          const firebase = await import('../services/firebase');
+          
+          // Contar materias del usuario
+          const userMateriasQuery = await firebase.getDocs(
+            firebase.query(
+              firebase.collection(firebase.db, 'materias'), 
+              firebase.where('userId', '==', user.uid)
+            )
+          );
+          const userMateriasCount = userMateriasQuery.size;
+          
+          // Contar materias de profesores en los que está inscrito
+          const userEnrollmentsQuery = await firebase.getDocs(
+            firebase.query(
+              firebase.collection(firebase.db, 'enrollments'), 
+              firebase.where('studentId', '==', user.uid)
+            )
+          );
+          
+          const enrolledMateriasSet = new Set();
+          for (const enrollmentDoc of userEnrollmentsQuery.docs) {
+            const enrollmentData = enrollmentDoc.data();
+            enrolledMateriasSet.add(enrollmentData.materiaId);
+          }
+          
+          const totalMaterias = userMateriasCount + enrolledMateriasSet.size;
           
           // Contar cuadernos activos (propios y de profesores inscritos)
-          const firebase = await import('../services/firebase');
           
           // Cuadernos propios
           const ownNotebooksQuery = await firebase.getDocs(
@@ -502,8 +525,8 @@ const InicioPage: React.FC = () => {
           
           const newProgressData = {
             conceptsDominated: conceptStats.conceptosDominados || 0,
-            totalTime: totalHours,
-            successRate: successRate,
+            totalTime: totalMinutes,
+            successRate: totalMaterias,
             activeNotebooks: activeNotebooks
           };
           
@@ -816,7 +839,11 @@ const InicioPage: React.FC = () => {
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="module-content">
-                <div className="module-header">
+                <div 
+                  className="module-header"
+                  onClick={() => navigate('/materias')}
+                  style={{ cursor: 'pointer' }}
+                >
                   <h3>Materias</h3>
                   <span className="current-date">Menor Dominio</span>
                 </div>
@@ -893,7 +920,11 @@ const InicioPage: React.FC = () => {
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="module-content">
-                <div className="module-header">
+                <div 
+                  className="module-header"
+                  onClick={() => navigate('/study')}
+                  style={{ cursor: 'pointer' }}
+                >
                   <h3>Modos de Estudio</h3>
                   <span className="current-date">Elige tu modo</span>
                 </div>
@@ -905,7 +936,7 @@ const InicioPage: React.FC = () => {
                     <div className="mode-icon-wrapper">
                       <i className="fas fa-brain"></i>
                     </div>
-                    <span className="mode-title">Estudio Inteligente</span>
+                    <span className="mode-title">Repaso Inteligente</span>
                   </div>
                   
                   <div 
@@ -915,7 +946,7 @@ const InicioPage: React.FC = () => {
                     <div className="mode-icon-wrapper">
                       <i className="fas fa-trophy"></i>
                     </div>
-                    <span className="mode-title">Mini Quiz</span>
+                    <span className="mode-title">Quiz</span>
                   </div>
                   
                   <div 
@@ -946,12 +977,20 @@ const InicioPage: React.FC = () => {
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="module-content">
-                <div className="module-header">
+                <div 
+                  className="module-header"
+                  onClick={() => navigate('/progress')}
+                  style={{ cursor: 'pointer' }}
+                >
                   <h3>Progreso</h3>
                   <span className="current-date">Tu resumen</span>
                 </div>
                 <div className="progress-insights-container">
-                  <div className="progress-metric">
+                  <div 
+                    className="progress-metric"
+                    onClick={() => navigate('/progress')}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="progress-metric-value">
                       <i className="fas fa-brain"></i>
                       <span>{loading ? '...' : progressData.conceptsDominated}</span>
@@ -959,23 +998,35 @@ const InicioPage: React.FC = () => {
                     <span className="progress-metric-label">Conceptos Dominados</span>
                   </div>
                   
-                  <div className="progress-metric">
+                  <div 
+                    className="progress-metric"
+                    onClick={() => navigate('/progress')}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="progress-metric-value">
                       <i className="fas fa-clock"></i>
-                      <span>{loading ? '...' : `${progressData.totalTime}h`}</span>
+                      <span>{loading ? '...' : `${Math.round(progressData.totalTime)}m`}</span>
                     </div>
                     <span className="progress-metric-label">Tiempo Total</span>
                   </div>
                   
-                  <div className="progress-metric">
+                  <div 
+                    className="progress-metric"
+                    onClick={() => navigate('/progress')}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="progress-metric-value">
-                      <i className="fas fa-percentage"></i>
-                      <span>{loading ? '...' : `${progressData.successRate}%`}</span>
+                      <i className="fas fa-graduation-cap"></i>
+                      <span>{loading ? '...' : `${progressData.successRate}`}</span>
                     </div>
-                    <span className="progress-metric-label">Tasa de Éxito</span>
+                    <span className="progress-metric-label">Materias Activas</span>
                   </div>
                   
-                  <div className="progress-metric">
+                  <div 
+                    className="progress-metric"
+                    onClick={() => navigate('/progress')}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="progress-metric-value">
                       <i className="fas fa-book"></i>
                       <span>{loading ? '...' : progressData.activeNotebooks}</span>
@@ -991,7 +1042,11 @@ const InicioPage: React.FC = () => {
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="module-content">
-                <div className="module-header">
+                <div 
+                  className="module-header"
+                  onClick={() => navigate('/calendar')}
+                  style={{ cursor: 'pointer' }}
+                >
                   <h3>Calendario</h3>
                   <span className="current-date">
                     {(() => {

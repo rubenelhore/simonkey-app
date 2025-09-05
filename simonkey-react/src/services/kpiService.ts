@@ -437,6 +437,16 @@ export class KPIService {
         } else if (session.mode === 'free') {
           stats.tiempoEstudioLibre += sessionDuration;
           stats.estudiosLibresTotal++;
+        } else if (session.mode === 'voice_recognition') {
+          // Añadir tiempo de estudio activo (reconocimiento de voz)
+          stats.tiempoEstudioInteligente += sessionDuration;
+          
+          // Contar como estudio inteligente si está validado
+          if (session.validated) {
+            stats.estudiosInteligentesExitosos++;
+            stats.estudiosInteligentesTotal += 1;
+            stats.sesionesValidadas++;
+          }
         }
         
         stats.sesionesTotales++;
@@ -734,7 +744,7 @@ export class KPIService {
           }
         }
         
-        // Calcular tiempo total de estudio (en segundos) - incluir mini quiz y juegos
+        // Calcular tiempo total de estudio (en segundos) - incluir estudio activo, mini quiz y juegos
         const tiempoQuizTotal = quizData.totalTime + miniQuizData.totalTime;
         const tiempoJuegosTotal = gameData.totalTime;
         const tiempoEstudioTotal = stats.tiempoEstudioLibre + stats.tiempoEstudioInteligente + tiempoQuizTotal + tiempoJuegosTotal;
