@@ -16,6 +16,7 @@ import { useStudyService } from '../hooks/useStudyService';
 import { gamePointsService } from '../services/gamePointsService';
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
+import { MateriaRankingService } from '../services/materiaRankingService';
 import { studySessionPersistence } from '../utils/studySessionPersistence';
 
 // División levels configuration
@@ -118,6 +119,7 @@ const StudyModePage = () => {
     streakBonus: 0,
     finalScore: 0
   });
+  const [materiaRanking, setMateriaRanking] = useState<{ position: number; total: number } | null>(null);
 
   // Load persisted selection on component mount ONLY if explicitly requested
   useEffect(() => {
@@ -644,7 +646,10 @@ const StudyModePage = () => {
   };
 
   // Handle notebook selection - SUPER OPTIMIZADO
-  const handleSelectNotebook = async (notebook: Notebook) => {
+  const handleSelectNotebook = async (notebook: Notebook, materia?: any) => {
+    // Limpiar ranking inmediatamente al cambiar de notebook
+    setMateriaRanking(null);
+    
     // Verificar el estado actual del notebook desde la base de datos
     try {
       const notebookDoc = await getDoc(doc(db, 'notebooks', notebook.id));
@@ -668,11 +673,15 @@ const StudyModePage = () => {
     setSelectedNotebook(notebook);
     setShowNotebookError(false);
     
+    // Usar la materia pasada o la que está en el estado
+    const effectiveMateria = materia || selectedMateria;
+    
     // Guardar la selección en localStorage
-    studySessionPersistence.saveSelection(notebook, selectedMateria);
+    studySessionPersistence.saveSelection(notebook, effectiveMateria);
     
     // Mostrar valores estimados INMEDIATAMENTE basados en valores típicos
-    setNotebookScore({ score: 0, level: 1, progress: 0 });
+    // NO resetear el score para evitar parpadeo - mantener el anterior hasta que llegue el nuevo
+    // setNotebookScore({ score: 0, level: 1, progress: 0 });
     setStudyAvailability({ available: true, conceptsCount: 5 }); // Asumir que hay conceptos disponibles
     setQuizAvailability({ available: true });
     setSmartStudyCount(0);
@@ -688,6 +697,8 @@ const StudyModePage = () => {
     loadCriticalData(notebook);
     // Cargar datos secundarios en background
     loadSecondaryData(notebook);
+    // Cargar ranking de la materia con la materia correcta
+    loadMateriaRankingWithMateria(notebook, effectiveMateria);
   };
   
   // Cargar solo datos críticos para mostrar la UI rápidamente
@@ -914,6 +925,74 @@ const StudyModePage = () => {
     } catch (error) {
       console.error('Error loading secondary data:', error);
     }
+  };
+  
+  // Load materia ranking with explicit materia parameter
+  const loadMateriaRankingWithMateria = async (notebook: Notebook, materia: any) => {
+    if (!effectiveUserId || !materia) {
+      setMateriaRanking(null);
+      return;
+    }
+    
+    try {
+      console.log('Loading materia ranking for:', materia.id, 'userId:', effectiveUserId);
+      
+      // Verificar si soy el profesor de esta materia
+      const isMateriaOwner = materia.userId === effectiveUserId;
+      
+      if (isMateriaOwner) {
+        console.log('User is owner of this materia, showing 1 de 1');
+        setMateriaRanking({
+          position: 1,
+          total: 1
+        });
+        return;
+      }
+      
+      // Si no soy el profesor, obtener el ranking (podría ser estudiante enrollado)
+      const rankings = await MateriaRankingService.getMateriaRanking(
+        materia.id,
+        effectiveUserId
+      );
+      
+      if (rankings && rankings.length > 0) {
+        // Encontrar la posición del usuario actual
+        const userRanking = rankings.find(r => r.isCurrentUser);
+        if (userRanking) {
+          console.log('User found in ranking:', userRanking.posicion, 'of', rankings.length);
+          setMateriaRanking({
+            position: userRanking.posicion,
+            total: rankings.length
+          });
+        } else {
+          // Si el usuario no está en el ranking, mostrar como único participante
+          console.log('User not found in ranking, showing 1 de 1');
+          setMateriaRanking({
+            position: 1,
+            total: 1
+          });
+        }
+      } else {
+        // Si no hay ranking, mostrar como único participante
+        console.log('No ranking found, showing 1 de 1');
+        setMateriaRanking({
+          position: 1,
+          total: 1
+        });
+      }
+    } catch (error) {
+      console.error('Error loading materia ranking:', error);
+      setMateriaRanking(null);
+    }
+  };
+  
+  // Load materia ranking (for backwards compatibility)
+  const loadMateriaRanking = async (notebook: Notebook) => {
+    if (!selectedMateria) {
+      setMateriaRanking(null);
+      return;
+    }
+    loadMateriaRankingWithMateria(notebook, selectedMateria);
   };
   
   // Helper function para contar documentos sin traerlos todos
@@ -1300,7 +1379,7 @@ const StudyModePage = () => {
                                     }
                                     
                                     setSelectedMateria(materia);
-                                    handleSelectNotebook(notebook);
+                                    handleSelectNotebook(notebook, materia);
                                     setShowNotebookDropdown(false);
                                     const lastMateriaKey = isSchoolStudent ? 
                                       `student_${auth.currentUser?.uid}_lastStudyMateriaId` : 
@@ -1399,6 +1478,18 @@ const StudyModePage = () => {
                 <span className="metric-label">Estudio Hoy</span>
                 <span className="metric-value" style={{ color: '#10b981', fontSize: '0.9rem' }}>
                   {streakData.days > 0 ? 'INICIADO' : 'PENDIENTE'}
+                </span>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip={`Tu posición en el ranking de ${selectedMateria?.nombre || selectedMateria?.title || 'la materia'}`}>
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faMedal} className="metric-icon" style={{ color: '#FFD700' }} />
+              <div className="metric-content">
+                <span className="metric-label">Posición</span>
+                <span className="metric-value" style={{ fontSize: '0.9rem' }}>
+                  {materiaRanking && selectedNotebook && selectedMateria ? `${materiaRanking.position} de ${materiaRanking.total}` : '1 de 1'}
                 </span>
               </div>
             </div>

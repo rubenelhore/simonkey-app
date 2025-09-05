@@ -900,7 +900,7 @@ body:has(.study-mode-container) {
 
 .notebook-dropdown-btn {
   width: 100%;
-  max-width: 400px;
+  max-width: 350px !important; /* Reducido para evitar que se haga muy ancho */
   padding: 1rem 1.25rem;
   background: var(--bg-white);
   border: 2px solid var(--primary-color);
@@ -915,16 +915,22 @@ body:has(.study-mode-container) {
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-dark);
+  min-width: 0; /* Para que funcione el truncamiento en flex */
 }
 
 .notebook-dropdown-btn span {
   flex: 1;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
   text-align: left;
+  max-width: 280px !important; /* Limitar el ancho del texto para dejar espacio al ícono */
+  display: block;
+  width: auto !important; /* Sobrescribir el width que viene del CSS global */
+  min-width: 0 !important; /* Permitir que se encoja */
 }
 
+/* Tooltip deshabilitado - el texto completo se muestra al hacer clic en el dropdown
 .notebook-dropdown-btn:hover span {
   position: relative;
 }
@@ -945,6 +951,7 @@ body:has(.study-mode-container) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   line-height: 1.3;
 }
+*/
 
 .notebook-dropdown-btn:hover:not(:disabled) {
   border-color: var(--primary-color);

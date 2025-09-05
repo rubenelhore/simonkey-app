@@ -916,6 +916,8 @@ Ver consola para más detalles.`);
   React.useEffect(() => {
     filterProRequests();
   }, [proFilters, proRequests]);
+  
+  
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (userTypeLoading) {
@@ -1520,6 +1522,7 @@ Ver consola para más detalles.`);
       </div>
     );
   };
+
 
   return (
     <>
