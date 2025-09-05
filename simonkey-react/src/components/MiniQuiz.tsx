@@ -1084,7 +1084,6 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
             <span>{notebookTitle}</span>
           </div>
         </div>
-        </div>
         
         <div className="quiz-intro-actions">
           <button
