@@ -28,6 +28,9 @@ import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from '
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { getPositionHistory } from '../utils/createPositionHistory';
 import ChartLoadingPlaceholder from '../components/Charts/ChartLoadingPlaceholder';
+import { gamePointsService } from '../services/gamePointsService';
+import { studyStreakService } from '../services/studyStreakService';
+import { getDomainProgressForNotebook } from '../utils/domainProgress';
 import { useUserType } from '../hooks/useUserType';
 import '../styles/ProgressPage.css';
 
@@ -86,6 +89,12 @@ interface CuadernoData {
   porcentajeDominio: number;
   estudiosLibres: number;
   juegosJugados: number;
+  // Points for each activity type
+  puntosRepasoInteligente: number;
+  puntosEstudioActivo: number;
+  puntosEstudioLibre: number;
+  puntosQuiz: number;
+  puntosJuegos: number;
 }
 
 const ProgressPage: React.FC = () => {
@@ -540,7 +549,165 @@ const ProgressPage: React.FC = () => {
     }
   };
 
+  // Helper function to calculate points for a notebook using direct Firebase queries (same as StudyModePage)
+  const calculateNotebookPoints = async (notebookId: string, userId: string) => {
+    console.log(`[ProgressPage] calculateNotebookPoints called for ${notebookId}, userId: ${userId}`);
+    try {
+      // Use the same queries as StudyModePage - query studySessions collection directly
+      const [
+        smartStudySessions,
+        voiceRecognitionSessions, 
+        freeStudySessions,
+        quizStatsDoc,
+        notebookPoints,
+        userStreak,
+        domainProgress
+      ] = await Promise.all([
+        // Smart study sessions - query studySessions collection with mode filter
+        getDocs(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', userId),
+          where('notebookId', '==', notebookId),
+          where('mode', '==', 'smart'),
+          where('validated', '==', true),
+          limit(100)
+        )),
+        // Voice recognition sessions - query studySessions collection with mode filter  
+        getDocs(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', userId),
+          where('notebookId', '==', notebookId),
+          where('mode', '==', 'voice_recognition'),
+          where('validated', '==', true),
+          limit(100)
+        )),
+        // Free study sessions - query studySessions collection with mode filter
+        getDocs(query(
+          collection(db, 'studySessions'),
+          where('userId', '==', userId),
+          where('notebookId', '==', notebookId),
+          where('mode', '==', 'free'),
+          limit(100)
+        )),
+        // Quiz stats
+        getDoc(doc(db, 'users', userId, 'quizStats', notebookId)),
+        // Game points
+        gamePointsService.getNotebookPoints(userId, notebookId).catch(() => ({ totalPoints: 0 })),
+        // User streak
+        studyStreakService.getUserStreak(userId).catch(() => ({ currentStreak: 0 })),
+        // Domain progress data (concepts dominated and total)
+        getDomainProgressForNotebook(notebookId)
+      ]);
+
+      console.log(`[ProgressPage] DEBUG: Smart study sessions found: ${smartStudySessions.size}`);
+      console.log(`[ProgressPage] DEBUG: Voice recognition sessions found: ${voiceRecognitionSessions.size}`);
+      console.log(`[ProgressPage] DEBUG: Free study sessions found: ${freeStudySessions.size}`);
+
+      // Calculate smart study points based on intensity (same as StudyModePage)
+      let smartStudyPoints = 0;
+      smartStudySessions.forEach((doc) => {
+        const sessionData = doc.data();
+        const intensity = sessionData.intensity || 'warm_up';
+        console.log(`[ProgressPage] DEBUG: Smart study session intensity: ${intensity}`, sessionData);
+        
+        switch(intensity) {
+          case 'warm_up':
+            smartStudyPoints += 0.5;
+            break;
+          case 'progress':
+            smartStudyPoints += 1.0;
+            break;
+          case 'rocket':
+            smartStudyPoints += 2.0;
+            break;
+          default:
+            smartStudyPoints += 0.5;
+        }
+      });
+
+      // Calculate voice recognition points (same as StudyModePage)
+      let voiceRecognitionPoints = 0;
+      voiceRecognitionSessions.forEach((doc) => {
+        const sessionData = doc.data();
+        const sessionScore = sessionData.sessionScore || sessionData.finalSessionScore || 0;
+        console.log(`[ProgressPage] DEBUG: Voice session data:`, {
+          docId: doc.id,
+          sessionScore: sessionData.sessionScore,
+          finalSessionScore: sessionData.finalSessionScore,
+          calculatedScore: sessionScore,
+          notebookId: sessionData.notebookId
+        });
+        voiceRecognitionPoints += sessionScore;
+      });
+
+      // Calculate free study points
+      const freeStudyCount = freeStudySessions.size;
+      const freeStudyPoints = freeStudyCount * 0.1;
+
+      // Get quiz points
+      const quizPoints = quizStatsDoc.exists() ? (quizStatsDoc.data().maxScore || 0) : 0;
+
+      // Get game points
+      const gamePointsValue = notebookPoints.totalPoints || 0;
+
+      // Calculate streak bonus (same as StudyModePage)
+      const streakBonus = studyStreakService.getStreakBonus(userStreak.currentStreak);
+
+      // Calculate individual points
+      const puntosRepasoInteligente = Math.round(smartStudyPoints * 1000);
+      const puntosEstudioActivo = Math.round(voiceRecognitionPoints * 1000);
+      const puntosEstudioLibre = Math.round(freeStudyPoints * 1000);
+      const puntosQuiz = quizPoints;
+      const puntosJuegos = gamePointsValue;
+
+      // Calculate domain percentage (same as MateriaItem)
+      const porcentajeDominio = domainProgress.total > 0 
+        ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
+        : 0;
+
+      // Calculate score general as sum of all points + streak bonus
+      const scoreGeneral = puntosRepasoInteligente + puntosEstudioActivo + puntosEstudioLibre + puntosQuiz + puntosJuegos + streakBonus;
+
+      const result = {
+        puntosRepasoInteligente,
+        puntosEstudioActivo,
+        puntosEstudioLibre,
+        puntosQuiz,
+        puntosJuegos,
+        score: scoreGeneral, // Override the score with calculated value
+        porcentajeDominio: porcentajeDominio // Override with calculated domain percentage
+      };
+      
+      console.log(`[ProgressPage] DEBUG: Calculated points for ${notebookId}:`, {
+        smartStudyPoints: smartStudyPoints,
+        voiceRecognitionPoints: voiceRecognitionPoints,
+        freeStudyPoints: freeStudyPoints,
+        streakBonus: streakBonus,
+        currentStreak: userStreak.currentStreak,
+        scoreGeneral: scoreGeneral,
+        porcentajeDominio: porcentajeDominio,
+        domainProgress: domainProgress,
+        result: result
+      });
+      
+      return result;
+
+    } catch (error) {
+      console.error(`[ProgressPage] Error calculating points for notebook ${notebookId}:`, error);
+      return {
+        puntosRepasoInteligente: 0,
+        puntosEstudioActivo: 0,
+        puntosEstudioLibre: 0,
+        puntosQuiz: 0,
+        puntosJuegos: 0,
+        score: 0,
+        porcentajeDominio: 0
+      };
+    }
+  };
+
   const processCuadernosData = async () => {
+    console.log('[ProgressPage] processCuadernosData called');
     if (!auth.currentUser || !kpisData) return;
     
     try {
@@ -721,7 +888,13 @@ const ProgressPage: React.FC = () => {
                     porcentajeExito: cuadernoKPI.porcentajeExito || 0,
                     porcentajeDominio: cuadernoKPI.porcentajeDominio || 0,
                     estudiosLibres: cuadernoKPI.estudiosLibres || 0,
-                    juegosJugados: cuadernoKPI.juegosJugados || 0
+                    juegosJugados: cuadernoKPI.juegosJugados || 0,
+                    // Points will be calculated later
+                    puntosRepasoInteligente: 0,
+                    puntosEstudioActivo: 0,
+                    puntosEstudioLibre: 0,
+                    puntosQuiz: 0,
+                    puntosJuegos: 0
                   });
                 }
               } catch (error) {
@@ -744,14 +917,20 @@ const ProgressPage: React.FC = () => {
               score: cuadernoData.scoreCuaderno || 0,
               posicion: cuadernoData.posicionRanking || 1,
               totalAlumnos: cuadernoData.totalAlumnos || 1,
-            conceptos: cuadernoData.numeroConceptos || 0,
-            tiempoEstudio: cuadernoData.tiempoEstudioLocal || 0,
-            estudiosInteligentes: cuadernoData.estudiosInteligentesLocal || 0,
-            porcentajeExito: cuadernoData.porcentajeExitoEstudiosInteligentes || 0,
-            porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
-            estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
-            juegosJugados: cuadernoData.juegosJugados || 0
-          });
+              conceptos: cuadernoData.numeroConceptos || 0,
+              tiempoEstudio: cuadernoData.tiempoEstudioLocal || 0,
+              estudiosInteligentes: cuadernoData.estudiosInteligentesLocal || 0,
+              porcentajeExito: cuadernoData.porcentajeExitoEstudiosInteligentes || 0,
+              porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
+              estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
+              juegosJugados: cuadernoData.juegosJugados || 0,
+              // Points will be calculated later
+              puntosRepasoInteligente: 0,
+              puntosEstudioActivo: 0,
+              puntosEstudioLibre: 0,
+              puntosQuiz: 0,
+              puntosJuegos: 0
+            });
         });
         }
       } else {
@@ -792,7 +971,13 @@ const ProgressPage: React.FC = () => {
               porcentajeExito: cuadernoData.porcentajeExitoEstudiosInteligentes || 0,
               porcentajeDominio: cuadernoData.porcentajeDominioConceptos || 0,
               estudiosLibres: cuadernoData.estudiosLibresLocal || 0,
-              juegosJugados: cuadernoData.juegosJugados || 0
+              juegosJugados: cuadernoData.juegosJugados || 0,
+              // Points will be calculated later
+              puntosRepasoInteligente: 0,
+              puntosEstudioActivo: 0,
+              puntosEstudioLibre: 0,
+              puntosQuiz: 0,
+              puntosJuegos: 0
             });
           }
         });
@@ -831,7 +1016,13 @@ const ProgressPage: React.FC = () => {
               porcentajeExito: cuadernoKPI.porcentajeExito || cuadernoKPI.porcentajeExitoEstudiosInteligentes || 0,
               porcentajeDominio: cuadernoKPI.porcentajeDominio || cuadernoKPI.porcentajeDominioConceptos || 0,
               estudiosLibres: cuadernoKPI.estudiosLibres || cuadernoKPI.estudiosLibresLocal || 0,
-              juegosJugados: cuadernoKPI.juegosJugados || 0
+              juegosJugados: cuadernoKPI.juegosJugados || 0,
+              // Points will be calculated later
+              puntosRepasoInteligente: 0,
+              puntosEstudioActivo: 0,
+              puntosEstudioLibre: 0,
+              puntosQuiz: 0,
+              puntosJuegos: 0
             });
           }
         });
@@ -842,7 +1033,30 @@ const ProgressPage: React.FC = () => {
         console.log(`[ProgressPage] - ${c.nombre}: score=${c.score}, pos=${c.posicion}, tiempo=${c.tiempoEstudio}min`);
       });
       
-      setCuadernosReales(cuadernosTemp);
+      // Calculate points for each notebook (same as StudyModePage)
+      console.log('[ProgressPage] Calculating points for each notebook...');
+      const pointsUserData = await getEffectiveUserId();
+      const pointsUserId = pointsUserData ? pointsUserData.id : auth.currentUser.uid;
+      
+      // Use Promise.all to calculate all points in parallel for better performance
+      const notebooksWithPoints = await Promise.all(
+        cuadernosTemp.map(async (notebook) => {
+          console.log(`[ProgressPage] Calculating points for ${notebook.nombre}...`);
+          
+          const points = await calculateNotebookPoints(notebook.id, pointsUserId);
+          
+          console.log(`[ProgressPage] Points for ${notebook.nombre}:`, points);
+          
+          return {
+            ...notebook,
+            ...points
+          };
+        })
+      );
+      
+      console.log('[ProgressPage] All notebooks with calculated points:', notebooksWithPoints);
+      
+      setCuadernosReales(notebooksWithPoints);
     } catch (error) {
       console.error('[ProgressPage] Error procesando cuadernos:', error);
       setCuadernosReales([]);
@@ -888,22 +1102,41 @@ const ProgressPage: React.FC = () => {
               console.log('[ProgressPage] Ranking de enrollments encontrado:', enrollmentRanking);
               setRankingData(enrollmentRanking);
             } else {
-              // Si no hay ranking de enrollments, mostrar solo el score personal
-              const materiaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+              // Si no hay ranking de enrollments, calcular score basado en cuadernos reales
+              let calculatedMateriaScore = 0;
+              if (cuadernosReales && cuadernosReales.length > 0) {
+                // Sumar los scores de todos los cuadernos de esta materia
+                calculatedMateriaScore = cuadernosReales.reduce((sum, cuaderno) => sum + (cuaderno.score || 0), 0);
+                console.log(`[ProgressPage] Score calculado para materia ${selectedMateria}:`, calculatedMateriaScore);
+                console.log(`[ProgressPage] Cuadernos incluidos:`, cuadernosReales.map(c => ({name: c.nombre, score: c.score})));
+              } else {
+                // Fallback al score de KPIs si no hay cuadernos calculados
+                calculatedMateriaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+                console.log(`[ProgressPage] Usando score de KPIs como fallback:`, calculatedMateriaScore);
+              }
+              
               setRankingData([{ 
                 posicion: 1, 
                 nombre: 'Tú', 
-                score: Math.ceil(materiaScore) 
+                score: Math.ceil(calculatedMateriaScore) 
               }]);
             }
           } catch (error) {
             console.error('[ProgressPage] Error obteniendo ranking de enrollments:', error);
-            // Fallback: mostrar solo el score personal
-            const materiaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+            // Fallback: intentar usar cuadernos reales, si no están disponibles usar KPIs
+            let fallbackScore = 0;
+            if (cuadernosReales && cuadernosReales.length > 0) {
+              fallbackScore = cuadernosReales.reduce((sum, cuaderno) => sum + (cuaderno.score || 0), 0);
+              console.log(`[ProgressPage] Fallback usando cuadernos reales:`, fallbackScore);
+            } else {
+              fallbackScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+              console.log(`[ProgressPage] Fallback usando KPIs:`, fallbackScore);
+            }
+            
             setRankingData([{ 
               posicion: 1, 
               nombre: 'Tú', 
-              score: Math.ceil(materiaScore) 
+              score: Math.ceil(fallbackScore) 
             }]);
           }
         }
@@ -1880,106 +2113,107 @@ const ProgressPage: React.FC = () => {
           </div>
 
           <div className={`progress-modules-right ${!isSchoolUser && materias.length === 0 ? 'full-width' : ''}`}>
-            <div className="progress-modules-right-row">
-              {/* Medal Module */}
-              <div className="corner-medal-module">
-                <button 
-                  className="division-nav-arrow left"
-                  onClick={navigateToPreviousDivision}
-                  disabled={DIVISION_KEYS.indexOf(viewingDivision) === 0}
-                >
-                  <FontAwesomeIcon icon={faChevronLeft} />
-                </button>
-                <div className="corner-medal-header">
-                  <div className="corner-medal-center">
-                    <div className="corner-medal-icon">
-                      {DIVISION_LEVELS[viewingDivision].icon}
-                    </div>
-                    <div className="corner-medal-content">
-                      <div className="corner-medal-label">
-                        {viewingDivision === currentDivision ? 'Tu división actual' : '\u00A0'}
-                      </div>
-                      <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
-                      <div className="corner-medal-progress">
-                        {viewingDivision === currentDivision 
-                          ? `${conceptsLearned} conceptos`
-                          : `${DIVISION_LEVELS[viewingDivision].min}-${DIVISION_LEVELS[viewingDivision].max === Infinity ? '∞' : DIVISION_LEVELS[viewingDivision].max} conceptos`
-                        }
-                      </div>
-                    </div>
-                  </div>
+            <div className="daily-metrics">
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Días consecutivos de estudio">
+                  <i className="fas fa-info-circle"></i>
                 </div>
-                <button 
-                  className="division-nav-arrow right"
-                  onClick={navigateToNextDivision}
-                  disabled={DIVISION_KEYS.indexOf(viewingDivision) === DIVISION_KEYS.length - 1}
-                >
-                  <FontAwesomeIcon icon={faChevronRight} />
-                </button>
-              </div>
-              
-              {/* Módulo 2: Percentil Promedio Global */}
-              <div className="progress-module kpi-module">
-                <div className="kpi-icon icon-percentil">
-                  <FontAwesomeIcon icon={faBullseye} />
-                </div>
-                <div className="kpi-content">
-                  <h3>Percentil Global</h3>
-                  <p className="kpi-value">{globalPercentil}°</p>
-                  <span className="kpi-label">percentil</span>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="fire" className="svg-inline--fa fa-fire metric-icon fire" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+                  <path fill="currentColor" d="M159.3 5.4c7.8-7.3 19.9-7.2 27.7 .1c27.6 25.9 53.5 53.8 77.7 84c11-14.4 23.5-30.1 37-42.9c7.9-7.4 20.1-7.4 28 .1c34.6 33 63.9 76.6 84.5 118c20.3 40.8 33.8 82.5 33.8 111.9C448 404.2 348.2 512 224 512C98.4 512 0 404.1 0 276.5c0-38.4 17.8-85.3 45.4-131.7C73.3 97.7 112.7 48.6 159.3 5.4zM225.7 416c25.3 0 47.7-7 68.8-21c42.1-29.4 53.4-88.2 28.1-134.4c-4.5-9-16-9.6-22.5-2l-25.2 29.3c-6.6 7.6-18.5 7.4-24.7-.5c-16.5-21-46-58.5-62.8-79.8c-6.3-8-18.3-8.1-24.7-.1c-33.8 42.5-50.8 69.3-50.8 99.4C112 375.4 162.6 416 225.7 416z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Racha</span>
+                  <span className="metric-value">4 días</span>
                 </div>
               </div>
-
-              {/* Módulo 3: Tiempo de Estudio Global */}
-              <div className="progress-module kpi-module">
-                <div className="kpi-icon icon-time">
-                  <FontAwesomeIcon icon={faClock} />
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Puntos bonus acumulados por tu racha de estudio">
+                  <i className="fas fa-info-circle"></i>
                 </div>
-                <div className="kpi-content">
-                  <h3>Tiempo de Estudio</h3>
-                  <p className="kpi-value">{formatTime(globalStudyTime)}</p>
-                  <span className="kpi-label">tiempo total</span>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="gift" className="svg-inline--fa fa-gift metric-icon bonus" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                  <path fill="currentColor" d="M190.5 68.8L225.3 128l-1.3 0-72 0c-22.1 0-40-17.9-40-40s17.9-40 40-40l2.2 0c14.9 0 28.8 7.9 36.3 20.8zM64 88c0 14.4 3.5 28 9.6 40L32 128c-17.7 0-32 14.3-32 32l0 64c0 17.7 14.3 32 32 32l448 0c17.7 0 32-14.3 32-32l0-64c0-17.7-14.3-32-32-32l-41.6 0c6.1-12 9.6-25.6 9.6-40c0-48.6-39.4-88-88-88l-2.2 0c-31.9 0-61.5 16.9-77.7 44.4L256 85.5l-24.1-41C215.7 16.9 186.1 0 154.2 0L152 0C103.4 0 64 39.4 64 88zm336 0c0 22.1-17.9 40-40 40l-72 0-1.3 0 34.8-59.2C329.1 55.9 342.9 48 357.8 48l2.2 0c22.1 0 40 17.9 40 40zM32 288l0 176c0 26.5 21.5 48 48 48l144 0 0-224L32 288zM288 512l144 0c26.5 0 48-21.5 48-48l0-176-192 0 0 224z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Bonus</span>
+                  <span className="metric-value">800 pts</span>
                 </div>
               </div>
-
-              {/* Módulo 4: Estudios Inteligentes Global */}
-              <div className="progress-module kpi-module">
-                <div className="kpi-icon icon-brain">
-                  <FontAwesomeIcon icon={faBrain} />
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Estado de tu sesión de estudio del día de hoy">
+                  <i className="fas fa-info-circle"></i>
                 </div>
-                <div className="kpi-content">
-                  <h3>Estudios Inteligentes</h3>
-                  <p className="kpi-value">{globalSmartStudies}</p>
-                  <span className="kpi-label">sesiones validadas</span>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="chart-line" className="svg-inline--fa fa-chart-line metric-icon progress" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                  <path fill="currentColor" d="M64 64c0-17.7-14.3-32-32-32S0 46.3 0 64L0 400c0 44.2 35.8 80 80 80l400 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L80 416c-8.8 0-16-7.2-16-16L64 64zm406.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L320 210.7l-57.4-57.4c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L240 221.3l57.4 57.4c12.5 12.5 32.8 12.5 45.3 0l128-128z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Estudio Hoy</span>
+                  <span className="metric-value" style={{color: 'rgb(239, 68, 68)', fontSize: '0.9rem'}}>NO INICIADO</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Tu división actual basada en conceptos dominados">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="medal" className="svg-inline--fa fa-medal metric-icon division" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                  <path fill="currentColor" d="M4.1 38.2C1.4 34.2 0 29.4 0 24.6C0 11 11 0 24.6 0L133.9 0c11.2 0 21.7 5.9 27.4 15.5l68.5 114.1c-48.2 6.1-91.3 28.6-123.4 61.9L4.1 38.2zm503.7 0L405.6 191.5c-32.1-33.3-75.2-55.8-123.4-61.9L350.7 15.5C356.5 5.9 366.9 0 378.1 0L487.4 0C501 0 512 11 512 24.6c0 4.8-1.4 9.6-4.1 13.6zM80 336a176 176 0 1 1 352 0A176 176 0 1 1 80 336zm184.4-94.9c-3.4-7-13.3-7-16.8 0l-22.4 45.4c-1.4 2.8-4 4.7-7 5.1L168 298.9c-7.7 1.1-10.7 10.5-5.2 16l36.3 35.4c2.2 2.2 3.2 5.2 2.7 8.3l-8.6 49.9c-1.3 7.6 6.7 13.5 13.6 9.9l44.8-23.6c2.7-1.4 6-1.4 8.7 0l44.8 23.6c6.9 3.6 14.9-2.2 13.6-9.9l-8.6-49.9c-.5-3 .5-6.1 2.7-8.3l36.3-35.4c5.6-5.4 2.5-14.8-5.2-16l-50.1-7.3c-3-.4-5.7-2.4-7-5.1l-22.4-45.4z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">División</span>
+                  <span className="metric-value"><span style={{marginRight: '0.5rem', fontSize: '1.2rem'}}>🥉</span>Bronce</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Número total de conceptos que has dominado">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="brain" className="svg-inline--fa fa-brain metric-icon concepts" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                  <path fill="currentColor" d="M184 0c30.9 0 56 25.1 56 56l0 400c0 30.9-25.1 56-56 56c-28.9 0-52.7-21.9-55.7-50.1c-5.2 1.4-10.7 2.1-16.3 2.1c-35.3 0-64-28.7-64-64c0-7.4 1.3-14.6 3.6-21.2C21.4 367.4 0 338.2 0 304c0-31.9 18.7-59.5 45.8-72.3C37.1 220.8 32 207 32 192c0-30.7 21.6-56.3 50.4-62.6C80.8 123.9 80 118 80 112c0-29.9 20.6-55.1 48.3-62.1C131.3 21.9 155.1 0 184 0zM328 0c28.9 0 52.6 21.9 55.7 49.9c27.8 7 48.3 32.1 48.3 62.1c0 6-.8 11.9-2.4 17.4c28.8 6.2 50.4 31.9 50.4 62.6c0 15-5.1 28.8-13.8 39.7C493.3 244.5 512 272.1 512 304c0 34.2-21.4 63.4-51.6 74.8c2.3 6.6 3.6 13.8 3.6 21.2c0 35.3-28.7 64-64 64c-5.6 0-11.1-.7-16.3-2.1c-3 28.2-26.8 50.1-55.7 50.1c-30.9 0-56-25.1-56-56l0-400c0-30.9 25.1-56 56-56z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Conceptos Dominados</span>
+                  <span className="metric-value">169</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Tiempo total acumulado de estudio">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="clock" className="svg-inline--fa fa-clock metric-icon time" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                  <path fill="currentColor" d="M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zM232 120l0 136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2 280 120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Tiempo Total</span>
+                  <span className="metric-value">74m</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Número de materias en las que tienes actividad">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="graduation-cap" className="svg-inline--fa fa-graduation-cap metric-icon subjects" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
+                  <path fill="currentColor" d="M320 32c-8.1 0-16.1 1.4-23.7 4.1L15.8 137.4C6.3 140.9 0 149.9 0 160s6.3 19.1 15.8 22.6l57.9 20.9C57.3 229.3 48 259.8 48 291.9l0 28.1c0 28.4-10.8 57.7-22.3 80.8c-6.5 13-13.9 25.8-22.5 37.6C0 442.7-.9 448.3 .9 453.4s6 8.9 11.2 10.2l64 16c4.2 1.1 8.7 .3 12.4-2s6.3-6.1 7.1-10.4c8.6-42.8 4.3-81.2-2.1-119.8c-.9-5.3-1.7-10.7-2.4-16.1l228.2 81.9c7.6 2.7 15.6 4.1 23.7 4.1s16.1-1.4 23.7-4.1L624.2 182.6c9.5-3.4 15.8-12.5 15.8-22.6s-6.3-19.1-15.8-22.6L343.7 36.1C336.1 33.4 328.1 32 320 32zM128 408c0 35.3 86 72 192 72s192-36.7 192-72L496.7 262.6 354.5 314c-11.1 4-22.8 6-34.5 6s-23.5-2-34.5-6L143.3 262.6 128 408z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Materias Activas</span>
+                  <span className="metric-value">14</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-info-icon" data-tooltip="Número de cuadernos en los que tienes actividad">
+                  <i className="fas fa-info-circle"></i>
+                </div>
+                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="book" className="svg-inline--fa fa-book metric-icon notebooks" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+                  <path fill="currentColor" d="M96 0C43 0 0 43 0 96L0 416c0 53 43 96 96 96l288 0 32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l0-64c17.7 0 32-14.3 32-32l0-320c0-17.7-14.3-32-32-32L384 0 96 0zm0 384l256 0 0 64L96 448c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16l192 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16zm16 48l192 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-192 0c-8.8 0-16-7.2-16-16s7.2-16 16-16z"></path>
+                </svg>
+                <div className="metric-content">
+                  <span className="metric-label">Cuadernos Activos</span>
+                  <span className="metric-value">21</span>
                 </div>
               </div>
             </div>
 
             {/* Módulo Inferior */}
             <div className="progress-bottom-module">
-              {/* Gráficos */}
-              <div className="charts-container">
-                <div className="chart-section">
-                  <h3><FontAwesomeIcon icon={faChartLine} className="chart-icon" /> Posicionamiento Histórico</h3>
-                  <Suspense fallback={<ChartLoadingPlaceholder height={250} />}>
-                    <PositionHistoryChart data={positionHistoryData} />
-                  </Suspense>
-                </div>
-
-                <div className="chart-section">
-                  <h3><FontAwesomeIcon icon={faCalendarAlt} className="chart-icon" /> Tiempo de Estudio Semanal</h3>
-                  <Suspense fallback={<ChartLoadingPlaceholder height={250} />}>
-                    <WeeklyStudyChart data={studyTimeData} />
-                  </Suspense>
-                </div>
-
-                <div className="chart-section">
-                  <h3><FontAwesomeIcon icon={faBrain} className="chart-icon" /> Progreso de Conceptos</h3>
-                  <Suspense fallback={<ChartLoadingPlaceholder height={250} />}>
-                    <ConceptProgressChart data={conceptProgressData} />
-                  </Suspense>
-                </div>
-              </div>
 
               {/* Tabla de Cuadernos */}
               <div className="notebooks-table-container">
@@ -1989,15 +2223,14 @@ const ProgressPage: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Cuaderno</th>
-                        <th>Score</th>
-                        <th>Posición</th>
-                        <th>Conceptos</th>
-                        <th>Tiempo</th>
-                        <th>E. Inteligentes</th>
-                        <th>% Éxito</th>
-                        <th>% Dominio</th>
-                        <th>E. Libres</th>
+                        <th>Score General</th>
+                        <th>Repaso Inteligente</th>
+                        <th>Estudio Activo</th>
+                        <th>Estudio Libre</th>
+                        <th>Quiz</th>
                         <th>Juegos</th>
+                        <th>% Dominio</th>
+                        <th>Tiempo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2008,16 +2241,13 @@ const ProgressPage: React.FC = () => {
                             <tr key={cuaderno.id}>
                               <td className="notebook-name">{cuaderno.nombre}</td>
                               <td className="score-cell">{Math.ceil(cuaderno.score).toLocaleString('es-ES')}</td>
-                              <td className="position-cell">
-                                #{cuaderno.posicion} de {cuaderno.totalAlumnos}
-                              </td>
-                              <td>{cuaderno.conceptos}</td>
-                              <td>{formatTime(cuaderno.tiempoEstudio)}</td>
-                              <td className="smart-studies">{cuaderno.estudiosInteligentes}</td>
-                              <td className="percentage success">{cuaderno.porcentajeExito}%</td>
+                              <td className="points-cell">{cuaderno.puntosRepasoInteligente || 0} pts</td>
+                              <td className="points-cell">{cuaderno.puntosEstudioActivo || 0} pts</td>
+                              <td className="points-cell">{cuaderno.puntosEstudioLibre || 0} pts</td>
+                              <td className="points-cell">{cuaderno.puntosQuiz || 0} pts</td>
+                              <td className="points-cell">{cuaderno.puntosJuegos || 0} pts</td>
                               <td className="percentage mastery">{cuaderno.porcentajeDominio}%</td>
-                              <td>{cuaderno.estudiosLibres}</td>
-                              <td>{cuaderno.juegosJugados || 0}</td>
+                              <td>{formatTime(cuaderno.tiempoEstudio)}</td>
                             </tr>
                           );
                         })
@@ -2033,26 +2263,6 @@ const ProgressPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Módulo de Insights */}
-              <div className="insights-module">
-                <div className="insights-header">
-                  <FontAwesomeIcon icon={faLightbulb} className="insights-header-icon" />
-                  <h3>Insights Personalizados</h3>
-                </div>
-                <div className="insights-grid">
-                  {insights.map((insight) => (
-                    <div key={insight.id} className={`insight-card ${insight.color}`}>
-                      <div className="insight-icon">
-                        <FontAwesomeIcon icon={insight.icon} />
-                      </div>
-                      <div className="insight-content">
-                        <h4>{insight.title}</h4>
-                        <p>{insight.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>

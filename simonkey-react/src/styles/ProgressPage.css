@@ -569,7 +569,7 @@
 /* Charts Container */
 .charts-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 32px;
   margin-bottom: 32px;
 }
@@ -696,6 +696,12 @@
   color: #f59e0b;
 }
 
+.points-cell {
+  font-weight: 500;
+  color: #6366f1;
+  font-size: 0.9rem;
+}
+
 /* Concepts List Styles */
 .progress-page .concepts-list {
   max-width: 200px;
@@ -773,7 +779,7 @@
   }
 
   .charts-container {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
   }
 
@@ -1170,4 +1176,21 @@
 .ranking-list::-webkit-scrollbar-thumb:hover,
 .notebooks-table::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Daily Metrics Icons */
+.metric-icon.concepts {
+  color: #10b981;
+}
+
+.metric-icon.time {
+  color: #3b82f6;
+}
+
+.metric-icon.subjects {
+  color: #8b5cf6;
+}
+
+.metric-icon.notebooks {
+  color: #f59e0b;
 }

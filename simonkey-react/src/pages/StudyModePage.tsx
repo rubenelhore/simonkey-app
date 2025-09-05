@@ -852,9 +852,17 @@ const StudyModePage = () => {
       // Calcular puntos de estudio inteligente basados en intensidad
       // warm_up = 0.5, progress = 1.0, rocket = 2.0
       let smartStudyPoints = 0;
+      console.log(`[StudyModePage] DEBUG: Smart study sessions found: ${smartStudySessions.size}`);
       smartStudySessions.forEach((doc) => {
         const sessionData = doc.data();
         const intensity = sessionData.intensity || 'warm_up';
+        console.log(`[StudyModePage] DEBUG: Smart study session data:`, {
+          docId: doc.id,
+          intensity: intensity,
+          notebookId: sessionData.notebookId,
+          mode: sessionData.mode,
+          validated: sessionData.validated
+        });
         
         switch(intensity) {
           case 'warm_up':
@@ -876,11 +884,22 @@ const StudyModePage = () => {
       
       // Calculate total voice recognition sessions earned
       let voiceRecognitionSessionsEarned = 0;
+      console.log(`[StudyModePage] DEBUG: Voice recognition sessions found: ${voiceRecognitionSessions.size}`);
+      console.log(`[StudyModePage] DEBUG: Current notebook ID: ${notebook?.id}`);
+      console.log(`[StudyModePage] DEBUG: Current user ID: ${effectiveUserId}`);
       voiceRecognitionSessions.forEach((doc) => {
         const sessionData = doc.data();
         const sessionScore = sessionData.sessionScore || sessionData.finalSessionScore || 0;
+        console.log(`[StudyModePage] DEBUG: Voice session data:`, {
+          docId: doc.id,
+          sessionScore: sessionData.sessionScore,
+          finalSessionScore: sessionData.finalSessionScore,
+          calculatedScore: sessionScore,
+          notebookId: sessionData.notebookId
+        });
         voiceRecognitionSessionsEarned += sessionScore;
       });
+      console.log(`[StudyModePage] DEBUG: Total voice recognition earned: ${voiceRecognitionSessionsEarned}`);
       setVoiceRecognitionCount(voiceRecognitionSessionsEarned);
       
       // Calculate accumulated study sessions from free study (0.1 per valid session)
