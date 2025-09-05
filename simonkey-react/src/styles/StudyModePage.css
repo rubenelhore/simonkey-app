@@ -900,6 +900,7 @@ body:has(.study-mode-container) {
 
 .notebook-dropdown-btn {
   width: 100%;
+  max-width: 400px;
   padding: 1rem 1.25rem;
   background: var(--bg-white);
   border: 2px solid var(--primary-color);
@@ -914,6 +915,35 @@ body:has(.study-mode-container) {
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-dark);
+}
+
+.notebook-dropdown-btn span {
+  flex: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.notebook-dropdown-btn:hover span {
+  position: relative;
+}
+
+.notebook-dropdown-btn span:hover::after {
+  content: attr(data-full-text);
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  white-space: normal;
+  max-width: 350px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  line-height: 1.3;
 }
 
 .notebook-dropdown-btn:hover:not(:disabled) {

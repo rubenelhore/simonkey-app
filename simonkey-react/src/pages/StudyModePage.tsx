@@ -1237,7 +1237,13 @@ const StudyModePage = () => {
                 onClick={() => setShowNotebookDropdown(!showNotebookDropdown)}
                 disabled={materias.length === 0}
               >
-                <span>
+                <span 
+                  data-full-text={
+                    selectedNotebook ? 
+                      `${selectedMateria?.nombre || selectedMateria?.title} - ${selectedNotebook.title}` :
+                      ''
+                  }
+                >
                   {selectedNotebook ? 
                     `${selectedMateria?.nombre || selectedMateria?.title} - ${selectedNotebook.title}` : 
                     selectedMateria ?
