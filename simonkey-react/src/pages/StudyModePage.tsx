@@ -119,13 +119,22 @@ const StudyModePage = () => {
     finalScore: 0
   });
 
-  // Load persisted selection on component mount
+  // Load persisted selection on component mount ONLY if explicitly requested
   useEffect(() => {
-    const persistedSelection = studySessionPersistence.getSelection();
-    if (persistedSelection && persistedSelection.notebook && persistedSelection.materia) {
-      console.log('Restaurando selección persistida:', persistedSelection);
-      setSelectedMateria(persistedSelection.materia);
-      setSelectedNotebook(persistedSelection.notebook);
+    // Only restore selection if maintainSelection is explicitly true (coming from a study session)
+    if (maintainSelection) {
+      const persistedSelection = studySessionPersistence.getSelection();
+      if (persistedSelection && persistedSelection.notebook && persistedSelection.materia) {
+        console.log('Restaurando selección persistida desde sesión de estudio:', persistedSelection);
+        setSelectedMateria(persistedSelection.materia);
+        setSelectedNotebook(persistedSelection.notebook);
+      }
+    } else {
+      // Clear persisted selection when coming from navigation menu
+      console.log('Limpiando selección al venir desde menú de navegación');
+      studySessionPersistence.clearSelection();
+      setSelectedMateria(null);
+      setSelectedNotebook(null);
     }
   }, []);
 
@@ -198,6 +207,13 @@ const StudyModePage = () => {
             `¡${streak.currentStreak} días seguidos!` : 
             '¡Estudia hoy para mantener tu racha!'
         });
+        
+        // Calcular el bonus de racha inmediatamente
+        const calculatedStreakBonus = studyStreakService.getStreakBonus(streak.currentStreak);
+        setScoreBreakdown(prev => ({
+          ...prev,
+          streakBonus: calculatedStreakBonus
+        }));
         
         setConceptsLearned(conceptsForDivision);
         calculateDivision(conceptsForDivision);
@@ -1322,8 +1338,7 @@ const StudyModePage = () => {
                     <FontAwesomeIcon icon={faInfoCircle} />
                     <div className="score-tooltip">
                       <div className="tooltip-content">
-                        <div>= (Est. Inteligente + Est. Activo + Est. Libre)</div>
-                        <div>× (Quiz + Juegos + Racha)</div>
+                        <div>SESIONES × PUNTOS BASE</div>
                       </div>
                     </div>
                   </div>
@@ -1351,6 +1366,66 @@ const StudyModePage = () => {
           </div>
         </div>
 
+          {/* Daily Metrics */}
+          <div className="daily-metrics">
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Días consecutivos de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faFire} className="metric-icon fire" />
+              <div className="metric-content">
+                <span className="metric-label">Racha</span>
+                <span className="metric-value">{streakData.days} días</span>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Puntos bonus acumulados por tu racha de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faStar} className="metric-icon bonus" />
+              <div className="metric-content">
+                <span className="metric-label">Bonus</span>
+                <span className="metric-value">{scoreBreakdown.streakBonus || 0} pts</span>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Estado de tu sesión de estudio del día de hoy">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faPlay} className="metric-icon progress" />
+              <div className="metric-content">
+                <span className="metric-label">Estudio Hoy</span>
+                <span className="metric-value" style={{ color: '#10b981', fontSize: '0.9rem' }}>
+                  {streakData.days > 0 ? 'INICIADO' : 'PENDIENTE'}
+                </span>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Suma total de todas tus sesiones de estudio">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faBook} className="metric-icon sessions" />
+              <div className="metric-content">
+                <span className="metric-label">Sesiones</span>
+                <span className="metric-value">
+                  {selectedNotebook ? scoreBreakdown.totalStudySessions.toFixed(1) : '0.0'}
+                </span>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-info-icon" data-tooltip="Score máximo quiz + juegos + bonus racha">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <FontAwesomeIcon icon={faStar} className="metric-icon base-points" />
+              <div className="metric-content">
+                <span className="metric-label">Puntos Base</span>
+                <span className="metric-value">
+                  {selectedNotebook ? scoreBreakdown.totalMultiplierPoints.toLocaleString() : '0'}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Study Functions */}
           <div className="study-functions">
           <div 
@@ -1371,7 +1446,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : studyAvailability.available ? (
                 <>
-                  <p className="function-status available">{studyAvailability.conceptsCount} conceptos disponibles</p>
+                  <p className="function-status available">Sesiones: {smartStudyCount || 0}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1425,7 +1500,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Disponible</p>
+                  <p className="function-status available">Sesiones: {(voiceRecognitionCount || 0).toFixed(1)}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1451,7 +1526,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Disponible</p>
+                  <p className="function-status available">Sesiones: {freeStudySessionsEarned.toFixed(1)}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1490,7 +1565,7 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : quizAvailability.available ? (
                 <>
-                  <p className="function-status available">Disponible</p>
+                  <p className="function-status available">Puntos Base: {maxQuizScore}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1520,28 +1595,11 @@ const StudyModePage = () => {
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Disponible</p>
+                  <p className="function-status available">Puntos Base: {gamePoints || 0}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
                 </>
-              )}
-            </div>
-            <div className="study-function-card">
-              {selectedNotebook && (
-                <div className="streak-bonus-badge">Pts: {scoreBreakdown.streakBonus}</div>
-              )}
-              <div className="function-info-icon" data-tooltip="Bonus por días consecutivos estudiando">
-                <i className="fas fa-info-circle"></i>
-              </div>
-              <div className="function-icon">
-                <FontAwesomeIcon icon={faFire} />
-              </div>
-              <h3>Bonus Racha</h3>
-              {!selectedNotebook ? (
-                <p className="function-status">Selecciona un cuaderno</p>
-              ) : (
-                <p className="function-status available">Puntos acumulados</p>
               )}
             </div>
 
