@@ -35,6 +35,7 @@ import ProgressPage from './pages/ProgressPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
 import VoiceRecognitionPage from './pages/VoiceRecognitionPage';
+import FillInTheBlankPage from './pages/FillInTheBlankPage';
 import UniversityDashboard from './pages/UniversityDashboard';
 import UniversityCursos from './pages/UniversityCursos';
 import UniversityBiblioteca from './pages/UniversityBiblioteca';
@@ -736,6 +737,28 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <VoiceRecognitionPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          <Route
+            path="/fill-in-the-blank"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <FillInTheBlankPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          <Route
+            path="/fill-in-the-blank/:subjectId"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <FillInTheBlankPage />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

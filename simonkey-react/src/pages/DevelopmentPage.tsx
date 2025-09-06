@@ -49,8 +49,9 @@ const DevelopmentPage: React.FC = () => {
       id: 'fill-blank',
       title: 'Fill in the Blank',
       description: 'Generación automática de ejercicios de rellenar espacios',
-      status: 'planning',
-      icon: '📝'
+      status: 'ready',
+      icon: '📝',
+      route: '/fill-in-the-blank'
     },
     {
       id: 'ai-feedback',
