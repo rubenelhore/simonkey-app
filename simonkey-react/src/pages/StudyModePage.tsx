@@ -1244,6 +1244,14 @@ const StudyModePage = () => {
           }
         });
         break;
+      case 'fill-blank':
+        navigate('/fill-in-the-blank', { 
+          state: { 
+            notebookId: selectedNotebook.id,
+            notebookTitle: selectedNotebook.title
+          }
+        });
+        break;
       case 'exam':
         // Módulo deshabilitado temporalmente
         return;
@@ -1672,6 +1680,32 @@ const StudyModePage = () => {
                 <p className="function-status unavailable">
                   {formatTimeUntil(quizAvailability.nextAvailable!)}
                 </p>
+              )}
+            </div>
+
+            <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => handleStudyMode('fill-blank')}
+            >
+              {selectedNotebook && gamePoints > 0 && (
+                <div className="game-points-badge">Max: {gamePoints}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Completa las definiciones rellenando espacios en blanco">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faBook} />
+              </div>
+              <h3>Fill in the Blank</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Puntos: {gamePoints}</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
               )}
             </div>
 
