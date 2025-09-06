@@ -560,71 +560,66 @@ const VoiceRecognitionPage: React.FC = () => {
     const finalSessionScore = sessionValid ? (baseSessions * scoreMultiplier) : 0;
 
     return (
-      <div className="voice-recognition-container">
-        <div className="voice-header">
-          <div className="module-info">
-            <h1>¡Sesión Completada!</h1>
+      <div className="voice-results-centered">
+        <div className="results-modal">
+          {/* Header del modal */}
+          <div className="modal-header">
+            <h1 className="modal-title">Sesión Finalizada</h1>
           </div>
-        </div>
+          
+          {/* Resultado debajo del header */}
+          <div className="results-text">
+            <p>Obtuviste {correctPercentage.toFixed(0)}% de aciertos. Necesitas al menos 80% para validar</p>
+          </div>
 
-        {/* Session Validation Status */}
-        <div className="session-validation-container">
-          <div className={`session-validation ${sessionValid ? 'validated' : 'not-validated'}`}>
-          <div className="validation-icon">
-            <FontAwesomeIcon icon={sessionValid ? faCheckCircle : faExclamationTriangle} />
-          </div>
-          <div className="validation-info">
-            <h3>{sessionValid ? 'Sesión Validada' : 'Sesión No Validada'}</h3>
-            <p>
-              {sessionValid 
-                ? `¡Excelente! Tienes ${correctPercentage.toFixed(0)}% de respuestas correctas`
-                : `Necesitas al menos 80% de respuestas correctas. Tienes ${correctPercentage.toFixed(0)}%`
-              }
-            </p>
-          </div>
-        </div>
-        </div>
+          {/* Contenido del modal */}
+          <div className="modal-content">
+            {/* Estadisticas principales */}
+            <div className="main-stats">
+              <div className="stat-box">
+                <div className="stat-number">{correctAnswers}/{results.length}</div>
+                <div className="stat-label">Respuestas Correctas</div>
+              </div>
+              <div className="stat-box">
+                <div className="stat-number">{averageScore.toFixed(0)}%</div>
+                <div className="stat-label">Precisión Promedio</div>
+              </div>
+              <div className="stat-box bonus-box">
+                <div className="stat-number">×{sessionValid ? scoreMultiplier : '0'}</div>
+                <div className="stat-label">Bonus</div>
+              </div>
+              <div className="stat-box points-box">
+                <div className="stat-number">{sessionValid ? (finalSessionScore * 1000).toFixed(0) : '0'}</div>
+                <div className="stat-label">Puntos</div>
+              </div>
+            </div>
 
-        <div className="results-summary">
-          <div className="score-overview">
-            <div className="score-stat">
-              <span className="score-number">{correctAnswers}/{results.length}</span>
-              <span className="score-label">Respuestas Correctas</span>
-            </div>
-            <div className="score-stat">
-              <span className="score-number">{averageScore.toFixed(0)}%</span>
-              <span className="score-label">Promedio de Precisión</span>
-            </div>
+            {/* Desglose si es válida */}
             {sessionValid && (
-              <div className="score-stat highlighted">
-                <span className="score-number">{(finalSessionScore * 1000).toFixed(0)}</span>
-                <span className="score-label">Puntos Ganados</span>
+              <div className="breakdown-section">
+                <h3>Desglose de Puntuación</h3>
+                <div className="breakdown-list">
+                  <div className="breakdown-item">
+                    <span>Intensidad {selectedIntensity.charAt(0).toUpperCase() + selectedIntensity.slice(1)}</span>
+                    <span className="value">{(baseSessions * 1000).toFixed(0)} pts</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span>Multiplicador ({averageScore.toFixed(0)}%)</span>
+                    <span className="value">×{scoreMultiplier}</span>
+                  </div>
+                  <div className="breakdown-total">
+                    <span>Total</span>
+                    <span className="total-value">{(finalSessionScore * 1000).toFixed(0)} puntos</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-          
-          {sessionValid && (
-            <div className="scoring-breakdown">
-              <h4>Desglose de Puntuación</h4>
-              <div className="breakdown-item">
-                <span>Intensidad {selectedIntensity.charAt(0).toUpperCase() + selectedIntensity.slice(1)}:</span>
-                <span>{(baseSessions * 1000).toFixed(0)} puntos</span>
-              </div>
-              <div className="breakdown-item">
-                <span>Multiplicador ({averageScore.toFixed(0)}%):</span>
-                <span>×{scoreMultiplier}</span>
-              </div>
-              <div className="breakdown-total">
-                <span><strong>Total:</strong></span>
-                <span><strong>{(finalSessionScore * 1000).toFixed(0)} puntos</strong></span>
-              </div>
-            </div>
-          )}
 
-
-          <div className="results-actions">
+          {/* Footer con botones */}
+          <div className="modal-footer">
             <button 
-              className="btn btn-outline"
+              className="modal-btn secondary"
               onClick={() => skipNotebookSelection ? navigate('/study', {
                 state: {
                   selectedNotebook: selectedNotebook,
@@ -632,13 +627,13 @@ const VoiceRecognitionPage: React.FC = () => {
                 }
               }) : resetSession()}
             >
-              {skipNotebookSelection ? 'Volver al Estudio' : 'Practicar Otro Cuaderno'}
+              {skipNotebookSelection ? 'Volver al Estudio' : 'Otro Cuaderno'}
             </button>
             <button 
-              className="btn btn-primary"
+              className="modal-btn primary"
               onClick={() => handleNotebookSelect(selectedNotebook!)}
             >
-              Repetir con Este Cuaderno
+              Repetir Sesión
             </button>
           </div>
         </div>
@@ -662,7 +657,7 @@ const VoiceRecognitionPage: React.FC = () => {
 
   return (
     <div className="page-wrapper">
-      <HeaderWithHamburger title="Reconocimiento de Voz" />
+      <HeaderWithHamburger title={selectedNotebook ? selectedNotebook.title : "Reconocimiento de Voz"} />
       <div className="main-content">
         {currentStep === 'notebook-selection' && renderNotebookSelection()}
         {currentStep === 'intensity-selection' && renderIntensitySelection()}

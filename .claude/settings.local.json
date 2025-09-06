@@ -172,7 +172,12 @@
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
-      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)"
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\styles/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)",
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

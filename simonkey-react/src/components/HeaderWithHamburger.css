@@ -228,11 +228,13 @@
 }
 
 .page-title-section-limited {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   text-align: center;
   z-index: 1;
+  margin-right: 60px;
 }
 
 .page-title-limited {

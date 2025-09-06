@@ -85,6 +85,16 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
     return () => clearInterval(interval);
   }, [practiceState]);
 
+  // Auto-cerrar error después de 4 segundos
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const checkMicrophoneSetup = async () => {
     try {
       if (!voiceRecognitionService.isSupported()) {
@@ -230,9 +240,9 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
   };
 
   const getListeningStatusText = () => {
-    if (listeningTimer < 5) return 'Escuchando...';
-    if (listeningTimer < 10) return 'Sigue hablando...';
-    return 'Procesando respuesta...';
+    if (listeningTimer < 3) return 'Escuchando...';
+    if (listeningTimer < 8) return 'No te escucho';
+    return 'Escuchando';
   };
 
   const handleTryAgain = () => {
@@ -293,12 +303,14 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
             )}
           </div>
           <h2 className="concept-title">
+            <span className="concept-label">Concepto:</span>
             <span className="concept-highlight">{currentConcept.concept}</span>
           </h2>
         </div>
         
         {practiceState === 'feedback' && (
           <div className="definition-section">
+            <div className="definition-label">Definición:</div>
             <div className="definition-container">
               <p className="definition-text">{currentConcept.definition}</p>
               <button 
@@ -321,6 +333,7 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
             
             {showDefinition && gaveUp && (
               <div className="definition-section">
+                <div className="definition-label">Definición:</div>
                 <div className="definition-container">
                   <p className="definition-text">{currentConcept.definition}</p>
                   <button 
@@ -449,8 +462,8 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
               </div>
               <h3>{comparisonResult.isCorrect ? '¡Correcto!' : 'Incorrecto'}</h3>
               <div className="score-display">
+                <span className="score-label">Similitud</span>
                 <span className="score-number">{comparisonResult.score}%</span>
-                <span className="score-label">Puntuación</span>
               </div>
             </div>
 
@@ -497,14 +510,11 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
       </div>
 
       {error && (
-        <div className="error-message">
-          <p>{error}</p>
-          <button 
-            className="btn btn-outline"
-            onClick={() => setError(null)}
-          >
-            Cerrar
-          </button>
+        <div className="error-toast">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <span className="error-text">{error}</span>
+          </div>
         </div>
       )}
     </div>
