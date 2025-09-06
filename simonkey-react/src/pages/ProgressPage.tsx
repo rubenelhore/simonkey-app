@@ -186,13 +186,129 @@ const ProgressPage: React.FC = () => {
       // Cargar KPIs en paralelo con verificación de última actualización
       const kpisPromise = loadKPIsData(userId);
       
-      // Esperar KPIs primero ya que son necesarios para las materias
-      const kpis = await kpisPromise;
-      if (kpis) {
-        setKpisData(kpis);
-        // Cargar materias inmediatamente después de KPIs
-        await loadMaterias(userId, effectiveUserData?.isSchoolUser || false, kpis);
-      }
+      // Cargar racha del usuario en paralelo
+      const loadUserStreak = async () => {
+        try {
+          const studyStreakService = await import('../services/studyStreakService');
+          const streakServiceInstance = studyStreakService.StudyStreakService.getInstance();
+          
+          // Obtener racha y estado de estudio hoy
+          const [streakData, studiedToday] = await Promise.all([
+            streakServiceInstance.getUserStreak(userId),
+            streakServiceInstance.hasStudiedToday(userId)
+          ]);
+          
+          const streakBonusValue = streakServiceInstance.getStreakBonus(streakData.currentStreak);
+          
+          setCurrentStreak(streakData.currentStreak);
+          setStreakBonus(streakBonusValue);
+          setHasStudiedToday(studiedToday);
+          
+          console.log('[ProgressPage] Racha cargada:', streakData.currentStreak, 'Bonus:', streakBonusValue, 'Estudiado hoy:', studiedToday);
+        } catch (error) {
+          console.error('[ProgressPage] Error cargando racha:', error);
+          setCurrentStreak(0);
+          setStreakBonus(0);
+          setHasStudiedToday(false);
+        }
+      };
+      
+      // Cargar conceptos dominados
+      const loadConceptsDominated = async () => {
+        try {
+          const conceptStats = await kpiService.getTotalDominatedConceptsByUser(userId);
+          setConceptsDominated(conceptStats.conceptosDominados || 0);
+          console.log('[ProgressPage] Conceptos dominados cargados:', conceptStats.conceptosDominados);
+        } catch (error) {
+          console.error('[ProgressPage] Error cargando conceptos dominados:', error);
+          setConceptsDominated(0);
+        }
+      };
+
+      // Cargar materias y cuadernos activos
+      const loadActiveStats = async () => {
+        try {
+          const firebase = await import('../services/firebase');
+          
+          // Contar materias del usuario (propias)
+          const userMateriasQuery = await firebase.getDocs(
+            firebase.query(
+              firebase.collection(firebase.db, 'materias'), 
+              firebase.where('userId', '==', userId)
+            )
+          );
+          const userMateriasCount = userMateriasQuery.size;
+          
+          // Contar materias de profesores en los que está inscrito
+          const userEnrollmentsQuery = await firebase.getDocs(
+            firebase.query(
+              firebase.collection(firebase.db, 'enrollments'), 
+              firebase.where('studentId', '==', userId)
+            )
+          );
+          
+          const enrolledMateriasSet = new Set();
+          for (const enrollmentDoc of userEnrollmentsQuery.docs) {
+            const enrollmentData = enrollmentDoc.data();
+            enrolledMateriasSet.add(enrollmentData.materiaId);
+          }
+          
+          const totalMaterias = userMateriasCount + enrolledMateriasSet.size;
+          
+          // Contar cuadernos activos (propios)
+          const ownNotebooksQuery = await firebase.getDocs(
+            firebase.query(firebase.collection(firebase.db, 'notebooks'), firebase.where('userId', '==', userId))
+          );
+          
+          // Contar cuadernos de materias inscritas
+          const enrollmentsQuery = await firebase.getDocs(
+            firebase.query(firebase.collection(firebase.db, 'enrollments'), firebase.where('studentId', '==', userId))
+          );
+          
+          let enrolledNotebooksCount = 0;
+          for (const enrollmentDoc of enrollmentsQuery.docs) {
+            const enrollmentData = enrollmentDoc.data();
+            const teacherNotebooksQuery = await firebase.getDocs(
+              firebase.query(
+                firebase.collection(firebase.db, 'notebooks'), 
+                firebase.where('materiaId', '==', enrollmentData.materiaId)
+              )
+            );
+            enrolledNotebooksCount += teacherNotebooksQuery.size;
+          }
+          
+          const activeNotebooks = ownNotebooksQuery.size + enrolledNotebooksCount;
+          
+          setMateriasActivas(totalMaterias);
+          setCuadernosActivos(activeNotebooks);
+          
+          console.log('[ProgressPage] Materias activas:', totalMaterias, 'Cuadernos activos:', activeNotebooks);
+        } catch (error) {
+          console.error('[ProgressPage] Error cargando estadísticas activas:', error);
+          setMateriasActivas(0);
+          setCuadernosActivos(0);
+        }
+      };
+
+      // Ejecutar todas las promesas en paralelo
+      await Promise.all([
+        loadUserStreak(),
+        loadConceptsDominated(),
+        loadActiveStats(),
+        (async () => {
+          // Esperar KPIs primero ya que son necesarios para las materias
+          const kpis = await kpisPromise;
+          if (kpis) {
+            setKpisData(kpis);
+            // Obtener tiempo total de los KPIs
+            const totalMinutes = kpis.global?.tiempoEstudioGlobal || 0;
+            setTotalTime(totalMinutes);
+            console.log('[ProgressPage] Tiempo total cargado:', totalMinutes);
+            // Cargar materias inmediatamente después de KPIs
+            await loadMaterias(userId, effectiveUserData?.isSchoolUser || false, kpis);
+          }
+        })()
+      ]);
       
     } catch (error) {
       console.error('[ProgressPage] Error cargando datos:', error);
@@ -1799,6 +1915,13 @@ const ProgressPage: React.FC = () => {
   const [conceptProgressData, setConceptProgressData] = useState<ConceptProgressData[]>([]);
   const [viewingDivision, setViewingDivision] = useState<number>(0);
   const [conceptsLearned, setConceptsLearned] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [streakBonus, setStreakBonus] = useState(0);
+  const [hasStudiedToday, setHasStudiedToday] = useState(false);
+  const [conceptsDominated, setConceptsDominated] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [materiasActivas, setMateriasActivas] = useState(0);
+  const [cuadernosActivos, setCuadernosActivos] = useState(0);
 
   // Ya no necesitamos datos de ejemplo, usamos cuadernosReales
 
@@ -2136,7 +2259,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Racha</span>
-                  <span className="metric-value">4 días</span>
+                  <span className="metric-value">{currentStreak} días</span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2148,7 +2271,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Bonus</span>
-                  <span className="metric-value">800 pts</span>
+                  <span className="metric-value">{streakBonus} pts</span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2160,7 +2283,12 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Estudio Hoy</span>
-                  <span className="metric-value" style={{color: 'rgb(239, 68, 68)', fontSize: '0.9rem'}}>NO INICIADO</span>
+                  <span className="metric-value" style={{ 
+                    color: hasStudiedToday ? '#10b981' : '#ef4444',
+                    fontSize: '0.9rem'
+                  }}>
+                    {loading ? '...' : hasStudiedToday ? 'INICIADO' : 'NO INICIADO'}
+                  </span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2189,7 +2317,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Conceptos Dominados</span>
-                  <span className="metric-value">169</span>
+                  <span className="metric-value">{loading ? '...' : conceptsDominated}</span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2201,7 +2329,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Tiempo Total</span>
-                  <span className="metric-value">74m</span>
+                  <span className="metric-value">{loading ? '...' : `${Math.round(totalTime)}m`}</span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2213,7 +2341,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Materias Activas</span>
-                  <span className="metric-value">14</span>
+                  <span className="metric-value">{loading ? '...' : materiasActivas}</span>
                 </div>
               </div>
               <div className="metric-card">
@@ -2225,7 +2353,7 @@ const ProgressPage: React.FC = () => {
                 </svg>
                 <div className="metric-content">
                   <span className="metric-label">Cuadernos Activos</span>
-                  <span className="metric-value">21</span>
+                  <span className="metric-value">{loading ? '...' : cuadernosActivos}</span>
                 </div>
               </div>
             </div>
