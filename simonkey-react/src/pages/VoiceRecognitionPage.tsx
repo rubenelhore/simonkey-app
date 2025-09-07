@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, doc, getDoc, addDoc, serverTimestamp
 import { useUserType } from '../hooks/useUserType';
 import { useStudyService } from '../hooks/useStudyService';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
+import { calculateVoiceRecognitionQuality, VoiceRecognitionMetrics } from '../utils/voiceRecognitionQuality';
 import '../styles/VoiceRecognition.css';
 
 interface Notebook {
@@ -30,6 +31,7 @@ interface VoiceConcept {
 
 interface VoiceResult {
   concept: string;
+  conceptId: string; // Añadido para SM-3
   userResponse: string;
   isCorrect: boolean;
   score: number;
@@ -336,6 +338,40 @@ const VoiceRecognitionPage: React.FC = () => {
   const handleVoiceResult = async (result: VoiceResult) => {
     const newResults = [...results, result];
     setResults(newResults);
+    
+    // SM-3 Integration para Voice Recognition (Estudio Activo)
+    if (auth.currentUser && result.conceptId) {
+      try {
+        const voiceMetrics: VoiceRecognitionMetrics = {
+          isCorrect: result.isCorrect,
+          score: result.score,
+          attempts: 1 // Por ahora siempre 1, podría expandirse para múltiples intentos
+        };
+        
+        const sm3Quality = calculateVoiceRecognitionQuality(voiceMetrics);
+        
+        console.log('🎤 Voice Recognition - SM-3 Update:', {
+          conceptId: result.conceptId,
+          concept: result.concept,
+          isCorrect: result.isCorrect,
+          score: result.score,
+          sm3Quality
+        });
+        
+        // Actualizar con SM-3 usando modo Study Path para Voice Recognition
+        await studyService.updateConceptResponseWithSM3(
+          auth.currentUser.uid,
+          result.conceptId,
+          sm3Quality,
+          true, // studyPathMode - usar intervalos cortos
+          'voice-recognition' // moduleId
+        );
+        
+        console.log('✅ Voice Recognition SM-3 update completed for concept:', result.conceptId);
+      } catch (error) {
+        console.error('❌ Error updating SM-3 for Voice Recognition concept:', result.conceptId, error);
+      }
+    }
     
     // Si este era un concepto que estaba en cola (después del índice original), decrementar el contador
     const originalConceptCount = INTENSITY_OPTIONS.find(opt => opt.id === selectedIntensity)?.conceptCount || 5;

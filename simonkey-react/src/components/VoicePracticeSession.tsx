@@ -20,6 +20,7 @@ interface VoiceConcept {
 
 interface VoiceResult {
   concept: string;
+  conceptId: string; // Añadido para SM-3
   userResponse: string;
   isCorrect: boolean;
   score: number;
@@ -157,6 +158,7 @@ const VoicePracticeSession: React.FC<VoicePracticeSessionProps> = ({
     
     const result: VoiceResult = {
       concept: currentConcept.concept,
+      conceptId: currentConcept.id, // Añadido para SM-3
       userResponse: userTranscript,
       isCorrect: comparisonResult.isCorrect,
       score: comparisonResult.score,

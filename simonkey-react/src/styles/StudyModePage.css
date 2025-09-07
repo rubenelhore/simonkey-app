@@ -1830,6 +1830,28 @@ body:has(.study-mode-container) {
   box-shadow: 0 4px 12px rgba(97, 71, 255, 0.15);
 }
 
+/* Domain Progress Module */
+.domain-progress-module {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.domain-progress-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.domain-progress-badge {
+  transition: all 0.3s ease;
+}
+
+.domain-progress-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 .breakdown-icon {
   width: 32px;
   height: 32px;

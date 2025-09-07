@@ -748,7 +748,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
   );
   
   /**
-   * Actualizar respuesta de concepto usando SM-3
+   * Actualizar respuesta de concepto usando SM-3 con modo tradicional
    */
   const updateConceptResponse = useCallback(
     async (userId: string, conceptId: string, quality: ResponseQuality): Promise<void> => {
@@ -807,8 +807,8 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           });
         }
         
-        // Actualizar usando SM-3
-        const updatedData = updateLearningData(currentData, sm3Quality);
+        // Actualizar usando SM-3 con modo tradicional
+        const updatedData = updateLearningData(currentData, sm3Quality, false); // studyPathMode = false
         
         // Guardar en Firestore
         await setDoc(learningRef, {
@@ -826,6 +826,86 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
         );
       } catch (err) {
         console.error('Error updating concept response:', err);
+        throw err;
+      }
+    },
+    [logStudyActivity]
+  );
+  
+  /**
+   * Actualizar respuesta de concepto usando SM-3 con soporte para Study Path Mode
+   */
+  const updateConceptResponseWithSM3 = useCallback(
+    async (
+      userId: string, 
+      conceptId: string, 
+      sm3Quality: number,
+      studyPathMode: boolean = false,
+      moduleId?: string
+    ): Promise<void> => {
+      try {
+        // Obtener el ID efectivo del usuario
+        const effectiveUserId = await getEffectiveUserIdForService(userId);
+        console.log('📝 updateConceptResponseWithSM3 - using effectiveUserId:', effectiveUserId);
+        console.log('🎯 SM-3 Update:', {
+          conceptId,
+          sm3Quality,
+          studyPathMode,
+          moduleId
+        });
+        
+        // Obtener datos de aprendizaje actuales
+        const learningRef = doc(db, 'users', effectiveUserId, 'learningData', conceptId);
+        const learningDoc = await getDoc(learningRef);
+        
+        let currentData: LearningData;
+        
+        if (learningDoc.exists()) {
+          const data = learningDoc.data();
+          currentData = {
+            ...data,
+            nextReviewDate: data.nextReviewDate?.toDate() || new Date(),
+            lastReviewDate: data.lastReviewDate?.toDate() || new Date()
+          } as LearningData;
+          console.log('📚 Datos existentes:', {
+            repetitions: currentData.repetitions,
+            interval: currentData.interval,
+            easeFactor: currentData.easeFactor
+          });
+        } else {
+          // Crear datos iniciales si no existen
+          currentData = createInitialLearningData(conceptId);
+          console.log('🆕 Creando datos iniciales para concepto');
+        }
+        
+        // Actualizar usando SM-3 con modo y módulo especificados
+        const updatedData = updateLearningData(currentData, sm3Quality, studyPathMode, moduleId);
+        
+        console.log('✅ Datos actualizados:', {
+          newRepetitions: updatedData.repetitions,
+          newInterval: updatedData.interval,
+          newEaseFactor: updatedData.easeFactor,
+          nextReviewDate: updatedData.nextReviewDate
+        });
+        
+        // Guardar en Firestore
+        await setDoc(learningRef, {
+          ...updatedData,
+          nextReviewDate: Timestamp.fromDate(updatedData.nextReviewDate),
+          lastReviewDate: Timestamp.fromDate(updatedData.lastReviewDate),
+          updatedAt: serverTimestamp(),
+          lastModule: moduleId || 'unknown'
+        });
+        
+        // Registrar actividad
+        const qualityDescription = sm3Quality >= 4 ? 'dominado' : 'necesita repaso';
+        await logStudyActivity(
+          userId, 
+          'concept_reviewed_sm3', 
+          `Concepto ${conceptId} procesado con SM-3 (calidad: ${sm3Quality.toFixed(1)}, ${qualityDescription}, módulo: ${moduleId || 'desconocido'})`
+        );
+      } catch (err) {
+        console.error('Error updating concept with SM-3:', err);
         throw err;
       }
     },
@@ -968,7 +1048,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           const conceptosData = doc.data().conceptos || [];
           conceptosData.forEach((concepto: any, index: number) => {
             // Usar el ID que se generó al crear el concepto (UUID)
-            const conceptId = concepto.id || `${doc.id}-${index}`;
+            const conceptId = concepto.id || `${doc.id}_${index}`;
             allConcepts.push({
               id: conceptId,
               término: concepto.término,
@@ -996,7 +1076,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           }
           
           // Verificar si coincide con el ID generado usando docId-index
-          const generatedId = `${concept.docId}-${concept.index}`;
+          const generatedId = `${concept.docId}_${concept.index}`;
           if (conceptIds.includes(generatedId)) {
             return true;
           }
@@ -1162,7 +1242,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
           
           conceptosData.forEach((concepto: any, index: number) => {
             // Usar el ID que se generó al crear el concepto (UUID) o generar uno como fallback
-            const conceptId = concepto.id || `${doc.id}-${index}`;
+            const conceptId = concepto.id || `${doc.id}_${index}`;
             allConcepts.push({
               id: conceptId,
               término: concepto.término,
@@ -1217,6 +1297,7 @@ export const useStudyService = (userSubscription?: UserSubscriptionType | string
     createStudySession,
     completeStudySession,
     updateConceptResponse,
+    updateConceptResponseWithSM3,
     getReviewableConcepts,
     getReviewableConceptsCount,
     getConceptStats,

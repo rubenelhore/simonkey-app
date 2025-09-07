@@ -131,9 +131,22 @@ export class UnifiedConceptService {
       
       // Fall back to old method for backward compatibility
       const conceptDocs = await this.getConceptDocs(notebookId);
-      const legacyConcepts = conceptDocs.flatMap(doc => doc.conceptos || []);
+      const legacyConcepts: Concept[] = [];
+      
+      // Asignar IDs consistentes usando el patrón ${doc.id}-${index}
+      conceptDocs.forEach(doc => {
+        if (doc.conceptos && Array.isArray(doc.conceptos)) {
+          doc.conceptos.forEach((concepto, index) => {
+            legacyConcepts.push({
+              ...concepto,
+              id: concepto.id || `${doc.id}_${index}`
+            });
+          });
+        }
+      });
+      
       if (legacyConcepts.length > 0) {
-        if (legacyConcepts.length > 0) logger.debug(`Found ${legacyConcepts.length} concepts in legacy collection for notebook ${notebookId}`);
+        logger.debug(`Found ${legacyConcepts.length} concepts in legacy collection for notebook ${notebookId}`);
       }
       return legacyConcepts;
     } catch (error) {

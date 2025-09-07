@@ -9,6 +9,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import MiniQuiz from '../components/MiniQuiz';
 import { useStudyService } from '../hooks/useStudyService';
 import { Concept, ResponseQuality, StudyMode, StudyIntensity, StudySessionMetrics } from '../types/interfaces';
+// ActiveStudyMetrics removido - Estudio Libre no usa SM-3
 import '../styles/StudySessionPage.css';
 // import Confetti from 'react-confetti'; // Deshabilitado por solicitud del usuario
 import { useUserType } from '../hooks/useUserType';
@@ -58,6 +59,13 @@ const StudySessionPage = () => {
   const [reviewingConceptIds, setReviewingConceptIds] = useState<Set<string>>(new Set());
   const [uniqueConceptIds, setUniqueConceptIds] = useState<Set<string>>(new Set());
   const [uniqueConceptsCount, setUniqueConceptsCount] = useState<number>(0);
+  
+  // Basic session tracking (no SM-3)
+  const [conceptAttempts, setConceptAttempts] = useState<Map<string, number>>(new Map());
+  
+  // SM-3 metrics tracking - REMOVIDO: Estudio Libre no usa SM-3
+  // const [conceptMetrics, setConceptMetrics] = useState<Map<string, ActiveStudyMetrics>>(new Map());
+  // const [conceptStartTime, setConceptStartTime] = useState<Map<string, number>>(new Map());
   
   // UI State
   const [loading, setLoading] = useState<boolean>(true);
@@ -391,13 +399,30 @@ const StudySessionPage = () => {
       const effectiveUserData = await getEffectiveUserId();
       const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
+      // Para tracking de la sesión, usar la calidad original
+      const finalQuality = quality;
+      
+      // Solo Repaso Inteligente (SMART) actualiza SM-3
+      // Estudio Libre (FREE) NO modifica algoritmo SM-3
+      if (studyMode === StudyMode.SMART) {
+        // Para Repaso Inteligente, usar el sistema tradicional
+        await studyService.updateConceptResponse(
+          auth.currentUser.uid,
+          conceptId,
+          quality
+        );
+      } else if (studyMode === StudyMode.FREE) {
+        // Estudio Libre NO actualiza SM-3 - solo guarda la respuesta básica sin afectar algoritmos
+        console.log('🔄 Estudio Libre - No actualiza SM-3, solo registra actividad');
+      }
+      
       const isFirstPass = !conceptsFirstPass.has(conceptId);
       
       if (isFirstPass) {
         setConceptsFirstPass(prev => new Set(prev).add(conceptId));
         setConceptFinalResults(prev => {
           const newMap = new Map(prev);
-          newMap.set(conceptId, quality);
+          newMap.set(conceptId, finalQuality);
           return newMap;
         });
       }
@@ -406,8 +431,8 @@ const StudySessionPage = () => {
       setMetrics(prev => ({
         ...prev,
         conceptsReviewed: prev.conceptsReviewed + 1,
-        mastered: quality === ResponseQuality.MASTERED ? prev.mastered + 1 : prev.mastered,
-        reviewing: quality === ResponseQuality.REVIEW_LATER ? prev.reviewing + 1 : prev.reviewing
+        mastered: finalQuality === ResponseQuality.MASTERED ? prev.mastered + 1 : prev.mastered,
+        reviewing: finalQuality === ResponseQuality.REVIEW_LATER ? prev.reviewing + 1 : prev.reviewing
       }));
       
       // Update tracking sets
@@ -418,7 +443,7 @@ const StudySessionPage = () => {
         setSessionReviewedConcepts(prev => [...prev, currentConcept]);
       }
       
-      if (quality === ResponseQuality.MASTERED) {
+      if (finalQuality === ResponseQuality.MASTERED) {
         setMasteredConceptIds(prev => new Set(Array.from(prev).concat([conceptId])));
         setReviewingConceptIds(prev => {
           const newSet = new Set(prev);
@@ -441,9 +466,11 @@ const StudySessionPage = () => {
       
       let newReviewQueue = [...sessionReviewQueue];
       
-      if (quality === ResponseQuality.REVIEW_LATER && conceptForReview) {
+      if (finalQuality === ResponseQuality.REVIEW_LATER && conceptForReview) {
         newReviewQueue = [...sessionReviewQueue, conceptForReview];
-      } else if (quality === ResponseQuality.MASTERED && conceptForReview) {
+        // Incrementar contador de intentos para el próximo repaso
+        setConceptAttempts(prev => new Map(prev).set(conceptId, (prev.get(conceptId) || 1) + 1));
+      } else if (finalQuality === ResponseQuality.MASTERED && conceptForReview) {
         const wasInReviewQueue = sessionReviewQueue.some(c => c.id === conceptId);
         if (wasInReviewQueue) {
           newReviewQueue = sessionReviewQueue.filter(c => c.id !== conceptId);
@@ -460,13 +487,13 @@ const StudySessionPage = () => {
         } else {
           await completeStudySession({
             updatedReviewedIds: new Set(Array.from(reviewedConceptIds).concat([conceptId])),
-            updatedMasteredIds: quality === ResponseQuality.MASTERED 
+            updatedMasteredIds: finalQuality === ResponseQuality.MASTERED 
               ? new Set(Array.from(masteredConceptIds).concat([conceptId]))
               : masteredConceptIds,
-            updatedReviewingIds: quality === ResponseQuality.REVIEW_LATER
+            updatedReviewingIds: finalQuality === ResponseQuality.REVIEW_LATER
               ? new Set(Array.from(reviewingConceptIds).concat([conceptId]))
               : reviewingConceptIds,
-            updatedConceptFinalResults: new Map(conceptFinalResults).set(conceptId, quality)
+            updatedConceptFinalResults: new Map(conceptFinalResults).set(conceptId, finalQuality)
           });
         }
       }
@@ -991,7 +1018,13 @@ const StudySessionPage = () => {
                       concept={currentConcept}
                       reviewMode={studyMode === StudyMode.SMART}
                       quizMode={false}
-                      onResponse={(quality) => handleConceptResponse(currentConcept.id, quality)}
+                      onResponse={async (quality) => {
+                        // Tiempo de inicio removido - Estudio Libre no usa SM-3
+                        // if (!conceptStartTime.has(currentConcept.id)) {
+                        //   setConceptStartTime(prev => new Map(prev).set(currentConcept.id, Date.now()));
+                        // }
+                        await handleConceptResponse(currentConcept.id, quality);
+                      }}
                       onLockComplete={() => {}}
                     />
                   </>

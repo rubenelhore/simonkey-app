@@ -18,6 +18,7 @@ import { kpiService, getKPIsFromCache } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
 import { MateriaRankingService } from '../services/materiaRankingService';
 import { studySessionPersistence } from '../utils/studySessionPersistence';
+import { getDomainProgressForNotebook } from '../utils/domainProgress';
 
 // División levels configuration - 30 niveles basados en Score Global (5,000 puntos por nivel)
 const DIVISION_LEVELS = [
@@ -71,6 +72,12 @@ const StudyModePage = () => {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
   const [showNotebookDropdown, setShowNotebookDropdown] = useState<boolean>(false);
+  const [notebookDomainProgress, setNotebookDomainProgress] = useState<{
+    total: number;
+    dominated: number;
+    learning: number;
+    notStarted: number;
+  } | null>(null);
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [allUserNotebooks, setAllUserNotebooks] = useState<{ [materiaId: string]: { materia: any, notebooks: Notebook[] } }>({});
@@ -194,6 +201,48 @@ const StudyModePage = () => {
       setNotebookScore({ score: 0, level: 1, progress: 0 });
     }
   }, [selectedNotebook]);
+
+  // Calculate domain progress for selected notebook
+  useEffect(() => {
+    const calculateNotebookDomain = async () => {
+      if (!selectedNotebook) {
+        setNotebookDomainProgress(null);
+        return;
+      }
+
+      try {
+        const domainProgress = await getDomainProgressForNotebook(selectedNotebook.id);
+        setNotebookDomainProgress(domainProgress);
+      } catch (error) {
+        console.error('Error calculating notebook domain progress:', error);
+        setNotebookDomainProgress(null);
+      }
+    };
+
+    calculateNotebookDomain();
+  }, [selectedNotebook]);
+
+  // Refresh domain progress when returning from study sessions
+  useEffect(() => {
+    const refreshDomainProgressAfterStudy = async () => {
+      // Only refresh if we're maintaining selection (returning from study session) and have a notebook
+      if (maintainSelection && selectedNotebook) {
+        console.log('🔄 Refrescando progreso de dominio después de sesión de estudio...');
+        try {
+          const domainProgress = await getDomainProgressForNotebook(selectedNotebook.id);
+          setNotebookDomainProgress(domainProgress);
+          console.log('✅ Progreso de dominio actualizado:', domainProgress);
+        } catch (error) {
+          console.error('❌ Error actualizando progreso de dominio después de estudio:', error);
+        }
+      }
+    };
+
+    // Refresh domain progress immediately when returning from study sessions
+    if (maintainSelection && selectedNotebook) {
+      refreshDomainProgressAfterStudy();
+    }
+  }, [maintainSelection, selectedNotebook]);
 
   // Verificar si el notebook seleccionado está congelado
   useEffect(() => {
@@ -852,10 +901,11 @@ const StudyModePage = () => {
       setGamePoints(gamePointsValue);
       
       // Obtener puntos individuales de cada juego
-      console.log('[StudyModePage] Game scores from notebookPoints:', notebookPoints.gameScores);
-      const memoryPoints = notebookPoints.gameScores?.memory || 0;
-      const puzzlePoints = notebookPoints.gameScores?.puzzle || 0;
-      const quizBattlePointsValue = notebookPoints.gameScores?.quiz || 0;
+      const gameScores = 'gameScores' in notebookPoints ? notebookPoints.gameScores : null;
+      console.log('[StudyModePage] Game scores from notebookPoints:', gameScores);
+      const memoryPoints = gameScores?.memory || 0;
+      const puzzlePoints = gameScores?.puzzle || 0;
+      const quizBattlePointsValue = gameScores?.quiz || 0;
       
       console.log('[StudyModePage] Individual game points - Memory:', memoryPoints, 'Puzzle:', puzzlePoints, 'Quiz:', quizBattlePointsValue);
       
@@ -1535,6 +1585,44 @@ const StudyModePage = () => {
                     </span>
                   </div>
                 </button>
+              </div>
+            )}
+
+            {/* Domain Progress Module */}
+            {selectedNotebook && notebookDomainProgress && notebookDomainProgress.total > 0 && (
+              <div className="domain-progress-module">
+                <div className="domain-progress-content">
+                  {(() => {
+                    const percentage = Math.round((notebookDomainProgress.dominated / notebookDomainProgress.total) * 100);
+                    let badgeColor = '#FF6B35'; // Naranja (0-30%)
+                    if (percentage > 30 && percentage <= 70) {
+                      badgeColor = '#FFD700'; // Amarillo (31-70%)
+                    } else if (percentage > 70) {
+                      badgeColor = '#10B981'; // Verde (71-100%)
+                    }
+                    
+                    return (
+                      <span 
+                        className="domain-progress-badge"
+                        title={`${percentage}% dominio - ${notebookDomainProgress.dominated}/${notebookDomainProgress.total} conceptos dominados`}
+                        style={{ 
+                          backgroundColor: badgeColor,
+                          color: 'white',
+                          padding: '6px 12px',
+                          borderRadius: '12px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'help',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                        <span>{percentage}%</span>
+                        <span style={{ opacity: 0.8 }}>dominio</span>
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>

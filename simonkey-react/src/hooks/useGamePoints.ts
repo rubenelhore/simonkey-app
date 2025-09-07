@@ -47,7 +47,12 @@ export const useGamePoints = (notebookId?: string) => {
         totalPoints: notebookPoints.totalPoints,
         weeklyPoints: notebookPoints.weeklyPoints,
         monthlyPoints: notebookPoints.monthlyPoints,
-        gameScores: notebookPoints.gameScores,
+        gameScores: {
+          memory: notebookPoints.gameScores?.memory || 0,
+          puzzle: notebookPoints.gameScores?.puzzle || 0,
+          race: (notebookPoints.gameScores as any)?.race || 0,
+          quiz: notebookPoints.gameScores?.quiz || 0
+        },
         achievements: notebookPoints.achievements
       });
       setError(null);
