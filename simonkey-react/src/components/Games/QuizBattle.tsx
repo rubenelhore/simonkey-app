@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../services/firebase';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFistRaised, faArrowLeft, faClock, faHeart, faBolt, faShield } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
@@ -96,6 +97,7 @@ interface QuizBattleProps {
 }
 
 const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBack }) => {
+  const navigate = useNavigate();
   // Game state
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
@@ -237,6 +239,16 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       }, 2000);
     }
   }, [playerHP, selectedCharacter, robotPowerUsed, gameStarted, gameOver, isPowerEffectActive]);
+
+  const handleExit = () => {
+    // Navigate back to study page with notebook context
+    navigate('/study', {
+      state: {
+        selectedNotebook: { id: notebookId, title: notebookTitle },
+        maintainSelection: true
+      }
+    });
+  };
 
   const loadConcepts = async (): Promise<boolean> => {
     if (!auth.currentUser) return false;
@@ -806,7 +818,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
         />
         <div className="quiz-battle-container with-header-sidebar">
           <div className="no-concepts-message">
-            <button className="back-button" onClick={onBack}>
+            <button className="back-button" onClick={handleExit}>
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
             <div className="empty-state">
@@ -814,7 +826,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
               <h2>¡No hay suficientes conceptos!</h2>
               <p>Este cuaderno necesita tener al menos 4 conceptos para poder jugar.</p>
               <p>Agrega más conceptos al cuaderno para poder iniciar la batalla.</p>
-              <button className="primary-button" onClick={onBack}>
+              <button className="primary-button" onClick={handleExit}>
                 Volver
               </button>
             </div>
@@ -871,7 +883,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
               </div>
               
               <div className="intro-actions">
-                <button className="action-button secondary" onClick={onBack}>
+                <button className="action-button secondary" onClick={handleExit}>
                   <FontAwesomeIcon icon={faArrowLeft} />
                   Cancelar
                 </button>
@@ -895,7 +907,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       />
       <div className="quiz-battle-container with-header-sidebar">
       <div className="battle-header">
-        <button className="back-button" onClick={onBack}>
+        <button className="back-button" onClick={handleExit}>
           <FontAwesomeIcon icon={faArrowLeft} />
         </button>
         
@@ -1180,8 +1192,8 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
             
             
             {/* Action Button */}
-            <button className="victory-back-button" onClick={onBack}>
-              Volver a Juegos
+            <button className="victory-back-button" onClick={handleExit}>
+              Volver a Estudio
             </button>
           </div>
         </div>

@@ -764,6 +764,7 @@ const AppContent: React.FC = () => {
             }
           />
           
+          
           {/* Rutas para usuarios universitarios */}
           <Route
             path="/university"

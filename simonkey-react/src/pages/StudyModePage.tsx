@@ -7,7 +7,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import { Notebook } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock, faMicrophone } from '@fortawesome/free-solid-svg-icons';
+import { faFire, faTrophy, faInfoCircle, faBrain, faQuestion, faBook, faGamepad, faChevronDown, faLightbulb, faStar, faPlay, faChevronLeft, faChevronRight, faMedal, faSnowflake, faClock, faMicrophone, faPuzzlePiece, faFistRaised, faPencilAlt, faArrowLeft, faCheckCircle, faSmile, faChartLine, faRocket } from '@fortawesome/free-solid-svg-icons';
 import { useUserType } from '../hooks/useUserType';
 // import { useSchoolStudentData } from '../hooks/useSchoolStudentData';
 import { getEffectiveUserId } from '../utils/getEffectiveUserId';
@@ -107,6 +107,10 @@ const StudyModePage = () => {
   } | null>(null);
   const [rankingLoadError, setRankingLoadError] = useState<string | null>(null);
   const [gamePoints, setGamePoints] = useState<number>(0);
+  const [fillInTheBlankPoints, setFillInTheBlankPoints] = useState<number>(0);
+  const [memoryGamePoints, setMemoryGamePoints] = useState<number>(0);
+  const [puzzleGamePoints, setPuzzleGamePoints] = useState<number>(0);
+  const [quizBattlePoints, setQuizBattlePoints] = useState<number>(0);
   
   // Motivational modules state
   const [streakData, setStreakData] = useState({ days: 0, message: '' });
@@ -125,6 +129,8 @@ const StudyModePage = () => {
   const [showMedalDetails, setShowMedalDetails] = useState(false);
   const [showNotebookError, setShowNotebookError] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+  const [showFillBlankIntro, setShowFillBlankIntro] = useState(false);
+  const [selectedFillBlankDifficulty, setSelectedFillBlankDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [scoreBreakdown, setScoreBreakdown] = useState({
     totalStudySessions: 0,
     smartStudyPoints: 0,
@@ -687,6 +693,7 @@ const StudyModePage = () => {
     setFreeStudySessionsEarned(0);
     setVoiceRecognitionCount(0);
     setGamePoints(0);
+    setFillInTheBlankPoints(0);
     
     if (!effectiveUserId) return;
     
@@ -844,6 +851,27 @@ const StudyModePage = () => {
       const gamePointsValue = notebookPoints.totalPoints || 0;
       setGamePoints(gamePointsValue);
       
+      // Obtener puntos individuales de cada juego
+      console.log('[StudyModePage] Game scores from notebookPoints:', notebookPoints.gameScores);
+      const memoryPoints = notebookPoints.gameScores?.memory || 0;
+      const puzzlePoints = notebookPoints.gameScores?.puzzle || 0;
+      const quizBattlePointsValue = notebookPoints.gameScores?.quiz || 0;
+      
+      console.log('[StudyModePage] Individual game points - Memory:', memoryPoints, 'Puzzle:', puzzlePoints, 'Quiz:', quizBattlePointsValue);
+      
+      setMemoryGamePoints(memoryPoints);
+      setPuzzleGamePoints(puzzlePoints);
+      setQuizBattlePoints(quizBattlePointsValue);
+      
+      // Obtener puntos específicos de Fill in the Blank
+      const fillBlankPoints = await gamePointsService.getGameSpecificPoints(
+        effectiveUserId, 
+        notebook.id, 
+        'Fill in the Blank'
+      );
+      setFillInTheBlankPoints(fillBlankPoints);
+      
+      
       // Calcular puntos de estudio inteligente basados en intensidad
       // warm_up = 0.5, progress = 1.0, rocket = 2.0
       let smartStudyPoints = 0;
@@ -913,6 +941,19 @@ const StudyModePage = () => {
       
       // Score final - NUEVA FÓRMULA: SUMA SIMPLE
       const totalScore = totalStudyPoints + totalMultiplierPoints;
+      
+      // 🔍 DEBUG: Desglose completo del cálculo de puntos
+      console.log('🧮 [SCORE CALCULATION DEBUG] =====================================');
+      console.log('📚 Smart Study Points:', smartStudyPoints, '×1000 =', smartStudyPoints * 1000);
+      console.log('🎤 Voice Recognition Sessions:', voiceRecognitionSessionsEarned, '×1000 =', voiceRecognitionSessionsEarned * 1000);
+      console.log('🆓 Free Study Sessions:', freeStudySessionsEarned, '×1000 =', freeStudySessionsEarned * 1000);
+      console.log('📊 Total Study Points:', totalStudyPoints);
+      console.log('🏆 Max Quiz Score:', maxQuizScoreValue);
+      console.log('🎮 Game Points Value:', gamePointsValue);
+      console.log('🔥 Streak Bonus:', streakBonus);
+      console.log('📊 Total Multiplier Points:', totalMultiplierPoints);
+      console.log('🎯 FINAL TOTAL SCORE:', totalScore);
+      console.log('================================================');
       
       setNotebookScore({
         score: totalScore,
@@ -1244,13 +1285,35 @@ const StudyModePage = () => {
           }
         });
         break;
-      case 'fill-blank':
-        navigate('/fill-in-the-blank', { 
+      case 'memory':
+        navigate('/games', { 
           state: { 
             notebookId: selectedNotebook.id,
-            notebookTitle: selectedNotebook.title
+            notebookTitle: selectedNotebook.title,
+            selectedGame: 'memory'
           }
         });
+        break;
+      case 'puzzle':
+        navigate('/games', { 
+          state: { 
+            notebookId: selectedNotebook.id,
+            notebookTitle: selectedNotebook.title,
+            selectedGame: 'puzzle'
+          }
+        });
+        break;
+      case 'quiz-battle':
+        navigate('/games', { 
+          state: { 
+            notebookId: selectedNotebook.id,
+            notebookTitle: selectedNotebook.title,
+            selectedGame: 'quiz'
+          }
+        });
+        break;
+      case 'fill-blank':
+        setShowFillBlankIntro(true);
         break;
       case 'exam':
         // Módulo deshabilitado temporalmente
@@ -1687,21 +1750,48 @@ const StudyModePage = () => {
               className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
               onClick={() => handleStudyMode('fill-blank')}
             >
-              {selectedNotebook && gamePoints > 0 && (
-                <div className="game-points-badge">Max: {gamePoints}</div>
+              {selectedNotebook && fillInTheBlankPoints > 0 && (
+                <div className="game-points-badge">Max: {fillInTheBlankPoints}</div>
               )}
               <div className="function-info-icon" data-tooltip="Completa las definiciones rellenando espacios en blanco">
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="function-icon">
-                <FontAwesomeIcon icon={faBook} />
+                <FontAwesomeIcon icon={faPencilAlt} />
               </div>
               <h3>Fill in the Blank</h3>
               {!selectedNotebook ? (
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Puntos: {gamePoints}</p>
+                  <p className="function-status available">Puntos: {fillInTheBlankPoints}</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
+            </div>
+
+
+            <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => handleStudyMode('memory')}
+            >
+              {selectedNotebook && memoryGamePoints > 0 && (
+                <div className="game-points-badge">Max: {memoryGamePoints}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Encuentra pares de conceptos y definiciones">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faStar} />
+              </div>
+              <h3>Memorama</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Puntos: {memoryGamePoints}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1711,23 +1801,49 @@ const StudyModePage = () => {
 
             <div 
               className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
-              onClick={() => handleStudyMode('games')}
+              onClick={() => handleStudyMode('puzzle')}
             >
-              {selectedNotebook && (
-                <div className="game-points-badge">Pts: {gamePoints || 0}</div>
+              {selectedNotebook && puzzleGamePoints > 0 && (
+                <div className="game-points-badge">Max: {puzzleGamePoints}</div>
               )}
-              <div className="function-info-icon" data-tooltip="Aprende jugando de forma divertida">
+              <div className="function-info-icon" data-tooltip="Conecta conceptos con sus definiciones">
                 <i className="fas fa-info-circle"></i>
               </div>
               <div className="function-icon">
-                <FontAwesomeIcon icon={faGamepad} />
+                <FontAwesomeIcon icon={faPuzzlePiece} />
               </div>
-              <h3>Juegos</h3>
+              <h3>Puzzle de Definiciones</h3>
               {!selectedNotebook ? (
                 <p className="function-status">Selecciona un cuaderno</p>
               ) : (
                 <>
-                  <p className="function-status available">Puntos: {gamePoints || 0}</p>
+                  <p className="function-status available">Puntos: {puzzleGamePoints}</p>
+                  <button className="function-btn">
+                    <FontAwesomeIcon icon={faPlay} /> Iniciar
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div 
+              className={`study-function-card ${!selectedNotebook ? 'disabled' : ''}`}
+              onClick={() => handleStudyMode('quiz-battle')}
+            >
+              {selectedNotebook && quizBattlePoints > 0 && (
+                <div className="game-points-badge">Max: {quizBattlePoints}</div>
+              )}
+              <div className="function-info-icon" data-tooltip="Compite respondiendo preguntas">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <div className="function-icon">
+                <FontAwesomeIcon icon={faFistRaised} />
+              </div>
+              <h3>Quiz Battle</h3>
+              {!selectedNotebook ? (
+                <p className="function-status">Selecciona un cuaderno</p>
+              ) : (
+                <>
+                  <p className="function-status available">Puntos: {quizBattlePoints}</p>
                   <button className="function-btn">
                     <FontAwesomeIcon icon={faPlay} /> Iniciar
                   </button>
@@ -1997,8 +2113,179 @@ const StudyModePage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal para Fill in the Blank - Idéntico al de Voice Recognition */}
+      {showFillBlankIntro && (
+        <div className="study-intro-overlay" onClick={() => setShowFillBlankIntro(false)}>
+          <div className="study-intro-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="intro-header-compact">
+              <div className="header-icon-compact">
+                <FontAwesomeIcon icon={faPencilAlt} />
+              </div>
+              <h2>Selecciona la Dificultad</h2>
+            </div>
+            
+            <div className="intro-content-compact">
+              <div className="explanation-compact">
+                <div className="mini-summary">
+                  <h4>Cómo funciona:</h4>
+                  <ul>
+                    <li>✏️ <strong>Completa</strong> las definiciones con las palabras faltantes</li>
+                    <li>🎯 <strong>Escribe</strong> la respuesta correcta en cada espacio</li>
+                    <li>⭐ <strong>Gana puntos</strong> por cada respuesta correcta</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="intensity-section-compact">
+                <h3 className="section-title-compact">Selecciona la intensidad de estudio</h3>
+                <div className="intensity-options-horizontal">
+                  <div 
+                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'easy' ? 'selected' : ''}`}
+                    onClick={() => setSelectedFillBlankDifficulty('easy')}
+                  >
+                    <FontAwesomeIcon icon={faSmile} />
+                    <div className="intensity-content">
+                      <h4>Calentamiento</h4>
+                      <span>5 conceptos</span>
+                      <p>Repaso ligero</p>
+                    </div>
+                    {selectedFillBlankDifficulty === 'easy' && (
+                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
+                    )}
+                  </div>
+                  
+                  <div 
+                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'medium' ? 'selected' : ''}`}
+                    onClick={() => setSelectedFillBlankDifficulty('medium')}
+                  >
+                    <FontAwesomeIcon icon={faChartLine} />
+                    <div className="intensity-content">
+                      <h4>Progreso</h4>
+                      <span>10 conceptos</span>
+                      <p>Sesión balanceada</p>
+                    </div>
+                    {selectedFillBlankDifficulty === 'medium' && (
+                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
+                    )}
+                  </div>
+                  
+                  <div 
+                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'hard' ? 'selected' : ''}`}
+                    onClick={() => setSelectedFillBlankDifficulty('hard')}
+                  >
+                    <FontAwesomeIcon icon={faRocket} />
+                    <div className="intensity-content">
+                      <h4>Cohete</h4>
+                      <span>20 conceptos</span>
+                      <p>Intensivo</p>
+                    </div>
+                    {selectedFillBlankDifficulty === 'hard' && (
+                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="intro-actions-compact">
+              <button 
+                className="action-button-compact secondary"
+                onClick={() => setShowFillBlankIntro(false)}
+              >
+                <FontAwesomeIcon icon={faArrowLeft} />
+                Volver
+              </button>
+              <button 
+                className="action-button-compact primary"
+                onClick={() => {
+                  if (!selectedNotebook) return;
+                  navigate('/fill-in-the-blank', { 
+                    state: { 
+                      notebookId: selectedNotebook.id,
+                      notebookTitle: selectedNotebook.title,
+                      difficulty: selectedFillBlankDifficulty
+                    }
+                  });
+                  setShowFillBlankIntro(false);
+                }}
+              >
+                <FontAwesomeIcon icon={faPencilAlt} />
+                Comenzar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+};
+
+// Función debug para mostrar desglose completo de cálculo de puntos
+(window as any).debugScoreCalculation = async (userId: string, notebookId: string) => {
+  try {
+    console.log('🔍 [DEBUG SCORE CALCULATION] =====================================');
+    console.log('📋 Parámetros:', { userId, notebookId });
+    
+    // 1. Obtener puntos de gamePointsService (puntos reales)
+    const { gamePointsService } = await import('../services/gamePointsService');
+    const notebookPoints = await gamePointsService.getNotebookPoints(userId, notebookId);
+    
+    console.log('🎮 [GAME POINTS SERVICE] Puntos reales de juegos:');
+    console.log('  📊 Total points:', notebookPoints.totalPoints);
+    console.log('  🎯 Game scores:', notebookPoints.gameScores);
+    console.log('  📝 History length:', notebookPoints.pointsHistory.length);
+    
+    // 2. Obtener datos de estudio inteligente
+    const { useStudyService } = await import('../hooks/useStudyService');
+    // Note: This is tricky because we're outside React context
+    console.log('📚 [SMART STUDY] Necesitarías ejecutar esto desde el componente React');
+    
+    // 3. Simular el cálculo que hace StudyModePage
+    console.log('🧮 [STUDYMODEPAGE CALCULATION] Fórmula actual:');
+    
+    // Datos que necesitaríamos obtener (normalmente vienen del estado del componente)
+    const smartStudyPoints = 0; // placeholder - normalmente viene del hook
+    const voiceRecognitionSessionsEarned = 0; // placeholder
+    const freeStudySessionsEarned = 0; // placeholder
+    const maxQuizScoreValue = 0; // placeholder
+    const gamePointsValue = notebookPoints.totalPoints; // Puntos reales de juegos
+    const streakBonus = 0; // placeholder
+    
+    const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionSessionsEarned * 1000) + (freeStudySessionsEarned * 1000);
+    const totalMultiplierPoints = maxQuizScoreValue + gamePointsValue + streakBonus;
+    const totalScore = totalStudyPoints + totalMultiplierPoints;
+    
+    console.log('  📈 Smart study points:', smartStudyPoints, '×1000 =', smartStudyPoints * 1000);
+    console.log('  🎤 Voice recognition sessions:', voiceRecognitionSessionsEarned, '×1000 =', voiceRecognitionSessionsEarned * 1000);
+    console.log('  🆓 Free study sessions:', freeStudySessionsEarned, '×1000 =', freeStudySessionsEarned * 1000);
+    console.log('  📊 Total study points:', totalStudyPoints);
+    console.log('  🏆 Max quiz score:', maxQuizScoreValue);
+    console.log('  🎮 Game points (real):', gamePointsValue);
+    console.log('  🔥 Streak bonus:', streakBonus);
+    console.log('  📊 Total multiplier points:', totalMultiplierPoints);
+    console.log('  🎯 TOTAL SCORE:', totalScore);
+    
+    console.log('⚠️ [DISCREPANCIA] Diferencia entre sistemas:');
+    console.log('  - GamePointsService (real):', notebookPoints.totalPoints);
+    console.log('  - StudyModePage (calculado):', totalScore);
+    console.log('  - Diferencia:', Math.abs(totalScore - notebookPoints.totalPoints));
+    
+    console.log('💡 [RECOMENDACIÓN] Para obtener valores exactos, ejecuta desde el componente React:');
+    console.log('  window.debugScoreFromComponent()');
+    
+  } catch (error) {
+    console.error('❌ Error en debug de score:', error);
+  }
+};
+
+// Función más simple que usa los datos actuales del componente
+(window as any).debugScoreFromComponent = () => {
+  // Esta función debe ser llamada desde dentro del componente React
+  console.log('🔍 [DEBUG FROM COMPONENT] Para usar esta función:');
+  console.log('1. Abre las DevTools en la página /study');
+  console.log('2. Ejecuta: window.debugCurrentScore()');
+  console.log('3. O agrega console.logs directamente en el useEffect del componente');
 };
 
 export default StudyModePage;

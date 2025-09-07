@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../services/firebase';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faArrowLeft, faRedo, faClock, faFire, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
@@ -34,6 +35,7 @@ interface MemoryGameProps {
 }
 
 const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
+  const navigate = useNavigate();
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedCards, setSelectedCards] = useState<Card[]>([]);
   const [isChecking, setIsChecking] = useState(false);
@@ -260,6 +262,16 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     }
   };
 
+  const handleExit = () => {
+    // Navigate back to study page with notebook context
+    navigate('/study', {
+      state: {
+        selectedNotebook: { id: notebookId, title: notebookTitle },
+        maintainSelection: true
+      }
+    });
+  };
+
   const celebrateWin = () => {
     // Create custom confetti effect
     const duration = 3000;
@@ -376,7 +388,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
     return (
       <div className="memory-game-container">
         <div className="no-concepts-message">
-          <button className="back-button" onClick={onBack}>
+          <button className="back-button" onClick={handleExit}>
             <FontAwesomeIcon icon={faArrowLeft} />
           </button>
           <div className="empty-state">
@@ -384,7 +396,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
             <h2>¡Primero necesitas estudiar!</h2>
             <p>Para jugar, necesitas haber repasado algunos conceptos en el estudio inteligente.</p>
             <p>Los juegos usan solo conceptos que ya has estudiado para reforzar tu aprendizaje.</p>
-            <button className="primary-button" onClick={onBack}>
+            <button className="primary-button" onClick={handleExit}>
               Volver
             </button>
           </div>
@@ -398,11 +410,11 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
       <HeaderWithHamburger 
         title="Memorama" 
         showBackButton={true}
-        onBackClick={onBack}
+        onBackClick={handleExit}
       />
       
       <div className="game-controls">
-        <button className="back-to-games-button" onClick={onBack}>
+        <button className="back-to-games-button" onClick={handleExit}>
           <FontAwesomeIcon icon={faArrowLeft} />
           <span>Juegos</span>
         </button>
@@ -523,9 +535,9 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
             </div>
             
             <div className="intro-actions">
-              <button className="action-button secondary" onClick={onBack}>
+              <button className="action-button secondary" onClick={handleExit}>
                 <FontAwesomeIcon icon={faArrowLeft} />
-                Volver a juegos
+                Volver
               </button>
               <button 
                 className={`action-button primary ${!tempSelectedDifficulty ? 'disabled' : ''}`}
@@ -564,8 +576,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
               <button className="btn-primary" onClick={resetGame}>
                 Jugar de nuevo
               </button>
-              <button className="btn-secondary" onClick={onBack}>
-                Volver a juegos
+              <button className="btn-secondary" onClick={handleExit}>
+                Volver a estudio
               </button>
             </div>
           </div>

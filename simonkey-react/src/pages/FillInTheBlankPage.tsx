@@ -53,6 +53,7 @@ const FillInTheBlankPage: React.FC = () => {
   const [availableConcepts, setAvailableConcepts] = useState<number>(0);
   const [loadingConceptsData, setLoadingConceptsData] = useState<boolean>(true);
   const [showConceptSelector, setShowConceptSelector] = useState(false);
+  const [isLoadingFromStudyMode, setIsLoadingFromStudyMode] = useState(false);
   
   // Estados del juego
   const [concepts, setConcepts] = useState<GameConcept[]>([]);
@@ -122,16 +123,58 @@ const FillInTheBlankPage: React.FC = () => {
         setNotebooks(notebooksWithCount);
         
         // Si viene desde /study con un cuaderno preseleccionado
-        const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
+        const state = location.state as { notebookId?: string; notebookTitle?: string; difficulty?: string } | null;
+        console.log('🔍 Location state:', state);
         if (state?.notebookId) {
           const preselectedNotebook = notebooksWithCount.find(nb => nb.id === state.notebookId);
           if (preselectedNotebook) {
             setSelectedNotebook(preselectedNotebook);
-            setShowConceptSelector(true); // Ir directamente al selector de conceptos
-            console.log('Cuaderno preseleccionado desde /study:', preselectedNotebook.title);
+            console.log('📔 Notebook selected:', preselectedNotebook.title);
             
-            // Contar conceptos disponibles para el cuaderno preseleccionado
-            await countAvailableConcepts(preselectedNotebook.id, userId);
+            // Si viene con dificultad desde StudyModePage, comenzar juego directamente
+            if (state.difficulty) {
+              console.log('Iniciando juego con dificultad preseleccionada:', state.difficulty);
+              setIsLoadingFromStudyMode(true); // Marcar que está cargando desde StudyMode
+              
+              // Mapear dificultad a StudyIntensity
+              const intensityMap: Record<string, StudyIntensity> = {
+                'easy': StudyIntensity.WARM_UP,
+                'medium': StudyIntensity.PROGRESS,
+                'hard': StudyIntensity.ROCKET
+              };
+              setStudyIntensity(intensityMap[state.difficulty] || StudyIntensity.WARM_UP);
+              
+              // Contar conceptos y comenzar juego directamente
+              try {
+                const notebookConcepts = await studyService.getAllConceptsFromNotebook(userId, preselectedNotebook.id);
+                const validConcepts = notebookConcepts.filter(concept => 
+                  concept.definición && concept.definición.trim().length > 20
+                );
+                
+                console.log(`Conceptos válidos encontrados: ${validConcepts.length}`);
+                setAvailableConcepts(validConcepts.length);
+                
+                if (validConcepts.length > 0) {
+                  setTimeout(() => {
+                    // Llamar loadConcepts con parámetros específicos para evitar problemas de closure
+                    loadConceptsWithParams(preselectedNotebook, userId);
+                    setIsLoadingFromStudyMode(false); // Terminar carga
+                  }, 300);
+                } else {
+                  console.log('No hay suficientes conceptos válidos para Fill in the Blank');
+                  setIsLoadingFromStudyMode(false); // Terminar carga
+                }
+              } catch (error) {
+                console.error('Error loading concepts for direct start:', error);
+                setIsLoadingFromStudyMode(false); // Terminar carga
+              }
+            } else {
+              setShowConceptSelector(true); // Mostrar selector solo si no hay dificultad
+              console.log('Cuaderno preseleccionado desde /study:', preselectedNotebook.title);
+              
+              // Contar conceptos disponibles para el cuaderno preseleccionado
+              await countAvailableConcepts(preselectedNotebook.id, userId);
+            }
           }
         }
       } catch (error) {
@@ -143,17 +186,15 @@ const FillInTheBlankPage: React.FC = () => {
     loadNotebooks();
   }, [location.state]);
 
-  // Cargar conceptos solo cuando se hace click en "Comenzar Juego"
-  const loadConcepts = async () => {
-    if (!selectedNotebook || !auth.currentUser) return;
+  // Cargar conceptos con parámetros específicos (para evitar problemas de closure)
+  const loadConceptsWithParams = async (notebook: Notebook, userId: string) => {
+    console.log('🔄 loadConceptsWithParams iniciado con notebook:', notebook.title);
     
     setLoading(true);
     try {
-      const effectiveUserData = await getEffectiveUserId();
-      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-      
       // Cargar conceptos del cuaderno seleccionado
-      const notebookConcepts = await studyService.getAllConceptsFromNotebook(userId, selectedNotebook.id);
+      const notebookConcepts = await studyService.getAllConceptsFromNotebook(userId, notebook.id);
+      console.log('📚 loadConceptsWithParams: notebookConcepts.length =', notebookConcepts.length);
       
       // Convertir conceptos al formato del juego y filtrar válidos
       const gameConcepts: GameConcept[] = notebookConcepts
@@ -166,15 +207,79 @@ const FillInTheBlankPage: React.FC = () => {
         }))
         .filter(concept => concept.definicion && concept.definicion.trim().length > 20);
       
+      console.log('🎮 loadConceptsWithParams: gameConcepts.length =', gameConcepts.length);
+      console.log('⚙️ loadConceptsWithParams: studyIntensity =', studyIntensity);
+      
       // Mezclar los conceptos aleatoriamente
       const shuffled = gameConcepts.sort(() => Math.random() - 0.5);
       const conceptCount = getConceptCountFromIntensity(studyIntensity);
+      console.log('🔢 loadConceptsWithParams: conceptCount =', conceptCount);
+      
       const finalConcepts = shuffled.slice(0, conceptCount); // Tomar la cantidad seleccionada
+      console.log('✅ loadConceptsWithParams: finalConcepts.length =', finalConcepts.length);
       
       if (finalConcepts.length === 0) {
+        console.log('❌ loadConceptsWithParams: No hay conceptos finales');
         setConcepts([]);
         setTotalRounds(0);
       } else {
+        console.log('✅ loadConceptsWithParams: Seteando conceptos');
+        setConcepts(finalConcepts);
+        setTotalRounds(finalConcepts.length);
+      }
+    } catch (error) {
+      console.error('Error loading concepts with params:', error);
+      setConcepts([]);
+      setTotalRounds(0);
+    }
+    setLoading(false);
+  };
+
+  // Cargar conceptos solo cuando se hace click en "Comenzar Juego"
+  const loadConcepts = async () => {
+    console.log('🔄 loadConcepts iniciado');
+    if (!selectedNotebook || !auth.currentUser) {
+      console.log('❌ loadConcepts: No hay notebook o usuario');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const effectiveUserData = await getEffectiveUserId();
+      const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+      
+      // Cargar conceptos del cuaderno seleccionado
+      const notebookConcepts = await studyService.getAllConceptsFromNotebook(userId, selectedNotebook.id);
+      console.log('📚 loadConcepts: notebookConcepts.length =', notebookConcepts.length);
+      
+      // Convertir conceptos al formato del juego y filtrar válidos
+      const gameConcepts: GameConcept[] = notebookConcepts
+        .map(concept => ({
+          id: concept.id,
+          concepto: concept.término,
+          definicion: concept.definición,
+          término: concept.término,
+          definición: concept.definición
+        }))
+        .filter(concept => concept.definicion && concept.definicion.trim().length > 20);
+      
+      console.log('🎮 loadConcepts: gameConcepts.length =', gameConcepts.length);
+      console.log('⚙️ loadConcepts: studyIntensity =', studyIntensity);
+      
+      // Mezclar los conceptos aleatoriamente
+      const shuffled = gameConcepts.sort(() => Math.random() - 0.5);
+      const conceptCount = getConceptCountFromIntensity(studyIntensity);
+      console.log('🔢 loadConcepts: conceptCount =', conceptCount);
+      
+      const finalConcepts = shuffled.slice(0, conceptCount); // Tomar la cantidad seleccionada
+      console.log('✅ loadConcepts: finalConcepts.length =', finalConcepts.length);
+      
+      if (finalConcepts.length === 0) {
+        console.log('❌ loadConcepts: No hay conceptos finales');
+        setConcepts([]);
+        setTotalRounds(0);
+      } else {
+        console.log('✅ loadConcepts: Seteando conceptos');
         setConcepts(finalConcepts);
         setTotalRounds(finalConcepts.length);
       }
@@ -614,7 +719,28 @@ const FillInTheBlankPage: React.FC = () => {
     );
   }
 
-  if (concepts.length === 0 && selectedNotebook) {
+  // Debug logs para render conditions
+  console.log('🎮 Render check - concepts.length:', concepts.length);
+  console.log('🎮 Render check - selectedNotebook:', selectedNotebook?.title || 'null');
+  console.log('🎮 Render check - isLoadingFromStudyMode:', isLoadingFromStudyMode);
+  console.log('🎮 Render check - loading:', loading);
+
+  // Mostrar estado de carga cuando viene desde StudyMode
+  if (isLoadingFromStudyMode) {
+    console.log('🔄 Mostrando estado de carga desde StudyMode');
+    return (
+      <div className="fill-blank-container">
+        <HeaderWithHamburger title={`Fill in the Blank - ${selectedNotebook?.title || ''}`} />
+        <div className="loading-state">
+          <div className="loader"></div>
+          <p>Preparando juego...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (concepts.length === 0 && selectedNotebook && !isLoadingFromStudyMode) {
+    console.log('❌ Mostrando empty state - No hay conceptos válidos');
     return (
       <div className="fill-blank-container">
         <HeaderWithHamburger title={`Fill in the Blank - ${selectedNotebook?.title || ''}`} />
@@ -663,11 +789,8 @@ const FillInTheBlankPage: React.FC = () => {
             <button onClick={handlePlayAgain} className="btn-play-again">
               Jugar de Nuevo
             </button>
-            <button onClick={handleBackToNotebooks} className="btn-secondary">
-              Cambiar Cuaderno
-            </button>
-            <button onClick={() => navigate('/development')} className="btn-back">
-              Volver a Development
+            <button onClick={() => navigate('/study')} className="btn-back">
+              Regresar
             </button>
           </div>
         </div>

@@ -102,6 +102,16 @@ const SuperAdminPage: React.FC = () => {
   });
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  
+  // 🔧 MIGRACIÓN MASIVA: Estados para migración de puntos
+  const [migrationStatus, setMigrationStatus] = useState('');
+  const [migrationProgress, setMigrationProgress] = useState(0);
+  const [migrationResults, setMigrationResults] = useState<any[]>([]);
+  
+  // 🗑️ ELIMINAR FILL IN THE BLANK: Estados específicos
+  const [fillBlankStatus, setFillBlankStatus] = useState('');
+  const [fillBlankProgress, setFillBlankProgress] = useState(0);
+  const [fillBlankResults, setFillBlankResults] = useState<any[]>([]);
 
   // Verificar si el usuario es súper admin
   React.useEffect(() => {
@@ -1523,6 +1533,200 @@ Ver consola para más detalles.`);
     );
   };
 
+  // 🔧 MIGRACIÓN MASIVA: Función para corregir puntos de juegos eliminados
+  const runGamePointsMigration = async () => {
+    if (!confirm('¿Estás seguro de ejecutar la migración masiva de puntos de juegos? Esto afectará a TODOS los usuarios.')) {
+      return;
+    }
+
+    setMigrationStatus('🚀 Iniciando migración masiva...');
+    setMigrationProgress(0);
+    setMigrationResults([]);
+
+    try {
+      // 1. Obtener todos los documentos de gamePoints
+      const gamePointsRef = collection(db, 'gamePoints');
+      const snapshot = await getDocs(gamePointsRef);
+      
+      const totalUsers = snapshot.docs.length;
+      let processedUsers = 0;
+      let migratedUsers = 0;
+      const results: any[] = [];
+
+      setMigrationStatus(`📊 Encontrados ${totalUsers} usuarios con puntos de juegos`);
+
+      // 2. Procesar cada usuario
+      for (const userDoc of snapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        
+        if (!userData.notebookPoints) {
+          processedUsers++;
+          continue;
+        }
+
+        let userMigrated = false;
+        const userResults = {
+          userId,
+          notebooks: [] as any[]
+        };
+
+        // 3. Procesar cada cuaderno del usuario
+        for (const [notebookId, notebookData] of Object.entries(userData.notebookPoints as any)) {
+          const notebook = notebookData as any;
+          
+          // Verificar si necesita migración
+          const hasRace = notebook.gameScores && 'race' in notebook.gameScores;
+          const hasFillBlank = notebook.pointsHistory?.some((t: any) => t.gameId?.includes('fill_blank'));
+          
+          if (hasRace || hasFillBlank) {
+            // Recalcular puntos correctos
+            const validGameScores = {
+              memory: notebook.gameScores?.memory || 0,
+              puzzle: notebook.gameScores?.puzzle || 0,
+              quiz: notebook.gameScores?.quiz || 0
+            };
+            
+            const correctTotalPoints = validGameScores.memory + validGameScores.puzzle + validGameScores.quiz;
+            const oldTotalPoints = notebook.totalPoints || 0;
+            
+            // Actualizar Firebase
+            await updateDoc(doc(db, 'gamePoints', userId), {
+              [`notebookPoints.${notebookId}.gameScores`]: validGameScores,
+              [`notebookPoints.${notebookId}.totalPoints`]: correctTotalPoints
+            });
+
+            userResults.notebooks.push({
+              notebookId,
+              oldTotal: oldTotalPoints,
+              newTotal: correctTotalPoints,
+              difference: oldTotalPoints - correctTotalPoints
+            });
+            
+            userMigrated = true;
+          }
+        }
+
+        if (userMigrated) {
+          migratedUsers++;
+          results.push(userResults);
+        }
+
+        processedUsers++;
+        setMigrationProgress(Math.round((processedUsers / totalUsers) * 100));
+        setMigrationStatus(`⏳ Procesando... ${processedUsers}/${totalUsers} (${migratedUsers} migrados)`);
+        
+        // Pausa pequeña para no sobrecargar Firebase
+        if (processedUsers % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      setMigrationStatus(`✅ Migración completada! ${migratedUsers}/${totalUsers} usuarios migrados`);
+      setMigrationResults(results);
+
+    } catch (error) {
+      console.error('Error en migración:', error);
+      setMigrationStatus(`❌ Error en migración: ${error}`);
+    }
+  };
+
+  // 🗑️ ELIMINAR TRANSACCIONES DE FILL IN THE BLANK
+  const removeFillInTheBlankTransactions = async () => {
+    if (!confirm('¿Estás seguro de eliminar TODAS las transacciones de Fill in the Blank del historial? No afectará totalPoints pero limpiará el historial.')) {
+      return;
+    }
+
+    setFillBlankStatus('🚀 Iniciando limpieza de Fill in the Blank...');
+    setFillBlankProgress(0);
+    setFillBlankResults([]);
+
+    try {
+      // 1. Obtener todos los documentos de gamePoints
+      const gamePointsRef = collection(db, 'gamePoints');
+      const snapshot = await getDocs(gamePointsRef);
+      
+      const totalUsers = snapshot.docs.length;
+      let processedUsers = 0;
+      let cleanedUsers = 0;
+      const results: any[] = [];
+
+      setFillBlankStatus(`📊 Encontrados ${totalUsers} usuarios, buscando transacciones Fill in the Blank...`);
+
+      // 2. Procesar cada usuario
+      for (const userDoc of snapshot.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        
+        if (!userData.notebookPoints) {
+          processedUsers++;
+          continue;
+        }
+
+        let userCleaned = false;
+        const userResults = {
+          userId,
+          notebooks: [] as any[]
+        };
+
+        // 3. Procesar cada cuaderno del usuario
+        for (const [notebookId, notebookData] of Object.entries(userData.notebookPoints as any)) {
+          const notebook = notebookData as any;
+          
+          if (notebook.pointsHistory && Array.isArray(notebook.pointsHistory)) {
+            // Encontrar transacciones de Fill in the Blank
+            const fillBlankTransactions = notebook.pointsHistory.filter((t: any) => 
+              t.gameId?.includes('fill_blank') || t.gameName?.includes('Fill in the Blank')
+            );
+            
+            if (fillBlankTransactions.length > 0) {
+              // Filtrar el historial eliminando Fill in the Blank
+              const cleanedHistory = notebook.pointsHistory.filter((t: any) => 
+                !t.gameId?.includes('fill_blank') && !t.gameName?.includes('Fill in the Blank')
+              );
+              
+              // Actualizar Firebase
+              await updateDoc(doc(db, 'gamePoints', userId), {
+                [`notebookPoints.${notebookId}.pointsHistory`]: cleanedHistory
+              });
+
+              const totalPointsRemoved = fillBlankTransactions.reduce((sum: number, t: any) => sum + (t.points || 0), 0);
+              
+              userResults.notebooks.push({
+                notebookId,
+                transactionsRemoved: fillBlankTransactions.length,
+                pointsInTransactions: totalPointsRemoved,
+                remainingTransactions: cleanedHistory.length
+              });
+              
+              userCleaned = true;
+            }
+          }
+        }
+
+        if (userCleaned) {
+          cleanedUsers++;
+          results.push(userResults);
+        }
+
+        processedUsers++;
+        setFillBlankProgress(Math.round((processedUsers / totalUsers) * 100));
+        setFillBlankStatus(`⏳ Procesando... ${processedUsers}/${totalUsers} (${cleanedUsers} limpiados)`);
+        
+        // Pausa pequeña para no sobrecargar Firebase
+        if (processedUsers % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setFillBlankStatus(`✅ Limpieza completada! ${cleanedUsers}/${totalUsers} usuarios tenían transacciones Fill in the Blank`);
+      setFillBlankResults(results);
+
+    } catch (error) {
+      console.error('Error en limpieza Fill in the Blank:', error);
+      setFillBlankStatus(`❌ Error en limpieza: ${error}`);
+    }
+  };
 
   return (
     <>
@@ -1534,6 +1738,7 @@ Ver consola para más detalles.`);
             <p>Bienvenido al panel de control de súper administrador.</p>
           </div>
           
+
           <div className="admin-tabs">
             <button 
               className={`tab-button ${activeTab === 'usuarios' ? 'active' : ''}`}

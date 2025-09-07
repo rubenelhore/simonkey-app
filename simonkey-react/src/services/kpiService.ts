@@ -628,8 +628,8 @@ export class KPIService {
               switch(gameType) {
                 case 'memory': estimatedTime = 90; break;  // 1.5 minutos = 90 segundos
                 case 'puzzle': estimatedTime = 120; break; // 2 minutos = 120 segundos
-                case 'race': estimatedTime = 90; break;    // 1.5 minutos = 90 segundos
                 case 'quiz': estimatedTime = 180; break;   // 3 minutos = 180 segundos
+                // race removido - ya no disponible
               }
               
               stats.totalTime += estimatedTime;
