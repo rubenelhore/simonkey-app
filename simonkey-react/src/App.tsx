@@ -32,6 +32,7 @@ import MobileNavigation from './components/Mobile/MobileNavigation';
 import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
+import ClassAnalyticsPage from './pages/ClassAnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
 import VoiceRecognitionPage from './pages/VoiceRecognitionPage';
@@ -689,6 +690,18 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <ProgressPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Nueva ruta para analítica de clase */}
+          <Route
+            path="/classAnalytics"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ClassAnalyticsPage />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

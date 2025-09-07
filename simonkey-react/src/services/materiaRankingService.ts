@@ -9,6 +9,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { PointsCalculationService } from './pointsCalculationService';
 
 export interface MateriaRanking {
   posicion: number;
@@ -23,12 +24,21 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export class MateriaRankingService {
   /**
+   * Clear ranking cache
+   */
+  static clearCache(): void {
+    rankingCache.clear();
+    console.log('📊 Ranking cache cleared');
+  }
+
+  /**
    * Get ranking for a specific materia based on enrollments
    */
   static async getMateriaRanking(
     materiaId: string, 
     currentUserId: string, 
-    teacherId?: string
+    teacherId?: string,
+    isTeacherView?: boolean
   ): Promise<MateriaRanking[]> {
     try {
       console.log('📊 Getting materia ranking for:', { materiaId, currentUserId, teacherId });
@@ -107,11 +117,8 @@ export class MateriaRankingService {
         try {
           console.log(`📊 Getting data for student: ${studentId}`);
           
-          // Parallel queries for user data and KPIs
-          const [userDoc, kpisDoc] = await Promise.all([
-            getDoc(doc(db, 'users', studentId)).catch(() => null),
-            getDoc(doc(db, 'users', studentId, 'kpis', 'dashboard')).catch(() => null)
-          ]);
+          // Get user data and calculate dynamic score
+          const userDoc = await getDoc(doc(db, 'users', studentId)).catch(() => null);
           
           // Get student's name
           let studentName = 'Usuario';
@@ -120,25 +127,14 @@ export class MateriaRankingService {
             studentName = userData.displayName || userData.nombre || userData.email || 'Usuario';
           }
           
-          // Get student's KPIs for this materia
-          let score = 0;
-          if (kpisDoc?.exists()) {
-            const kpisData = kpisDoc.data();
-            
-            // Check if this materia exists in their KPIs
-            if (kpisData.materias && kpisData.materias[materiaId]) {
-              score = Math.ceil(kpisData.materias[materiaId].scoreMateria || 0);
-              console.log(`✅ Got student score from materia: ${score}`);
-            } else if (kpisData.global?.scoreGlobal) {
-              // Fallback to global score if materia score not found
-              score = Math.ceil(kpisData.global.scoreGlobal || 0);
-              console.log(`✅ Got student global score: ${score}`);
-            }
-          }
+          // Calculate dynamic score using the same method as ClassAnalyticsPage
+          console.log(`🔍 Calculating dynamic score for student ${studentId} (${studentName}) in materia ${materiaId}`);
+          const score = await PointsCalculationService.calculateMateriaScore(materiaId, studentId);
+          console.log(`✅ Calculated dynamic score for ${studentName}: ${score}`);
           
           return {
             posicion: 0, // Will be set after sorting
-            nombre: studentId === currentUserId ? 'Tú' : studentName,
+            nombre: (studentId === currentUserId && !isTeacherView) ? 'Tú' : studentName,
             score: score,
             isCurrentUser: studentId === currentUserId
           };
@@ -187,9 +183,10 @@ export class MateriaRankingService {
   static async getTop5Ranking(
     materiaId: string,
     currentUserId: string,
-    teacherId?: string
+    teacherId?: string,
+    isTeacherView?: boolean
   ): Promise<MateriaRanking[]> {
-    const fullRanking = await this.getMateriaRanking(materiaId, currentUserId, teacherId);
+    const fullRanking = await this.getMateriaRanking(materiaId, currentUserId, teacherId, isTeacherView);
     
     // If current user is not in top 5, add them at the end
     const top5 = fullRanking.slice(0, 5);

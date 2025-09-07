@@ -762,6 +762,34 @@ service cloud.firestore {
     }
     
     // ========================================
+    // REGLAS PARA COLECCIÓN: schoolStudents
+    // ========================================
+    match /schoolStudents/{studentId} {
+      // Lectura: super admin, profesores, o propietario del documento
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isTeacher() ||
+        isOwner(studentId)
+      );
+      
+      // Creación: super admin o profesores
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isTeacher()
+      );
+      
+      // Actualización: super admin, profesores, o propietario
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isTeacher() ||
+        isOwner(studentId)
+      );
+      
+      // Eliminación: solo super admin
+      allow delete: if isSuperAdmin();
+    }
+
+    // ========================================
     // REGLAS ESPECIALES PARA SUPER ADMIN
     // ========================================
     // Permitir al super admin leer todas las colecciones para analytics

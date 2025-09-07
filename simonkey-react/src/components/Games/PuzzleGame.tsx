@@ -657,7 +657,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         </div>
         
         <div className="intro-actions">
-          <button className="action-button secondary" onClick={onBack}>
+          <button className="action-button secondary" onClick={handleExit}>
             <FontAwesomeIcon icon={faArrowLeft} />
             Cancelar
           </button>
