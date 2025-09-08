@@ -121,6 +121,7 @@ const StudyModePage = () => {
   
   // Motivational modules state
   const [streakData, setStreakData] = useState({ days: 0, message: '' });
+  const [hasStudiedToday, setHasStudiedToday] = useState(false);
   const [divisionData, setDivisionData] = useState({ 
     current: 'WOOD', 
     progress: 0, 
@@ -286,6 +287,7 @@ const StudyModePage = () => {
             `¡${streak.currentStreak} días seguidos!` : 
             '¡Estudia hoy para mantener tu racha!'
         });
+        setHasStudiedToday(hasStudiedToday);
         
         // Calcular el bonus de racha inmediatamente
         const calculatedStreakBonus = studyStreakService.getStreakBonus(streak.currentStreak);
@@ -1657,8 +1659,11 @@ const StudyModePage = () => {
               <FontAwesomeIcon icon={faPlay} className="metric-icon progress" />
               <div className="metric-content">
                 <span className="metric-label">Estudio Hoy</span>
-                <span className="metric-value" style={{ color: '#10b981', fontSize: '0.9rem' }}>
-                  {streakData.days > 0 ? 'INICIADO' : 'PENDIENTE'}
+                <span className="metric-value" style={{ 
+                  color: hasStudiedToday ? '#10b981' : '#ef4444', 
+                  fontSize: '0.9rem' 
+                }}>
+                  {hasStudiedToday ? 'INICIADO' : 'NO INICIADO'}
                 </span>
               </div>
             </div>
