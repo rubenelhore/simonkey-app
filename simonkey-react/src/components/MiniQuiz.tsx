@@ -270,7 +270,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           const conceptosData = doc.data().conceptos || [];
           conceptosData.forEach((concepto: any, index: number) => {
             concepts.push({
-              id: concepto.id || `${doc.id}-${index}`,
+              id: concepto.id || `${doc.id}_${index}`,
               término: concepto.término,
               definición: concepto.definición,
               fuente: concepto.fuente,
@@ -382,7 +382,7 @@ const MiniQuiz: React.FC<MiniQuizProps> = ({
           // Solo agregar conceptos válidos con término y definición
           if (concepto.término && concepto.definición && concepts.length < 30) {
             concepts.push({
-              id: concepto.id || `${doc.id}-${index}`,
+              id: concepto.id || `${doc.id}_${index}`,
               término: concepto.término,
               definición: concepto.definición,
               fuente: notebookTitle || concepto.fuente || 'Cuaderno',

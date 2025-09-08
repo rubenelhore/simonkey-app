@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../services/firebase';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece, faArrowLeft, faClock, faTrophy, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useGamePoints } from '../../hooks/useGamePoints';
@@ -34,6 +35,7 @@ interface PuzzleGameProps {
 }
 
 const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBack, cachedConcepts, cachedLearningData }) => {
+  const navigate = useNavigate();
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [currentConcepts, setCurrentConcepts] = useState<Concept[]>([]);
   const [fragments, setFragments] = useState<Fragment[]>([]);
@@ -86,7 +88,14 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
 
   // Check if all puzzles are solved
   useEffect(() => {
+    console.log('🧩 [PuzzleGame] Verificando puzzle completion:', {
+      currentConceptsLength: currentConcepts.length,
+      correctPuzzlesLength: correctPuzzles.length,
+      level: level,
+      gameCompleted: gameCompleted
+    });
     if (currentConcepts.length > 0 && correctPuzzles.length === currentConcepts.length) {
+      console.log('✅ [PuzzleGame] ¡Todas las puzzles completadas! Avanzando al siguiente nivel...');
       setTimeout(() => {
         nextLevel();
       }, 1500);
@@ -304,6 +313,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   };
 
   const nextLevel = () => {
+    console.log('🎯 [PuzzleGame] nextLevel llamado - nivel actual:', level);
     setIsAnimating(true);
     
     // Calculate bonus
@@ -311,16 +321,21 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     const comboBonus = combo * 2; // 2 puntos por cada combo
     const levelBonus = level * 5; // 5 puntos por nivel
     
-    setScore(score + 10 + Math.floor(timeBonus + comboBonus + levelBonus));
+    const newScore = score + 10 + Math.floor(timeBonus + comboBonus + levelBonus);
+    console.log('🎯 [PuzzleGame] Score actualizado de', score, 'a', newScore);
+    setScore(newScore);
     
     if (level >= 3) {
+      console.log('🏆 [PuzzleGame] ¡JUEGO COMPLETADO! Nivel 3 alcanzado');
       // Game completed!
       setGameCompleted(true);
       setTimeout(() => {
+        console.log('🎉 [PuzzleGame] Ejecutando celebración y otorgando puntos...');
         celebrateGameComplete();
         awardGamePoints();
       }, 500);
     } else {
+      console.log('⬆️ [PuzzleGame] Avanzando al nivel:', level + 1);
       setLevel(level + 1);
       setTimeout(() => {
         startNewRound();
@@ -353,6 +368,16 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         startNewRound(concepts);
       }
     }, 100);
+  };
+
+  const handleExit = () => {
+    // Navigate back to study page with notebook context
+    navigate('/study', {
+      state: {
+        selectedNotebook: { id: notebookId, title: notebookTitle },
+        maintainSelection: true
+      }
+    });
   };
 
   const handleDragStart = (fragment: Fragment) => {
@@ -511,7 +536,9 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
 
 
   const awardGamePoints = async () => {
+    console.log('🎖️ [PuzzleGame] awardGamePoints llamado - pointsAwarded:', pointsAwarded);
     if (!pointsAwarded) {
+      console.log('🎖️ [PuzzleGame] Otorgando puntos por primera vez...');
       setPointsAwarded(true);
       
       // Determinar tipo de bonus
@@ -525,11 +552,25 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
       }
       
       const gameId = notebookId ? `puzzle_${notebookId}` : 'puzzle';
-      const result = await addPoints(gameId, 'Puzzle de Definiciones', score, bonusType);
+      console.log('🎖️ [PuzzleGame] Parámetros para addPoints:');
+      console.log('  - gameId:', gameId);
+      console.log('  - nombre:', 'Puzzle de Definiciones');
+      console.log('  - score:', score);
+      console.log('  - bonusType:', bonusType);
+      console.log('  - notebookId:', notebookId);
       
-      if (result?.newAchievements && result.newAchievements.length > 0) {
-        console.log('Nuevos logros:', result.newAchievements);
+      try {
+        const result = await addPoints(gameId, 'Puzzle de Definiciones', score, bonusType);
+        console.log('🎖️ [PuzzleGame] Resultado de addPoints:', result);
+        
+        if (result?.newAchievements && result.newAchievements.length > 0) {
+          console.log('🏆 [PuzzleGame] Nuevos logros:', result.newAchievements);
+        }
+      } catch (error) {
+        console.error('❌ [PuzzleGame] Error al otorgar puntos:', error);
       }
+    } else {
+      console.log('⚠️ [PuzzleGame] Puntos ya otorgados, saltando...');
     }
   };
 
@@ -616,7 +657,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         </div>
         
         <div className="intro-actions">
-          <button className="action-button secondary" onClick={onBack}>
+          <button className="action-button secondary" onClick={handleExit}>
             <FontAwesomeIcon icon={faArrowLeft} />
             Cancelar
           </button>
@@ -708,7 +749,7 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
         <div className="stat">
           <span>Nivel: {level}/3</span>
         </div>
-        <button className="exit-button" onClick={onBack}>
+        <button className="exit-button" onClick={handleExit}>
           <FontAwesomeIcon icon={faArrowLeft} />
           <span>Salir</span>
         </button>
@@ -807,8 +848,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
             </div>
 
             <div className="game-complete-buttons">
-              <button className="back-to-games-btn" onClick={onBack}>
-                Volver a juegos
+              <button className="back-to-games-btn" onClick={handleExit}>
+                Volver
               </button>
               <button className="play-again-btn" onClick={restartGame}>
                 Volver a jugar

@@ -5,7 +5,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGamepad, faArrowLeft, faTrophy, faSnowflake } from '@fortawesome/free-solid-svg-icons';
 import MemoryGame from '../components/Games/MemoryGame';
 import PuzzleGame from '../components/Games/PuzzleGame';
-import RaceGame from '../components/Games/RaceGame';
 import QuizBattle from '../components/Games/QuizBattle';
 import { useGamePoints } from '../hooks/useGamePoints';
 import { db, auth } from '../services/firebase';
@@ -18,8 +17,8 @@ import '../styles/GamesPage.css';
 const GamesPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { notebookId, notebookTitle } = location.state || {};
-  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const { notebookId, notebookTitle, selectedGame: initialSelectedGame } = location.state || {};
+  const [selectedGame, setSelectedGame] = useState<string | null>(initialSelectedGame || null);
   const [isNotebookFrozen, setIsNotebookFrozen] = useState(false);
   const [hasReviewedConcepts, setHasReviewedConcepts] = useState<boolean | null>(null);
   const [checkingConcepts, setCheckingConcepts] = useState(false);
@@ -221,15 +220,6 @@ const GamesPage: React.FC = () => {
     />;
   }
 
-  if (selectedGame === 'race' && notebookId) {
-    return <RaceGame 
-      notebookId={notebookId} 
-      notebookTitle={notebookTitle} 
-      onBack={() => setSelectedGame(null)}
-      cachedConcepts={cachedConcepts}
-      cachedLearningData={cachedLearningData}
-    />;
-  }
 
   if (selectedGame === 'quiz' && notebookId) {
     return <QuizBattle 
@@ -313,16 +303,6 @@ const GamesPage: React.FC = () => {
           >
             <div className="game-icon">🎯</div>
             <h3>Memorama</h3>
-            {!notebookId && <p>Selecciona un cuaderno</p>}
-            {checkingConcepts && <p>Verificando...</p>}
-          </div>
-
-          <div 
-            className={`game-card ${notebookId && !checkingConcepts ? '' : 'disabled'}`}
-            onClick={() => !checkingConcepts && handleGameClick('race', 'Carrera de Conceptos')}
-          >
-            <div className="game-icon">🏃‍♂️</div>
-            <h3>Carrera de Conceptos</h3>
             {!notebookId && <p>Selecciona un cuaderno</p>}
             {checkingConcepts && <p>Verificando...</p>}
           </div>

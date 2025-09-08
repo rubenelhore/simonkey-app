@@ -70,7 +70,7 @@ const ExplainConcept: React.FC<ExplainConceptProps> = ({ notebookId: propNoteboo
           // Cada documento puede contener múltiples conceptos
           doc.conceptos.forEach((concepto, index) => {
             return transformedConcepts.push({
-              id: `${doc.id}-${index}`, // Crear un ID único combinando el ID del documento y el índice
+              id: `${doc.id}_${index}`, // Crear un ID único combinando el ID del documento y el índice
               término: concepto.término,
               definición: concepto.definición,
               docId: doc.id, // Guardamos el ID del documento

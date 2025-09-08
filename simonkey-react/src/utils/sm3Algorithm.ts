@@ -3,13 +3,45 @@ import { LearningData } from '../types/interfaces';
 /**
  * Implementación del algoritmo SM-3 (SuperMemo 3)
  * Más moderno y eficiente que SM-2
+ * Ahora con soporte para Study Path Mode con intervalos más cortos
  */
+
+// Configuración para diferentes modos de estudio
+export const SM3_CONFIG = {
+  STUDY_PATH_MODE: {
+    firstInterval: 0.25,      // 6 horas en vez de 1 día
+    secondInterval: 1,        // 1 día en vez de 6 días
+    minInterval: 0.125,       // 3 horas mínimo
+    easeFactorBoost: 0.15,    // Boost adicional por completar múltiples módulos
+    // Sin límite máximo de repasos diarios
+  },
+  TRADITIONAL_MODE: {
+    firstInterval: 1,         // 1 día
+    secondInterval: 6,        // 6 días
+    minInterval: 1,           // 1 día mínimo
+    easeFactorBoost: 0,       // Sin boost adicional
+  }
+};
+
+// Pesos de módulos para cálculo de calidad combinada
+export const MODULE_WEIGHTS: Record<string, number> = {
+  'repaso-inteligente': 1.0,
+  'estudio-activo': 0.9,
+  'quiz': 0.8,
+  'flashcards': 0.7,
+  'fill-blank': 0.85,
+  'voice-recognition': 0.75,
+  'games': 0.5,
+  'puzzle': 0.4
+};
 
 export interface SM3Params {
   quality: number;        // Calidad de la respuesta (0-5)
   repetitions: number;    // Número de repeticiones exitosas consecutivas
   easeFactor: number;     // Factor de facilidad actual
   interval: number;       // Intervalo actual en días
+  studyPathMode?: boolean; // Si está en modo Study Path con intervalos cortos
+  moduleId?: string;      // ID del módulo actual (para aplicar pesos)
 }
 
 export interface SM3Result {
@@ -23,7 +55,10 @@ export interface SM3Result {
  * Calcular el nuevo intervalo usando SM-3
  */
 export const calculateSM3Interval = (params: SM3Params): SM3Result => {
-  const { quality, repetitions, easeFactor, interval } = params;
+  const { quality, repetitions, easeFactor, interval, studyPathMode = false, moduleId } = params;
+  
+  // Seleccionar configuración según el modo
+  const config = studyPathMode ? SM3_CONFIG.STUDY_PATH_MODE : SM3_CONFIG.TRADITIONAL_MODE;
   
   
   let newInterval: number;
@@ -36,28 +71,52 @@ export const calculateSM3Interval = (params: SM3Params): SM3Result => {
   // Asegurar que el factor de facilidad no sea menor que 1.3
   newEaseFactor = Math.max(1.3, newEaseFactor);
 
+  // Aplicar boost de factor de facilidad si está en modo Study Path
+  if (studyPathMode && moduleId && moduleId in MODULE_WEIGHTS) {
+    const moduleWeight = MODULE_WEIGHTS[moduleId];
+    const moduleBoost = (moduleWeight - 0.5) * config.easeFactorBoost;
+    newEaseFactor = newEaseFactor * (1 + moduleBoost);
+  }
+  
   // Calcular nuevo intervalo basado en la calidad
   if (quality < 3) {
     // Respuesta incorrecta o difícil
     newRepetitions = 0;
-    newInterval = 1; // Repasar mañana
+    newInterval = config.minInterval; // Intervalo mínimo según modo
   } else {
     // Respuesta correcta
     newRepetitions = repetitions + 1;
     
     if (newRepetitions === 1) {
-      newInterval = 1; // Primera repetición: mañana
+      newInterval = config.firstInterval; // Primera repetición
     } else if (newRepetitions === 2) {
-      newInterval = 6; // Segunda repetición: en 6 días
+      newInterval = config.secondInterval; // Segunda repetición
     } else {
       // Tercera repetición en adelante
-      newInterval = Math.round(interval * newEaseFactor);
+      let calculatedInterval = interval * newEaseFactor;
+      
+      // En modo Study Path, usar fracciones de día
+      if (studyPathMode) {
+        calculatedInterval = Math.max(config.minInterval, calculatedInterval);
+      } else {
+        calculatedInterval = Math.round(calculatedInterval);
+      }
+      
+      newInterval = calculatedInterval;
     }
   }
 
   // Calcular próxima fecha de repaso
   const nextReviewDate = new Date();
-  nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
+  
+  if (studyPathMode && newInterval < 1) {
+    // Para intervalos menores a 1 día, usar horas
+    const hoursToAdd = newInterval * 24;
+    nextReviewDate.setHours(nextReviewDate.getHours() + hoursToAdd);
+  } else {
+    // Para intervalos de 1 día o más, usar días
+    nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
+  }
 
   const result = {
     newInterval,
@@ -75,13 +134,17 @@ export const calculateSM3Interval = (params: SM3Params): SM3Result => {
  */
 export const updateLearningData = (
   currentData: LearningData,
-  quality: number
+  quality: number,
+  studyPathMode?: boolean,
+  moduleId?: string
 ): LearningData => {
   const sm3Result = calculateSM3Interval({
     quality,
     repetitions: currentData.repetitions,
     easeFactor: currentData.easeFactor,
-    interval: currentData.interval
+    interval: currentData.interval,
+    studyPathMode,
+    moduleId
   });
 
   return {
@@ -128,10 +191,17 @@ export const isConceptReadyForReview = (learningData: LearningData): boolean => 
  * Obtener conceptos listos para repaso hoy
  */
 export const getConceptsReadyForReview = (
-  learningDataArray: LearningData[]
+  learningDataArray: LearningData[],
+  studyPathMode: boolean = false
 ): LearningData[] => {
+  const now = new Date();
   const today = new Date();
-  today.setHours(23, 59, 59, 999); // Incluir todo el día de hoy
+  
+  // En modo Study Path, revisar hasta el momento actual (permite múltiples repasos al día)
+  // En modo tradicional, incluir todo el día de hoy
+  if (!studyPathMode) {
+    today.setHours(23, 59, 59, 999);
+  }
   
   const readyConcepts = learningDataArray.filter(data => {
     // Convertir nextReviewDate a Date si es necesario
@@ -151,7 +221,8 @@ export const getConceptsReadyForReview = (
     }
     
     // Comparar las fechas
-    const isReady = reviewDate <= today;
+    const compareDate = studyPathMode ? now : today;
+    const isReady = reviewDate <= compareDate;
     
     if (!isReady) {
       // Calcular días hasta próximo repaso
@@ -172,13 +243,14 @@ export const getConceptsReadyForReview = (
  */
 export const getAvailableConceptsForStudy = (
   learningDataArray: LearningData[],
-  minConcepts: number = 5
+  minConcepts: number = 5,
+  studyPathMode: boolean = false
 ): LearningData[] => {
-  // Primero obtener los que están listos hoy
-  const readyToday = getConceptsReadyForReview(learningDataArray);
+  // Primero obtener los que están listos ahora
+  const readyNow = getConceptsReadyForReview(learningDataArray, studyPathMode);
   
-  if (readyToday.length >= minConcepts) {
-    return readyToday;
+  if (readyNow.length >= minConcepts) {
+    return readyNow;
   }
   
   // Si no hay suficientes, incluir los próximos a vencer
@@ -206,12 +278,27 @@ export const getAvailableConceptsForStudy = (
   // Ordenar por proximidad de fecha de repaso
   conceptsWithDates.sort((a, b) => a.daysUntilReview - b.daysUntilReview);
   
-  // SOLO devolver conceptos que están listos HOY - no forzar conceptos futuros
-  const availableConcepts = readyToday;
+  // En modo Study Path, incluir próximos conceptos si no hay suficientes
+  let availableConcepts = readyNow;
+  
+  if (studyPathMode && readyNow.length < minConcepts) {
+    // Incluir los próximos conceptos ordenados por proximidad
+    const additionalNeeded = minConcepts - readyNow.length;
+    const upcomingConcepts = conceptsWithDates
+      .filter(c => c.daysUntilReview > 0)
+      .slice(0, additionalNeeded);
+    
+    availableConcepts = [...readyNow, ...upcomingConcepts.map(c => {
+      const { reviewDateObj, daysUntilReview, ...learningData } = c;
+      return learningData;
+    })];
+    
+    console.log(`📚 Modo Study Path: incluyendo ${upcomingConcepts.length} conceptos próximos`);
+  }
   
   console.log(`📚 Conceptos disponibles para estudio: ${availableConcepts.length}`);
-  console.log(`   - Listos hoy: ${readyToday.length}`);
-  console.log(`   - No se incluyen conceptos futuros (respetando SM-3)`);
+  console.log(`   - Listos ahora: ${readyNow.length}`);
+  console.log(`   - Modo: ${studyPathMode ? 'Study Path (intervalos cortos)' : 'Tradicional'}`);
   
   return availableConcepts;
 };

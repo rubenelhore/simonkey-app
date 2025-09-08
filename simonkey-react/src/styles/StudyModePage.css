@@ -1384,7 +1384,7 @@ body:has(.study-mode-container) {
 /* Study Functions Grid */
 .study-functions {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin-bottom: 0;
   max-width: 1200px;
@@ -1828,6 +1828,28 @@ body:has(.study-mode-container) {
   border-color: #6147FF;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(97, 71, 255, 0.15);
+}
+
+/* Domain Progress Module */
+.domain-progress-module {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.domain-progress-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.domain-progress-badge {
+  transition: all 0.3s ease;
+}
+
+.domain-progress-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .breakdown-icon {
@@ -3968,7 +3990,7 @@ body:has(.study-mode-container) {
 
 .metric-icon {
   font-size: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .metric-icon.fire {
@@ -4025,7 +4047,7 @@ body:has(.study-mode-container) {
   
   .metric-icon {
     font-size: 1.25rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.2rem;
   }
   
   .metric-label {

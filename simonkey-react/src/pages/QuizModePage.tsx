@@ -25,15 +25,20 @@ import { getEffectiveUserId } from '../utils/getEffectiveUserId';
 import { kpiService } from '../services/kpiService';
 import { rankingUpdateService } from '../services/rankingUpdateService';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import { useStudyService } from '../hooks/useStudyService';
+import { ConceptQuizMetrics, calculateConceptQuizQuality, getConceptsToUpdate, QuizMetrics, calculateQuizQuality } from '../utils/quizQuality';
 import '../styles/QuizModePage.css';
 
 const QuizModePage: React.FC = () => {
   console.log('[QuizModePage] Component rendering at', new Date().toISOString());
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSchoolStudent, isTeacher } = useUserType();
+  const { isSchoolStudent, isTeacher, subscription } = useUserType();
   console.log('[QuizModePage] Location state:', location.state);
   console.log('[QuizModePage] isSchoolStudent:', isSchoolStudent);
+  
+  // Hook para integración con SM-3
+  const studyService = useStudyService(subscription);
   
   // Estado principal
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -66,6 +71,10 @@ const QuizModePage: React.FC = () => {
   
   // Estado para el ID efectivo del usuario (para usuarios escolares)
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
+  
+  // Estado para tracking de métricas SM-3
+  const [questionStartTimes, setQuestionStartTimes] = useState<Map<number, number>>(new Map());
+  const [questionMetrics, setQuestionMetrics] = useState<ConceptQuizMetrics[]>([]);
 
   // Configuración del timer
   const timerConfig: QuizTimerConfig = {
@@ -449,7 +458,7 @@ const QuizModePage: React.FC = () => {
         const conceptosData = doc.data().conceptos || [];
         conceptosData.forEach((concepto: any, index: number) => {
           allConcepts.push({
-            id: `${doc.id}-${index}`,
+            id: `${doc.id}_${index}`,
             término: concepto.término,
             definición: concepto.definición,
             fuente: concepto.fuente,
@@ -610,6 +619,10 @@ const QuizModePage: React.FC = () => {
     
     setShowQuizIntro(false);
     
+    // Limpiar métricas anteriores e inicializar tiempo de primera pregunta
+    setQuestionStartTimes(new Map([[0, Date.now()]]));
+    setQuestionMetrics([]);
+    
     try {
       console.log('Iniciando sesión de quiz...');
       
@@ -661,12 +674,19 @@ const QuizModePage: React.FC = () => {
       // Iniciar timer
       start();
       
-      console.log('Sesión iniciada correctamente');
+      // Asegurar que el tiempo de la primera pregunta esté registrado
+      setQuestionStartTimes(prev => new Map(prev).set(0, Date.now()));
+      
+      console.log('Sesión iniciada correctamente con tracking SM-3 activado');
+      console.log('🕰️ Tiempo de primera pregunta registrado:', Date.now());
       setLoading(false);
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
       setLoading(false);
       setIsAutoStarting(false); // Error al iniciar, ocultar loading
+      // Limpiar estado en caso de error
+      setQuestionStartTimes(new Map());
+      setQuestionMetrics([]);
     }
   };
 
@@ -707,16 +727,33 @@ const QuizModePage: React.FC = () => {
     if (!selectedOptionData || !correctOption) return;
 
     const isCorrect = selectedOptionData.isCorrect;
+    
+    // Calcular tiempo gastado en esta pregunta
+    const questionStartTime = questionStartTimes.get(currentQuestionIndex) || Date.now();
+    const timeSpentOnQuestion = (Date.now() - questionStartTime) / 1000; // En segundos
+    
     const response: QuizResponse = {
       questionId: currentQuestion.id,
       selectedOptionId: optionId,
       correctOptionId: correctOption.id,
       isCorrect,
-      timeSpent: 0, // Calcularemos el tiempo real después
+      timeSpent: timeSpentOnQuestion,
       timestamp: new Date()
     };
 
     setResponses(prev => [...prev, response]);
+    
+    // Crear métricas para SM-3
+    const conceptMetric: ConceptQuizMetrics = {
+      conceptId: currentQuestion.correctAnswer.id,
+      isCorrect,
+      timeSpent: timeSpentOnQuestion,
+      questionTimeLimit: 60, // 60 segundos promedio por pregunta
+      questionNumber: currentQuestionIndex + 1,
+      totalQuestions: questions.length
+    };
+    
+    setQuestionMetrics(prev => [...prev, conceptMetric]);
     
     if (isCorrect) {
       setScore(prev => prev + 1);
@@ -728,7 +765,10 @@ const QuizModePage: React.FC = () => {
       setSelectedOption(null);
       
       if (currentQuestionIndex < questions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
+        const nextIndex = currentQuestionIndex + 1;
+        setCurrentQuestionIndex(nextIndex);
+        // Registrar tiempo de inicio de la siguiente pregunta
+        setQuestionStartTimes(prev => new Map(prev).set(nextIndex, Date.now()));
       } else {
         // Quiz completado
         const finalTimeRemaining = timerTimeRemaining;
@@ -936,6 +976,24 @@ const QuizModePage: React.FC = () => {
       
       console.log('✅ Estadísticas del cuaderno actualizadas');
       
+      // 🎯 ACTUALIZAR CONCEPTOS CON SM-3
+      try {
+        console.log('🧠 Actualizando conceptos con SM-3...');
+        console.log('🔍 Quiz session data:', {
+          score: session.score,
+          totalQuestions: session.questions.length,
+          accuracy: session.accuracy,
+          questionMetricsLength: questionMetrics.length
+        });
+        console.log('📊 Question metrics detail:', questionMetrics);
+        
+        await updateConceptsWithSM3(session);
+        console.log('✅ SM-3 update completed successfully');
+      } catch (sm3Error) {
+        console.error('❌ Error actualizando conceptos con SM-3:', sm3Error);
+        // No bloquear el flujo si falla SM-3
+      }
+      
       // Actualizar KPIs del usuario después del quiz
       try {
         console.log('📊 Actualizando KPIs del usuario después del quiz...');
@@ -982,6 +1040,69 @@ const QuizModePage: React.FC = () => {
     } catch (error) {
       console.error('❌ Error saving quiz results:', error);
       throw error; // Re-lanzar el error para que se maneje en completeQuizSession
+    }
+  };
+  
+  // Función para actualizar conceptos usando SM-3
+  const updateConceptsWithSM3 = async (session: QuizSession) => {
+    if (!auth.currentUser || questionMetrics.length === 0) {
+      console.log('❌ No hay métricas de conceptos para actualizar');
+      console.log('📊 Debug info:', {
+        hasCurrentUser: !!auth.currentUser,
+        questionMetricsLength: questionMetrics.length,
+        questionMetrics: questionMetrics
+      });
+      return;
+    }
+    
+    // Usar el mismo effectiveUserId que se usa en saveQuizResults
+    const userId = effectiveUserId || auth.currentUser.uid;
+    
+    try {
+      console.log('🎯 Iniciando actualización SM-3 con', questionMetrics.length, 'conceptos');
+      
+      // Calcular métricas generales del quiz
+      const overallMetrics: QuizMetrics = {
+        correctAnswers: session.score,
+        totalQuestions: session.questions.length,
+        timeSpent: session.totalTime || 0,
+        totalTime: 600,
+        accuracy: session.accuracy,
+        finalScore: session.finalScore
+      };
+      
+      // Obtener conceptos para actualizar
+      const conceptUpdates = getConceptsToUpdate(questionMetrics, overallMetrics);
+      
+      console.log('📝 Conceptos a actualizar:', conceptUpdates.map(c => ({
+        conceptId: c.conceptId,
+        quality: c.quality.toFixed(2),
+        reason: c.reason
+      })));
+      
+      // Actualizar cada concepto con SM-3
+      for (const update of conceptUpdates) {
+        if (update.shouldUpdate) {
+          try {
+            await studyService.updateConceptResponseWithSM3(
+              userId, // Usar effectiveUserId consistente
+              update.conceptId,
+              update.quality,
+              true, // studyPathMode = true para intervalos cortos
+              'quiz' // moduleId
+            );
+            console.log(`✅ Concepto ${update.conceptId} actualizado: ${update.reason}`);
+          } catch (conceptError) {
+            console.error(`❌ Error actualizando concepto ${update.conceptId}:`, conceptError);
+            // Continuar con otros conceptos
+          }
+        }
+      }
+      
+      console.log('🎉 Actualización SM-3 completada');
+    } catch (error) {
+      console.error('❌ Error general en updateConceptsWithSM3:', error);
+      throw error;
     }
   };
 

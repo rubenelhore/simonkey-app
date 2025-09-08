@@ -25,7 +25,6 @@ interface NotebookGamePoints {
   gameScores: {
     memory: number;
     puzzle: number;
-    race: number;
     quiz: number;
   };
   pointsHistory: PointTransaction[];
@@ -98,7 +97,6 @@ class GamePointsService {
           gameScores: {
             memory: 0,
             puzzle: 0,
-            race: 0,
             quiz: 0
           },
           pointsHistory: [],
@@ -123,6 +121,12 @@ class GamePointsService {
       // Convertir timestamps
       const notebookPoints: NotebookGamePoints = {
         ...notebookData,
+        // Asegurar que gameScores existe con valores por defecto
+        gameScores: notebookData.gameScores || {
+          memory: 0,
+          puzzle: 0,
+          quiz: 0
+        },
         lastWeekReset: notebookData.lastWeekReset instanceof Date 
           ? notebookData.lastWeekReset 
           : notebookData.lastWeekReset.toDate(),
@@ -142,6 +146,45 @@ class GamePointsService {
             : a.unlockedAt.toDate()
         }))
       };
+      
+      // Migrar puntos existentes desde el historial si gameScores estaba vacío
+      if (!notebookData.gameScores && notebookPoints.pointsHistory.length > 0) {
+        const migratedScores = {
+          memory: 0,
+          puzzle: 0,
+          quiz: 0
+        };
+        
+        // Calcular puntos por tipo de juego desde el historial
+        notebookPoints.pointsHistory.forEach(transaction => {
+          const gameType = transaction.gameId.split('_')[0];
+          
+          // También verificar por nombre de juego para compatibilidad
+          let mappedType = gameType;
+          if (transaction.gameName === 'Puzzle de Definiciones' || transaction.gameName === 'Puzzle Game') {
+            mappedType = 'puzzle';
+          } else if (transaction.gameName === 'Memorama' || transaction.gameName === 'Memory Game') {
+            mappedType = 'memory';
+          } else if (transaction.gameName === 'Quiz Battle') {
+            mappedType = 'quiz';
+          }
+          // Nota: Carrera de Conceptos removido - ya no se cuenta
+          
+          if (mappedType in migratedScores) {
+            migratedScores[mappedType as keyof typeof migratedScores] += transaction.points;
+          }
+        });
+        
+        notebookPoints.gameScores = migratedScores;
+        
+        // Actualizar en Firebase
+        const pointsDocRef = doc(db, 'gamePoints', userId);
+        await updateDoc(pointsDocRef, {
+          [`notebookPoints.${notebookId}.gameScores`]: migratedScores
+        });
+        
+        console.log(`[GamePointsService] Migrated game scores for notebook ${notebookId}:`, migratedScores);
+      }
       
       // Resetear puntos semanales/mensuales si es necesario
       const now = new Date();
@@ -207,15 +250,22 @@ class GamePointsService {
         gameName,
         points: finalPoints,
         description,
-        bonusType
+        ...(bonusType && { bonusType })
       };
       
       // Actualizar puntos del juego específico
       const gameScores = { ...notebookPoints.gameScores };
       // Extraer el tipo de juego del gameId (ej: 'memory' de 'memory_abc123')
       const gameType = gameId.split('_')[0];
+      
+      console.log(`[GamePointsService] Saving points - gameId: ${gameId}, gameType: ${gameType}, points: ${finalPoints}`);
+      console.log(`[GamePointsService] Current gameScores before update:`, gameScores);
+      
       if (gameType in gameScores) {
         gameScores[gameType as keyof typeof gameScores] += finalPoints;
+        console.log(`[GamePointsService] Updated gameScores after adding ${finalPoints} to ${gameType}:`, gameScores);
+      } else {
+        console.warn(`[GamePointsService] Game type '${gameType}' not found in gameScores:`, gameScores);
       }
       
       // Verificar logros
@@ -259,8 +309,8 @@ class GamePointsService {
           timestamp: Timestamp.fromDate(sessionTimestamp),
           duration: 60, // Duración estimada en segundos
           points: finalPoints,
-          bonusType,
-          completed: true
+          completed: true,
+          ...(bonusType && { bonusType })
         });
         console.log('[GamePointsService] Sesión de juego creada para racha con timestamp:', sessionTimestamp.toISOString());
         
@@ -416,9 +466,150 @@ class GamePointsService {
   private generateId(): string {
     return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
+
+  /**
+   * MIGRACIÓN AUTOMÁTICA: Limpia puntos de juegos eliminados para TODOS los usuarios
+   */
+  private async cleanupEliminatedGamePoints(userId: string, notebookId: string, notebookPoints: NotebookGamePoints): Promise<void> {
+    try {
+      // Solo migrar si hay gameScores con juegos eliminados
+      const hasRace = notebookPoints.gameScores && 'race' in notebookPoints.gameScores;
+      const hasFillBlank = notebookPoints.pointsHistory.some(t => t.gameId.includes('fill_blank'));
+      
+      if (!hasRace && !hasFillBlank) {
+        return; // No necesita migración
+      }
+      
+      console.log(`🔄 [AUTO MIGRATION] Limpiando juegos eliminados para usuario ${userId}, cuaderno ${notebookId}`);
+      
+      // Recalcular puntos totales basado SOLO en juegos válidos (memory, puzzle, quiz)
+      const validGameScores = {
+        memory: notebookPoints.gameScores?.memory || 0,
+        puzzle: notebookPoints.gameScores?.puzzle || 0,
+        quiz: notebookPoints.gameScores?.quiz || 0
+      };
+      
+      const correctTotalPoints = validGameScores.memory + validGameScores.puzzle + validGameScores.quiz;
+      
+      console.log(`📊 [AUTO MIGRATION] Recalculando puntos:`, {
+        memory: validGameScores.memory,
+        puzzle: validGameScores.puzzle,
+        quiz: validGameScores.quiz,
+        oldTotal: notebookPoints.totalPoints,
+        newTotal: correctTotalPoints,
+        difference: notebookPoints.totalPoints - correctTotalPoints
+      });
+      
+      // Actualizar Firebase automáticamente
+      const pointsDocRef = doc(db, 'gamePoints', userId);
+      await updateDoc(pointsDocRef, {
+        [`notebookPoints.${notebookId}.gameScores`]: validGameScores,
+        [`notebookPoints.${notebookId}.totalPoints`]: correctTotalPoints
+      });
+      
+      console.log(`✅ [AUTO MIGRATION] Puntos corregidos automáticamente para cuaderno ${notebookId}`);
+      
+    } catch (error) {
+      console.error(`❌ [AUTO MIGRATION] Error limpiando puntos eliminados:`, error);
+      // No lanzar error - continuar aunque falle la migración
+    }
+  }
+
+  /**
+   * Obtiene puntos específicos de un tipo de juego
+   */
+  async getGameSpecificPoints(userId: string, notebookId: string, gameName: string): Promise<number> {
+    try {
+      const notebookPoints = await this.getNotebookPoints(userId, notebookId);
+      
+      // Filtrar transacciones por nombre de juego y sumar puntos
+      const gameSpecificPoints = notebookPoints.pointsHistory
+        .filter(transaction => transaction.gameName === gameName)
+        .reduce((total, transaction) => total + transaction.points, 0);
+      
+      return gameSpecificPoints;
+    } catch (error) {
+      console.error(`Error obteniendo puntos específicos de ${gameName}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Debug function to check game points history and force migration
+   */
+  async debugGamePoints(userId: string, notebookId: string): Promise<void> {
+    try {
+      const notebookPoints = await this.getNotebookPoints(userId, notebookId);
+      
+      console.log('📊 [DEBUG] Total points:', notebookPoints.totalPoints);
+      console.log('📊 [DEBUG] Current gameScores:', notebookPoints.gameScores);
+      console.log('📊 [DEBUG] Points history length:', notebookPoints.pointsHistory.length);
+      
+      // Mostrar historial detallado
+      console.log('📊 [DEBUG] Points history:');
+      notebookPoints.pointsHistory.forEach((transaction, index) => {
+        console.log(`  ${index + 1}. ${transaction.gameName} (${transaction.gameId}): ${transaction.points} pts - ${transaction.timestamp}`);
+      });
+      
+      // Calcular puntos por juego desde historial
+      const calculatedScores = {
+        memory: 0,
+        puzzle: 0,
+        quiz: 0
+      };
+      
+      notebookPoints.pointsHistory.forEach(transaction => {
+        const gameType = transaction.gameId.split('_')[0];
+        
+        // También verificar por nombre de juego para compatibilidad
+        let mappedType = gameType;
+        if (transaction.gameName === 'Puzzle de Definiciones' || transaction.gameName === 'Puzzle Game') {
+          mappedType = 'puzzle';
+        } else if (transaction.gameName === 'Memorama' || transaction.gameName === 'Memory Game') {
+          mappedType = 'memory';
+        } else if (transaction.gameName === 'Quiz Battle') {
+          mappedType = 'quiz';
+        }
+        // Nota: Carrera de Conceptos removido - ya no se cuenta
+        
+        if (mappedType in calculatedScores) {
+          calculatedScores[mappedType as keyof typeof calculatedScores] += transaction.points;
+        }
+      });
+      
+      console.log('📊 [DEBUG] Calculated scores from history:', calculatedScores);
+      
+      // Calcular totalPoints correcto basado solo en juegos válidos
+      const correctTotalPoints = calculatedScores.memory + calculatedScores.puzzle + calculatedScores.quiz;
+      console.log('🔧 [DEBUG] Recalculando totalPoints:');
+      console.log('  - Memory:', calculatedScores.memory);
+      console.log('  - Puzzle:', calculatedScores.puzzle);
+      console.log('  - Quiz:', calculatedScores.quiz);
+      console.log('  - Total correcto:', correctTotalPoints);
+      console.log('  - Total actual:', notebookPoints.totalPoints);
+      console.log('  - Diferencia:', notebookPoints.totalPoints - correctTotalPoints);
+      
+      // Forzar migración completa: gameScores Y totalPoints
+      const pointsDocRef = doc(db, 'gamePoints', userId);
+      await updateDoc(pointsDocRef, {
+        [`notebookPoints.${notebookId}.gameScores`]: calculatedScores,
+        [`notebookPoints.${notebookId}.totalPoints`]: correctTotalPoints
+      });
+      
+      console.log('✅ [DEBUG] Game scores AND totalPoints updated!');
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] Error:', error);
+    }
+  }
 }
 
 export const gamePointsService = new GamePointsService();
+
+// Make debug function available globally
+(window as any).debugGamePoints = (userId: string, notebookId: string) => {
+  return gamePointsService.debugGamePoints(userId, notebookId);
+};
 
 // Función auxiliar para agregar puntos desde los juegos
 export async function addPoints(

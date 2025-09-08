@@ -32,6 +32,7 @@ import MobileNavigation from './components/Mobile/MobileNavigation';
 import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
+import ClassAnalyticsPage from './pages/ClassAnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
 import VoiceRecognitionPage from './pages/VoiceRecognitionPage';
@@ -47,6 +48,8 @@ import './utils/debugStudyTime';
 import './utils/adjustStudyTimes';
 // Importar utilidad de KPIs para depuración
 import './utils/forceUpdateKPIs';
+// Importar utilidad para recalcular scores
+import './utils/recalculateScores';
 // Importar utilidad para arreglar perfil de estudiante
 import './utils/fixStudentProfile';
 // Importar utilidad para debug de materias de estudiante
@@ -694,6 +697,18 @@ const AppContent: React.FC = () => {
             }
           />
           
+          {/* Nueva ruta para analítica de clase */}
+          <Route
+            path="/classAnalytics"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <ClassAnalyticsPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
           {/* Nueva ruta para perfil */}
           <Route
             path="/profile"
@@ -763,6 +778,7 @@ const AppContent: React.FC = () => {
               ) : <Navigate to="/login" replace />
             }
           />
+          
           
           {/* Rutas para usuarios universitarios */}
           <Route

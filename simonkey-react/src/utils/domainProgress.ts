@@ -20,7 +20,7 @@ export async function getDomainProgressForNotebook(notebookId: string) {
   try {
     // Get all concept IDs from the notebook
     const conceptIds = concepts.map(c => c.id);
-    const learningDataMap = new Map<string, number>();
+    const learningDataMap = new Map<string, any>();
     
     // Procesar los conceptos en lotes más pequeños para no saturar
     const BATCH_SIZE = 10;
@@ -34,34 +34,74 @@ export async function getDomainProgressForNotebook(notebookId: string) {
           
           if (learningDataSnap.exists()) {
             const data = learningDataSnap.data();
-            return { conceptId, repetitions: data.repetitions || 0 };
+            return { 
+              conceptId, 
+              repetitions: data.repetitions || 0,
+              interval: data.interval || 1,
+              easeFactor: data.easeFactor || 2.5,
+              hasLearningData: true,
+              lastModule: data.lastModule || null
+            };
           } else {
-            return { conceptId, repetitions: 0 };
+            return { 
+              conceptId, 
+              repetitions: 0, 
+              interval: 1, 
+              easeFactor: 2.5, 
+              hasLearningData: false,
+              lastModule: null
+            };
           }
         } catch (error) {
           // Silenciar warnings para no saturar la consola
-          return { conceptId, repetitions: 0 };
+          return { 
+            conceptId, 
+            repetitions: 0, 
+            interval: 1, 
+            easeFactor: 2.5, 
+            hasLearningData: false,
+            lastModule: null
+          };
         }
       });
       
       const batchResults = await Promise.all(batchPromises);
-      batchResults.forEach(({ conceptId, repetitions }) => {
-        learningDataMap.set(conceptId, repetitions);
+      batchResults.forEach((result) => {
+        learningDataMap.set(result.conceptId, result);
+        // Log detailed SM-3 data for debugging
+        if (result.hasLearningData) {
+          console.log(`🔍 SM-3 Data for ${result.conceptId}: reps=${result.repetitions}, interval=${result.interval?.toFixed(2)}, ease=${result.easeFactor?.toFixed(2)}, module=${result.lastModule}`);
+        }
       });
     }
     
-    // Calculate progress based on repetitions
+    // Calculate progress based on SM-3 data (más sofisticado)
     let dominated = 0;
     let learning = 0;
     let notStarted = 0;
     
     conceptIds.forEach(conceptId => {
-      const repetitions = learningDataMap.get(conceptId) || 0;
-      if (repetitions >= 2) {
+      const data = learningDataMap.get(conceptId) || { repetitions: 0, interval: 1, hasLearningData: false, easeFactor: 2.5 };
+      
+      if (!data.hasLearningData) {
+        // No ha sido estudiado nunca
+        notStarted++;
+      } else if (data.repetitions >= 2 || data.interval >= 7 || (data.repetitions >= 1 && data.easeFactor > 2.6)) {
+        // Criterio mejorado para dominado:
+        // - 2+ repeticiones exitosas, O
+        // - Intervalo largo (>=7 días), O  
+        // - Al menos 1 repetición con ease factor alto (>2.6)
+        // Esto captura conceptos dominados con SM-3 en cualquier modo
         dominated++;
-      } else if (repetitions === 1) {
+      } else if (data.repetitions >= 1 || data.interval > 1 || (data.repetitions === 0 && data.interval >= 0.25)) {
+        // En proceso de aprendizaje:
+        // - 1+ repeticiones, O
+        // - Intervalo > inicial (1 día), O
+        // - Ha sido estudiado al menos una vez (interval >= 6 horas para Study Path Mode)
+        // Esto incluye conceptos estudiados que necesitan refuerzo
         learning++;
       } else {
+        // Muy poco progreso o datos inconsistentes
         notStarted++;
       }
     });
@@ -69,7 +109,28 @@ export async function getDomainProgressForNotebook(notebookId: string) {
     // Solo log si hay progreso significativo
     if (dominated > 0 || learning > 0) {
       const dominatedPercentage = total > 0 ? Math.round((dominated/total)*100) : 0;
-      console.log(`📊 Progress for notebook ${notebookId}: ${dominated}/${total} (${dominatedPercentage}%)`);
+      const learningPercentage = total > 0 ? Math.round((learning/total)*100) : 0;
+      console.log(`📊 SM-3 Progress for notebook ${notebookId}: ${dominated}/${total} dominados (${dominatedPercentage}%), ${learning} aprendiendo (${learningPercentage}%)`);
+      
+      // Log adicional de conceptos con datos SM-3
+      const withData = Array.from(learningDataMap.values()).filter(d => d.hasLearningData);
+      console.log(`🧠 Conceptos con datos SM-3: ${withData.length}/${total}`);
+      if (withData.length > 0) {
+        const avgInterval = withData.reduce((sum, d) => sum + d.interval, 0) / withData.length;
+        const avgEaseFactor = withData.reduce((sum, d) => sum + d.easeFactor, 0) / withData.length;
+        const avgReps = withData.reduce((sum, d) => sum + d.repetitions, 0) / withData.length;
+        console.log(`📈 Promedios SM-3: ${avgInterval.toFixed(1)} días intervalo, ${avgEaseFactor.toFixed(2)} ease factor, ${avgReps.toFixed(1)} repeticiones`);
+        
+        // Log de distribución por estado
+        const dominatedConcepts = withData.filter(d => 
+          d.repetitions >= 2 || d.interval >= 7 || (d.repetitions >= 1 && d.easeFactor > 2.6)
+        );
+        const learningConcepts = withData.filter(d => 
+          (d.repetitions >= 1 || d.interval > 1 || (d.repetitions === 0 && d.interval >= 0.25)) &&
+          !(d.repetitions >= 2 || d.interval >= 7 || (d.repetitions >= 1 && d.easeFactor > 2.6))
+        );
+        console.log(`🎯 Desglose detallado: ${dominatedConcepts.length} dominados, ${learningConcepts.length} aprendiendo`);
+      }
     }
     
     return { total, dominated, learning, notStarted };
