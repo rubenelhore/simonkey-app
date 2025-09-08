@@ -1559,6 +1559,13 @@ Ver consola para más detalles.`);
             >
               🌟 Pro
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'carga-masiva' ? 'active' : ''} disabled`}
+              onClick={() => {}}
+              disabled
+            >
+              📦 Carga Masiva
+            </button>
           </div>
           
           <div className="tab-content">

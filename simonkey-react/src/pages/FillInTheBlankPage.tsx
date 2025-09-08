@@ -46,13 +46,35 @@ const FillInTheBlankPage: React.FC = () => {
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
   
   // Estados para la selección de cuaderno
-  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
+  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(() => {
+    // Si viene con preselección, crear el notebook inmediatamente
+    const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
+    if (state?.notebookId && state?.notebookTitle) {
+      return {
+        id: state.notebookId,
+        title: state.notebookTitle,
+        category: '',
+        conceptCount: 0,
+        createdAt: new Date(),
+        userId: ''
+      };
+    }
+    return null;
+  });
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
-  const [loadingNotebooks, setLoadingNotebooks] = useState(true);
+  const [loadingNotebooks, setLoadingNotebooks] = useState(() => {
+    // Si viene con preselección, no necesitamos cargar la lista de cuadernos
+    const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
+    return !state?.notebookId;
+  });
   const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.WARM_UP);
   const [availableConcepts, setAvailableConcepts] = useState<number>(0);
   const [loadingConceptsData, setLoadingConceptsData] = useState<boolean>(true);
-  const [showConceptSelector, setShowConceptSelector] = useState(false);
+  const [showConceptSelector, setShowConceptSelector] = useState(() => {
+    // Si viene con preselección, mostrar directamente el selector
+    const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
+    return !!state?.notebookId;
+  });
   
   // Estados del juego
   const [concepts, setConcepts] = useState<GameConcept[]>([]);
@@ -100,10 +122,30 @@ const FillInTheBlankPage: React.FC = () => {
     }
   };
 
-  // Cargar cuadernos del usuario (solo la lista, sin conceptos)
+  // Cargar conceptos inmediatamente si hay preselección
+  useEffect(() => {
+    const loadPreselectedConcepts = async () => {
+      const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
+      if (!auth.currentUser || !state?.notebookId || !selectedNotebook) return;
+      
+      try {
+        const effectiveUserData = await getEffectiveUserId();
+        const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
+        
+        console.log('Cuaderno preseleccionado desde /study:', selectedNotebook.title);
+        await countAvailableConcepts(selectedNotebook.id, userId);
+      } catch (error) {
+        console.error('Error loading preselected concepts:', error);
+      }
+    };
+    
+    loadPreselectedConcepts();
+  }, []); // Solo ejecutar una vez al montar
+
+  // Cargar cuadernos del usuario (solo la lista, sin conceptos) - solo si no hay preselección
   useEffect(() => {
     const loadNotebooks = async () => {
-      if (!auth.currentUser) return;
+      if (!auth.currentUser || selectedNotebook) return; // No cargar si ya hay preselección
       
       setLoadingNotebooks(true);
       try {
@@ -120,20 +162,6 @@ const FillInTheBlankPage: React.FC = () => {
         }));
         
         setNotebooks(notebooksWithCount);
-        
-        // Si viene desde /study con un cuaderno preseleccionado
-        const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
-        if (state?.notebookId) {
-          const preselectedNotebook = notebooksWithCount.find(nb => nb.id === state.notebookId);
-          if (preselectedNotebook) {
-            setSelectedNotebook(preselectedNotebook);
-            setShowConceptSelector(true); // Ir directamente al selector de conceptos
-            console.log('Cuaderno preseleccionado desde /study:', preselectedNotebook.title);
-            
-            // Contar conceptos disponibles para el cuaderno preseleccionado
-            await countAvailableConcepts(preselectedNotebook.id, userId);
-          }
-        }
       } catch (error) {
         console.error('Error loading notebooks:', error);
       }
@@ -141,7 +169,8 @@ const FillInTheBlankPage: React.FC = () => {
     };
     
     loadNotebooks();
-  }, [location.state]);
+  }, [selectedNotebook]); // Depender de selectedNotebook
+
 
   // Cargar conceptos solo cuando se hace click en "Comenzar Juego"
   const loadConcepts = async () => {
@@ -466,141 +495,189 @@ const FillInTheBlankPage: React.FC = () => {
     setShowConceptSelector(false);
   };
 
-  // Pantalla de selección de cuaderno
-  if (!selectedNotebook) {
+  // Pantalla de selección de cuaderno e intensidad (Study Intro Modal)
+  if (!selectedNotebook || showConceptSelector) {
+    // Si no hay cuaderno seleccionado, mostrar selector de cuaderno primero
+    if (!selectedNotebook) {
+      return (
+        <div className="fill-blank-container">
+          <HeaderWithHamburger title="Fill in the Blank" />
+          
+          <div className="notebook-selection">
+            <div className="selection-header">
+              <h1>Selecciona un Cuaderno</h1>
+              <p>Elige el cuaderno con el que quieres practicar</p>
+            </div>
+            
+            {loadingNotebooks ? (
+              <div className="loading-state">
+                <div className="loader"></div>
+                <p>Cargando cuadernos...</p>
+              </div>
+            ) : notebooks.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon">📚</span>
+                <h2>No hay cuadernos disponibles</h2>
+                <p>Necesitas tener cuadernos con al menos 5 conceptos para jugar.</p>
+                <button onClick={() => navigate('/notebooks')} className="btn-primary">
+                  Ir a Biblioteca
+                </button>
+              </div>
+            ) : (
+              <div className="notebooks-grid">
+                {notebooks.map((notebook) => (
+                  <div
+                    key={notebook.id}
+                    className="notebook-card"
+                    onClick={() => handleSelectNotebook(notebook)}
+                  >
+                    <div className="notebook-icon">📓</div>
+                    <h3>{notebook.title || 'Sin título'}</h3>
+                    {notebook.category && (
+                      <p className="notebook-subject">{notebook.category}</p>
+                    )}
+                    <div className="notebook-stats">
+                      <span>📚 Cuaderno disponible</span>
+                    </div>
+                    <button className="btn-select">Seleccionar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <button onClick={() => navigate('/development')} className="btn-back">
+              Volver a Development
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Si hay cuaderno seleccionado, mostrar modal de intensidad
     return (
       <div className="fill-blank-container">
         <HeaderWithHamburger title="Fill in the Blank" />
         
-        <div className="notebook-selection">
-          <div className="selection-header">
-            <h1>Selecciona un Cuaderno</h1>
-            <p>Elige el cuaderno con el que quieres practicar</p>
-          </div>
-          
-          {loadingNotebooks ? (
-            <div className="loading-state">
-              <div className="loader"></div>
-              <p>Cargando cuadernos...</p>
+        <div className="study-intro-overlay">
+          <div className="study-intro-modal">
+            <div className="intro-header-compact">
+              <div className="header-icon-compact">
+                <i className="fas fa-microphone"></i>
+              </div>
+              <h2>Selecciona la Intensidad</h2>
             </div>
-          ) : notebooks.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-icon">📚</span>
-              <h2>No hay cuadernos disponibles</h2>
-              <p>Necesitas tener cuadernos con al menos 5 conceptos para jugar.</p>
-              <button onClick={() => navigate('/notebooks')} className="btn-primary">
-                Ir a Biblioteca
+            
+            <div className="intro-content-compact">
+              <div className="explanation-compact">
+                <p>Completa las definiciones seleccionando las palabras faltantes.</p>
+                <div className="benefits-inline">
+                  <span><i className="fas fa-check"></i> Contra el tiempo</span>
+                  <span><i className="fas fa-check"></i> Retroalimentación inmediata</span>
+                  <span><i className="fas fa-check"></i> Puntuación optimizada</span>
+                </div>
+              </div>
+              
+              <div className="intensity-section-compact">
+                <h3 className="section-title-compact">
+                  Intensidad
+                  {loadingConceptsData && (
+                    <span style={{ marginLeft: '10px', fontSize: '0.8em', opacity: 0.7 }}>
+                      <i className="fas fa-spinner fa-spin"></i>
+                    </span>
+                  )}
+                </h3>
+                
+                {!loadingConceptsData && availableConcepts < 5 && (
+                  <div className="intensity-warning-compact">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    <span>No tienes suficientes conceptos para este juego.</span>
+                  </div>
+                )}
+                
+                <div className="intensity-options-horizontal" style={{ opacity: loadingConceptsData ? 0.6 : 1 }}>
+                  <div 
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 5 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
+                    title={!loadingConceptsData && availableConcepts < 5 ? `Requiere 5 conceptos (tienes ${availableConcepts} disponibles)` : ''}
+                  >
+                    <i className="fas fa-coffee"></i>
+                    <div className="intensity-content">
+                      <h4>Warm-Up</h4>
+                      <span>5 conceptos</span>
+                      {!loadingConceptsData && availableConcepts < 5 && (
+                        <div className="requirement-text">Requiere 5+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.WARM_UP && <i className="fas fa-check-circle check-icon"></i>}
+                  </div>
+                  
+                  <div 
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 10 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
+                    title={!loadingConceptsData && availableConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableConcepts} disponibles)` : ''}
+                  >
+                    <i className="fas fa-chart-line"></i>
+                    <div className="intensity-content">
+                      <h4>Progreso</h4>
+                      <span>10 conceptos</span>
+                      {!loadingConceptsData && availableConcepts < 10 && (
+                        <div className="requirement-text">Requiere 10+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.PROGRESS && <i className="fas fa-check-circle check-icon"></i>}
+                  </div>
+                  
+                  <div 
+                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 20 ? 'disabled' : ''}`}
+                    onClick={() => !loadingConceptsData && availableConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
+                    title={!loadingConceptsData && availableConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableConcepts} disponibles)` : ''}
+                  >
+                    <i className="fas fa-rocket"></i>
+                    <div className="intensity-content">
+                      <h4>Rocket</h4>
+                      <span>20 conceptos</span>
+                      {!loadingConceptsData && availableConcepts < 20 && (
+                        <div className="requirement-text">Requiere 20+ conceptos</div>
+                      )}
+                    </div>
+                    {studyIntensity === StudyIntensity.ROCKET && <i className="fas fa-check-circle check-icon"></i>}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="intro-actions-compact">
+              <button
+                className="action-button-compact secondary"
+                onClick={() => setSelectedNotebook(null)}
+              >
+                <i className="fas fa-arrow-left"></i>
+                Volver
+              </button>
+              <button
+                className="action-button-compact primary"
+                onClick={handleStartGame}
+                disabled={loadingConceptsData || availableConcepts < getConceptCountFromIntensity(studyIntensity)}
+              >
+                {loadingConceptsData ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Cargando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-play"></i>
+                    Comenzar
+                  </>
+                )}
               </button>
             </div>
-          ) : (
-            <div className="notebooks-grid">
-              {notebooks.map((notebook) => (
-                <div
-                  key={notebook.id}
-                  className="notebook-card"
-                  onClick={() => handleSelectNotebook(notebook)}
-                >
-                  <div className="notebook-icon">📓</div>
-                  <h3>{notebook.title || 'Sin título'}</h3>
-                  {notebook.category && (
-                    <p className="notebook-subject">{notebook.category}</p>
-                  )}
-                  <div className="notebook-stats">
-                    <span>📚 Cuaderno disponible</span>
-                  </div>
-                  <button className="btn-select">Seleccionar</button>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <button onClick={() => navigate('/development')} className="btn-back">
-            Volver a Development
-          </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Pantalla de selección de intensidad (Smart Study modal)
-  if (selectedNotebook && showConceptSelector) {
-    return (
-      <div className="fill-blank-container">
-        <HeaderWithHamburger title="Fill in the Blank" />
-        
-        <div className="concept-selector smart-study-modal">
-          <div className="selection-header">
-            <h1>Selecciona la intensidad de estudio</h1>
-            <p>Cuaderno: <strong>{selectedNotebook.title}</strong></p>
-            {loadingConceptsData && <p className="loading-concepts">Contando conceptos disponibles...</p>}
-          </div>
-          
-          <div className="intensity-options-horizontal" style={{ opacity: loadingConceptsData ? 0.6 : 1 }}>
-            <div 
-              className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 5 ? 'disabled' : ''}`}
-              onClick={() => !loadingConceptsData && availableConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
-              title={!loadingConceptsData && availableConcepts < 5 ? `Requiere 5 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-            >
-              <i className="fas fa-coffee"></i>
-              <div className="intensity-content">
-                <h3>Calentamiento</h3>
-                <span className="intensity-count">5 conceptos</span>
-                <p>Repaso ligero</p>
-              </div>
-              {studyIntensity === StudyIntensity.WARM_UP && <i className="fas fa-check-circle check-icon"></i>}
-            </div>
-            
-            <div 
-              className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 10 ? 'disabled' : ''}`}
-              onClick={() => !loadingConceptsData && availableConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
-              title={!loadingConceptsData && availableConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-            >
-              <i className="fas fa-chart-line"></i>
-              <div className="intensity-content">
-                <h3>Progreso</h3>
-                <span className="intensity-count">10 conceptos</span>
-                <p>Sesión balanceada</p>
-              </div>
-              {studyIntensity === StudyIntensity.PROGRESS && <i className="fas fa-check-circle check-icon"></i>}
-            </div>
-            
-            <div 
-              className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 20 ? 'disabled' : ''}`}
-              onClick={() => !loadingConceptsData && availableConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
-              title={!loadingConceptsData && availableConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-            >
-              <i className="fas fa-rocket"></i>
-              <div className="intensity-content">
-                <h3>Cohete</h3>
-                <span className="intensity-count">20 conceptos</span>
-                <p>Intensivo</p>
-              </div>
-              {studyIntensity === StudyIntensity.ROCKET && <i className="fas fa-check-circle check-icon"></i>}
-            </div>
-          </div>
-          
-          <div className="selector-actions">
-            <button 
-              onClick={handleStartGame} 
-              className="btn-start"
-              disabled={loadingConceptsData || availableConcepts < getConceptCountFromIntensity(studyIntensity)}
-            >
-              {loadingConceptsData ? 'Cargando...' : 'Comenzar Juego'}
-            </button>
-            <button onClick={() => setSelectedNotebook(null)} className="btn-back">
-              Cambiar Cuaderno
-            </button>
-          </div>
-          
-          {!loadingConceptsData && (
-            <div className="concepts-info">
-              <p>Conceptos disponibles en este cuaderno: <strong>{availableConcepts}</strong></p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (

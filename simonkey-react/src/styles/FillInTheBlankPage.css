@@ -1,6 +1,5 @@
 .fill-blank-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding-bottom: 2rem;
 }
 
@@ -370,13 +369,13 @@
 
 .selection-header h1 {
   font-size: 2.5rem;
-  color: white;
+  color: black;
   margin-bottom: 0.5rem;
 }
 
 .selection-header p {
   font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: black;
 }
 
 .notebooks-grid {
@@ -475,13 +474,13 @@
 
 .smart-study-modal .selection-header h1 {
   font-size: 2.5rem;
-  color: white;
+  color: black;
   margin-bottom: 0.5rem;
 }
 
 .smart-study-modal .selection-header p {
   font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: black;
   margin-bottom: 0.5rem;
 }
 
@@ -779,3 +778,4 @@
     padding: 0.8rem;
   }
 }
+
