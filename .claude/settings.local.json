@@ -177,7 +177,9 @@
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\components/**)",
-      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)"
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
+      "Read(///**)",
+      "Bash(open:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

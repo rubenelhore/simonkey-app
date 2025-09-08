@@ -48,6 +48,8 @@ import './utils/debugStudyTime';
 import './utils/adjustStudyTimes';
 // Importar utilidad de KPIs para depuración
 import './utils/forceUpdateKPIs';
+// Importar utilidad para recalcular scores
+import './utils/recalculateScores';
 // Importar utilidad para arreglar perfil de estudiante
 import './utils/fixStudentProfile';
 // Importar utilidad para debug de materias de estudiante

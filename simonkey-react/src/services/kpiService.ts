@@ -800,14 +800,24 @@ export class KPIService {
         // Obtener número de conceptos del cuaderno
         const numeroConceptos = conceptsByNotebook.get(notebookId) || 0;
 
-        // Calcular score del cuaderno (scoreMax * estudiosValidadosConIntensidad + gamePoints + streakBonus)
-        // Ahora usa valores fraccionarios: 0.5 (warm_up), 1.0 (progress), 2.0 (rocket)
-        // Si no hay maxScore (no se han hecho quizzes), usar un valor base de 100 puntos
-        const effectiveMaxScore = maxScore > 0 ? maxScore : 100;
-        const validatedStudiesWithIntensity = stats.estudiosInteligentesValidadosConIntensidad || stats.estudiosInteligentesExitosos; // Fallback for compatibility
-        const studyScore = effectiveMaxScore * validatedStudiesWithIntensity;
-        const gameScore = gameData.totalPoints || 0;
-        const scoreCuaderno = studyScore + gameScore + streakBonus;
+        // Calcular score del cuaderno con la misma fórmula de /study:
+        // Score Total = totalStudyPoints + totalMultiplierPoints
+        // totalStudyPoints = (estudiosInteligentes × 1000) + (voiceRecognition × 1000) + (estudiosLibres × 0.1 × 1000)
+        // totalMultiplierPoints = maxScore + gamePoints + streakBonus
+        
+        // Calcular puntos de estudio (multiplicados por 1000)
+        const smartStudyPoints = stats.estudiosInteligentesValidadosConIntensidad || stats.estudiosInteligentesExitosos || 0;
+        const voiceRecognitionPoints = 0; // TODO: Necesitamos rastrear esto por separado si es necesario
+        const freeStudyPoints = stats.estudiosLibresTotal * 0.1; // Cada estudio libre vale 0.1
+        const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionPoints * 1000) + (freeStudyPoints * 1000);
+        
+        // Calcular puntos multiplicadores
+        const maxQuizScore = maxScore > 0 ? maxScore : 0;
+        const gamePoints = gameData.totalPoints || 0;
+        const totalMultiplierPoints = maxQuizScore + gamePoints + streakBonus;
+        
+        // Score final del cuaderno
+        const scoreCuaderno = totalStudyPoints + totalMultiplierPoints;
         
 
         // Obtener el ID de la materia del cuaderno
