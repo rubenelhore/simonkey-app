@@ -526,7 +526,7 @@ const ProgressPage: React.FC = () => {
               // Primero intentar desde KPIs
               const studentKPIs = await kpiService.getUserKPIs(studentId);
               const cuadernoData = studentKPIs?.cuadernos?.[notebookId];
-              tiempoEstudio = cuadernoData?.tiempoEstudio || cuadernoData?.tiempoEstudioLocal || 0;
+              tiempoEstudio = cuadernoData?.tiempoEstudioLocal || 0;
               
               // Si no hay tiempo en KPIs, calcular desde sesiones de estudio
               if (tiempoEstudio === 0) {
@@ -1135,7 +1135,7 @@ const ProgressPage: React.FC = () => {
       console.log(`[ProgressPage] DEBUG: Smart study sessions found: ${smartStudySessions.size}`);
       console.log(`[ProgressPage] DEBUG: Voice recognition sessions found: ${voiceRecognitionSessions.size}`);
       console.log(`[ProgressPage] DEBUG: Free study sessions found: ${freeStudySessions.size}`);
-      console.log(`[ProgressPage] DEBUG: Quiz sessions found: ${quizSessions.docs ? quizSessions.docs.length : quizSessions.size || 0}`);
+      console.log(`[ProgressPage] DEBUG: Quiz sessions found: ${quizSessions.docs ? quizSessions.docs.length : 0}`);
 
       // Calculate smart study points based on intensity (same as StudyModePage)
       let smartStudyPoints = 0;
