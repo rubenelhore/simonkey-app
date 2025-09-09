@@ -93,6 +93,7 @@ export class KPIService {
    * Calcula y actualiza los KPIs del dashboard para un usuario
    */
   async updateUserKPIs(userId: string): Promise<void> {
+    console.log('🚨 [KPIService] updateUserKPIs method called for user:', userId);
     try {
       // Obtener todas las sesiones de estudio del usuario
       const studySessionsQuery = query(
