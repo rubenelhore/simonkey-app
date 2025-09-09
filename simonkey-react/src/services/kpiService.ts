@@ -187,7 +187,10 @@ export class KPIService {
             for (const notebookId of notebookIds) {
               const notebookDoc = await getDoc(doc(db, 'schoolNotebooks', notebookId));
               if (notebookDoc.exists()) {
-                notebooks.push(notebookDoc);
+                // Evitar duplicados
+                if (!notebooks.find(nb => nb.id === notebookDoc.id)) {
+                  notebooks.push(notebookDoc);
+                }
               }
             }
           }
@@ -709,6 +712,10 @@ export class KPIService {
       let totalPercentil = 0;
       let cuadernosConPercentil = 0;
       
+      // Debug: Verificar si hay notebooks duplicados en la lista inicial
+      const notebookIds = Array.from(notebooksMap.keys());
+      const uniqueIds = [...new Set(notebookIds)];
+      console.log(`[KPIService] Debug: notebooks en map: ${notebooksMap.size}, unique IDs: ${uniqueIds.length}`);
       console.log(`[KPIService] Procesando ${notebooksMap.size} notebooks para calcular Score Global`);
 
       for (const [notebookId, notebook] of notebooksMap) {
