@@ -72,11 +72,6 @@ const FillInTheBlankPage: React.FC = () => {
   const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.WARM_UP);
   const [availableConcepts, setAvailableConcepts] = useState<number>(0);
   const [loadingConceptsData, setLoadingConceptsData] = useState<boolean>(true);
-  const [showConceptSelector, setShowConceptSelector] = useState(() => {
-    // Si viene con preselección, mostrar directamente el selector
-    const state = location.state as { notebookId?: string; notebookTitle?: string } | null;
-    return !!state?.notebookId;
-  });
   
   // Estados del juego
   const [concepts, setConcepts] = useState<GameConcept[]>([]);
@@ -85,6 +80,25 @@ const FillInTheBlankPage: React.FC = () => {
   const [score, setScore] = useState(0);
   const [totalRounds, setTotalRounds] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Función para mostrar la definición con palabras seleccionadas
+  const getDefinitionWithSelectedWords = () => {
+    if (!currentRound) return '';
+    
+    let result = currentRound.definition;
+    const selectedWords = [...currentRound.selectedOptions];
+    
+    // Reemplazar cada _____ con la palabra seleccionada correspondiente
+    let blankIndex = 0;
+    result = result.replace(/_____/g, () => {
+      if (blankIndex < selectedWords.length) {
+        return `**${selectedWords[blankIndex++]}**`;
+      }
+      return '_____';
+    });
+    
+    return result;
+  };
   const [gameOver, setGameOver] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
@@ -110,9 +124,9 @@ const FillInTheBlankPage: React.FC = () => {
       setLoadingConceptsData(true);
       const notebookConcepts = await studyService.getAllConceptsFromNotebook(userId, notebookId);
       
-      // Filtrar conceptos válidos para Fill in the Blank (definiciones largas)
+      // Usar todos los conceptos que tengan definición
       const validConcepts = notebookConcepts.filter(concept => 
-        concept.definición && concept.definición.trim().length > 20
+        concept.definición && concept.definición.trim().length > 0
       );
       
       setAvailableConcepts(validConcepts.length);
@@ -136,6 +150,11 @@ const FillInTheBlankPage: React.FC = () => {
         
         console.log('Cuaderno preseleccionado desde /study:', selectedNotebook.title);
         await countAvailableConcepts(selectedNotebook.id, userId);
+        
+        // Iniciar el juego automáticamente para cuadernos preseleccionados
+        console.log('🎮 Iniciando juego automáticamente para cuaderno preseleccionado');
+        setStudyIntensity(StudyIntensity.WARM_UP);
+        await handleStartGame();
       } catch (error) {
         console.error('Error loading preselected concepts:', error);
       }
@@ -193,7 +212,7 @@ const FillInTheBlankPage: React.FC = () => {
           término: concept.término,
           definición: concept.definición
         }))
-        .filter(concept => concept.definicion && concept.definicion.trim().length > 20);
+        .filter(concept => concept.definicion && concept.definicion.trim().length > 0);
       
       console.log('🎮 loadConceptsWithParams: gameConcepts.length =', gameConcepts.length);
       console.log('⚙️ loadConceptsWithParams: studyIntensity =', studyIntensity);
@@ -242,14 +261,31 @@ const FillInTheBlankPage: React.FC = () => {
       
       // Convertir conceptos al formato del juego y filtrar válidos
       const gameConcepts: GameConcept[] = notebookConcepts
-        .map(concept => ({
-          id: concept.id,
-          concepto: concept.término,
-          definicion: concept.definición,
-          término: concept.término,
-          definición: concept.definición
-        }))
-        .filter(concept => concept.definicion && concept.definicion.trim().length > 20);
+        .map(concept => {
+          console.log('📝 Procesando concepto:', { 
+            término: concept.término, 
+            definición: concept.definición,
+            hasDefinición: !!concept.definición,
+            definiciónLength: concept.definición?.length || 0
+          });
+          return {
+            id: concept.id,
+            concepto: concept.término,
+            definicion: concept.definición,
+            término: concept.término,
+            definición: concept.definición
+          };
+        })
+        .filter(concept => {
+          const isValid = concept.definicion && concept.definicion.trim().length > 0;
+          console.log('🔍 Concepto válido?', { 
+            término: concept.término, 
+            isValid,
+            hasDefinicion: !!concept.definicion,
+            definicionLength: concept.definicion?.length || 0
+          });
+          return isValid;
+        });
       
       console.log('🎮 loadConcepts: gameConcepts.length =', gameConcepts.length);
       console.log('⚙️ loadConcepts: studyIntensity =', studyIntensity);
@@ -334,27 +370,23 @@ const FillInTheBlankPage: React.FC = () => {
       return cleaned.length > 3 && !skipWords.includes(cleaned);
     });
     
-    // Validar que haya palabras importantes suficientes
-    if (importantWords.length < 2) {
-      // Si no hay suficientes palabras importantes, saltar al siguiente concepto
-      setCurrentIndex(currentIndex + 1);
-      return;
-    }
+    // Validar que haya al menos una palabra importante, si no, usar todas las palabras
+    const wordsToUse = importantWords.length >= 1 ? importantWords : words.filter(word => word.length > 1);
     
     // Seleccionar palabras aleatorias para blancos
     const blanks: BlankWord[] = [];
     const selectedIndices = new Set<number>();
     
-    const actualNumBlanks = Math.min(numBlanks, importantWords.length);
+    const actualNumBlanks = Math.min(numBlanks, Math.max(1, wordsToUse.length));
     
     for (let i = 0; i < actualNumBlanks; i++) {
       let randomIndex;
       do {
-        randomIndex = Math.floor(Math.random() * importantWords.length);
+        randomIndex = Math.floor(Math.random() * wordsToUse.length);
       } while (selectedIndices.has(randomIndex));
       
       selectedIndices.add(randomIndex);
-      const word = importantWords[randomIndex];
+      const word = wordsToUse[randomIndex];
       const position = words.indexOf(word);
       
       blanks.push({
@@ -385,7 +417,7 @@ const FillInTheBlankPage: React.FC = () => {
       selectedOptions: [],
       isCompleted: false,
       isCorrect: false,
-      timeLeft: 10
+      timeLeft: 15
     });
   };
 
@@ -525,7 +557,6 @@ const FillInTheBlankPage: React.FC = () => {
 
   const handleSelectNotebook = async (notebook: Notebook) => {
     setSelectedNotebook(notebook);
-    setShowConceptSelector(true);
     
     // Contar conceptos disponibles
     if (auth.currentUser) {
@@ -533,6 +564,10 @@ const FillInTheBlankPage: React.FC = () => {
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       await countAvailableConcepts(notebook.id, userId);
     }
+    
+    // Iniciar el juego directamente con intensidad Warm-Up (sin mostrar modal)
+    setStudyIntensity(StudyIntensity.WARM_UP);
+    await handleStartGame();
   };
 
   const handleStartGame = async () => {
@@ -541,29 +576,22 @@ const FillInTheBlankPage: React.FC = () => {
     setStreak(0);
     setMaxStreak(0);
     setGameOver(false);
-    setShowConceptSelector(false);
     
     // Cargar conceptos ahora
     await loadConcepts();
   };
 
-  const handleBackToNotebooks = () => {
-    setSelectedNotebook(null);
-    setConcepts([]);
-    setCurrentRound(null);
-    setCurrentIndex(0);
-    setScore(0);
+  const handleBackToStudy = () => {
+    navigate('/study');
     setStreak(0);
     setMaxStreak(0);
     setGameOver(false);
-    setShowConceptSelector(false);
   };
 
-  // Pantalla de selección de cuaderno e intensidad (Study Intro Modal)
-  if (!selectedNotebook || showConceptSelector) {
+  // Pantalla de selección de cuaderno (sin modal de intensidad)
+  if (!selectedNotebook) {
     // Si no hay cuaderno seleccionado, mostrar selector de cuaderno primero
-    if (!selectedNotebook) {
-      return (
+    return (
         <div className="fill-blank-container">
           <HeaderWithHamburger title="Fill in the Blank" />
           
@@ -615,131 +643,6 @@ const FillInTheBlankPage: React.FC = () => {
           </div>
         </div>
       );
-    }
-
-    // Si hay cuaderno seleccionado, mostrar modal de intensidad
-    return (
-      <div className="fill-blank-container">
-        <HeaderWithHamburger title="Fill in the Blank" />
-        
-        <div className="study-intro-overlay">
-          <div className="study-intro-modal">
-            <div className="intro-header-compact">
-              <div className="header-icon-compact">
-                <i className="fas fa-microphone"></i>
-              </div>
-              <h2>Selecciona la Intensidad</h2>
-            </div>
-            
-            <div className="intro-content-compact">
-              <div className="explanation-compact">
-                <p>Completa las definiciones seleccionando las palabras faltantes.</p>
-                <div className="benefits-inline">
-                  <span><i className="fas fa-check"></i> Contra el tiempo</span>
-                  <span><i className="fas fa-check"></i> Retroalimentación inmediata</span>
-                  <span><i className="fas fa-check"></i> Puntuación optimizada</span>
-                </div>
-              </div>
-              
-              <div className="intensity-section-compact">
-                <h3 className="section-title-compact">
-                  Intensidad
-                  {loadingConceptsData && (
-                    <span style={{ marginLeft: '10px', fontSize: '0.8em', opacity: 0.7 }}>
-                      <i className="fas fa-spinner fa-spin"></i>
-                    </span>
-                  )}
-                </h3>
-                
-                {!loadingConceptsData && availableConcepts < 5 && (
-                  <div className="intensity-warning-compact">
-                    <i className="fas fa-exclamation-triangle"></i>
-                    <span>No tienes suficientes conceptos para este juego.</span>
-                  </div>
-                )}
-                
-                <div className="intensity-options-horizontal" style={{ opacity: loadingConceptsData ? 0.6 : 1 }}>
-                  <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.WARM_UP ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 5 ? 'disabled' : ''}`}
-                    onClick={() => !loadingConceptsData && availableConcepts >= 5 && setStudyIntensity(StudyIntensity.WARM_UP)}
-                    title={!loadingConceptsData && availableConcepts < 5 ? `Requiere 5 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-                  >
-                    <i className="fas fa-coffee"></i>
-                    <div className="intensity-content">
-                      <h4>Warm-Up</h4>
-                      <span>5 conceptos</span>
-                      {!loadingConceptsData && availableConcepts < 5 && (
-                        <div className="requirement-text">Requiere 5+ conceptos</div>
-                      )}
-                    </div>
-                    {studyIntensity === StudyIntensity.WARM_UP && <i className="fas fa-check-circle check-icon"></i>}
-                  </div>
-                  
-                  <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.PROGRESS ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 10 ? 'disabled' : ''}`}
-                    onClick={() => !loadingConceptsData && availableConcepts >= 10 && setStudyIntensity(StudyIntensity.PROGRESS)}
-                    title={!loadingConceptsData && availableConcepts < 10 ? `Requiere 10 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-                  >
-                    <i className="fas fa-chart-line"></i>
-                    <div className="intensity-content">
-                      <h4>Progreso</h4>
-                      <span>10 conceptos</span>
-                      {!loadingConceptsData && availableConcepts < 10 && (
-                        <div className="requirement-text">Requiere 10+ conceptos</div>
-                      )}
-                    </div>
-                    {studyIntensity === StudyIntensity.PROGRESS && <i className="fas fa-check-circle check-icon"></i>}
-                  </div>
-                  
-                  <div 
-                    className={`intensity-item-horizontal ${studyIntensity === StudyIntensity.ROCKET ? 'selected' : ''} ${!loadingConceptsData && availableConcepts < 20 ? 'disabled' : ''}`}
-                    onClick={() => !loadingConceptsData && availableConcepts >= 20 && setStudyIntensity(StudyIntensity.ROCKET)}
-                    title={!loadingConceptsData && availableConcepts < 20 ? `Requiere 20 conceptos (tienes ${availableConcepts} disponibles)` : ''}
-                  >
-                    <i className="fas fa-rocket"></i>
-                    <div className="intensity-content">
-                      <h4>Rocket</h4>
-                      <span>20 conceptos</span>
-                      {!loadingConceptsData && availableConcepts < 20 && (
-                        <div className="requirement-text">Requiere 20+ conceptos</div>
-                      )}
-                    </div>
-                    {studyIntensity === StudyIntensity.ROCKET && <i className="fas fa-check-circle check-icon"></i>}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="intro-actions-compact">
-              <button
-                className="action-button-compact secondary"
-                onClick={() => setSelectedNotebook(null)}
-              >
-                <i className="fas fa-arrow-left"></i>
-                Volver
-              </button>
-              <button
-                className="action-button-compact primary"
-                onClick={handleStartGame}
-                disabled={loadingConceptsData || availableConcepts < getConceptCountFromIntensity(studyIntensity)}
-              >
-                {loadingConceptsData ? (
-                  <>
-                    <i className="fas fa-spinner fa-spin"></i>
-                    Cargando...
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-play"></i>
-                    Comenzar
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
 
@@ -755,22 +658,6 @@ const FillInTheBlankPage: React.FC = () => {
     );
   }
 
-  if (concepts.length === 0 && selectedNotebook) {
-    console.log('❌ Mostrando empty state - No hay conceptos válidos');
-    return (
-      <div className="fill-blank-container">
-        <HeaderWithHamburger title={`Fill in the Blank - ${selectedNotebook?.title || ''}`} />
-        <div className="empty-state">
-          <span className="empty-icon">📝</span>
-          <h2>No hay conceptos válidos</h2>
-          <p>Este cuaderno no tiene conceptos con definiciones suficientemente largas para el juego.</p>
-          <button onClick={handleBackToNotebooks} className="btn-primary">
-            Elegir otro cuaderno
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (gameOver) {
     const percentage = Math.round((score / (totalRounds * 15)) * 100); // Max 15 puntos por ronda
@@ -819,6 +706,14 @@ const FillInTheBlankPage: React.FC = () => {
       <HeaderWithHamburger title={`Fill in the Blank - ${selectedNotebook?.title || ''}`} />
       
       <div className="game-header">
+        <button 
+          className="back-arrow-btn"
+          onClick={() => navigate('/study')}
+          title="Volver al estudio"
+        >
+          ←
+        </button>
+        
         <div className="game-stats">
           <div className="stat">
             <span className="stat-label">Ronda</span>
@@ -834,50 +729,73 @@ const FillInTheBlankPage: React.FC = () => {
           </div>
         </div>
         
-        {currentRound && (
-          <div className={`timer ${currentRound.timeLeft <= 3 ? 'timer-warning' : ''}`}>
-            <span className="timer-icon">⏱️</span>
-            <span className="timer-value">{currentRound.timeLeft}s</span>
-          </div>
-        )}
+        <div style={{width: '40px'}}></div>
       </div>
       
       {currentRound && (
         <div className="game-content">
+          {currentRound && (
+            <div className={`timer-centered ${currentRound.timeLeft <= 3 ? 'timer-warning' : ''}`}>
+              <span className="timer-icon">⏱️</span>
+              <span className="timer-value">{currentRound.timeLeft}s</span>
+            </div>
+          )}
+          
           <div className="concept-card">
-            <h2 className="concept-title">{currentRound.concept.concepto}</h2>
-            
-            <div className={`definition-box ${currentRound.isCompleted ? (currentRound.isCorrect ? 'correct' : 'incorrect') : ''}`}>
-              <p className="definition-text">{currentRound.definition}</p>
+            <div className="concept-left">
+              <h2 className="concept-title">{currentRound.concept.concepto}</h2>
               
-              {currentRound.isCompleted && (
-                <div className="feedback">
-                  {currentRound.isCorrect ? (
-                    <>
-                      <span className="feedback-icon">✅</span>
-                      <span className="feedback-text">¡Correcto! +{10 + Math.floor(currentRound.timeLeft / 2)} puntos</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="feedback-icon">❌</span>
-                      <span className="feedback-text">
-                        Respuestas correctas: {currentRound.blanks.map(b => b.word).join(', ')}
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
+              <div className={`definition-box ${currentRound.isCompleted ? (currentRound.isCorrect ? 'correct' : 'incorrect') : ''}`}>
+                <p className="definition-text">
+                  {currentRound.definition.split('_____').map((part, index) => (
+                    <span key={index}>
+                      {part}
+                      {index < currentRound.blanks.length && (
+                        <span className="blank-space">
+                          {currentRound.selectedOptions[index] ? (
+                            <span className="selected-word">{currentRound.selectedOptions[index]}</span>
+                          ) : (
+                            <span className="empty-blank">_____</span>
+                          )}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </p>
+                
+                {currentRound.isCompleted && (
+                  <div className="feedback">
+                    {currentRound.isCorrect ? (
+                      <>
+                        <span className="feedback-icon">✅</span>
+                        <span className="feedback-text">¡Correcto! +{10 + Math.floor(currentRound.timeLeft / 2)} puntos</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="feedback-icon">❌</span>
+                        <span className="feedback-text">
+                          Respuestas correctas: {currentRound.blanks.map(b => b.word).join(', ')}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
-            <div className="instructions">
-              <p>Selecciona las {currentRound.blanks.length} palabras que completan la definición:</p>
-            </div>
-            
-            <div className="options-grid">
+            <div className="concept-right">
+              <div className="instructions">
+                <p>Selecciona las {currentRound.blanks.length} palabras que completan la definición:</p>
+              </div>
+              
+              <div className="options-grid">
               {currentRound.options.map((option, index) => {
                 const isSelected = currentRound.selectedOptions.includes(option);
                 const isCorrect = currentRound.blanks.some(b => b.word === option);
                 const showResult = currentRound.isCompleted;
+                const selectionOrder = currentRound.selectedOptions.indexOf(option) + 1;
+                // Encontrar el orden correcto de esta palabra
+                const correctOrder = currentRound.blanks.findIndex(b => b.word === option) + 1;
                 
                 return (
                   <button
@@ -891,15 +809,23 @@ const FillInTheBlankPage: React.FC = () => {
                     disabled={currentRound.isCompleted}
                   >
                     {option}
-                    {showResult && isCorrect && <span className="option-icon">✓</span>}
-                    {showResult && isSelected && !isCorrect && <span className="option-icon">✗</span>}
+                    {isSelected && !showResult && (
+                      <span className="selection-number">{selectionOrder}</span>
+                    )}
+                    {showResult && isCorrect && (
+                      <span className="correct-order-number">{correctOrder}</span>
+                    )}
+                    {showResult && isSelected && !isCorrect && (
+                      <span className="incorrect-order-number">{selectionOrder}</span>
+                    )}
                   </button>
                 );
               })}
-            </div>
-            
-            <div className="selected-count">
-              {currentRound.selectedOptions.length}/{currentRound.blanks.length} palabras seleccionadas
+              </div>
+              
+              <div className="selected-count">
+                {currentRound.selectedOptions.length}/{currentRound.blanks.length} palabras seleccionadas
+              </div>
             </div>
           </div>
         </div>
