@@ -159,6 +159,8 @@ export const useGoogleAuth = () => {
         errorMessage = 'La ventana de Google se cerró antes de completar el proceso';
       } else if (err.code === 'auth/popup-blocked') {
         errorMessage = 'El popup fue bloqueado por el navegador. Permite popups para este sitio.';
+      } else if (err.code === 'auth/user-disabled') {
+        errorMessage = 'Tu cuenta está bloqueada. Ponte en contacto con el administrador.';
       }
       setError(errorMessage);
     } finally {

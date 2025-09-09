@@ -100,6 +100,8 @@ const LoginPage: React.FC = () => {
         errorMessage = "Email inválido";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Demasiados intentos fallidos. Intenta más tarde";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "Tu cuenta está bloqueada. Ponte en contacto con el administrador.";
       } else if (error.message && error.message.includes("cuenta ha sido eliminada")) {
         errorMessage = error.message;
       }
@@ -126,8 +128,7 @@ const LoginPage: React.FC = () => {
           <p className="tagline">Tu estudio, tu ritmo</p>
         </div>
         
-        {error && <div className="error-message">{error}</div>}
-        {googleError && <div className="error-message">{googleError}</div>}
+        {(error || googleError) && <div className="error-message">{error || googleError}</div>}
         
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
