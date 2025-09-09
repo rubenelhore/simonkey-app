@@ -34,8 +34,15 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       
       // Ya no hay restricciones especiales para profesores
 
+      // USUARIOS CREADOS VIA BULK UPLOAD: Ir a cambiar contraseña
+      if (isAuthenticated && userProfile?.createdViaUpload && !hasNavigated.current) {
+        hasNavigated.current = true;
+        navigate('/change-password-required', { replace: true });
+        return;
+      }
+
       // USUARIOS NORMALES: Verificar email
-      if (isAuthenticated && !isEmailVerified && !isSchoolUser && !hasNavigated.current) {
+      if (isAuthenticated && !isEmailVerified && !isSchoolUser && !userProfile?.createdViaUpload && !hasNavigated.current) {
         hasNavigated.current = true;
         navigate('/verify-email', { replace: true });
         return;
@@ -88,9 +95,10 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
     return null;
   }
 
-  // Si no está verificado y no está en la página de verificación, no mostrar contenido
-  // EXCEPTO para usuarios escolares que pueden acceder sin verificación
-  if (!isEmailVerified && location.pathname !== '/verify-email' && !isSchoolUser) {
+  // Si no está verificado y no está en las páginas permitidas, no mostrar contenido
+  // EXCEPTO para usuarios escolares y usuarios creados via bulk upload
+  const allowedPaths = ['/verify-email', '/change-password-required'];
+  if (!isEmailVerified && !allowedPaths.includes(location.pathname) && !isSchoolUser && !userProfile?.createdViaUpload) {
     return null;
   }
 

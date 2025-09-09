@@ -3889,6 +3889,98 @@ export const uploadMaterialToStorage = onCall(
   }
 );
 
+// Cloud Function para crear usuarios en batch (super admin)
+export const createUserAccount = onCall(async (request) => {
+  // Verificar que el usuario esté autenticado y sea super admin
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Usuario no autenticado');
+  }
+
+  const { email, password, displayName, isTeacher, institution } = request.data;
+
+  if (!email || !password || !displayName) {
+    throw new HttpsError('invalid-argument', 'Faltan parámetros requeridos');
+  }
+
+  try {
+    // Verificar que el usuario que hace la petición sea super admin
+    const adminDoc = await getDb().collection('users').doc(request.auth.uid).get();
+    const adminData = adminDoc.data();
+    
+    if (!adminData || adminData.subscription !== 'SUPER_ADMIN') {
+      throw new HttpsError('permission-denied', 'No tienes permisos para esta operación');
+    }
+
+    // Crear usuario en Firebase Auth
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+      displayName: displayName,
+      emailVerified: false
+    });
+
+    // Crear perfil de usuario en Firestore
+    const userProfile = {
+      id: userRecord.uid,
+      email: email,
+      username: displayName,
+      nombre: displayName,
+      displayName: displayName,
+      birthdate: '',
+      subscription: 'SCHOOL',
+      schoolRole: isTeacher ? 'teacher' : 'student',
+      idInstitucion: institution,
+      notebookCount: 0,
+      maxNotebooks: isTeacher ? 999 : 50,
+      maxConceptsPerNotebook: isTeacher ? 999 : 100,
+      canDeleteAndRecreate: false,
+      emailVerified: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdViaUpload: true,
+      uploadedBy: request.auth.uid
+    };
+
+    await getDb().collection('users').doc(userRecord.uid).set(userProfile);
+
+    // Guardar en la colección específica según el rol
+    if (isTeacher) {
+      await getDb().collection('schoolTeachers').doc(userRecord.uid).set({
+        id: userRecord.uid,
+        email: email,
+        name: displayName,
+        institution: institution,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      await getDb().collection('schoolStudents').doc(userRecord.uid).set({
+        id: userRecord.uid,
+        email: email,
+        name: displayName,
+        institution: institution,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    logger.info(`Usuario creado exitosamente via bulk upload: ${userRecord.uid}`);
+
+    return {
+      success: true,
+      userId: userRecord.uid,
+      email: email
+    };
+
+  } catch (error: any) {
+    logger.error('Error creando usuario:', error);
+    
+    if (error.code === 'auth/email-already-exists') {
+      throw new HttpsError('already-exists', 'El email ya está registrado');
+    }
+    
+    throw new HttpsError('internal', error.message || 'Error creando usuario');
+  }
+});
+
 // Exportar las funciones de rankings
 export { updateInstitutionRankings, scheduledRankingsUpdate } from './updateRankings';
 

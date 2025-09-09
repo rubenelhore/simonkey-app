@@ -86,8 +86,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 // Importar el hook useUserType para detectar usuarios escolares
 import { useUserType } from './hooks/useUserType';
 import { useEnrollmentStatus } from './hooks/useEnrollmentStatus';
-// DESHABILITADO: Ya no forzamos cambio de contraseña
-// import ChangePasswordRequired from './pages/ChangePasswordRequired';
+// Habilitado para usuarios de bulk upload
+import ChangePasswordRequired from './pages/ChangePasswordRequired';
 import PasswordChangeGuard from './components/Guards/PasswordChangeGuard';
 // Importar el guard de verificación de email
 import EmailVerificationGuard from './components/EmailVerificationGuard';
@@ -518,15 +518,15 @@ const AppContent: React.FC = () => {
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           
-          {/* DESHABILITADO: Ya no forzamos cambio de contraseña */}
-          {/* <Route
+          {/* Habilitado para usuarios de bulk upload */}
+          <Route
             path="/change-password-required"
             element={
               isAuthenticated ? (
                 <ChangePasswordRequired />
               ) : <Navigate to="/login" replace />
             }
-          /> */}
+          />
           
           {/* Nuevas rutas informativas - disponibles para todos */}
           <Route path="/examples" element={<ExamplesPage />} />

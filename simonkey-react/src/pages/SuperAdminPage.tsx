@@ -4,6 +4,7 @@ import { useUserType } from '../hooks/useUserType';
 import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
+import BulkUploadModule from '../components/BulkUploadModule';
 import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit, where } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { GoogleAuthProvider } from 'firebase/auth';
@@ -1765,9 +1766,8 @@ Ver consola para más detalles.`);
               🌟 Pro
             </button>
             <button 
-              className={`tab-button ${activeTab === 'carga-masiva' ? 'active' : ''} disabled`}
-              onClick={() => {}}
-              disabled
+              className={`tab-button ${activeTab === 'carga-masiva' ? 'active' : ''}`}
+              onClick={() => setActiveTab('carga-masiva')}
             >
               📦 Carga Masiva
             </button>
@@ -1778,6 +1778,7 @@ Ver consola para más detalles.`);
             {activeTab === 'profesores' && renderTeachersTab()}
             {activeTab === 'mensajes' && renderMessagesTab()}
             {activeTab === 'pro' && renderProTab()}
+            {activeTab === 'carga-masiva' && <BulkUploadModule />}
           </div>
         </div>
       </div>

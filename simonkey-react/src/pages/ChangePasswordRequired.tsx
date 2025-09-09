@@ -49,13 +49,21 @@ const ChangePasswordRequired: React.FC = () => {
       await updatePassword(user, password);
       console.log('✅ Contraseña actualizada en Firebase Auth');
 
-      // Actualizar el perfil del usuario para quitar el flag
+      // Actualizar el perfil del usuario para quitar los flags
       const userId = userProfile?.id || user.uid;
-      await updateDoc(doc(db, 'users', userId), {
+      const updateData: any = {
         requiresPasswordChange: false,
         passwordLastChanged: new Date().toISOString()
-      });
-      console.log('✅ Flag requiresPasswordChange actualizado');
+      };
+      
+      // Si fue creado via bulk upload, marcar como que ya cambió la contraseña
+      if (userProfile?.createdViaUpload) {
+        updateData.createdViaUpload = false; // Ya no necesita cambiar contraseña
+        updateData.hasChangedInitialPassword = true;
+      }
+      
+      await updateDoc(doc(db, 'users', userId), updateData);
+      console.log('✅ Flags de contraseña actualizados');
 
       // Mostrar mensaje de éxito
       alert('¡Contraseña cambiada exitosamente! Por favor inicia sesión nuevamente.');
@@ -92,9 +100,12 @@ const ChangePasswordRequired: React.FC = () => {
     <div className="change-password-required-container">
       <div className="change-password-card">
         <div className="card-header">
-          <h1>🔒 Cambio de Contraseña Obligatorio</h1>
+          <h1>🔒 {userProfile?.createdViaUpload ? 'Configura tu Contraseña' : 'Cambio de Contraseña Obligatorio'}</h1>
           <p className="subtitle">
-            Por tu seguridad, debes cambiar la contraseña predeterminada antes de continuar
+            {userProfile?.createdViaUpload 
+              ? 'Tu cuenta fue creada por un administrador. Por favor, configura una contraseña personal para continuar.'
+              : 'Por tu seguridad, debes cambiar la contraseña predeterminada antes de continuar'
+            }
           </p>
         </div>
 
