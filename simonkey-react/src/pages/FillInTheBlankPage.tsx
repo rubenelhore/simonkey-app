@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
@@ -53,9 +53,11 @@ const FillInTheBlankPage: React.FC = () => {
       return {
         id: state.notebookId,
         title: state.notebookTitle,
+        color: '#667eea',
+        type: 'personal' as const,
         category: '',
         conceptCount: 0,
-        createdAt: new Date(),
+        createdAt: Timestamp.now(),
         userId: ''
       };
     }
