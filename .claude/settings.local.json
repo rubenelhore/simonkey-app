@@ -197,7 +197,8 @@
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react/**)",
       "Read(///**)",
       "Bash(open:*)",
-      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)"
+      "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

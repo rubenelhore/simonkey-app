@@ -1958,6 +1958,15 @@
   letter-spacing: 0.5px;
   border-right: 1px solid rgba(255, 255, 255, 0.2);
   vertical-align: top;
+  transition: background-color 0.2s ease;
+}
+
+.simple-users-table th[style*="cursor: pointer"]:hover {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+.simple-users-table th[style*="cursor: pointer"] {
+  user-select: none;
 }
 
 .filter-input {
@@ -2319,6 +2328,15 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-right: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background-color 0.2s ease;
+}
+
+.simple-messages-table th[style*="cursor: pointer"]:hover {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+.simple-messages-table th[style*="cursor: pointer"] {
+  user-select: none;
 }
 
 .simple-messages-table th:last-child {
@@ -2427,6 +2445,15 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-right: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background-color 0.2s ease;
+}
+
+.simple-pro-requests-table th[style*="cursor: pointer"]:hover {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+.simple-pro-requests-table th[style*="cursor: pointer"] {
+  user-select: none;
 }
 
 .simple-pro-requests-table th:last-child {

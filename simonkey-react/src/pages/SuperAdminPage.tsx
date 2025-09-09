@@ -73,6 +73,11 @@ interface ProRequest {
   notes?: string;
 }
 
+interface SortConfig {
+  key: string;
+  direction: 'asc' | 'desc';
+}
+
 const SuperAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isSuperAdmin, loading: userTypeLoading } = useUserType();
@@ -84,6 +89,11 @@ const SuperAdminPage: React.FC = () => {
   const [proRequests, setProRequests] = useState<ProRequest[]>([]);
   const [filteredProRequests, setFilteredProRequests] = useState<ProRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Sort configurations for each table
+  const [usersSortConfig, setUsersSortConfig] = useState<SortConfig | null>(null);
+  const [messagesSortConfig, setMessagesSortConfig] = useState<SortConfig | null>(null);
+  const [proRequestsSortConfig, setProRequestsSortConfig] = useState<SortConfig | null>(null);
   const [filters, setFilters] = useState({
     nombre: '',
     email: '',
@@ -567,6 +577,148 @@ Ver consola para más detalles.`);
     }
   };
 
+  // Sorting functions
+  const sortData = <T,>(data: T[], sortConfig: SortConfig | null, getValueFn: (item: T, key: string) => any): T[] => {
+    if (!sortConfig) return data;
+    
+    return [...data].sort((a, b) => {
+      const aVal = getValueFn(a, sortConfig.key);
+      const bVal = getValueFn(b, sortConfig.key);
+      
+      if (aVal < bVal) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aVal > bVal) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+  
+  const getUserValue = (user: User, key: string): any => {
+    switch (key) {
+      case 'name':
+        return (user.displayName || user.nombre || '').toLowerCase();
+      case 'email':
+        return (user.email || '').toLowerCase();
+      case 'subscription':
+        return (user.subscription || 'free').toLowerCase();
+      case 'isTeacher':
+        return user.isTeacher ? 'true' : 'false';
+      case 'createdAt':
+        return user.createdAt ? new Date(user.createdAt.seconds * 1000).getTime() : 0;
+      case 'lastLogin':
+        return getLastLoginTimestamp(user);
+      case 'scoreGlobal':
+        return user.scoreGlobal || user.kpisData?.global?.scoreGlobal || 0;
+      case 'teacherNames':
+        return (user.teacherNames || '').toLowerCase();
+      default:
+        return '';
+    }
+  };
+  
+  const getLastLoginTimestamp = (user: User): number => {
+    const dates = [];
+    if (user.lastLoginAt) dates.push({ value: user.lastLoginAt, priority: 1 });
+    if (user.lastLogin) dates.push({ value: user.lastLogin, priority: 1 });
+    if (user.lastActivity) dates.push({ value: user.lastActivity, priority: 2 });
+    if (user.updatedAt) dates.push({ value: user.updatedAt, priority: 3 });
+    
+    const processedDates = dates.map(item => {
+      let timestamp = 0;
+      if (item.value && item.value.seconds) {
+        timestamp = item.value.seconds;
+      } else if (item.value && item.value.toDate) {
+        timestamp = item.value.toDate().getTime() / 1000;
+      } else if (typeof item.value === 'string') {
+        timestamp = new Date(item.value).getTime() / 1000;
+      } else if (item.value instanceof Date) {
+        timestamp = item.value.getTime() / 1000;
+      }
+      return { ...item, timestamp };
+    }).filter(item => item.timestamp > 0);
+    
+    processedDates.sort((a, b) => {
+      if (a.priority === b.priority) {
+        return b.timestamp - a.timestamp;
+      }
+      return a.priority - b.priority;
+    });
+    
+    return processedDates.length > 0 ? processedDates[0].timestamp : 0;
+  };
+  
+  const getMessageValue = (message: ContactMessage, key: string): any => {
+    switch (key) {
+      case 'name':
+        return message.name.toLowerCase();
+      case 'email':
+        return message.email.toLowerCase();
+      case 'subject':
+        return message.subject.toLowerCase();
+      case 'message':
+        return message.message.toLowerCase();
+      case 'status':
+        return message.status || 'pending';
+      case 'timestamp':
+        return message.timestamp ? (message.timestamp.seconds ? message.timestamp.seconds : new Date(message.timestamp).getTime() / 1000) : 0;
+      default:
+        return '';
+    }
+  };
+  
+  const getProRequestValue = (request: ProRequest, key: string): any => {
+    switch (key) {
+      case 'userName':
+        return request.userName.toLowerCase();
+      case 'userEmail':
+        return request.userEmail.toLowerCase();
+      case 'currentSubscription':
+        return request.currentSubscription.toLowerCase();
+      case 'status':
+        return request.status;
+      case 'requestedAt':
+        return request.requestedAt ? (request.requestedAt.seconds ? request.requestedAt.seconds : new Date(request.requestedAt).getTime() / 1000) : 0;
+      default:
+        return '';
+    }
+  };
+  
+  const handleSort = (key: string, tableType: 'users' | 'messages' | 'proRequests') => {
+    let currentConfig: SortConfig | null = null;
+    let setConfigFn: (config: SortConfig | null) => void;
+    
+    switch (tableType) {
+      case 'users':
+        currentConfig = usersSortConfig;
+        setConfigFn = setUsersSortConfig;
+        break;
+      case 'messages':
+        currentConfig = messagesSortConfig;
+        setConfigFn = setMessagesSortConfig;
+        break;
+      case 'proRequests':
+        currentConfig = proRequestsSortConfig;
+        setConfigFn = setProRequestsSortConfig;
+        break;
+    }
+    
+    let direction: 'asc' | 'desc' = 'asc';
+    if (currentConfig && currentConfig.key === key && currentConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    
+    setConfigFn({ key, direction });
+  };
+  
+  const getSortIcon = (columnKey: string, sortConfig: SortConfig | null): string => {
+    if (!sortConfig || sortConfig.key !== columnKey) {
+      return '↕️'; // Both arrows
+    }
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
   // Función para filtrar usuarios
   const filterUsers = () => {
     let filtered = users.filter(user => {
@@ -591,6 +743,10 @@ Ver consola para más detalles.`);
              profesores.includes(filters.profesores.toLowerCase()) &&
              passesTeacherFilter;
     });
+    
+    // Apply sorting
+    filtered = sortData(filtered, usersSortConfig, getUserValue);
+    
     setFilteredUsers(filtered);
   };
 
@@ -670,6 +826,10 @@ Ver consola para más detalles.`);
       
       return matchesSearch && matchesStatus;
     });
+    
+    // Apply sorting
+    filtered = sortData(filtered, messagesSortConfig, getMessageValue);
+    
     setFilteredMessages(filtered);
   };
 
@@ -799,17 +959,21 @@ Ver consola para más detalles.`);
       
       return matchesSearch && matchesStatus;
     });
+    
+    // Apply sorting
+    filtered = sortData(filtered, proRequestsSortConfig, getProRequestValue);
+    
     setFilteredProRequests(filtered);
   };
 
   // Ejecutar filtros cuando cambien
   React.useEffect(() => {
     filterUsers();
-  }, [filters, users]);
+  }, [filters, users, usersSortConfig]);
 
   React.useEffect(() => {
     filterMessages();
-  }, [messageFilters, messages]);
+  }, [messageFilters, messages, messagesSortConfig]);
 
   // Función para corregir usuarios sin lastLoginAt
   const fixUsersWithoutLastLogin = async () => {
@@ -926,7 +1090,7 @@ Ver consola para más detalles.`);
 
   React.useEffect(() => {
     filterProRequests();
-  }, [proFilters, proRequests]);
+  }, [proFilters, proRequests, proRequestsSortConfig]);
   
   
 
@@ -997,8 +1161,10 @@ Ver consola para más detalles.`);
           <table className="simple-users-table">
             <thead>
               <tr>
-                <th style={{ width: '16%', textAlign: 'center' }}>
-                  Nombre
+                <th style={{ width: '16%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('name', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Nombre {getSortIcon('name', usersSortConfig)}
+                  </div>
                   <div className="filter-input">
                     <input
                       type="text"
@@ -1006,11 +1172,14 @@ Ver consola para más detalles.`);
                       value={filters.nombre}
                       onChange={(e) => setFilters({...filters, nombre: e.target.value})}
                       className="header-filter"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 </th>
-                <th style={{ width: '20%', textAlign: 'center' }}>
-                  Email
+                <th style={{ width: '20%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('email', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Email {getSortIcon('email', usersSortConfig)}
+                  </div>
                   <div className="filter-input">
                     <input
                       type="text"
@@ -1018,16 +1187,20 @@ Ver consola para más detalles.`);
                       value={filters.email}
                       onChange={(e) => setFilters({...filters, email: e.target.value})}
                       className="header-filter"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 </th>
-                <th style={{ width: '10%', textAlign: 'center' }}>
-                  Suscripción
+                <th style={{ width: '10%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('subscription', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Suscripción {getSortIcon('subscription', usersSortConfig)}
+                  </div>
                   <div className="filter-input">
                     <select
                       value={filters.subscription}
                       onChange={(e) => setFilters({...filters, subscription: e.target.value})}
                       className="header-filter"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <option value="">Todas</option>
                       <option value="free">Free</option>
@@ -1037,13 +1210,16 @@ Ver consola para más detalles.`);
                     </select>
                   </div>
                 </th>
-                <th style={{ width: '14%', textAlign: 'center' }}>
-                  isTeacher
+                <th style={{ width: '14%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('isTeacher', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    isTeacher {getSortIcon('isTeacher', usersSortConfig)}
+                  </div>
                   <div className="filter-input">
                     <select
                       value={filters.role}
                       onChange={(e) => setFilters({...filters, role: e.target.value})}
                       className="header-filter"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <option value="">Todos</option>
                       <option value="teacher">True</option>
@@ -1052,11 +1228,25 @@ Ver consola para más detalles.`);
                     </select>
                   </div>
                 </th>
-                <th style={{ width: '12%', textAlign: 'center' }}>Fecha Creación</th>
-                <th style={{ width: '14%', textAlign: 'center' }}>Última Sesión</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>Score Global</th>
-                <th style={{ width: '16%', textAlign: 'center' }}>
-                  Profesores Enrolados
+                <th style={{ width: '12%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('createdAt', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Fecha Creación {getSortIcon('createdAt', usersSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '14%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('lastLogin', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Última Sesión {getSortIcon('lastLogin', usersSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '10%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('scoreGlobal', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Score Global {getSortIcon('scoreGlobal', usersSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '16%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('teacherNames', 'users')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Profesores Enrolados {getSortIcon('teacherNames', usersSortConfig)}
+                  </div>
                   <div className="filter-input">
                     <input
                       type="text"
@@ -1064,6 +1254,7 @@ Ver consola para más detalles.`);
                       value={filters.profesores || ''}
                       onChange={(e) => setFilters({...filters, profesores: e.target.value})}
                       className="header-filter"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 </th>
@@ -1305,12 +1496,36 @@ Ver consola para más detalles.`);
           <table className="simple-messages-table">
             <thead>
               <tr>
-                <th style={{ width: '120px', minWidth: '120px' }}>Nombre</th>
-                <th style={{ width: '150px', minWidth: '150px' }}>Email</th>
-                <th style={{ width: '130px', minWidth: '130px' }}>Asunto</th>
-                <th style={{ width: '200px', minWidth: '200px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Mensaje</th>
-                <th style={{ width: '80px', minWidth: '80px' }}>Estado</th>
-                <th style={{ width: '100px', minWidth: '100px' }}>Fecha</th>
+                <th style={{ width: '120px', minWidth: '120px', cursor: 'pointer' }} onClick={() => handleSort('name', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Nombre {getSortIcon('name', messagesSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '150px', minWidth: '150px', cursor: 'pointer' }} onClick={() => handleSort('email', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Email {getSortIcon('email', messagesSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '130px', minWidth: '130px', cursor: 'pointer' }} onClick={() => handleSort('subject', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Asunto {getSortIcon('subject', messagesSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '200px', minWidth: '200px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('message', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Mensaje {getSortIcon('message', messagesSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '80px', minWidth: '80px', cursor: 'pointer' }} onClick={() => handleSort('status', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Estado {getSortIcon('status', messagesSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '100px', minWidth: '100px', cursor: 'pointer' }} onClick={() => handleSort('timestamp', 'messages')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Fecha {getSortIcon('timestamp', messagesSortConfig)}
+                  </div>
+                </th>
                 <th style={{ width: '100px', minWidth: '100px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -1423,11 +1638,31 @@ Ver consola para más detalles.`);
           <table className="simple-pro-requests-table">
             <thead>
               <tr>
-                <th style={{ width: '150px', minWidth: '150px' }}>Usuario</th>
-                <th style={{ width: '180px', minWidth: '180px' }}>Email</th>
-                <th style={{ width: '120px', minWidth: '120px' }}>Suscripción Actual</th>
-                <th style={{ width: '100px', minWidth: '100px', textAlign: 'center' }}>Estado</th>
-                <th style={{ width: '120px', minWidth: '120px' }}>Fecha Solicitud</th>
+                <th style={{ width: '150px', minWidth: '150px', cursor: 'pointer' }} onClick={() => handleSort('userName', 'proRequests')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Usuario {getSortIcon('userName', proRequestsSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '180px', minWidth: '180px', cursor: 'pointer' }} onClick={() => handleSort('userEmail', 'proRequests')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Email {getSortIcon('userEmail', proRequestsSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '120px', minWidth: '120px', cursor: 'pointer' }} onClick={() => handleSort('currentSubscription', 'proRequests')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Suscripción Actual {getSortIcon('currentSubscription', proRequestsSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('status', 'proRequests')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    Estado {getSortIcon('status', proRequestsSortConfig)}
+                  </div>
+                </th>
+                <th style={{ width: '120px', minWidth: '120px', cursor: 'pointer' }} onClick={() => handleSort('requestedAt', 'proRequests')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    Fecha Solicitud {getSortIcon('requestedAt', proRequestsSortConfig)}
+                  </div>
+                </th>
                 <th style={{ width: '200px', minWidth: '200px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
