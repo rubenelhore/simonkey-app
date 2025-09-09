@@ -2506,6 +2506,80 @@
   color: #991b1b;
 }
 
+/* Estilos para tabla de métricas */
+.metrics-section {
+  padding: 0;
+}
+
+.metrics-section h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.metrics-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.simple-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed !important;
+}
+
+.simple-metrics-table th {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background-color 0.2s ease;
+}
+
+.simple-metrics-table th[style*="cursor: pointer"]:hover {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+.simple-metrics-table th[style*="cursor: pointer"] {
+  user-select: none;
+}
+
+.simple-metrics-table th:last-child {
+  border-right: none;
+}
+
+.simple-metrics-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  border-right: 1px solid #f0f0f0;
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.simple-metrics-table td:last-child {
+  border-right: none;
+}
+
+.simple-metrics-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.simple-metrics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 /* Migration Section Styles */
 .migration-section {
   padding: 2rem;

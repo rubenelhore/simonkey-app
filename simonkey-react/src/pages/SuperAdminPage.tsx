@@ -5,6 +5,7 @@ import '../styles/SuperAdminPage.css';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
 import BulkUploadModule from '../components/BulkUploadModule';
+import UserMetricsTable from '../components/UserMetricsTable';
 import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit, where } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { GoogleAuthProvider } from 'firebase/auth';
@@ -73,6 +74,35 @@ interface ProRequest {
   notes?: string;
 }
 
+interface UserMetrics {
+  id: string;
+  nombre: string;
+  displayName?: string;
+  email: string;
+  teacherNames?: string;
+  scoreGlobal: number;
+  repasoInteligente: {
+    score: number;
+    sessions: number;
+  };
+  estudioActivo: {
+    score: number;
+    sessions: number;
+  };
+  estubre: {
+    score: number;
+    sessions: number;
+  };
+  quiz: {
+    score: number;
+    sessions: number;
+  };
+  juegos: {
+    score: number;
+    sessions: number;
+  };
+}
+
 interface SortConfig {
   key: string;
   direction: 'asc' | 'desc';
@@ -88,12 +118,15 @@ const SuperAdminPage: React.FC = () => {
   const [filteredMessages, setFilteredMessages] = useState<ContactMessage[]>([]);
   const [proRequests, setProRequests] = useState<ProRequest[]>([]);
   const [filteredProRequests, setFilteredProRequests] = useState<ProRequest[]>([]);
+  const [userMetrics, setUserMetrics] = useState<UserMetrics[]>([]);
+  const [filteredMetrics, setFilteredMetrics] = useState<UserMetrics[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Sort configurations for each table
   const [usersSortConfig, setUsersSortConfig] = useState<SortConfig | null>(null);
   const [messagesSortConfig, setMessagesSortConfig] = useState<SortConfig | null>(null);
   const [proRequestsSortConfig, setProRequestsSortConfig] = useState<SortConfig | null>(null);
+  const [metricsSortConfig, setMetricsSortConfig] = useState<SortConfig | null>(null);
   const [filters, setFilters] = useState({
     nombre: '',
     email: '',
@@ -2001,6 +2034,12 @@ Ver consola para más detalles.`);
               🌟 Pro
             </button>
             <button 
+              className={`tab-button ${activeTab === 'metricas' ? 'active' : ''}`}
+              onClick={() => setActiveTab('metricas')}
+            >
+              📊 Métricas
+            </button>
+            <button 
               className={`tab-button ${activeTab === 'carga-masiva' ? 'active' : ''}`}
               onClick={() => setActiveTab('carga-masiva')}
             >
@@ -2013,6 +2052,7 @@ Ver consola para más detalles.`);
             {activeTab === 'profesores' && renderTeachersTab()}
             {activeTab === 'mensajes' && renderMessagesTab()}
             {activeTab === 'pro' && renderProTab()}
+            {activeTab === 'metricas' && <UserMetricsTable />}
             {activeTab === 'carga-masiva' && <BulkUploadModule />}
           </div>
         </div>
