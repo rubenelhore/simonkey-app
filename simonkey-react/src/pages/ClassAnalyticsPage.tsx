@@ -1302,8 +1302,8 @@ const ProgressPage: React.FC = () => {
         const totalQuizzes = quizData.totalQuizzes || 0;
         
         if (totalQuestions > 0 && totalQuizzes > 0) {
-          // Estimate: ~30 seconds per question on average
-          const estimatedTimePerQuestion = 0.5; // 30 seconds = 0.5 minutes
+          // Estimate: ~9 seconds per question on average
+          const estimatedTimePerQuestion = 0.15; // 9 seconds = 0.15 minutes
           quizTime = totalQuestions * estimatedTimePerQuestion;
           
           console.log(`[ProgressPage] Estimated quiz time from stats:`, {
