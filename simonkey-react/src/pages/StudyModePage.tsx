@@ -998,6 +998,16 @@ const StudyModePage = () => {
       // Score final - NUEVA FÓRMULA: SUMA SIMPLE
       const totalScore = totalStudyPoints + totalMultiplierPoints;
       
+      // 🔍 DEBUG: Comparación con KPI Service
+      console.log('🔍 [StudyModePage] Comparación con KPI Service para:', selectedNotebook?.title);
+      console.log('🔍 [StudyModePage] totalStudyPoints:', totalStudyPoints, 'vs KPI Service: 4800');
+      console.log('🔍 [StudyModePage] totalMultiplierPoints:', totalMultiplierPoints, 'vs KPI Service: 1212');
+      console.log('🔍 [StudyModePage] totalScore:', totalScore, 'vs KPI Service scoreCuaderno: 6012');
+      console.log('🔍 [StudyModePage] smartStudyPoints:', smartStudyPoints, 'vs KPI Service: 4.5');
+      console.log('🔍 [StudyModePage] maxQuizScoreValue:', maxQuizScoreValue, 'vs KPI Service maxQuizScore: 280');
+      console.log('🔍 [StudyModePage] gamePointsValue:', gamePointsValue, 'vs KPI Service gamePoints: 732');
+      console.log('🔍 [StudyModePage] streakBonus:', streakBonus, 'vs KPI Service streakBonus: 200');
+      
       // 🔍 DEBUG: Desglose completo del cálculo de puntos
       console.log('🧮 [SCORE CALCULATION DEBUG] =====================================');
       console.log('📚 Smart Study Points:', smartStudyPoints, '×1000 =', smartStudyPoints * 1000);
