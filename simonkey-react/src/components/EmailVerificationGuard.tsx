@@ -32,21 +32,41 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       // Reset navigation flag when state changes
       hasNavigated.current = false;
       
+      // Debug log para verificar datos del usuario
+      if (isAuthenticated && userProfile) {
+        console.log('🐛 EmailVerificationGuard - Perfil del usuario:', {
+          email: userProfile.email,
+          createdViaUpload: userProfile.createdViaUpload,
+          isEmailVerified,
+          isSchoolUser,
+          subscription: userProfile.subscription
+        });
+      }
+      
       // Ya no hay restricciones especiales para profesores
 
       // USUARIOS CREADOS VIA BULK UPLOAD: Ir a cambiar contraseña
       if (isAuthenticated && userProfile?.createdViaUpload && !hasNavigated.current) {
+        console.log('🔄 Usuario creado via bulk upload detectado, redirigiendo a cambiar contraseña');
         hasNavigated.current = true;
         navigate('/change-password-required', { replace: true });
         return;
       }
 
-      // USUARIOS NORMALES: Verificar email
-      if (isAuthenticated && !isEmailVerified && !isSchoolUser && !userProfile?.createdViaUpload && !hasNavigated.current) {
+      // WORKAROUND: Usuarios con subscription 'free' y emailVerified=true (probablemente bulk upload)
+      if (isAuthenticated && userProfile?.subscription === 'free' && isEmailVerified && userProfile?.uploadedBy && !hasNavigated.current) {
+        console.log('🔄 Usuario free con uploadedBy detectado, redirigiendo a cambiar contraseña');
         hasNavigated.current = true;
-        navigate('/verify-email', { replace: true });
+        navigate('/change-password-required', { replace: true });
         return;
       }
+
+      // USUARIOS NORMALES: Verificar email - TEMPORALMENTE DESHABILITADO
+      // if (isAuthenticated && !isEmailVerified && !isSchoolUser && !userProfile?.createdViaUpload && !hasNavigated.current) {
+      //   hasNavigated.current = true;
+      //   navigate('/verify-email', { replace: true });
+      //   return;
+      // }
     }
   }, [isAuthenticated, isEmailVerified, isSchoolUser, isTeacher, isSchoolStudent, userProfile, location.pathname, navigate, loading, userTypeLoading]);
 
@@ -97,10 +117,11 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
 
   // Si no está verificado y no está en las páginas permitidas, no mostrar contenido
   // EXCEPTO para usuarios escolares y usuarios creados via bulk upload
-  const allowedPaths = ['/verify-email', '/change-password-required'];
-  if (!isEmailVerified && !allowedPaths.includes(location.pathname) && !isSchoolUser && !userProfile?.createdViaUpload) {
-    return null;
-  }
+  // TEMPORALMENTE DESHABILITADO - PERMITIR ACCESO A TODOS LOS USUARIOS AUTENTICADOS
+  // const allowedPaths = ['/verify-email', '/change-password-required'];
+  // if (!isEmailVerified && !allowedPaths.includes(location.pathname) && !isSchoolUser && !userProfile?.createdViaUpload) {
+  //   return null;
+  // }
 
   // Usuario autenticado y verificado (o en página de verificación)
   return <>{children}</>;

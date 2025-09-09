@@ -191,8 +191,8 @@ const SignupPage: React.FC = () => {
         console.log('Redirigiendo a join con código:', inviteCode);
         navigate(`/join/${inviteCode}`, { replace: true });
       } else {
-        // Si no, ir a la página de verificación de email
-        navigate('/verify-email');
+        // TEMPORALMENTE DESHABILITADO - Ir directamente a inicio en lugar de verificación
+        navigate('/inicio');
       }
     } catch (err: any) {
       let errorMessage = 'Error al registrarse';

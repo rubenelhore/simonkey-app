@@ -502,12 +502,15 @@ const AppContent: React.FC = () => {
               if (isAuthenticated) {
                 // Usuarios universitarios van a sus cursos por defecto
                 if (isUniversityUser) return <Navigate to="/university/cursos" replace />;
-                // Todos los usuarios autenticados van a inicio
-                if (isEmailVerified) {
-                  return <Navigate to="/inicio" replace />;
-                }
+                // TEMPORALMENTE DESHABILITADO - Todos los usuarios autenticados van a inicio
+                // if (isEmailVerified) {
+                //   return <Navigate to="/inicio" replace />;
+                // }
                 // Si no está verificado, ir a verificación
-                return <Navigate to="/verify-email" replace />;
+                // return <Navigate to="/verify-email" replace />;
+                
+                // TEMPORAL: Todos los usuarios autenticados van a inicio
+                return <Navigate to="/inicio" replace />;
               }
               // Usuarios no autenticados van al login
               return <Navigate to="/login" replace />;

@@ -407,6 +407,12 @@ export interface UserProfile {
   // isTeacher?: boolean; // Ya definido arriba
   teacherRequestedAt?: Timestamp;
   teacherApprovedAt?: Timestamp;
+  
+  // Campos para usuarios creados via bulk upload
+  createdViaUpload?: boolean;
+  uploadedBy?: string;
+  hasChangedInitialPassword?: boolean;
+  passwordLastChanged?: string;
 }
 
 /**

@@ -6,7 +6,7 @@ import HeaderWithHamburger from '../components/HeaderWithHamburger';
 import TeacherManagementImproved from '../components/TeacherManagementImproved';
 import BulkUploadModule from '../components/BulkUploadModule';
 import UserMetricsTable from '../components/UserMetricsTable';
-import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp, getDoc, limit, where, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { GoogleAuthProvider } from 'firebase/auth';
 
@@ -460,6 +460,61 @@ const SuperAdminPage: React.FC = () => {
       console.error('❌ Error details:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para eliminar usuario
+  const deleteUser = async (userId: string, userEmail: string) => {
+    if (!window.confirm(`¿Estás seguro que quieres eliminar el usuario ${userEmail}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      console.log(`🗑️ Eliminando usuario: ${userEmail} (${userId})`);
+      
+      // Eliminar de la colección principal 'users'
+      await deleteDoc(doc(db, 'users', userId));
+      console.log('✅ Usuario eliminado de colección users');
+      
+      // Verificar si existe en schoolTeachers y eliminar
+      try {
+        const teacherDoc = await getDoc(doc(db, 'schoolTeachers', userId));
+        if (teacherDoc.exists()) {
+          await deleteDoc(doc(db, 'schoolTeachers', userId));
+          console.log('✅ Usuario eliminado de colección schoolTeachers');
+        }
+      } catch (error) {
+        console.log('ℹ️ Usuario no encontrado en schoolTeachers o error:', error);
+      }
+      
+      // Verificar si existe en schoolStudents y eliminar
+      try {
+        const studentDoc = await getDoc(doc(db, 'schoolStudents', userId));
+        if (studentDoc.exists()) {
+          await deleteDoc(doc(db, 'schoolStudents', userId));
+          console.log('✅ Usuario eliminado de colección schoolStudents');
+        }
+      } catch (error) {
+        console.log('ℹ️ Usuario no encontrado en schoolStudents o error:', error);
+      }
+      
+      // Actualizar la lista local de usuarios
+      const updatedUsers = users.filter(user => user.id !== userId);
+      setUsers(updatedUsers);
+      // Aplicar filtros existentes para la lista actualizada
+      const filteredData = updatedUsers.filter(user => 
+        (!filters.nombre || (user.displayName || user.nombre || '').toLowerCase().includes(filters.nombre.toLowerCase())) &&
+        (!filters.email || (user.email || '').toLowerCase().includes(filters.email.toLowerCase())) &&
+        (!filters.subscription || user.subscription === filters.subscription) &&
+        (!filters.profesores || (user.teacherNames || '').toLowerCase().includes(filters.profesores.toLowerCase()))
+      );
+      setFilteredUsers(filteredData);
+      
+      alert(`Usuario ${userEmail} eliminado exitosamente`);
+      
+    } catch (error) {
+      console.error('❌ Error eliminando usuario:', error);
+      alert(`Error eliminando usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -1194,7 +1249,7 @@ Ver consola para más detalles.`);
           <table className="simple-users-table">
             <thead>
               <tr>
-                <th style={{ width: '16%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('name', 'users')}>
+                <th style={{ width: '15%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('name', 'users')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     Nombre {getSortIcon('name', usersSortConfig)}
                   </div>
@@ -1209,7 +1264,7 @@ Ver consola para más detalles.`);
                     />
                   </div>
                 </th>
-                <th style={{ width: '20%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('email', 'users')}>
+                <th style={{ width: '18%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('email', 'users')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     Email {getSortIcon('email', usersSortConfig)}
                   </div>
@@ -1276,7 +1331,7 @@ Ver consola para más detalles.`);
                     Score Global {getSortIcon('scoreGlobal', usersSortConfig)}
                   </div>
                 </th>
-                <th style={{ width: '16%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('teacherNames', 'users')}>
+                <th style={{ width: '14%', textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('teacherNames', 'users')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     Profesores Enrolados {getSortIcon('teacherNames', usersSortConfig)}
                   </div>
@@ -1291,15 +1346,18 @@ Ver consola para más detalles.`);
                     />
                   </div>
                 </th>
+                <th style={{ width: '8%', textAlign: 'center' }}>
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
                 <tr key={user.id}>
-                  <td style={{ width: '16%' }}>
+                  <td style={{ width: '15%' }}>
                     {user.displayName || user.nombre || 'Sin nombre'}
                   </td>
-                  <td style={{ width: '20%' }}>
+                  <td style={{ width: '18%' }}>
                     {user.email || 'Sin email'}
                   </td>
                   <td style={{ width: '10%' }}>
@@ -1443,7 +1501,7 @@ Ver consola para más detalles.`);
                       }
                     })()}
                   </td>
-                  <td style={{ width: '16%' }}>
+                  <td style={{ width: '14%' }}>
                     {user.teacherNames ? (
                       <div style={{ 
                         fontSize: '0.8rem',
@@ -1460,6 +1518,15 @@ Ver consola para más detalles.`);
                     ) : (
                       <span style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.8rem' }}>Sin profesores</span>
                     )}
+                  </td>
+                  <td style={{ width: '8%', textAlign: 'center' }}>
+                    <button
+                      onClick={() => deleteUser(user.id, user.email || 'Usuario sin email')}
+                      className="delete-user-btn"
+                      title={`Eliminar usuario ${user.email || user.displayName || user.nombre}`}
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))}

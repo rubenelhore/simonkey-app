@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserType } from '../hooks/useUserType';
 import { sendVerificationEmail, startVerificationMonitoring } from '../services/emailVerificationService';
 import EmailVerificationBanner from '../components/EmailVerification/EmailVerificationBanner';
 import simonLogo from '/img/favicon.svg';
@@ -10,6 +11,7 @@ const EmailVerificationPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isEmailVerified, refreshEmailVerification, logout, loading } = useAuth();
+  const { userProfile, loading: userTypeLoading } = useUserType();
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info' | null>(null);
@@ -18,8 +20,40 @@ const EmailVerificationPage: React.FC = () => {
     user: user?.email,
     isEmailVerified,
     loading,
-    message
+    message,
+    userProfile: {
+      email: userProfile?.email,
+      createdViaUpload: userProfile?.createdViaUpload,
+      uploadedBy: userProfile?.uploadedBy,
+      subscription: userProfile?.subscription
+    }
   });
+
+  // Detectar usuarios bulk upload y redirigir
+  useEffect(() => {
+    if (!loading && !userTypeLoading && userProfile && user) {
+      console.log('🔍 Verificando si es usuario bulk upload:', {
+        createdViaUpload: userProfile.createdViaUpload,
+        uploadedBy: userProfile.uploadedBy,
+        subscription: userProfile.subscription,
+        isEmailVerified
+      });
+
+      // Redirigir usuarios creados via bulk upload a cambio de contraseña
+      if (userProfile.createdViaUpload || userProfile.uploadedBy) {
+        console.log('🔄 Usuario bulk upload detectado, redirigiendo a cambiar contraseña');
+        navigate('/change-password-required', { replace: true });
+        return;
+      }
+
+      // Workaround adicional: usuarios con subscription 'free' y emailVerified=true 
+      if (userProfile.subscription === 'free' && isEmailVerified && userProfile.uploadedBy) {
+        console.log('🔄 Usuario free con uploadedBy detectado, redirigiendo a cambiar contraseña');
+        navigate('/change-password-required', { replace: true });
+        return;
+      }
+    }
+  }, [loading, userTypeLoading, userProfile, user, isEmailVerified, navigate]);
 
   // Verificar automáticamente el estado al cargar la página
   useEffect(() => {
