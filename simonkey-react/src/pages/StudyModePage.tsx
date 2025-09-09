@@ -139,6 +139,7 @@ const StudyModePage = () => {
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [showFillBlankIntro, setShowFillBlankIntro] = useState(false);
   const [selectedFillBlankDifficulty, setSelectedFillBlankDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [kpiUpdateExecuted, setKpiUpdateExecuted] = useState(false);
   const [scoreBreakdown, setScoreBreakdown] = useState({
     totalStudySessions: 0,
     smartStudyPoints: 0,
@@ -265,9 +266,12 @@ const StudyModePage = () => {
         const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         setEffectiveUserId(userId);
         
-        // Forzar actualización de KPIs para debug del Score Global
-        console.log('[StudyModePage] Actualizando KPIs para debug...');
-        await kpiService.updateUserKPIs(userId);
+        // Forzar actualización de KPIs para debug del Score Global (solo una vez)
+        if (!kpiUpdateExecuted) {
+          console.log('[StudyModePage] Actualizando KPIs para debug...');
+          setKpiUpdateExecuted(true);
+          await kpiService.updateUserKPIs(userId);
+        }
         
         // Ahora cargar datos del usuario en paralelo
         const [streak, hasStudiedToday, conceptStats, kpisData] = await Promise.all([
