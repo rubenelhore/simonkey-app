@@ -708,6 +708,8 @@ export class KPIService {
       let totalScore = 0;
       let totalPercentil = 0;
       let cuadernosConPercentil = 0;
+      
+      console.log(`[KPIService] Procesando ${notebooksMap.size} notebooks para calcular Score Global`);
 
       for (const [notebookId, notebook] of notebooksMap) {
         const stats = cuadernoStats.get(notebookId) || {
@@ -819,6 +821,16 @@ export class KPIService {
         // Score final del cuaderno
         const scoreCuaderno = totalStudyPoints + totalMultiplierPoints;
         
+        console.log(`[KPIService] Notebook: ${notebook.title || notebook.name || notebookId}`, {
+          scoreCuaderno,
+          totalStudyPoints,
+          totalMultiplierPoints,
+          smartStudyPoints,
+          freeStudyPoints,
+          maxQuizScore,
+          gamePoints,
+          streakBonus
+        });
 
         // Obtener el ID de la materia del cuaderno
         const idMateria = notebookToMateria.get(notebookId) || '';
@@ -892,6 +904,7 @@ export class KPIService {
       }
 
       // Calcular KPIs globales
+      console.log(`[KPIService] Score Global Final: ${totalScore} (suma de ${notebooksMap.size} notebooks)`);
       kpis.global.scoreGlobal = totalScore;
       kpis.global.percentilPromedioGlobal = cuadernosConPercentil > 0
         ? Math.round(totalPercentil / cuadernosConPercentil)

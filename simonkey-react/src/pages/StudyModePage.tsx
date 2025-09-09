@@ -265,6 +265,10 @@ const StudyModePage = () => {
         const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         setEffectiveUserId(userId);
         
+        // Forzar actualización de KPIs para debug del Score Global
+        console.log('[StudyModePage] Actualizando KPIs para debug...');
+        await kpiService.updateUserKPIs(userId);
+        
         // Ahora cargar datos del usuario en paralelo
         const [streak, hasStudiedToday, conceptStats, kpisData] = await Promise.all([
           studyStreakService.getUserStreak(userId),
