@@ -16,6 +16,54 @@ import {
   limit
 } from 'firebase/firestore';
 
+// Voice recognition cache to avoid repeated queries
+const voiceRecognitionCache = new Map<string, Map<string, number>>();
+
+// Pre-load all voice recognition data for a user's notebooks
+async function preloadVoiceRecognitionData(userId: string, notebookIds: string[]): Promise<void> {
+  try {
+    console.log(`[KPIService] Preloading voice recognition data for ${notebookIds.length} notebooks`);
+    
+    // Initialize cache for this user if not exists
+    if (!voiceRecognitionCache.has(userId)) {
+      voiceRecognitionCache.set(userId, new Map());
+    }
+    
+    const userVoiceCache = voiceRecognitionCache.get(userId)!;
+    
+    // Get all voice recognition sessions for this user at once
+    const allVoiceRecognitionSessions = await getDocs(query(
+      collection(db, 'studySessions'),
+      where('userId', '==', userId),
+      where('mode', '==', 'voice_recognition'),
+      where('validated', '==', true),
+      limit(500) // Get more data upfront, but limit to prevent timeout
+    ));
+    
+    // Group by notebook and sum scores
+    const notebookScores = new Map<string, number>();
+    allVoiceRecognitionSessions.forEach((doc) => {
+      const sessionData = doc.data();
+      const notebookId = sessionData.notebookId;
+      const sessionScore = sessionData.sessionScore || sessionData.finalSessionScore || 0;
+      
+      if (notebookIds.includes(notebookId)) {
+        notebookScores.set(notebookId, (notebookScores.get(notebookId) || 0) + sessionScore);
+      }
+    });
+    
+    // Cache all results
+    for (const notebookId of notebookIds) {
+      const score = notebookScores.get(notebookId) || 0;
+      userVoiceCache.set(notebookId, score);
+    }
+    
+    console.log(`[KPIService] Preloaded voice recognition data for ${notebookScores.size} notebooks with sessions`);
+  } catch (error) {
+    console.error('[KPIService] Error preloading voice recognition data:', error);
+  }
+}
+
 interface DashboardKPIs {
   global: {
     scoreGlobal: number;
@@ -719,6 +767,9 @@ export class KPIService {
       console.log(`[KPIService] Debug: notebooks en map: ${notebooksMap.size}, unique IDs: ${uniqueIds.length}`);
       console.log(`[KPIService] Procesando ${notebooksMap.size} notebooks para calcular Score Global`);
 
+      // Pre-load ALL voice recognition data for the user at once for efficiency
+      await preloadVoiceRecognitionData(userId, notebookIds);
+
       for (const [notebookId, notebook] of notebooksMap) {
         const stats = cuadernoStats.get(notebookId) || {
           tiempoEstudioLibre: 0,
@@ -817,7 +868,14 @@ export class KPIService {
         
         // Calcular puntos de estudio (multiplicados por 1000)
         const smartStudyPoints = stats.estudiosInteligentesValidadosConIntensidad || stats.estudiosInteligentesExitosos || 0;
-        const voiceRecognitionPoints = 0; // TODO: Necesitamos rastrear esto por separado si es necesario
+        
+        // Get voice recognition points from preloaded cache
+        let voiceRecognitionPoints = 0;
+        const userVoiceCache = voiceRecognitionCache.get(userId);
+        if (userVoiceCache && userVoiceCache.has(notebookId)) {
+          voiceRecognitionPoints = userVoiceCache.get(notebookId)!;
+        }
+        
         const freeStudyPoints = stats.estudiosLibresTotal * 0.1; // Cada estudio libre vale 0.1
         const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionPoints * 1000) + (freeStudyPoints * 1000);
         
@@ -834,6 +892,7 @@ export class KPIService {
           totalStudyPoints,
           totalMultiplierPoints,
           smartStudyPoints,
+          voiceRecognitionPoints,
           freeStudyPoints,
           maxQuizScore,
           gamePoints,

@@ -130,6 +130,7 @@ const StudyModePage = () => {
   });
   const [conceptsLearned, setConceptsLearned] = useState(0);
   const [globalScore, setGlobalScore] = useState(0); // Score Global para calcular división
+  const [globalScoreLoading, setGlobalScoreLoading] = useState(true); // Loading state for global score
   const [notebookScore, setNotebookScore] = useState({ score: 0, level: 1, progress: 0 });
   const [challenges, setChallenges] = useState<{text: string, boost: string}[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -273,17 +274,46 @@ const StudyModePage = () => {
           await kpiService.updateUserKPIs(userId);
         }
         
-        // Ahora cargar datos del usuario en paralelo
-        const [streak, hasStudiedToday, conceptStats, kpisData] = await Promise.all([
+        // Cargar datos críticos primero (sin KPI pesado)
+        const [streak, hasStudiedToday, conceptStats] = await Promise.all([
           studyStreakService.getUserStreak(userId),
           studyStreakService.hasStudiedToday(userId),
-          kpiService.getTotalDominatedConceptsByUser(userId),
-          getKPIsFromCache(userId)
+          kpiService.getTotalDominatedConceptsByUser(userId)
         ]);
         
-        // Obtener Score Global para calcular división
-        const scoreGlobal = Math.ceil(kpisData?.global?.scoreGlobal || 0);
-        setGlobalScore(scoreGlobal);
+        // Cargar Score Global con timeout agresivo
+        Promise.race([
+          getKPIsFromCache(userId),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 3000) // 3 second timeout
+          )
+        ]).then((kpisData: any) => {
+          const scoreGlobal = Math.ceil(kpisData?.global?.scoreGlobal || 0);
+          setGlobalScore(scoreGlobal);
+          
+          // Update division based on score
+          const currentDivisionIndex = DIVISION_LEVELS.findIndex(div => 
+            scoreGlobal >= div.minScore && scoreGlobal <= div.maxScore
+          );
+          if (currentDivisionIndex !== -1) {
+            setViewingDivision(currentDivisionIndex);
+            setDivisionData({
+              current: DIVISION_LEVELS[currentDivisionIndex].name,
+              progress: scoreGlobal,
+              total: DIVISION_LEVELS[currentDivisionIndex].maxScore === Infinity ? 
+                scoreGlobal + 10000 : DIVISION_LEVELS[currentDivisionIndex].maxScore,
+              nextMilestone: DIVISION_LEVELS[currentDivisionIndex].maxScore === Infinity ? 
+                scoreGlobal + 5000 : DIVISION_LEVELS[currentDivisionIndex].maxScore
+            });
+          }
+          
+          setGlobalScoreLoading(false);
+        }).catch((error) => {
+          console.error('Global score loading timeout or error:', error);
+          // Show placeholder score on timeout
+          setGlobalScore(0);
+          setGlobalScoreLoading(false);
+        });
         
         // Mantener conceptos para el módulo de progreso
         const conceptsForDisplay = conceptStats.conceptosDominados;
@@ -305,7 +335,6 @@ const StudyModePage = () => {
         }));
         
         setConceptsLearned(conceptsForDisplay);
-        calculateDivision(scoreGlobal);
         generateSuggestionsAndChallenges(streak.currentStreak);
         
       } catch (error) {
@@ -1457,14 +1486,20 @@ const StudyModePage = () => {
                 <div className="corner-medal-header">
                   <div className="corner-medal-center">
                     <div className="corner-medal-icon">
-                      {DIVISION_LEVELS[viewingDivision].icon}
+                      {globalScoreLoading ? '⏳' : DIVISION_LEVELS[viewingDivision].icon}
                     </div>
                     <div className="corner-medal-content">
                       {DIVISION_LEVELS[viewingDivision].name === divisionData.current && (
                         <div className="corner-medal-label">Tu división actual</div>
                       )}
                       <div className="corner-medal-division">{DIVISION_LEVELS[viewingDivision].name}</div>
-                      <div className="corner-medal-progress">{globalScore.toLocaleString()} Score Global</div>
+                      <div className="corner-medal-progress">
+                        {globalScoreLoading ? (
+                          <span style={{ opacity: 0.6 }}>Calculando...</span>
+                        ) : (
+                          `${globalScore.toLocaleString()} Score Global`
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
