@@ -520,7 +520,34 @@ const ProgressPage: React.FC = () => {
             // Calcular puntos específicos para este cuaderno
             const notebookPoints = await calculateNotebookPoints(notebookId, studentId);
             
+            // Obtener tiempo de estudio específico del cuaderno para este estudiante
+            let tiempoEstudio = 0;
+            try {
+              // Primero intentar desde KPIs
+              const studentKPIs = await kpiService.getUserKPIs(studentId);
+              const cuadernoData = studentKPIs?.cuadernos?.[notebookId];
+              tiempoEstudio = cuadernoData?.tiempoEstudio || cuadernoData?.tiempoEstudioLocal || 0;
+              
+              // Si no hay tiempo en KPIs, calcular desde sesiones de estudio
+              if (tiempoEstudio === 0) {
+                const studySessions = await getDocs(query(
+                  collection(db, 'studySessions'),
+                  where('userId', '==', studentId),
+                  where('notebookId', '==', notebookId),
+                  where('validated', '==', true)
+                ));
+                
+                studySessions.forEach((sessionDoc) => {
+                  const sessionData = sessionDoc.data();
+                  tiempoEstudio += sessionData.duration || 0;
+                });
+              }
+            } catch (error) {
+              console.warn(`[ClassAnalytics] Error getting study time for student ${studentId} in notebook ${notebookId}:`, error);
+            }
+            
             console.log(`[ClassAnalytics] ✅ Student ${studentName} points for notebook:`, notebookPoints);
+            console.log(`[ClassAnalytics] ⏱️ Student ${studentName} study time for notebook: ${tiempoEstudio} minutes`);
             
             return {
               id: studentId,
@@ -532,7 +559,7 @@ const ProgressPage: React.FC = () => {
               puntosQuiz: notebookPoints.puntosQuiz,
               puntosJuegos: notebookPoints.puntosJuegos,
               porcentajeDominio: notebookPoints.porcentajeDominio,
-              tiempoEstudio: 0 // TODO: Calcular tiempo específico del cuaderno si es necesario
+              tiempoEstudio: tiempoEstudio
             };
           } catch (error) {
             console.warn(`[ClassAnalytics] Error processing student ${studentId}:`, error);
@@ -1033,6 +1060,7 @@ const ProgressPage: React.FC = () => {
         voiceRecognitionSessions, 
         freeStudySessions,
         quizStatsDoc,
+        quizSessions,
         notebookPoints,
         userStreak,
         domainProgress
@@ -1065,17 +1093,49 @@ const ProgressPage: React.FC = () => {
         )),
         // Quiz stats
         getDoc(doc(db, 'users', userId, 'quizStats', notebookId)),
+        // Quiz sessions for time calculation - try multiple collection names
+        Promise.allSettled([
+          getDocs(query(
+            collection(db, 'quizSessions'),
+            where('userId', '==', userId),
+            where('notebookId', '==', notebookId),
+            limit(100)
+          )),
+          getDocs(query(
+            collection(db, 'users', userId, 'quizSessions'),
+            where('notebookId', '==', notebookId),
+            limit(100)
+          )),
+          getDocs(query(
+            collection(db, 'studySessions'),
+            where('userId', '==', userId),
+            where('notebookId', '==', notebookId),
+            where('mode', '==', 'quiz'),
+            limit(100)
+          ))
+        ]).then(results => {
+          // Return the first successful result that has documents
+          for (const result of results) {
+            if (result.status === 'fulfilled' && result.value.size > 0) {
+              console.log(`[ProgressPage] Found quiz sessions in collection, size: ${result.value.size}`);
+              return result.value;
+            }
+          }
+          console.log(`[ProgressPage] No quiz sessions found in any collection`);
+          return { docs: [] };
+        }),
         // Game points
         gamePointsService.getNotebookPoints(userId, notebookId).catch(() => ({ totalPoints: 0 })),
         // User streak
         studyStreakService.getUserStreak(userId).catch(() => ({ currentStreak: 0 })),
         // Domain progress data (concepts dominated and total)
-        getDomainProgressForNotebook(notebookId)
+        getDomainProgressForNotebook(notebookId, userId)
       ]);
 
       console.log(`[ProgressPage] DEBUG: Smart study sessions found: ${smartStudySessions.size}`);
       console.log(`[ProgressPage] DEBUG: Voice recognition sessions found: ${voiceRecognitionSessions.size}`);
       console.log(`[ProgressPage] DEBUG: Free study sessions found: ${freeStudySessions.size}`);
+      console.log(`[ProgressPage] DEBUG: Quiz sessions found: ${quizSessions.docs ? quizSessions.docs.length : quizSessions.size || 0}`);
 
       // Calculate smart study points based on intensity (same as StudyModePage)
       let smartStudyPoints = 0;
@@ -1120,6 +1180,11 @@ const ProgressPage: React.FC = () => {
 
       // Get quiz points
       const quizPoints = quizStatsDoc.exists() ? (quizStatsDoc.data().maxScore || 0) : 0;
+      
+      // Debug: Log quiz stats data to understand structure
+      if (quizStatsDoc.exists()) {
+        console.log(`[ProgressPage] Quiz stats data:`, quizStatsDoc.data());
+      }
 
       // Get game points
       const gamePointsValue = notebookPoints.totalPoints || 0;
@@ -1139,6 +1204,119 @@ const ProgressPage: React.FC = () => {
         ? Math.round((domainProgress.dominated / domainProgress.total) * 100)
         : 0;
 
+      // Calculate total study time from all sessions
+      let totalStudyTime = 0;
+      
+      // Add time from smart study sessions
+      smartStudySessions.forEach((doc) => {
+        const sessionData = doc.data();
+        let duration = sessionData.duration || 0;
+        
+        // If no duration field, calculate from startTime and endTime
+        if (duration === 0 && sessionData.startTime && sessionData.endTime) {
+          const startSeconds = sessionData.startTime.seconds || sessionData.startTime._seconds || 0;
+          const endSeconds = sessionData.endTime.seconds || sessionData.endTime._seconds || 0;
+          duration = Math.max(0, endSeconds - startSeconds) / 60; // Convert to minutes
+        }
+        
+        console.log(`[ProgressPage] Smart session ${doc.id}:`, {
+          duration: duration,
+          startTime: sessionData.startTime,
+          endTime: sessionData.endTime,
+          sessionData: sessionData
+        });
+        totalStudyTime += duration;
+      });
+      
+      // Add time from voice recognition sessions
+      voiceRecognitionSessions.forEach((doc) => {
+        const sessionData = doc.data();
+        let duration = sessionData.duration || 0;
+        
+        // If no duration field, calculate from startTime and endTime
+        if (duration === 0 && sessionData.startTime && sessionData.endTime) {
+          const startSeconds = sessionData.startTime.seconds || sessionData.startTime._seconds || 0;
+          const endSeconds = sessionData.endTime.seconds || sessionData.endTime._seconds || 0;
+          duration = Math.max(0, endSeconds - startSeconds) / 60; // Convert to minutes
+        }
+        
+        console.log(`[ProgressPage] Voice session ${doc.id}:`, {
+          duration: duration,
+          startTime: sessionData.startTime,
+          endTime: sessionData.endTime,
+          sessionData: sessionData
+        });
+        totalStudyTime += duration;
+      });
+      
+      // Add time from free study sessions
+      freeStudySessions.forEach((doc) => {
+        const sessionData = doc.data();
+        let duration = sessionData.duration || 0;
+        
+        // If no duration field, calculate from startTime and endTime
+        if (duration === 0 && sessionData.startTime && sessionData.endTime) {
+          const startSeconds = sessionData.startTime.seconds || sessionData.startTime._seconds || 0;
+          const endSeconds = sessionData.endTime.seconds || sessionData.endTime._seconds || 0;
+          duration = Math.max(0, endSeconds - startSeconds) / 60; // Convert to minutes
+        }
+        
+        console.log(`[ProgressPage] Free session ${doc.id}:`, {
+          duration: duration,
+          startTime: sessionData.startTime,
+          endTime: sessionData.endTime,
+          sessionData: sessionData
+        });
+        totalStudyTime += duration;
+      });
+      
+      // Add time from quiz sessions
+      const quizSessionsList = quizSessions.docs || [];
+      let quizTime = 0;
+      
+      if (quizSessionsList.length > 0) {
+        // Use actual quiz sessions if found
+        quizSessionsList.forEach((doc) => {
+          const sessionData = doc.data();
+          let duration = sessionData.duration || 0;
+          
+          // If no duration field, calculate from startTime and endTime
+          if (duration === 0 && sessionData.startTime && sessionData.endTime) {
+            const startSeconds = sessionData.startTime.seconds || sessionData.startTime._seconds || 0;
+            const endSeconds = sessionData.endTime.seconds || sessionData.endTime._seconds || 0;
+            duration = Math.max(0, endSeconds - startSeconds) / 60; // Convert to minutes
+          }
+          
+          console.log(`[ProgressPage] Quiz session ${doc.id}:`, {
+            duration: duration,
+            startTime: sessionData.startTime,
+            endTime: sessionData.endTime,
+            sessionData: sessionData
+          });
+          quizTime += duration;
+        });
+      } else if (quizStatsDoc.exists()) {
+        // Estimate quiz time from quiz stats
+        const quizData = quizStatsDoc.data();
+        const totalQuestions = quizData.totalQuestions || 0;
+        const totalQuizzes = quizData.totalQuizzes || 0;
+        
+        if (totalQuestions > 0 && totalQuizzes > 0) {
+          // Estimate: ~30 seconds per question on average
+          const estimatedTimePerQuestion = 0.5; // 30 seconds = 0.5 minutes
+          quizTime = totalQuestions * estimatedTimePerQuestion;
+          
+          console.log(`[ProgressPage] Estimated quiz time from stats:`, {
+            totalQuestions: totalQuestions,
+            totalQuizzes: totalQuizzes,
+            estimatedTime: quizTime,
+            calculation: `${totalQuestions} questions × ${estimatedTimePerQuestion} min/question`
+          });
+        }
+      }
+      
+      totalStudyTime += quizTime;
+
       // Calculate score general as sum of all points + streak bonus
       const scoreGeneral = puntosRepasoInteligente + puntosEstudioActivo + puntosEstudioLibre + puntosQuiz + puntosJuegos + streakBonus;
 
@@ -1149,7 +1327,8 @@ const ProgressPage: React.FC = () => {
         puntosQuiz,
         puntosJuegos,
         score: scoreGeneral, // Override the score with calculated value
-        porcentajeDominio: porcentajeDominio // Override with calculated domain percentage
+        porcentajeDominio: porcentajeDominio, // Override with calculated domain percentage
+        tiempoEstudio: totalStudyTime // Add calculated study time
       };
       
       console.log(`[ProgressPage] DEBUG: Calculated points for ${notebookId}:`, {
@@ -1160,6 +1339,7 @@ const ProgressPage: React.FC = () => {
         currentStreak: userStreak.currentStreak,
         scoreGeneral: scoreGeneral,
         porcentajeDominio: porcentajeDominio,
+        totalStudyTime: totalStudyTime,
         domainProgress: domainProgress,
         result: result
       });
@@ -1175,7 +1355,8 @@ const ProgressPage: React.FC = () => {
         puntosQuiz: 0,
         puntosJuegos: 0,
         score: 0,
-        porcentajeDominio: 0
+        porcentajeDominio: 0,
+        tiempoEstudio: 0
       };
     }
   };
@@ -2370,7 +2551,7 @@ const ProgressPage: React.FC = () => {
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round((minutes % 60) * 10) / 10; // Round to 1 decimal
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 

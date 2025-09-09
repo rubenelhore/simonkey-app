@@ -74,19 +74,9 @@ class GamePointsService {
       const pointsDoc = await getDoc(pointsDocRef);
       
       if (!pointsDoc.exists()) {
-        // Crear documento inicial
-        const initialData: GamePointsData = {
-          userId,
-          notebookPoints: {}
-        };
-        await setDoc(pointsDocRef, initialData);
-      }
-      
-      const userData = pointsDoc.exists() ? pointsDoc.data() as GamePointsData : { userId, notebookPoints: {} };
-      
-      // Verificar si existe información para este cuaderno
-      if (!userData.notebookPoints || !userData.notebookPoints[notebookId]) {
-        // Crear datos iniciales para este cuaderno
+        // Si no existe el documento, retornar datos vacíos sin intentar crear
+        // (puede ser un profesor consultando datos de estudiantes)
+        console.log('No game points document found, returning empty data');
         const notebookData: NotebookGamePoints = {
           notebookId,
           totalPoints: 0,
@@ -102,16 +92,29 @@ class GamePointsService {
           pointsHistory: [],
           achievements: []
         };
-        
-        await updateDoc(pointsDocRef, {
-          [`notebookPoints.${notebookId}`]: {
-            ...notebookData,
-            lastWeekReset: Timestamp.fromDate(notebookData.lastWeekReset),
-            lastMonthReset: Timestamp.fromDate(notebookData.lastMonthReset),
-            pointsHistory: [],
-            achievements: []
-          }
-        });
+        return notebookData;
+      }
+      
+      const userData = pointsDoc.data() as GamePointsData;
+      
+      // Verificar si existe información para este cuaderno
+      if (!userData.notebookPoints || !userData.notebookPoints[notebookId]) {
+        // Si no hay datos para este cuaderno, retornar vacío sin crear
+        const notebookData: NotebookGamePoints = {
+          notebookId,
+          totalPoints: 0,
+          weeklyPoints: 0,
+          monthlyPoints: 0,
+          lastWeekReset: new Date(),
+          lastMonthReset: new Date(),
+          gameScores: {
+            memory: 0,
+            puzzle: 0,
+            quiz: 0
+          },
+          pointsHistory: [],
+          achievements: []
+        };
         
         return notebookData;
       }
@@ -177,13 +180,16 @@ class GamePointsService {
         
         notebookPoints.gameScores = migratedScores;
         
-        // Actualizar en Firebase
-        const pointsDocRef = doc(db, 'gamePoints', userId);
-        await updateDoc(pointsDocRef, {
-          [`notebookPoints.${notebookId}.gameScores`]: migratedScores
-        });
-        
-        console.log(`[GamePointsService] Migrated game scores for notebook ${notebookId}:`, migratedScores);
+        // Intentar actualizar en Firebase (puede fallar si es un profesor consultando)
+        try {
+          const pointsDocRef = doc(db, 'gamePoints', userId);
+          await updateDoc(pointsDocRef, {
+            [`notebookPoints.${notebookId}.gameScores`]: migratedScores
+          });
+          console.log(`[GamePointsService] Migrated game scores for notebook ${notebookId}:`, migratedScores);
+        } catch (error) {
+          console.log('Could not update game scores - read-only access');
+        }
       }
       
       // Resetear puntos semanales/mensuales si es necesario
@@ -192,13 +198,36 @@ class GamePointsService {
       const monthsSinceReset = Math.floor((now.getTime() - notebookPoints.lastMonthReset.getTime()) / (30 * 24 * 60 * 60 * 1000));
       
       if (weeksSinceReset > 0 || monthsSinceReset > 0) {
-        await this.resetPeriodPoints(userId, notebookId, weeksSinceReset > 0, monthsSinceReset > 0);
-        return this.getNotebookPoints(userId, notebookId);
+        try {
+          await this.resetPeriodPoints(userId, notebookId, weeksSinceReset > 0, monthsSinceReset > 0);
+          return this.getNotebookPoints(userId, notebookId);
+        } catch (error) {
+          console.log('Could not reset period points - read-only access');
+        }
       }
       
       return notebookPoints;
     } catch (error) {
       console.error('Error obteniendo puntos:', error);
+      // Si es error de permisos, devolver datos vacíos en lugar de lanzar error
+      if (error instanceof Error && error.message.includes('permission')) {
+        console.log('Permission error detected - returning empty notebook data for read-only access');
+        return {
+          notebookId,
+          totalPoints: 0,
+          weeklyPoints: 0,
+          monthlyPoints: 0,
+          lastWeekReset: new Date(),
+          lastMonthReset: new Date(),
+          gameScores: {
+            memory: 0,
+            puzzle: 0,
+            quiz: 0
+          },
+          pointsHistory: [],
+          achievements: []
+        };
+      }
       throw error;
     }
   }
@@ -530,6 +559,7 @@ class GamePointsService {
       return gameSpecificPoints;
     } catch (error) {
       console.error(`Error obteniendo puntos específicos de ${gameName}:`, error);
+      // Siempre devolver 0 en caso de error (incluyendo permisos)
       return 0;
     }
   }

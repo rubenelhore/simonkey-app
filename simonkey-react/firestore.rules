@@ -132,19 +132,43 @@ service cloud.firestore {
       
       // Subcolección de quiz results
       match /quizResults/{quizId} {
-        allow read: if isOwner(userId) || isSuperAdmin();
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
         allow write: if isOwner(userId);
       }
       
       // Subcolección de mini quiz results
       match /miniQuizResults/{quizId} {
-        allow read: if isOwner(userId) || isSuperAdmin();
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
         allow write: if isOwner(userId);
       }
       
       // Subcolección learningData
       match /learningData/{dataId} {
         allow read: if isOwner(userId) || isSuperAdmin();
+        allow write: if isOwner(userId);
+      }
+      
+      // Subcolección quizStats
+      match /quizStats/{statId} {
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
+        allow write: if isOwner(userId);
+      }
+      
+      // Subcolección gameResults
+      match /gameResults/{gameId} {
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
+        allow write: if isOwner(userId);
+      }
+      
+      // Subcolección studyStreaks
+      match /studyStreaks/{streakId} {
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
+        allow write: if isOwner(userId);
+      }
+      
+      // Subcolección stats (para studyStreak)
+      match /stats/{statId} {
+        allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
         allow write: if isOwner(userId);
       }
       
@@ -287,9 +311,13 @@ service cloud.firestore {
     match /conceptos/{conceptId} {
       // Lectura: propietario, profesores, estudiantes con acceso al notebook, o super admin
       allow read: if isAuthenticated() && (
+        // Permitir queries sin recurso (para list/queries)
         resource == null ||
+        // Permitir al propietario
         isOwner(resource.data.usuarioId) ||
+        // Super admin puede leer todo
         isSuperAdmin() ||
+        // Profesores pueden leer cualquier concepto (incluyendo queries)
         isTeacher() ||
         // Permitir si el estudiante tiene acceso al notebook del concepto
         (resource.data.cuadernoId != null && 
@@ -316,6 +344,42 @@ service cloud.firestore {
         request.resource.data.cuadernoId == resource.data.cuadernoId;
       
       // Eliminación: propietario o super admin
+      allow delete: if isAuthenticated() && (
+        isOwner(resource.data.usuarioId) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // REGLAS PARA COLECCIÓN: schoolConcepts (legacy - mantener para compatibilidad)
+    // ========================================
+    match /schoolConcepts/{conceptId} {
+      // Mismas reglas que conceptos
+      allow read: if isAuthenticated() && (
+        // Permitir queries sin recurso (para list/queries)
+        resource == null ||
+        // Permitir al propietario
+        isOwner(resource.data.usuarioId) ||
+        // Super admin puede leer todo
+        isSuperAdmin() ||
+        // Profesores pueden leer cualquier concepto (incluyendo queries)
+        isTeacher() ||
+        // Permitir si el estudiante tiene acceso al notebook del concepto
+        (resource.data.cuadernoId != null && 
+         exists(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)) &&
+         (get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.userId == request.auth.uid ||
+          (get(/databases/$(database)/documents/notebooks/$(resource.data.cuadernoId)).data.materiaId != null))) ||
+        // Permitir acceso durante el proceso de inscripción
+        (resource.data.cuadernoId != null && isAuthenticated())
+      );
+      
+      // Creación, actualización y eliminación: mismas reglas que conceptos
+      allow create: if isAuthenticated() &&
+        isOwner(request.resource.data.usuarioId);
+      
+      allow update: if isAuthenticated() && 
+        isOwner(resource.data.usuarioId);
+      
       allow delete: if isAuthenticated() && (
         isOwner(resource.data.usuarioId) ||
         isSuperAdmin()
@@ -476,10 +540,11 @@ service cloud.firestore {
     // REGLAS PARA COLECCIÓN: studySessions
     // ========================================
     match /studySessions/{sessionId} {
-      // Lectura: propietario o super admin
+      // Lectura: propietario, profesor o super admin
       allow read: if isAuthenticated() && (
         isOwner(resource.data.userId) ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        isTeacher()
       );
       
       // Creación: usuario autenticado
@@ -625,7 +690,8 @@ service cloud.firestore {
     }
     
     match /gamePoints/{userId} {
-      allow read, write: if isOwner(userId) || isSuperAdmin();
+      allow read: if isOwner(userId) || isSuperAdmin() || isTeacher();
+      allow write: if isOwner(userId) || isSuperAdmin();
     }
     
     match /notebookPoints/{pointId} {

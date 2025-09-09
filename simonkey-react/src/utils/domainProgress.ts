@@ -2,7 +2,7 @@ import { UnifiedConceptService } from '../services/unifiedConceptService';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 
-export async function getDomainProgressForNotebook(notebookId: string) {
+export async function getDomainProgressForNotebook(notebookId: string, userId?: string) {
   // Get concepts using UnifiedConceptService
   const concepts = await UnifiedConceptService.getConcepts(notebookId);
   const total = concepts.length;
@@ -11,10 +11,14 @@ export async function getDomainProgressForNotebook(notebookId: string) {
     return { total: 0, dominated: 0, learning: 0, notStarted: 0 };
   }
   
-  // Get current user
-  const currentUser = auth.currentUser;
-  if (!currentUser) {
-    return { total, dominated: 0, learning: 0, notStarted: total };
+  // Use provided userId or current user
+  let targetUserId = userId;
+  if (!targetUserId) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return { total, dominated: 0, learning: 0, notStarted: total };
+    }
+    targetUserId = currentUser.uid;
   }
   
   try {
@@ -29,7 +33,7 @@ export async function getDomainProgressForNotebook(notebookId: string) {
       
       const batchPromises = batch.map(async (conceptId) => {
         try {
-          const learningDataRef = doc(db, 'users', currentUser.uid, 'learningData', conceptId);
+          const learningDataRef = doc(db, 'users', targetUserId, 'learningData', conceptId);
           const learningDataSnap = await getDoc(learningDataRef);
           
           if (learningDataSnap.exists()) {
