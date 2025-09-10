@@ -49,6 +49,7 @@ const ConceptDetail: React.FC = () => {
   const [globalIndex, setGlobalIndex] = useState<number>(0);
   const [allConcepts, setAllConcepts] = useState<{ conceptoId: string, localIndex: number, concepto: any }[]>([]);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [isConceptsLoaded, setIsConceptsLoaded] = useState<boolean>(false);
 
   // Añade este estado
   const [conceptProgress, setConceptProgress] = useState<number>(0);
@@ -252,11 +253,8 @@ const ConceptDetail: React.FC = () => {
         console.log('📍 Índice solicitado:', idx);
         console.log('📄 Datos del documento concepto:', conceptoSnap.data());
         
-        // IMPORTANTE: NO actualizar el total aquí para school students
-        // El listener se encargará de contar TODOS los conceptos de TODOS los documentos
-        if (!isSchoolUser) {
-          setTotalConcepts(conceptos.length);
-        }
+        // IMPORTANTE: NO actualizar el total aquí porque el listener se encarga de todo
+        // tanto para usuarios escolares como regulares
         
         if (!conceptos || idx < 0 || idx >= conceptos.length) {
           console.error('❌ Índice fuera de rango:', { idx, totalConceptos: conceptos?.length || 0 });
@@ -335,60 +333,8 @@ const ConceptDetail: React.FC = () => {
     fetchData();
   }, [notebookId, conceptoId, index, autoReadEnabled, isSchoolUser]);
 
-  // Nuevo useEffect para actualizar totalConcepts cuando cambien los parámetros
-  useEffect(() => {
-    const updateTotalConcepts = async () => {
-      if (!notebookId) return;
-      
-      try {
-        if (isSchoolUser) {
-          // Para estudiantes escolares, contar TODOS los conceptos de TODOS los documentos
-          const conceptsCollection = 'schoolConcepts';
-          const q = query(
-            collection(db, conceptsCollection),
-            where('cuadernoId', '==', notebookId)
-          );
-          
-          const querySnapshot = await getDocs(q);
-          let total = 0;
-          
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.conceptos && Array.isArray(data.conceptos)) {
-              total += data.conceptos.length;
-            }
-          });
-          
-          console.log('📊 Total de conceptos para estudiante escolar:', total);
-          setTotalConcepts(total);
-        } else {
-          // Para usuarios regulares, contar TODOS los conceptos de TODOS los documentos
-          const conceptsCollection = 'conceptos';
-          const q = query(
-            collection(db, conceptsCollection),
-            where('cuadernoId', '==', notebookId)
-          );
-          
-          const querySnapshot = await getDocs(q);
-          let total = 0;
-          
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.conceptos && Array.isArray(data.conceptos)) {
-              total += data.conceptos.length;
-            }
-          });
-          
-          console.log('📊 Total de conceptos para usuario regular:', total);
-          setTotalConcepts(total);
-        }
-      } catch (error) {
-        console.error("Error actualizando total de conceptos:", error);
-      }
-    };
-
-    updateTotalConcepts();
-  }, [conceptoId, notebookId, isSchoolUser]);
+  // ELIMINADO: useEffect duplicado que interfería con el listener principal
+  // El listener en tiempo real abajo se encarga de todo
 
   // Listener en tiempo real para detectar cambios en TODOS los documentos de conceptos del cuaderno
   useEffect(() => {
@@ -424,16 +370,24 @@ const ConceptDetail: React.FC = () => {
       
       // IMPORTANTE: Ordenar alfabéticamente igual que en NotebookDetail
       conceptosArray.sort((a, b) => {
-        const terminoA = a.concepto?.término || '';
-        const terminoB = b.concepto?.término || '';
+        const terminoA = a.concepto?.término || a.concepto?.titulo || '';
+        const terminoB = b.concepto?.término || b.concepto?.titulo || '';
         return terminoA.localeCompare(terminoB, 'es', { numeric: true, sensitivity: 'base' });
       });
+      
+      console.log('🔤 Conceptos ordenados alfabéticamente:', conceptosArray.map((c, idx) => ({
+        globalIndex: idx,
+        termino: c.concepto?.término || c.concepto?.titulo,
+        docId: c.conceptoId,
+        localIndex: c.localIndex
+      })));
       
       console.log('📊 Listener detectó cambio - Total conceptos en cuaderno:', totalConceptos, 'Anterior:', totalConcepts);
       console.log('📋 Array de conceptos globales (ordenados alfabéticamente):', conceptosArray);
       
       setTotalConcepts(totalConceptos);
       setAllConcepts(conceptosArray);
+      setIsConceptsLoaded(true);
     }, (error) => {
       console.error("Error en listener de conceptos:", error);
     });
@@ -488,11 +442,12 @@ const ConceptDetail: React.FC = () => {
       allConceptsLength: allConcepts.length,
       conceptoId,
       index,
-      totalConcepts
+      totalConcepts,
+      isConceptsLoaded
     });
     
-    if (!allConcepts.length || !conceptoId || index === undefined) {
-      console.log('⏳ Esperando datos completos...');
+    if (!isConceptsLoaded || !allConcepts.length || !conceptoId || index === undefined) {
+      console.log('⏳ Esperando datos completos...', { isConceptsLoaded, allConceptsLength: allConcepts.length, conceptoId, index });
       return;
     }
     
@@ -522,8 +477,17 @@ const ConceptDetail: React.FC = () => {
           term: c.concepto?.término 
         }))
       });
+      
+      // Si no encontramos el concepto, intentar reparar el índice global
+      if (allConcepts.length > 0) {
+        console.log('🔧 Intentando reparar navegación...');
+        // Usar el primer concepto como fallback
+        setGlobalIndex(0);
+        const firstConcept = allConcepts[0];
+        navigateToConcept(notebookId || '', firstConcept.conceptoId, firstConcept.localIndex.toString());
+      }
     }
-  }, [allConcepts, conceptoId, index, totalConcepts]);
+  }, [allConcepts, conceptoId, index, totalConcepts, isConceptsLoaded]);
 
   // Añade este efecto para persistir la preferencia de autolectura
   useEffect(() => {
@@ -739,11 +703,21 @@ const ConceptDetail: React.FC = () => {
 
   // Funciones de navegación entre conceptos
   const navigateToNextConcept = () => {
+    if (!isConceptsLoaded || !allConcepts.length) {
+      console.log('⚠️ Navegación bloqueada - conceptos no cargados');
+      return;
+    }
+    
     if (globalIndex < totalConcepts - 1) {
       setIsNavigating(true);
       const nextGlobalIndex = globalIndex + 1;
-      setGlobalIndex(nextGlobalIndex);
       const next = allConcepts[nextGlobalIndex];
+      
+      if (!next) {
+        console.error('❌ No se encontró el siguiente concepto en el índice:', nextGlobalIndex);
+        setIsNavigating(false);
+        return;
+      }
       
       console.log('➡️ Navegando al siguiente concepto global:', nextGlobalIndex, 'Documento:', next.conceptoId, 'Índice local:', next.localIndex);
       
@@ -752,11 +726,21 @@ const ConceptDetail: React.FC = () => {
   };
 
   const navigateToPreviousConcept = () => {
+    if (!isConceptsLoaded || !allConcepts.length) {
+      console.log('⚠️ Navegación bloqueada - conceptos no cargados');
+      return;
+    }
+    
     if (globalIndex > 0) {
       setIsNavigating(true);
       const prevGlobalIndex = globalIndex - 1;
-      setGlobalIndex(prevGlobalIndex);
       const prev = allConcepts[prevGlobalIndex];
+      
+      if (!prev) {
+        console.error('❌ No se encontró el concepto anterior en el índice:', prevGlobalIndex);
+        setIsNavigating(false);
+        return;
+      }
       
       console.log('⬅️ Navegando al concepto anterior global:', prevGlobalIndex, 'Documento:', prev.conceptoId, 'Índice local:', prev.localIndex);
       
@@ -963,7 +947,7 @@ const ConceptDetail: React.FC = () => {
         <div className="concept-navigation">
           <button 
             onClick={navigateToPreviousConcept}
-            disabled={globalIndex === 0 || isNavigating}
+            disabled={!isConceptsLoaded || globalIndex === 0 || isNavigating || !allConcepts.length}
             className={`concept-nav-button previous ${isNavigating ? 'navigating' : ''}`}
             aria-label="Concepto anterior"
             title="Concepto anterior"
@@ -971,11 +955,11 @@ const ConceptDetail: React.FC = () => {
             {isNavigating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-chevron-left"></i>}
           </button>
           <div className="concept-pagination">
-            {`${globalIndex + 1} / ${totalConcepts}`}
+            {isConceptsLoaded ? `${globalIndex + 1} / ${totalConcepts}` : 'Cargando...'}
           </div>
           <button 
             onClick={navigateToNextConcept}
-            disabled={globalIndex === totalConcepts - 1 || isNavigating}
+            disabled={!isConceptsLoaded || globalIndex === totalConcepts - 1 || isNavigating || !allConcepts.length}
             className={`concept-nav-button next ${isNavigating ? 'navigating' : ''}`}
             aria-label="Siguiente concepto"
             title="Siguiente concepto"

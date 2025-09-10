@@ -1852,20 +1852,22 @@ const NotebookDetail = () => {
                     </div>
                   )}
                   
-                  {conceptosDocs.flatMap((doc) => {
-                    // Primero, crear un array con los conceptos y sus índices originales
-                    const conceptosConIndices = doc.conceptos.map((concepto, originalIndex) => ({
-                      concepto,
-                      originalIndex,
-                      docId: doc.id
-                    }));
+{(() => {
+                    // Primero, combinar todos los conceptos de todos los documentos
+                    const todosLosConceptos = conceptosDocs.flatMap((doc) => 
+                      doc.conceptos.map((concepto, originalIndex) => ({
+                        concepto,
+                        originalIndex,
+                        docId: doc.id
+                      }))
+                    );
                     
-                    // Luego ordenar alfabéticamente
-                    const conceptosOrdenados = [...conceptosConIndices].sort((a, b) => 
+                    // Luego ordenar alfabéticamente todos los conceptos juntos
+                    const conceptosOrdenadosGlobalmente = todosLosConceptos.sort((a, b) => 
                       a.concepto.término.localeCompare(b.concepto.término, 'es')
                     );
                     
-                    return conceptosOrdenados.map((item) => {
+                    return conceptosOrdenadosGlobalmente.map((item) => {
                       const { concepto, originalIndex, docId } = item;
                       const trafficLightColor = getTrafficLightColor(concepto.id);
                       
@@ -1901,7 +1903,7 @@ const NotebookDetail = () => {
                         </div>
                       );
                     }).filter(Boolean);
-                  })}
+                  })()}
                 </div>
               </>
             )}
