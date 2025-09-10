@@ -198,7 +198,8 @@
       "Read(///**)",
       "Bash(open:*)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(firebase use:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

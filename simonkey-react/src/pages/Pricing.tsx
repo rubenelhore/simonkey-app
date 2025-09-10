@@ -88,10 +88,10 @@ const Pricing: React.FC = () => {
                   <div className="plan-price">
                     <span className="plan-price-currency">$</span>
                     <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
-                    {showAnnual ? '180 USD' : '20 USD'}
+                    {showAnnual ? '78 USD' : '9 USD'}
                     </span>
                     <span className="plan-price-period">{showAnnual ? '/año' : '/mes'}</span>
-                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($15 USD/mes)</span>}
+                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($6.5 USD/mes)</span>}
                   </div>
                   <p className="plan-description">Ideal para estudiantes que quieren para maximizar el tiempo y eficiencia de estudio. </p>
                 </div>
@@ -129,12 +129,7 @@ const Pricing: React.FC = () => {
               <div className="plan-header">
                 <h3 className="plan-name">Escolar</h3>
                 <div className="plan-price">
-                  <span className="plan-price-currency">$</span>
-                  <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
-                  {showAnnual ? '240 USD' : '25 USD'}
-                  </span>
-                  <span className="plan-price-period">{showAnnual ? '/año' : '/mes'}</span>
-                  {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($20 USD/mes)</span>}
+                  <span style={{ fontSize: '1.5rem', fontWeight: '600' }}>Cotiza Simonkey para tu institución</span>
                 </div>
                 <p className="plan-description">Ideal para Instituciones. Precios a partir de 20 alumnos. Costo por alumno.</p>
               </div>
@@ -164,7 +159,7 @@ const Pricing: React.FC = () => {
               </div>
               <div className="plan-footer">
                 <a href="#" className="btn btn-primary btn-block">
-                  Elegir Escolar
+                  Solicitar Cotización
                 </a>
               </div>
             </div>
