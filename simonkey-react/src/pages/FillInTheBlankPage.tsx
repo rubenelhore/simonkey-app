@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, Timestamp, addDoc } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserType } from '../hooks/useUserType';
@@ -103,6 +103,10 @@ const FillInTheBlankPage: React.FC = () => {
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Estados para tracking de sesión de juego
+  const [gameStartTime, setGameStartTime] = useState<Date | null>(null);
+  const [gameSessionId, setGameSessionId] = useState<string | null>(null);
 
   // Función helper para obtener el número de conceptos según la intensidad
   const getConceptCountFromIntensity = (intensity: StudyIntensity): number => {
@@ -518,7 +522,7 @@ const FillInTheBlankPage: React.FC = () => {
     setConcepts(shuffled);
   };
 
-  // Guardar puntos del juego al finalizar
+  // Guardar puntos del juego y sesión al finalizar
   const saveGameScore = async (finalScore: number) => {
     if (!selectedNotebook || !auth.currentUser) return;
     
@@ -528,6 +532,10 @@ const FillInTheBlankPage: React.FC = () => {
       
       // Generar ID único para este juego
       const gameId = `fill_blank_${selectedNotebook.id}_${Date.now()}`;
+      
+      // Calcular duración del juego
+      const gameDuration = gameStartTime ? 
+        Math.floor((new Date().getTime() - gameStartTime.getTime()) / 1000) : 0;
       
       // Determinar bonus type basado en el rendimiento
       let bonusType: 'perfect' | 'speed' | 'streak' | 'first_try' | undefined;
@@ -549,9 +557,31 @@ const FillInTheBlankPage: React.FC = () => {
         bonusType
       );
       
+      // Crear sesión de juego en Firebase para que cuente para la racha
+      if (gameDuration > 0) {
+        const gameSessionData = {
+          userId: userId,
+          gameType: 'fill_blank',
+          gameName: 'Fill in the Blank',
+          notebookId: selectedNotebook.id,
+          notebookTitle: selectedNotebook.title,
+          timestamp: Timestamp.now(),
+          duration: gameDuration, // en segundos
+          score: finalScore,
+          completed: true,
+          totalRounds: totalRounds,
+          correctAnswers: Math.floor(finalScore / 15), // Aproximado basado en puntaje
+          maxStreak: maxStreak,
+          bonusType: bonusType || null
+        };
+        
+        const docRef = await addDoc(collection(db, 'gameSessions'), gameSessionData);
+        console.log('Sesión de juego guardada:', docRef.id);
+      }
+      
       console.log('Puntos guardados:', result);
     } catch (error) {
-      console.error('Error guardando puntos:', error);
+      console.error('Error guardando puntos y sesión:', error);
     }
   };
 
@@ -576,6 +606,9 @@ const FillInTheBlankPage: React.FC = () => {
     setStreak(0);
     setMaxStreak(0);
     setGameOver(false);
+    
+    // Iniciar tracking de tiempo para la sesión
+    setGameStartTime(new Date());
     
     // Cargar conceptos ahora
     await loadConcepts();
