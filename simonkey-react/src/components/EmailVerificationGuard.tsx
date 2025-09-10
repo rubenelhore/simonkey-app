@@ -54,7 +54,9 @@ const EmailVerificationGuard: React.FC<EmailVerificationGuardProps> = ({ childre
       }
 
       // WORKAROUND: Usuarios con subscription 'free' y emailVerified=true (probablemente bulk upload)
-      if (isAuthenticated && userProfile?.subscription === 'free' && isEmailVerified && userProfile?.uploadedBy && !hasNavigated.current) {
+      // EXCEPCIÓN: No aplicar a usuarios de Google OAuth (detectados por providerId o por no tener createdViaUpload)
+      const isGoogleUser = userProfile?.email?.endsWith('@gmail.com') || !userProfile?.createdViaUpload;
+      if (isAuthenticated && userProfile?.subscription === 'free' && isEmailVerified && userProfile?.uploadedBy && userProfile?.createdViaUpload && !isGoogleUser && !hasNavigated.current) {
         console.log('🔄 Usuario free con uploadedBy detectado, redirigiendo a cambiar contraseña');
         hasNavigated.current = true;
         navigate('/change-password-required', { replace: true });

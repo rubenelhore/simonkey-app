@@ -63,6 +63,8 @@ import ExamplesPage from './pages/ExamplesPage';
 import FAQPage from './pages/FAQPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import Tutorials from './pages/Tutorials';
+import TutorialsInternal from './pages/TutorialsInternal';
 // Importar el listener global de notificaciones
 import { globalNotificationListener } from './services/globalNotificationListener';
 import JoinSimonkeyBannerInline from './components/JoinSimonkeyBannerInline';
@@ -385,7 +387,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!loading && !userTypeLoading) {
       // Si no está autenticado y no está en una página pública, redirigir a login
-      if (!isAuthenticated && !['/', '/login', '/signup', '/reset-password', '/pricing', '/privacy-policy', '/terms', '/examples', '/faq', '/about', '/contact'].includes(window.location.pathname)) {
+      if (!isAuthenticated && !['/', '/login', '/signup', '/reset-password', '/pricing', '/privacy-policy', '/terms', '/examples', '/faq', '/about', '/contact', '/tutorials'].includes(window.location.pathname)) {
         navigate('/login', { replace: true });
       }
       
@@ -536,6 +538,7 @@ const AppContent: React.FC = () => {
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/tutorials" element={<Tutorials />} />
           
           {/* Rutas protegidas - requieren autenticación Y verificación de email */}
           {/* Nueva ruta principal: Inicio */}
@@ -743,6 +746,18 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <GamesPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          
+          {/* Ruta interna para tutoriales (usuarios autenticados) */}
+          <Route
+            path="/app/tutorials"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  <TutorialsInternal />
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

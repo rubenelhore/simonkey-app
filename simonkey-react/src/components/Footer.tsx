@@ -44,6 +44,7 @@ const Footer: React.FC = () => {
               <ul className="footer-links">
                 <li className="footer-link"><a href="/examples">Ejemplos</a></li>
                 <li className="footer-link"><a href="/faq">FAQ</a></li>
+                <li className="footer-link"><a href="/tutorials">Tutoriales</a></li>
               </ul>
             </div>
             <div className="footer-column">

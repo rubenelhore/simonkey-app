@@ -29,7 +29,8 @@ import {
   faKey,
   faBars,
   faChalkboardTeacher,
-  faBrain
+  faBrain,
+  faPlayCircle
 } from '@fortawesome/free-solid-svg-icons';
 import TeacherRequestModal from './TeacherRequestModal';
 import { teacherService } from '../services/teacherService';
@@ -862,6 +863,19 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             {showSidebarText && <span>{teacherRequestPending ? 'Solicitud pendiente' : 'Modo Profesor'}</span>}
           </button>
         )}
+        
+        {/* Botón de Tutoriales antes de la sección de usuario */}
+        <button 
+          className={`sidebar-icon-btn ${location.pathname === '/app/tutorials' ? 'active' : ''}`} 
+          onClick={() => {
+            setMobileSidebarOpen(false);
+            navigate('/app/tutorials');
+          }}
+          title="Tutoriales"
+        >
+          <FontAwesomeIcon icon={faPlayCircle} />
+          {showSidebarText && <span>Tutoriales</span>}
+        </button>
         
         {/* Sección de usuario al final */}
         <div className="sidebar-user-section">
