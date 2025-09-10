@@ -322,6 +322,11 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
 
   const selectCharacter = (character: Character) => {
     setSelectedCharacter(character);
+  };
+
+  const startBattle = () => {
+    if (!selectedCharacter) return;
+    
     setShowCharacterSelection(false);
     setGameStarted(true);
     setPlayerHP(60);
@@ -341,11 +346,11 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
     setGameOver(false);
     
     // If dragon is selected, activate fire breath at the very start
-    if (character.id === 'dragon') {
+    if (selectedCharacter.id === 'dragon') {
       setTimeout(() => {
         setDragonPowerUsedThisRound(true);
         setDragonPowerUsesRemaining(prev => prev - 1);
-        showPowerActivation(`${character.emoji} ¡Aliento de Fuego! -10 HP al enemigo`);
+        showPowerActivation(`${selectedCharacter.emoji} ¡Aliento de Fuego! -10 HP al enemigo`);
         
         // Show fire effect and pause timer
         setIsPowerEffectActive(true);
@@ -1099,6 +1104,13 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
       {showCharacterSelection && (
         <div className="character-selection-modal">
           <div className="character-selection-content">
+            <button 
+              className="close-button"
+              onClick={() => navigate('/study')}
+              title="Cerrar y volver al estudio"
+            >
+              ×
+            </button>
             <h2>Elige tu Personaje</h2>
             <p className="selection-subtitle">Cada uno tiene un poder único</p>
             
@@ -1106,7 +1118,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
               {CHARACTERS.map((character) => (
                 <div
                   key={character.id}
-                  className="character-card"
+                  className={`character-card ${selectedCharacter?.id === character.id ? 'selected' : ''}`}
                   onClick={() => selectCharacter(character)}
                 >
                   <div className="character-emoji">{character.emoji}</div>
@@ -1124,6 +1136,14 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
                 </div>
               ))}
             </div>
+            
+            {selectedCharacter && (
+              <div className="battle-button-container">
+                <button className="battle-button" onClick={startBattle}>
+                  Ir a la batalla
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
