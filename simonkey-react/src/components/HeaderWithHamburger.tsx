@@ -67,6 +67,7 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [isTeacherLocal, setIsTeacherLocal] = useState(false);
   const [teacherRequestPending, setTeacherRequestPending] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -77,6 +78,16 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
   
   // Detectar si estamos en la página de perfil
   const isProfilePage = location.pathname === '/profile';
+  
+  // Detectar cambios en el tamaño de ventana
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Detectar si estamos en la página de calendario
   const isCalendarPage = location.pathname === '/calendar';
@@ -526,7 +537,10 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           <div className="header-left-section">
             <button 
               className="hamburger-btn mobile-only"
-              onClick={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
+              onClick={() => {
+                console.log('Hamburger clicked, current state:', isMobileSidebarOpen);
+                setMobileSidebarOpen(!isMobileSidebarOpen);
+              }}
               title="Menú"
             >
               <FontAwesomeIcon icon={faBars} />
@@ -571,8 +585,8 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
       {/* Nueva barra lateral fija */}
       <div 
         className={`sidebar-nav ${isSidebarExpanded ? 'sidebar-expanded' : ''} ${isMobileSidebarOpen ? 'mobile-open' : ''}`}
-        onMouseEnter={window.innerWidth > 768 ? handleSidebarMouseEnter : undefined}
-        onMouseLeave={window.innerWidth > 768 ? handleSidebarMouseLeave : undefined}
+        onMouseEnter={!isMobile ? handleSidebarMouseEnter : undefined}
+        onMouseLeave={!isMobile ? handleSidebarMouseLeave : undefined}
       >
         {/* Logo */}
         <div className="sidebar-header">
@@ -1195,21 +1209,24 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
           </div>
         </div>
       )}
-      {/* Renderiza children debajo del header y menú */}
-      <div 
-        className="content-wrapper"
-        style={{ 
-          marginLeft: isSidebarExpanded ? '250px' : '60px', 
-          paddingTop: '64px',
-          width: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
-          maxWidth: isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxSizing: 'border-box',
-          overflow: 'hidden'
-        } as React.CSSProperties}
-      >
-        {children}
-      </div>
+      {/* Renderiza children debajo del header y menú - solo si hay children */}
+      {children && (
+        <div 
+          className="content-wrapper"
+          style={{ 
+            marginLeft: isMobile ? '0' : (isSidebarExpanded ? '250px' : '60px'), 
+            paddingTop: '64px',
+            width: isMobile ? '100vw' : (isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)'),
+            maxWidth: isMobile ? '100vw' : (isSidebarExpanded ? 'calc(100vw - 250px)' : 'calc(100vw - 60px)'),
+            transition: isMobile ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+            display: children ? 'block' : 'none'
+          } as React.CSSProperties}
+        >
+          {children}
+        </div>
+      )}
       
       {/* Modal de solicitud de profesor */}
       {showTeacherModal && (

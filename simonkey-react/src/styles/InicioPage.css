@@ -4,6 +4,9 @@
   min-height: 100vh;
   background: #ffffff;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 .dashboard-content {
@@ -112,6 +115,7 @@
   overflow: visible;
   padding: 1rem;
   padding-bottom: 0;
+  margin-top: 2rem;
 }
 
 .metric-card {
@@ -123,7 +127,7 @@
   padding-bottom: 0.5rem;
   border-radius: 12px;
   border: none;
-  min-width: 120px;
+  min-width: 140px;
   position: relative;
   overflow: visible;
   transition: all 0.3s ease;
@@ -1360,10 +1364,16 @@
 
 /* 📱 RESPONSIVE DESIGN */
 @media (max-width: 1200px) {
+  .dashboard-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
   .dashboard-content {
     max-width: 100%;
     padding: 0.75rem;
     gap: 0.75rem;
+    transform: translateZ(0);
   }
   
   .row-1 {
@@ -1394,14 +1404,24 @@
 @media (max-width: 1024px) {
   .dashboard-container {
     min-height: 100vh;
-    overflow-y: auto;
+    height: 100vh;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    position: relative;
   }
   
   .dashboard-content {
     min-height: auto;
+    height: auto;
     padding: 0.5rem;
-    padding-left: 0.5rem; /* Reset sidebar padding on mobile */
+    padding-left: 0.5rem;
     gap: 0.5rem;
+    overflow: visible;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   
   .welcome-greeting {
@@ -1409,18 +1429,72 @@
   }
   
   .daily-metrics {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-    width: 100%;
-    padding: 0 1rem;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.3rem !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 0.4rem !important;
+    flex-direction: unset !important;
+    flex-wrap: unset !important;
+    margin-top: 0.5rem !important;
+  }
+  
+  .dashboard-container .metric-card:nth-child(4),
+  .dashboard-container .metric-card:nth-child(5) {
+    grid-row: 2 !important;
+  }
+  
+  .dashboard-container .metric-card:nth-child(4) {
+    grid-column: 1 / 2 !important;
+    margin-left: 25% !important;
+  }
+  
+  .dashboard-container .metric-card:nth-child(5) {
+    grid-column: 2 / 4 !important;
+    margin-right: 25% !important;
   }
   
   .metric-card {
-    min-width: auto;
-    width: 100%;
-    max-width: 350px;
-    justify-content: center;
+    min-width: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0.4rem 0.25rem !important;
+    gap: 0.25rem !important;
+    flex-direction: column !important;
+    text-align: center !important;
+    display: flex !important;
+  }
+  
+  .metric-icon {
+    font-size: 0.9rem !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .metric-content {
+    gap: 0.05rem;
+    align-items: center;
+  }
+  
+  .metric-label {
+    font-size: 0.6rem !important;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .metric-value {
+    font-size: 0.75rem !important;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .quick-access-grid {
@@ -1451,29 +1525,29 @@
   .horizontal-modules-container {
     flex-direction: column;
     gap: 0.75rem;
+    transform: translateZ(0);
   }
   
   .horizontal-module {
     min-height: 100px;
     padding: 1rem;
+    will-change: auto;
+    backface-visibility: hidden;
   }
   
   /* Ocultar módulos específicos en móvil */
   .horizontal-module.study-modes-module,
-  .horizontal-module.calendar-module {
-    display: none !important;
-  }
-  
-  /* Mantener módulo de progreso pero más compacto */
+  .horizontal-module.calendar-module,
   .horizontal-module.progress-module {
-    padding: 0.5rem;
-    min-height: auto;
+    display: none !important;
   }
   
   /* Mejoras de scroll para móvil en el módulo de materias */
   .materias-list {
     max-height: 250px !important; /* Altura reducida en móvil */
     -webkit-overflow-scrolling: touch; /* Smooth scroll en iOS */
+    overscroll-behavior: contain; /* Evita scroll chaining */
+    will-change: scroll-position; /* Optimización de rendimiento */
   }
   
   .materias-list::-webkit-scrollbar {
@@ -1482,6 +1556,11 @@
   
   .materias-list::-webkit-scrollbar-thumb {
     background: #94a3b8 !important; /* Color más visible en móvil */
+  }
+  
+  /* Evitar interferencia de scroll con otros elementos */
+  .horizontal-module {
+    contain: layout style paint;
   }
   
   .module-content h3 {
@@ -1536,6 +1615,15 @@
 }
 
 @media (max-width: 480px) {
+  .dashboard-container {
+    overscroll-behavior-y: contain;
+    position: relative;
+  }
+  
+  .dashboard-content {
+    transform: translateZ(0); /* Force hardware acceleration */
+  }
+  
   .welcome-greeting {
     font-size: 1.25rem;
   }
@@ -1570,6 +1658,29 @@
   .progress-metric-label {
     font-size: 0.75rem;
     line-height: 1.1;
+  }
+  
+  /* Optimizaciones adicionales de scroll para pantallas muy pequeñas */
+  .row-1, .row-2, .row-3, .row-4 {
+    will-change: auto;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    contain: layout style paint;
+    position: relative;
+  }
+  
+  /* Eliminar transiciones pesadas en móvil */
+  .metric-card,
+  .horizontal-module,
+  .quick-action-card {
+    transition: none !important;
+  }
+  
+  /* Simplificar animaciones en móvil */
+  .metric-card:hover,
+  .horizontal-module:hover,
+  .quick-action-card:hover {
+    transform: none !important;
   }
 }
 

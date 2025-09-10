@@ -1922,6 +1922,7 @@ body.modal-open .notebooks-hamburger-btn {
 
 /* Controles de la lista */
 .notebook-list-controls {
+  margin-top: 3rem;
   margin-bottom: 2rem;
   width: 100%;
   padding: 0;
@@ -4238,6 +4239,7 @@ body.modal-open .notebooks-hamburger-btn {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 2rem;
   margin-bottom: 1rem;
 }
 

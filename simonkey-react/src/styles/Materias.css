@@ -365,6 +365,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 3rem;
 }
 
 /* Botón crear materia */
@@ -1672,6 +1673,47 @@ div.modal-overlay div.modal-content.invite-modal-content {
   .create-materia-button {
     width: 100%;
     justify-content: center;
+  }
+  
+  /* Optimización de tarjetas de materia para móvil - 1 por fila más compactas */
+  .materia-card-content {
+    padding: 0.75rem !important;
+    min-height: 80px !important;
+  }
+  
+  .materia-card-content h3 {
+    font-size: 0.85rem !important;
+    line-height: 1.1 !important;
+    margin-bottom: 0.4rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .materia-info-container {
+    gap: 2px !important;
+  }
+  
+  .materia-students,
+  .materia-teacher {
+    font-size: 0.7rem !important;
+    line-height: 1.1 !important;
+  }
+  
+  .materia-exams-badge {
+    font-size: 0.65rem !important;
+    padding: 1px 5px !important;
+  }
+  
+  .materia-menu-button {
+    width: 28px !important;
+    height: 28px !important;
+    top: 6px !important;
+    right: 6px !important;
+  }
+  
+  .materia-menu-button i {
+    font-size: 12px !important;
   }
 }
 

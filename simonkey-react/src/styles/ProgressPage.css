@@ -105,6 +105,7 @@
   flex-direction: column;
   gap: 20px;
   flex: 0 0 320px;
+  margin-top: 3rem;
 }
 
 /* Cuando no hay side module (usuarios no escolares) */

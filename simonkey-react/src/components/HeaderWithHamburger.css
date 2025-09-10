@@ -41,6 +41,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  height: 100%;
 }
 
 /* Botón hamburguesa */
@@ -55,6 +56,34 @@
   align-items: center;
   justify-content: center;
   color: white;
+}
+
+/* Mostrar hamburguesa solo en móvil con máxima especificidad */
+@media (max-width: 768px) {
+  .limited-header .header-left-section .hamburger-btn.mobile-only {
+    display: flex !important;
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+    z-index: 999 !important;
+    height: 40px !important;
+    width: 40px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 8px !important;
+    border-radius: 6px !important;
+    color: white !important;
+  }
+  
+  .page-title-section-limited {
+    margin-left: 40px;
+    margin-right: 40px;
+  }
 }
 
 .hamburger-btn:hover {
@@ -259,6 +288,11 @@
 .content-wrapper {
   position: relative;
   display: block !important;
+}
+
+/* Ocultar content-wrapper si está vacío */
+.content-wrapper:empty {
+  display: none !important;
 }
 
 .content-wrapper,
@@ -1627,14 +1661,7 @@
   }
   
   /* Centrar verticalmente el botón hamburguesa y mantenerlo a la izquierda */
-  .hamburger-btn {
-    position: absolute !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    left: 1rem !important;
-    right: auto !important;
-    display: block !important;
-  }
+  /* El hamburger btn ya tiene estilos definidos arriba */
   
   /* Estilos responsivos para botones horizontales en móvil */
   .horizontal-button {
@@ -2128,9 +2155,7 @@ body .header-with-hamburger .logo2-title-group h1 * {
   }
   
   /* Asegurar que el botón hamburguesa sea visible */
-  .hamburger-btn {
-    display: flex !important;
-  }
+  /* Hamburger btn ya definido arriba */
   
   /* Asegurar que el sidebar expandido muestre el texto */
   .sidebar-nav.mobile-open {

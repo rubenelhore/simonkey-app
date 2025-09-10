@@ -256,6 +256,39 @@ const StudyModePage = () => {
     }
   }, [selectedNotebook?.isFrozen, isTeacher]);
 
+  // Force daily metrics layout override
+  useEffect(() => {
+    const forceMetricsLayout = () => {
+      const dailyMetrics = document.querySelector('.study-mode-container .daily-metrics');
+      if (dailyMetrics) {
+        const element = dailyMetrics as HTMLElement;
+        
+        // Simply add the forced layout class and apply styles once
+        if (!element.classList.contains('daily-metrics-forced-layout')) {
+          element.classList.add('daily-metrics-forced-layout');
+        }
+        
+        // Apply clean inline styles
+        element.style.display = 'flex';
+        element.style.flexDirection = 'row';
+        element.style.gap = '0.75rem';
+        element.style.padding = '0 1rem';
+        element.style.maxWidth = '1000px';
+        element.style.justifyContent = 'center';
+        element.style.flexWrap = 'nowrap';
+        element.style.margin = '0 auto';
+        element.style.width = 'auto';
+        element.style.boxSizing = 'content-box';
+        element.style.gridTemplateColumns = 'unset';
+      }
+    };
+
+    // Apply once on component mount and when notebook changes
+    const timer = setTimeout(forceMetricsLayout, 100);
+    
+    return () => clearTimeout(timer);
+  }, [selectedNotebook]);
+
   // Load effective user ID and user data - OPTIMIZADO
   useEffect(() => {
     const loadInitialData = async () => {
@@ -1684,7 +1717,23 @@ const StudyModePage = () => {
         </div>
 
           {/* Daily Metrics */}
-          <div className="daily-metrics">
+          <div 
+            className="daily-metrics"
+            style={{
+              display: 'flex',
+              gridTemplateColumns: 'unset',
+              flexDirection: 'row',
+              gap: '0.75rem',
+              padding: '0 1rem',
+              maxWidth: '1000px',
+              justifyContent: 'center',
+              flexWrap: 'nowrap',
+              margin: '1.5rem auto 0 auto',
+              width: 'auto',
+              boxSizing: 'content-box',
+              flexShrink: '0'
+            }}
+          >
             <div className="metric-card">
               <div className="metric-info-icon" data-tooltip="Días consecutivos de estudio">
                 <i className="fas fa-info-circle"></i>
