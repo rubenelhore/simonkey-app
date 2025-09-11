@@ -482,10 +482,21 @@ const FillInTheBlankPage: React.FC = () => {
     });
     
     if (isCorrect) {
-      setScore(score + 10 + Math.floor(currentRound.timeLeft / 2)); // Bonus por tiempo restante
-      setStreak(streak + 1);
-      if (streak + 1 > maxStreak) setMaxStreak(streak + 1);
+      const roundPoints = 10 + Math.floor(currentRound.timeLeft / 2);
+      console.log('🎯 Respuesta correcta! Puntos ganados:', roundPoints);
+      setScore(prevScore => {
+        const newScore = prevScore + roundPoints;
+        console.log('📊 Score actualizado:', prevScore, '->', newScore);
+        return newScore;
+      }); // Bonus por tiempo restante
+      setStreak(prevStreak => {
+        const newStreak = prevStreak + 1;
+        console.log('🔥 Racha actualizada:', prevStreak, '->', newStreak);
+        setMaxStreak(prevMax => Math.max(prevMax, newStreak));
+        return newStreak;
+      });
     } else {
+      console.log('❌ Respuesta incorrecta');
       setStreak(0);
     }
     
@@ -531,7 +542,7 @@ const FillInTheBlankPage: React.FC = () => {
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
       // Generar ID único para este juego
-      const gameId = `fill_blank_${selectedNotebook.id}_${Date.now()}`;
+      const gameId = `fillBlank_${selectedNotebook.id}_${Date.now()}`;
       
       // Calcular duración del juego
       const gameDuration = gameStartTime ? 
@@ -552,31 +563,35 @@ const FillInTheBlankPage: React.FC = () => {
         userId,
         selectedNotebook.id,
         gameId,
-        'Fill in the Blank',
+        'fillBlank',
         finalScore,
         bonusType
       );
       
       // Crear sesión de juego en Firebase para que cuente para la racha
       if (gameDuration > 0) {
-        const gameSessionData = {
-          userId: userId,
-          gameType: 'fill_blank',
-          gameName: 'Fill in the Blank',
-          notebookId: selectedNotebook.id,
-          notebookTitle: selectedNotebook.title,
-          timestamp: Timestamp.now(),
-          duration: gameDuration, // en segundos
-          score: finalScore,
-          completed: true,
-          totalRounds: totalRounds,
-          correctAnswers: Math.floor(finalScore / 15), // Aproximado basado en puntaje
-          maxStreak: maxStreak,
-          bonusType: bonusType || null
-        };
-        
-        const docRef = await addDoc(collection(db, 'gameSessions'), gameSessionData);
-        console.log('Sesión de juego guardada:', docRef.id);
+        try {
+          const gameSessionData = {
+            userId: userId,
+            gameType: 'fill_blank',
+            gameName: 'Fill in the Blank',
+            notebookId: selectedNotebook.id,
+            notebookTitle: selectedNotebook.title,
+            timestamp: Timestamp.now(),
+            duration: gameDuration, // en segundos
+            score: finalScore,
+            completed: true,
+            totalRounds: totalRounds,
+            correctAnswers: Math.floor(finalScore / 15), // Aproximado basado en puntaje
+            maxStreak: maxStreak,
+            bonusType: bonusType || null
+          };
+          
+          const docRef = await addDoc(collection(db, 'gameSessions'), gameSessionData);
+          console.log('Sesión de juego guardada:', docRef.id);
+        } catch (sessionError) {
+          console.log('No se pudo guardar la sesión de juego (no afecta los puntos):', sessionError);
+        }
       }
       
       console.log('Puntos guardados:', result);

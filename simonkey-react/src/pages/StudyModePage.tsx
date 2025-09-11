@@ -985,12 +985,8 @@ const StudyModePage = () => {
       setPuzzleGamePoints(puzzlePoints);
       setQuizBattlePoints(quizBattlePointsValue);
       
-      // Obtener puntos específicos de Fill in the Blank
-      const fillBlankPoints = await gamePointsService.getGameSpecificPoints(
-        effectiveUserId, 
-        notebook.id, 
-        'Fill in the Blank'
-      );
+      // Obtener puntos de Fill in the Blank desde gameScores
+      const fillBlankPoints = gameScores?.fillBlank || 0;
       setFillInTheBlankPoints(fillBlankPoints);
       
       

@@ -26,6 +26,7 @@ interface NotebookGamePoints {
     memory: number;
     puzzle: number;
     quiz: number;
+    fillBlank: number;
   };
   pointsHistory: PointTransaction[];
   achievements: Achievement[];
@@ -87,7 +88,8 @@ class GamePointsService {
           gameScores: {
             memory: 0,
             puzzle: 0,
-            quiz: 0
+            quiz: 0,
+            fillBlank: 0
           },
           pointsHistory: [],
           achievements: []
@@ -110,7 +112,8 @@ class GamePointsService {
           gameScores: {
             memory: 0,
             puzzle: 0,
-            quiz: 0
+            quiz: 0,
+            fillBlank: 0
           },
           pointsHistory: [],
           achievements: []
@@ -125,10 +128,11 @@ class GamePointsService {
       const notebookPoints: NotebookGamePoints = {
         ...notebookData,
         // Asegurar que gameScores existe con valores por defecto
-        gameScores: notebookData.gameScores || {
-          memory: 0,
-          puzzle: 0,
-          quiz: 0
+        gameScores: {
+          memory: notebookData.gameScores?.memory || 0,
+          puzzle: notebookData.gameScores?.puzzle || 0,
+          quiz: notebookData.gameScores?.quiz || 0,
+          fillBlank: notebookData.gameScores?.fillBlank || 0
         },
         lastWeekReset: notebookData.lastWeekReset instanceof Date 
           ? notebookData.lastWeekReset 
@@ -155,7 +159,8 @@ class GamePointsService {
         const migratedScores = {
           memory: 0,
           puzzle: 0,
-          quiz: 0
+          quiz: 0,
+          fillBlank: 0
         };
         
         // Calcular puntos por tipo de juego desde el historial
@@ -170,6 +175,8 @@ class GamePointsService {
             mappedType = 'memory';
           } else if (transaction.gameName === 'Quiz Battle') {
             mappedType = 'quiz';
+          } else if (transaction.gameName === 'Fill in the Blank' || gameType === 'fill') {
+            mappedType = 'fillBlank';
           }
           // Nota: Carrera de Conceptos removido - ya no se cuenta
           
@@ -222,7 +229,8 @@ class GamePointsService {
           gameScores: {
             memory: 0,
             puzzle: 0,
-            quiz: 0
+            quiz: 0,
+            fillBlank: 0
           },
           pointsHistory: [],
           achievements: []
@@ -300,24 +308,72 @@ class GamePointsService {
       // Verificar logros
       const newAchievements = await this.checkAchievements(userId, notebookId, notebookPoints, finalPoints, gameId);
       
-      // Actualizar documento
+      // Actualizar documento (crear si no existe)
       const pointsDocRef = doc(db, 'gamePoints', userId);
-      await updateDoc(pointsDocRef, {
-        [`notebookPoints.${notebookId}.totalPoints`]: increment(finalPoints),
-        [`notebookPoints.${notebookId}.weeklyPoints`]: increment(finalPoints),
-        [`notebookPoints.${notebookId}.monthlyPoints`]: increment(finalPoints),
-        [`notebookPoints.${notebookId}.gameScores`]: gameScores,
-        [`notebookPoints.${notebookId}.pointsHistory`]: arrayUnion({
-          ...transaction,
-          timestamp: Timestamp.fromDate(transaction.timestamp)
-        }),
-        ...(newAchievements.length > 0 && {
-          [`notebookPoints.${notebookId}.achievements`]: arrayUnion(...newAchievements.map(a => ({
-            ...a,
-            unlockedAt: Timestamp.fromDate(a.unlockedAt)
-          })))
-        })
-      });
+      
+      try {
+        await updateDoc(pointsDocRef, {
+          [`notebookPoints.${notebookId}.totalPoints`]: increment(finalPoints),
+          [`notebookPoints.${notebookId}.weeklyPoints`]: increment(finalPoints),
+          [`notebookPoints.${notebookId}.monthlyPoints`]: increment(finalPoints),
+          [`notebookPoints.${notebookId}.gameScores`]: gameScores,
+          [`notebookPoints.${notebookId}.pointsHistory`]: arrayUnion({
+            ...transaction,
+            timestamp: Timestamp.fromDate(transaction.timestamp)
+          }),
+          ...(newAchievements.length > 0 && {
+            [`notebookPoints.${notebookId}.achievements`]: arrayUnion(...newAchievements.map(a => ({
+              ...a,
+              unlockedAt: Timestamp.fromDate(a.unlockedAt)
+            })))
+          })
+        });
+      } catch (error: any) {
+        // Si el documento no existe, crearlo
+        if (error.code === 'not-found') {
+          console.log(`[GamePointsService] Creating new document for user ${userId}`);
+          
+          // Calcular puntos totales incluyendo achievements
+          const achievementPoints = newAchievements.reduce((sum, achievement) => sum + achievement.points, 0);
+          const totalPointsWithAchievements = finalPoints + achievementPoints;
+          
+          const newNotebookData: NotebookGamePoints = {
+            notebookId,
+            totalPoints: totalPointsWithAchievements,
+            weeklyPoints: totalPointsWithAchievements,
+            monthlyPoints: totalPointsWithAchievements,
+            lastWeekReset: new Date(),
+            lastMonthReset: new Date(),
+            gameScores,
+            pointsHistory: [transaction],
+            achievements: newAchievements
+          };
+          
+          const userData: GamePointsData = {
+            userId,
+            notebookPoints: {
+              [notebookId]: {
+                ...newNotebookData,
+                lastWeekReset: Timestamp.fromDate(newNotebookData.lastWeekReset),
+                lastMonthReset: Timestamp.fromDate(newNotebookData.lastMonthReset),
+                pointsHistory: newNotebookData.pointsHistory.map(t => ({
+                  ...t,
+                  timestamp: Timestamp.fromDate(t.timestamp)
+                })),
+                achievements: newNotebookData.achievements.map(a => ({
+                  ...a,
+                  unlockedAt: Timestamp.fromDate(a.unlockedAt)
+                }))
+              }
+            }
+          };
+          
+          await setDoc(pointsDocRef, userData);
+          console.log(`[GamePointsService] New document created for user ${userId}`);
+        } else {
+          throw error;
+        }
+      }
       
       console.log(`[GamePointsService] Puntos actualizados correctamente para cuaderno ${notebookId}`);
       
@@ -357,8 +413,9 @@ class GamePointsService {
         // No lanzar error, continuar aunque falle la sesión
       }
       
+      const achievementPoints = newAchievements.reduce((sum, achievement) => sum + achievement.points, 0);
       return {
-        totalPoints: notebookPoints.totalPoints + finalPoints,
+        totalPoints: notebookPoints.totalPoints + finalPoints + achievementPoints,
         newAchievements
       };
     } catch (error) {
@@ -409,13 +466,25 @@ class GamePointsService {
       });
     }
     
-    // Agregar puntos por logros
-    for (const achievement of newAchievements) {
-      await updateDoc(doc(db, 'gamePoints', userId), {
-        [`notebookPoints.${notebookId}.totalPoints`]: increment(achievement.points),
-        [`notebookPoints.${notebookId}.weeklyPoints`]: increment(achievement.points),
-        [`notebookPoints.${notebookId}.monthlyPoints`]: increment(achievement.points)
-      });
+    // Agregar puntos por logros (solo si el documento ya existe)
+    if (newAchievements.length > 0) {
+      try {
+        const pointsDocRef = doc(db, 'gamePoints', userId);
+        const pointsDoc = await getDoc(pointsDocRef);
+        
+        if (pointsDoc.exists()) {
+          for (const achievement of newAchievements) {
+            await updateDoc(pointsDocRef, {
+              [`notebookPoints.${notebookId}.totalPoints`]: increment(achievement.points),
+              [`notebookPoints.${notebookId}.weeklyPoints`]: increment(achievement.points),
+              [`notebookPoints.${notebookId}.monthlyPoints`]: increment(achievement.points)
+            });
+          }
+        }
+        // Si el documento no existe, los puntos de logros se agregarán cuando se cree el documento
+      } catch (error) {
+        console.log('[GamePointsService] Could not update achievement points - document may not exist yet');
+      }
     }
     
     return newAchievements;
@@ -511,14 +580,15 @@ class GamePointsService {
       
       console.log(`🔄 [AUTO MIGRATION] Limpiando juegos eliminados para usuario ${userId}, cuaderno ${notebookId}`);
       
-      // Recalcular puntos totales basado SOLO en juegos válidos (memory, puzzle, quiz)
+      // Recalcular puntos totales basado SOLO en juegos válidos (memory, puzzle, quiz, fillBlank)
       const validGameScores = {
         memory: notebookPoints.gameScores?.memory || 0,
         puzzle: notebookPoints.gameScores?.puzzle || 0,
-        quiz: notebookPoints.gameScores?.quiz || 0
+        quiz: notebookPoints.gameScores?.quiz || 0,
+        fillBlank: notebookPoints.gameScores?.fillBlank || 0
       };
       
-      const correctTotalPoints = validGameScores.memory + validGameScores.puzzle + validGameScores.quiz;
+      const correctTotalPoints = validGameScores.memory + validGameScores.puzzle + validGameScores.quiz + validGameScores.fillBlank;
       
       console.log(`📊 [AUTO MIGRATION] Recalculando puntos:`, {
         memory: validGameScores.memory,
@@ -585,7 +655,8 @@ class GamePointsService {
       const calculatedScores = {
         memory: 0,
         puzzle: 0,
-        quiz: 0
+        quiz: 0,
+        fillBlank: 0
       };
       
       notebookPoints.pointsHistory.forEach(transaction => {
@@ -599,6 +670,8 @@ class GamePointsService {
           mappedType = 'memory';
         } else if (transaction.gameName === 'Quiz Battle') {
           mappedType = 'quiz';
+        } else if (transaction.gameName === 'Fill in the Blank' || gameType === 'fill') {
+          mappedType = 'fillBlank';
         }
         // Nota: Carrera de Conceptos removido - ya no se cuenta
         
