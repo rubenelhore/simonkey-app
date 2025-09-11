@@ -364,7 +364,7 @@ class GamePointsService {
                   ...a,
                   unlockedAt: Timestamp.fromDate(a.unlockedAt)
                 }))
-              }
+              } as any
             }
           };
           
