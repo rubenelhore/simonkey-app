@@ -134,12 +134,16 @@ class GamePointsService {
           quiz: notebookData.gameScores?.quiz || 0,
           fillBlank: notebookData.gameScores?.fillBlank || 0
         },
-        lastWeekReset: notebookData.lastWeekReset instanceof Date 
-          ? notebookData.lastWeekReset 
-          : notebookData.lastWeekReset.toDate(),
-        lastMonthReset: notebookData.lastMonthReset instanceof Date 
-          ? notebookData.lastMonthReset 
-          : notebookData.lastMonthReset.toDate(),
+        lastWeekReset: notebookData.lastWeekReset 
+          ? (notebookData.lastWeekReset instanceof Date 
+            ? notebookData.lastWeekReset 
+            : notebookData.lastWeekReset.toDate())
+          : new Date(0),
+        lastMonthReset: notebookData.lastMonthReset 
+          ? (notebookData.lastMonthReset instanceof Date 
+            ? notebookData.lastMonthReset 
+            : notebookData.lastMonthReset.toDate())
+          : new Date(0),
         pointsHistory: (notebookData.pointsHistory || []).map((t: any) => ({
           ...t,
           timestamp: t.timestamp instanceof Date 
@@ -572,7 +576,7 @@ class GamePointsService {
     try {
       // Solo migrar si hay gameScores con juegos eliminados
       const hasRace = notebookPoints.gameScores && 'race' in notebookPoints.gameScores;
-      const hasFillBlank = notebookPoints.pointsHistory.some(t => t.gameId.includes('fill_blank'));
+      const hasFillBlank = notebookPoints.pointsHistory.some(t => t.gameId.includes('fillBlank'));
       
       if (!hasRace && !hasFillBlank) {
         return; // No necesita migración

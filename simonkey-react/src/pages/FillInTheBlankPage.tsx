@@ -636,7 +636,7 @@ const FillInTheBlankPage: React.FC = () => {
   };
 
   const handleBackToStudy = () => {
-    navigate('/study');
+    navigate('/study', { state: { maintainSelection: true } });
     setStreak(0);
     setMaxStreak(0);
     setGameOver(false);
@@ -798,7 +798,7 @@ const FillInTheBlankPage: React.FC = () => {
             <button onClick={handlePlayAgain} className="btn-play-again">
               Jugar de Nuevo
             </button>
-            <button onClick={() => navigate('/study')} className="btn-back">
+            <button onClick={() => navigate('/study', { state: { maintainSelection: true } })} className="btn-back">
               Regresar
             </button>
           </div>
@@ -814,7 +814,7 @@ const FillInTheBlankPage: React.FC = () => {
       <div className="game-header">
         <button 
           className="back-arrow-btn"
-          onClick={() => navigate('/study')}
+          onClick={() => navigate('/study', { state: { maintainSelection: true } })}
           title="Volver al estudio"
         >
           ←

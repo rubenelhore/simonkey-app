@@ -52,7 +52,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const [showDifficultyModal, setShowDifficultyModal] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
-  const [tempSelectedDifficulty, setTempSelectedDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
+  const [tempSelectedDifficulty, setTempSelectedDifficulty] = useState<'easy' | 'medium' | 'hard' | null>('easy');
   const [availableConcepts, setAvailableConcepts] = useState<Concept[]>([]);
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
@@ -482,56 +482,10 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
                   <li><i className="fas fa-search"></i> Encuentra los pares de conceptos y definiciones</li>
                   <li><i className="fas fa-clock"></i> Completa el juego lo más rápido posible</li>
                   <li><i className="fas fa-fire"></i> Mantén un combo para obtener más puntos</li>
-                  <li><i className="fas fa-trophy"></i> Elige tu nivel de dificultad</li>
+                  <li><i className="fas fa-trophy"></i> Obtén puntos por encontrar pares</li>
                 </ul>
               </div>
               
-              <div className="intro-section">
-                <h3>Selecciona Dificultad</h3>
-                <div className="difficulty-grid">
-                  <button 
-                    className={`difficulty-card ${availableConcepts.length >= 4 ? '' : 'disabled'} ${tempSelectedDifficulty === 'easy' ? 'selected' : ''}`}
-                    onClick={() => availableConcepts.length >= 4 && setTempSelectedDifficulty('easy')}
-                    disabled={availableConcepts.length < 4}
-                  >
-                    <div className="difficulty-icon">🟢</div>
-                    <div className="difficulty-name">Fácil</div>
-                    <div className="difficulty-details">
-                      <span>Grid 4x2</span>
-                      <span>4 conceptos</span>
-                    </div>
-                    {availableConcepts.length < 4 && <div className="insufficient-text">Necesitas 4 conceptos</div>}
-                  </button>
-                  
-                  <button 
-                    className={`difficulty-card ${availableConcepts.length >= 6 ? '' : 'disabled'} ${tempSelectedDifficulty === 'medium' ? 'selected' : ''}`}
-                    onClick={() => availableConcepts.length >= 6 && setTempSelectedDifficulty('medium')}
-                    disabled={availableConcepts.length < 6}
-                  >
-                    <div className="difficulty-icon">🟡</div>
-                    <div className="difficulty-name">Medio</div>
-                    <div className="difficulty-details">
-                      <span>Grid 4x3</span>
-                      <span>6 conceptos</span>
-                    </div>
-                    {availableConcepts.length < 6 && <div className="insufficient-text">Necesitas 6 conceptos</div>}
-                  </button>
-                  
-                  <button 
-                    className={`difficulty-card ${availableConcepts.length >= 8 ? '' : 'disabled'} ${tempSelectedDifficulty === 'hard' ? 'selected' : ''}`}
-                    onClick={() => availableConcepts.length >= 8 && setTempSelectedDifficulty('hard')}
-                    disabled={availableConcepts.length < 8}
-                  >
-                    <div className="difficulty-icon">🔴</div>
-                    <div className="difficulty-name">Difícil</div>
-                    <div className="difficulty-details">
-                      <span>Grid 4x4</span>
-                      <span>8 conceptos</span>
-                    </div>
-                    {availableConcepts.length < 8 && <div className="insufficient-text">Necesitas 8 conceptos</div>}
-                  </button>
-                </div>
-              </div>
             </div>
             
             <div className="intro-actions">
@@ -540,9 +494,8 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
                 Volver
               </button>
               <button 
-                className={`action-button primary ${!tempSelectedDifficulty ? 'disabled' : ''}`}
-                onClick={() => tempSelectedDifficulty && startGameWithDifficulty(tempSelectedDifficulty)}
-                disabled={!tempSelectedDifficulty}
+                className="action-button primary"
+                onClick={() => startGameWithDifficulty('easy')}
               >
                 <FontAwesomeIcon icon={faGamepad} />
                 Jugar
