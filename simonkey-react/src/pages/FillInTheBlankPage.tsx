@@ -72,6 +72,7 @@ const FillInTheBlankPage: React.FC = () => {
   const [studyIntensity, setStudyIntensity] = useState<StudyIntensity>(StudyIntensity.WARM_UP);
   const [availableConcepts, setAvailableConcepts] = useState<number>(0);
   const [loadingConceptsData, setLoadingConceptsData] = useState<boolean>(true);
+  const [showIntensityModal, setShowIntensityModal] = useState<boolean>(false);
   
   // Estados del juego
   const [concepts, setConcepts] = useState<GameConcept[]>([]);
@@ -133,12 +134,16 @@ const FillInTheBlankPage: React.FC = () => {
         concept.definición && concept.definición.trim().length > 0
       );
       
-      setAvailableConcepts(validConcepts.length);
+      const conceptCount = validConcepts.length;
+      console.log(`[FillInTheBlank] Conceptos válidos encontrados: ${conceptCount}`);
+      setAvailableConcepts(conceptCount);
+      setLoadingConceptsData(false);
+      return conceptCount; // Retornar el conteo para uso inmediato
     } catch (error) {
       console.error('Error counting concepts:', error);
       setAvailableConcepts(0);
-    } finally {
       setLoadingConceptsData(false);
+      return 0;
     }
   };
 
@@ -602,6 +607,7 @@ const FillInTheBlankPage: React.FC = () => {
 
   const handleSelectNotebook = async (notebook: Notebook) => {
     setSelectedNotebook(notebook);
+    setLoadingConceptsData(true);
     
     // Contar conceptos disponibles
     if (auth.currentUser) {
@@ -610,10 +616,10 @@ const FillInTheBlankPage: React.FC = () => {
       await countAvailableConcepts(notebook.id, userId);
     }
     
-    // Iniciar el juego directamente con intensidad Warm-Up (sin mostrar modal)
-    setStudyIntensity(StudyIntensity.WARM_UP);
-    await handleStartGame();
+    // Mostrar modal después de contar
+    setShowIntensityModal(true);
   };
+
 
   const handleStartGame = async () => {
     setCurrentIndex(0);
@@ -693,6 +699,58 @@ const FillInTheBlankPage: React.FC = () => {
       );
   }
 
+  // Modal de selección de intensidad
+  if (showIntensityModal && selectedNotebook) {
+    console.log(`[FillInTheBlank Modal] Renderizando con ${availableConcepts} conceptos disponibles, loading=${loadingConceptsData}`);
+    return (
+      <div className="fill-blank-container">
+        <HeaderWithHamburger title="Fill in the Blank" />
+        
+        <div className="study-intro-modal">
+          <div className="intro-header-compact">
+            <div className="header-icon-compact">
+              <i className="fas fa-pencil"></i>
+            </div>
+            <h2>Fill in the Blank</h2>
+          </div>
+          
+          <div className="intro-content-compact">
+            <div className="explanation-compact">
+              <div className="mini-summary">
+                <h4>Cómo funciona:</h4>
+                <ul>
+                  <li>✏️ <strong>Completa</strong> las definiciones con las palabras faltantes</li>
+                  <li>📝 <strong>Escribe</strong> la respuesta correcta en cada espacio</li>
+                  <li>⭐ <strong>Gana puntos</strong> por cada respuesta correcta</li>
+                </ul>
+              </div>
+            </div>
+            
+          </div>
+          
+          <div className="intro-actions-compact">
+            <button 
+              className="action-button-compact secondary"
+              onClick={() => {
+                setShowIntensityModal(false);
+                setSelectedNotebook(null);
+              }}
+            >
+              <i className="fas fa-arrow-left"></i>
+              Volver
+            </button>
+            <button 
+              className="action-button-compact primary"
+              onClick={handleStartGame}
+            >
+              <i className="fas fa-pencil"></i>
+              Comenzar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
