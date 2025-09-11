@@ -43,30 +43,30 @@ const TutorialsInternal: React.FC = () => {
         category: 'Primeros Pasos'
       }
     ],
-    'Cuadernos y Conceptos': [
+    '🎵 ¡Ahora un poco de buena música! 🎶✨': [
       {
         id: '4',
-        title: 'Crear un cuaderno',
-        description: 'Tu primer cuaderno de estudio',
+        title: 'Rick Astley - Never Gonna Give You Up',
+        description: 'Un clásico que nunca pasa de moda 🎶',
         youtubeId: 'dQw4w9WgXcQ',
-        duration: '6:20',
-        category: 'Cuadernos y Conceptos'
+        duration: '3:33',
+        category: '🎵 ¡Ahora un poco de buena música! 🎶✨'
       },
       {
         id: '5',
-        title: 'Agregar conceptos',
-        description: 'Organiza tu conocimiento',
-        youtubeId: 'dQw4w9WgXcQ',
-        duration: '7:45',
-        category: 'Cuadernos y Conceptos'
+        title: 'American Authors - Best Day Of My Life',
+        description: 'Para empezar el día con energía y positividad ✨',
+        youtubeId: 'Y66j_BUCBMY',
+        duration: '3:40',
+        category: '🎵 ¡Ahora un poco de buena música! 🎶✨'
       },
       {
         id: '6',
-        title: 'Editar y organizar',
-        description: 'Gestiona tus cuadernos',
-        youtubeId: 'dQw4w9WgXcQ',
-        duration: '5:10',
-        category: 'Cuadernos y Conceptos'
+        title: 'Imagine Dragons - Bones',
+        description: 'Para cuando necesites energía y motivación 🔥',
+        youtubeId: 'TO-_3tck2tg',
+        duration: '2:45',
+        category: '🎵 ¡Ahora un poco de buena música! 🎶✨'
       }
     ]
   };
@@ -85,7 +85,7 @@ const TutorialsInternal: React.FC = () => {
         }
       />
       
-      <div className="tutorials-main-container" style={{ paddingTop: '20px' }}>
+      <div className="tutorials-main-container" style={{ paddingTop: '100px' }}>
 
         {/* Modal de video */}
         {selectedVideo && (

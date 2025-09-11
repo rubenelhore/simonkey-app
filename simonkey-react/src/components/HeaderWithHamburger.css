@@ -362,6 +362,15 @@
   max-width: 550px !important;
 }
 
+/* Excepción para modales de video - mantener ancho original */
+.header-with-hamburger-container ~ * .video-modal {
+  max-width: 1000px !important;
+}
+
+.header-with-hamburger-container ~ * .video-modal-overlay {
+  max-width: none !important;
+}
+
 .header-with-hamburger-container ~ * .dashboard-container {
   height: auto !important;
   overflow: visible !important;
