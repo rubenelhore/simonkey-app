@@ -579,8 +579,8 @@ const ProgressPage: React.FC = () => {
         })
       );
 
-      // Ordenar alfabéticamente por nombre
-      studentsData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      // Ordenar por score de mayor a menor
+      studentsData.sort((a, b) => b.score - a.score);
       
       console.log(`[ClassAnalytics] 📊 Processed ${studentsData.length} students for notebook ${notebookId}`);
       setStudentsInNotebook(studentsData);
@@ -2701,149 +2701,6 @@ const ProgressPage: React.FC = () => {
         <div>
       <div className="progress-layout">
         <div className="progress-modules-row">
-          <div className={`progress-module-col ${!isSchoolUser && materias.length === 0 ? 'no-side-module' : ''}`}>
-
-            {/* Módulo Lateral: Selector de Materias y Ranking */}
-            {(materias.length > 0 || kpisData?.global?.scoreGlobal > 0) && (
-              <div className="progress-side-module">
-              {materias.length === 0 ? (
-                <div className="no-materias-message">
-                  <p>No hay materias disponibles. Crea cuadernos y asígnalos a materias para ver el progreso.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="materia-dropdown-container">
-                    <button 
-                      className="materia-dropdown-btn"
-                      onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
-                      type="button"
-                    >
-                      <span>{materias.find(m => m.id === selectedMateria)?.nombre || 'Seleccionar materia'}</span>
-                      <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
-                    </button>
-                
-                    {showMateriaDropdown && (
-                      <div className="materia-dropdown">
-                        {materias.length === 0 ? (
-                          <div className="materia-option">No hay materias disponibles</div>
-                        ) : (
-                          materias.map(materia => (
-                            <div 
-                              key={materia.id}
-                              className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
-                              onClick={() => {
-                                console.log('[ProgressPage] Materia seleccionada:', materia);
-                                setSelectedMateria(materia.id);
-                                setShowMateriaDropdown(false);
-                              }}
-                            >
-                              {materia.nombre}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-              <div className="ranking-table">
-                <h4>Tabla de Posiciones</h4>
-                <div className="ranking-list">
-                  {rankingLoading ? (
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
-                      padding: '3rem 0',
-                      flexDirection: 'column',
-                      gap: '1rem'
-                    }}>
-                      <FontAwesomeIcon 
-                        icon={faSpinner} 
-                        spin 
-                        size="2x" 
-                        style={{ color: '#6366f1' }}
-                      />
-                      <span style={{ 
-                        fontSize: '0.875rem', 
-                        color: '#6b7280',
-                        fontStyle: 'italic'
-                      }}>
-                        Cargando posiciones...
-                      </span>
-                    </div>
-                  ) : rankingData.length > 0 ? (
-                    <>
-                      {rankingData.map((student) => (
-                        <div 
-                          key={student.posicion} 
-                          className={`ranking-item ${student.nombre === 'Tú' ? 'current-user' : ''}`}
-                        >
-                          <span className="ranking-position">#{student.posicion}</span>
-                          <span className="ranking-name">{student.nombre}</span>
-                          <span className="ranking-score">{student.score.toLocaleString()}</span>
-                        </div>
-                      ))}
-                      {rankingData.length === 1 && rankingData[0].nombre === 'Tú' && (
-                        <div className="no-data-message" style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280', textAlign: 'center' }}>
-                          Otros estudiantes aún no tienen puntuación en esta materia
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="ranking-item current-user">
-                      <span className="ranking-position">#1</span>
-                      <span className="ranking-name">Tú</span>
-                      <span className="ranking-score">0</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Botón Exportar a PDF */}
-                <div style={{ 
-                  marginTop: '1rem', 
-                  display: 'flex', 
-                  justifyContent: 'center',
-                  width: '100%'
-                }}>
-                  <button 
-                    onClick={exportToPDF}
-                    className="materia-dropdown-btn"
-                    style={{
-                      backgroundColor: '#dc2626',
-                      color: 'white',
-                      border: 'none',
-                      padding: '0.75rem 1.5rem',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      transition: 'all 0.2s',
-                      minWidth: '150px',
-                      justifyContent: 'center'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#b91c1c';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#dc2626';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                    type="button"
-                  >
-                    <FontAwesomeIcon icon={faFilePdf} />
-                    Exportar a PDF
-                  </button>
-                </div>
-              </div>
-                </>
-              )}
-            </div>
-            )}
-          </div>
 
           <div className={`progress-modules-right ${!isSchoolUser && materias.length === 0 ? 'full-width' : ''}`}>
 
@@ -2851,11 +2708,11 @@ const ProgressPage: React.FC = () => {
             <div className="progress-bottom-module">
 
 
-              {/* Tabla de Cuadernos */}
+              {/* Tabla de Cuadernos - DESHABILITADO */}
+              {/* 
               <div className="notebooks-table-container">
                 <h3><FontAwesomeIcon icon={faBook} className="table-icon" /> Detalle por Alumno</h3>
                 
-                {/* Selector de Estudiante - Movido aquí desde arriba */}
                 {selectedMateria && selectedMateria !== 'general' && (
                   <div className="materia-dropdown-container" style={{ marginBottom: '1rem' }}>
                     <button 
@@ -2945,13 +2802,84 @@ const ProgressPage: React.FC = () => {
                   </table>
                 </div>
               </div>
+              */}
 
               {/* Nuevo Módulo: Selector de Cuadernos y Tabla de Estudiantes */}
               <div className="notebooks-table-container">
-                <h3><FontAwesomeIcon icon={faBook} className="table-icon" /> Detalle de Clase</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3><FontAwesomeIcon icon={faBook} className="table-icon" /> Detalle de Clase</h3>
+                  <button 
+                    onClick={exportToPDF}
+                    className="materia-dropdown-btn"
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      transition: 'all 0.2s',
+                      width: 'auto',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1d4ed8';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2563eb';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    type="button"
+                  >
+                    <FontAwesomeIcon icon={faFilePdf} />
+                    Exportar a PDF
+                  </button>
+                </div>
+                
+                {/* Selector de Materia */}
+                <div className="materia-dropdown-container" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>Materia:</span>
+                  <button 
+                    className="materia-dropdown-btn"
+                    onClick={() => setShowMateriaDropdown(!showMateriaDropdown)}
+                    type="button"
+                  >
+                    <span>{materias.find(m => m.id === selectedMateria)?.nombre || 'Seleccionar materia'}</span>
+                    <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showMateriaDropdown ? 'open' : ''}`} />
+                  </button>
+              
+                  {showMateriaDropdown && (
+                    <div className="materia-dropdown">
+                      {materias.length === 0 ? (
+                        <div className="materia-option">No hay materias disponibles</div>
+                      ) : (
+                        materias.map(materia => (
+                          <div 
+                            key={materia.id}
+                            className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
+                            onClick={() => {
+                              console.log('[ProgressPage] Materia seleccionada:', materia);
+                              setSelectedMateria(materia.id);
+                              setShowMateriaDropdown(false);
+                            }}
+                          >
+                            {materia.nombre}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Selector de Cuadernos */}
-                <div className="materia-dropdown-container" style={{ marginBottom: '1rem' }}>
+                <div className="materia-dropdown-container" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>Cuaderno:</span>
                   <button 
                     className="materia-dropdown-btn"
                     onClick={() => setShowNotebookDropdown(!showNotebookDropdown)}
@@ -2994,6 +2922,108 @@ const ProgressPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* KPIs Section */}
+                {studentsInNotebook.length > 0 && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '1rem',
+                    marginBottom: '2rem',
+                    padding: '1rem',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    {/* Score Promedio */}
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '1rem',
+                      backgroundColor: 'white',
+                      borderRadius: '6px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '600',
+                        color: '#2563eb',
+                        marginBottom: '0.5rem'
+                      }}>
+                        {studentsInNotebook.length > 0 
+                          ? Math.ceil(studentsInNotebook.reduce((sum, student) => sum + (student.score || 0), 0) / studentsInNotebook.length).toLocaleString('es-ES')
+                          : '0'
+                        }
+                      </div>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        Score Promedio
+                      </div>
+                    </div>
+
+                    {/* % Alumnos Inactivos */}
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '1rem',
+                      backgroundColor: 'white',
+                      borderRadius: '6px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '600',
+                        color: '#2563eb',
+                        marginBottom: '0.5rem'
+                      }}>
+                        {studentsInNotebook.length > 0 
+                          ? Math.round((studentsInNotebook.filter(student => (student.score === 0 || String(student.score) === '0' || !student.score || Math.ceil(student.score) === 0)).length / studentsInNotebook.length) * 100)
+                          : '0'
+                        }%
+                      </div>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        % Alumnos Inactivos
+                      </div>
+                    </div>
+
+                    {/* Tiempo Promedio */}
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '1rem',
+                      backgroundColor: 'white',
+                      borderRadius: '6px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '600',
+                        color: '#2563eb',
+                        marginBottom: '0.5rem'
+                      }}>
+                        {studentsInNotebook.length > 0 
+                          ? (() => {
+                              const totalMinutes = studentsInNotebook.reduce((sum, student) => sum + (student.tiempoEstudio || 0), 0);
+                              const avgMinutes = Math.round(totalMinutes / studentsInNotebook.length);
+                              return avgMinutes > 0 ? `${avgMinutes}m` : '0m';
+                            })()
+                          : '0m'
+                        }
+                      </div>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        Tiempo Promedio
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Tabla de Estudiantes */}
                 <div className="notebooks-table">
                   <table>
@@ -3013,7 +3043,10 @@ const ProgressPage: React.FC = () => {
                     <tbody>
                       {studentsInNotebook.length > 0 ? (
                         studentsInNotebook.map((student) => (
-                          <tr key={student.id}>
+                          <tr 
+                            key={student.id} 
+                            className={(student.score === 0 || String(student.score) === '0' || !student.score || Math.ceil(student.score) === 0) ? 'student-zero-points' : ''}
+                          >
                             <td className="notebook-name">{student.nombre}</td>
                             <td className="score-cell">{Math.ceil(student.score).toLocaleString('es-ES')}</td>
                             <td className="points-cell">{student.puntosRepasoInteligente || 0} pts</td>
