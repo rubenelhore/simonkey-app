@@ -57,6 +57,8 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
   const [noReviewedConcepts, setNoReviewedConcepts] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [conceptsLoaded, setConceptsLoaded] = useState(false);
+  const [draggedElement, setDraggedElement] = useState<HTMLElement | null>(null);
+  const [touchOffset, setTouchOffset] = useState({ x: 0, y: 0 });
   const { addPoints } = useGamePoints(notebookId);
   const { isSchoolStudent } = useUserType();
   const studyService = useStudyService(isSchoolStudent ? 'school' : 'premium');
@@ -413,57 +415,143 @@ const PuzzleGame: React.FC<PuzzleGameProps> = ({ notebookId, notebookTitle, onBa
     checkPuzzleCompletion(newFragments);
   };
 
-  // Touch event handlers for mobile
+  // Touch event handlers for mobile with improved dragging
   const handleTouchStart = (fragment: Fragment, e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const element = e.currentTarget as HTMLElement;
+    const rect = element.getBoundingClientRect();
+    
+    // Calculate offset from touch point to element center
+    setTouchOffset({
+      x: touch.clientX - rect.left - rect.width / 2,
+      y: touch.clientY - rect.top - rect.height / 2
+    });
+    
+    // Create a clone for dragging
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.position = 'fixed';
+    clone.style.zIndex = '9999';
+    clone.style.opacity = '0.8';
+    clone.style.pointerEvents = 'none';
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.left = `${rect.left}px`;
+    clone.style.top = `${rect.top}px`;
+    clone.style.transform = 'scale(1.1)';
+    clone.style.transition = 'transform 0.2s';
+    clone.classList.add('dragging-clone');
+    
+    document.body.appendChild(clone);
+    setDraggedElement(clone);
     setTouchStartFragment(fragment);
-    (e.currentTarget as HTMLElement).style.opacity = '0.5';
+    
+    // Make original element semi-transparent
+    element.style.opacity = '0.3';
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
+    
+    if (!draggedElement || !touchStartFragment) return;
+    
     const touch = e.touches[0];
+    
+    // Update clone position
+    draggedElement.style.left = `${touch.clientX - touchOffset.x - parseInt(draggedElement.style.width) / 2}px`;
+    draggedElement.style.top = `${touch.clientY - touchOffset.y - parseInt(draggedElement.style.height) / 2}px`;
+    
+    // Find target slot
+    draggedElement.style.display = 'none';
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    draggedElement.style.display = 'block';
+    
+    // Remove previous highlights
+    document.querySelectorAll('.fragment-slot').forEach(slot => {
+      slot.classList.remove('drag-over');
+    });
     
     if (element && element.classList.contains('fragment-slot')) {
+      element.classList.add('drag-over');
       const position = element.getAttribute('data-position');
       if (position) {
         setTouchTargetPosition(parseInt(position));
       }
+    } else {
+      setTouchTargetPosition(null);
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    (e.currentTarget as HTMLElement).style.opacity = '1';
+    const element = e.currentTarget as HTMLElement;
+    element.style.opacity = '1';
     
-    if (!touchStartFragment || touchTargetPosition === null) {
-      setTouchStartFragment(null);
-      setTouchTargetPosition(null);
-      return;
-    }
-
-    const targetFragment = fragments.find(f => f.currentPosition === touchTargetPosition);
-    if (!targetFragment) {
-      setTouchStartFragment(null);
-      setTouchTargetPosition(null);
-      return;
-    }
-
-    // Swap positions
-    const newFragments = fragments.map(f => {
-      if (f.id === touchStartFragment.id) {
-        return { ...f, currentPosition: touchTargetPosition };
-      } else if (f.id === targetFragment.id) {
-        return { ...f, currentPosition: touchStartFragment.currentPosition };
+    // Get the last touch position to find the target element
+    let finalTargetPosition = touchTargetPosition;
+    
+    if (draggedElement && e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      
+      // Hide the clone temporarily to get the element underneath
+      draggedElement.style.display = 'none';
+      const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      
+      // Check if we're over a fragment slot
+      if (targetElement) {
+        const slot = targetElement.closest('.fragment-slot');
+        if (slot) {
+          const position = slot.getAttribute('data-position');
+          if (position) {
+            finalTargetPosition = parseInt(position);
+          }
+        }
       }
-      return f;
+      
+      // Remove clone
+      draggedElement.remove();
+      setDraggedElement(null);
+    }
+    
+    // Remove all drag-over highlights
+    document.querySelectorAll('.fragment-slot').forEach(slot => {
+      slot.classList.remove('drag-over');
     });
+    
+    if (!touchStartFragment || finalTargetPosition === null) {
+      setTouchStartFragment(null);
+      setTouchTargetPosition(null);
+      return;
+    }
 
-    setFragments(newFragments);
+    // Find what's currently in the target position
+    const targetFragment = fragments.find(f => f.currentPosition === finalTargetPosition);
+    
+    if (!targetFragment) {
+      // If target slot is empty, just move the fragment there
+      const newFragments = fragments.map(f => {
+        if (f.id === touchStartFragment.id) {
+          return { ...f, currentPosition: finalTargetPosition };
+        }
+        return f;
+      });
+      setFragments(newFragments);
+      checkPuzzleCompletion(newFragments);
+    } else {
+      // Swap positions with the target fragment
+      const newFragments = fragments.map(f => {
+        if (f.id === touchStartFragment.id) {
+          return { ...f, currentPosition: finalTargetPosition };
+        } else if (f.id === targetFragment.id) {
+          return { ...f, currentPosition: touchStartFragment.currentPosition };
+        }
+        return f;
+      });
+      setFragments(newFragments);
+      checkPuzzleCompletion(newFragments);
+    }
+
     setTouchStartFragment(null);
     setTouchTargetPosition(null);
-
-    // Check if any puzzle is complete
-    checkPuzzleCompletion(newFragments);
   };
 
   const checkPuzzleCompletion = (currentFragments: Fragment[]) => {

@@ -1125,13 +1125,18 @@ const StudyModePage = () => {
     setMateriaRankingLoading(true);
     
     try {
-      console.log('Loading materia ranking for:', materia.id, 'userId:', effectiveUserId);
+      console.log('🎯 Loading materia ranking for:', {
+        materiaId: materia.id,
+        materiaUserId: materia.userId,
+        currentUserId: effectiveUserId,
+        isOwner: materia.userId === effectiveUserId
+      });
       
       // Verificar si soy el profesor de esta materia
       const isMateriaOwner = materia.userId === effectiveUserId;
       
       if (isMateriaOwner) {
-        console.log('User is owner of this materia, showing 1 de 1');
+        console.log('📚 User is owner of this materia, showing 1 de 1');
         setMateriaRanking({
           position: 1,
           total: 1
@@ -1140,24 +1145,38 @@ const StudyModePage = () => {
         return;
       }
       
+      console.log('👨‍🎓 User is enrolled student, fetching ranking...');
+      
       // Si no soy el profesor, obtener el ranking (podría ser estudiante enrollado)
+      // Pasar el teacherId explícitamente
       const rankings = await MateriaRankingService.getMateriaRanking(
         materia.id,
-        effectiveUserId
+        effectiveUserId,
+        materia.userId // teacherId
       );
+      
+      console.log('📊 Rankings received:', {
+        count: rankings?.length || 0,
+        rankings: rankings?.map(r => ({
+          nombre: r.nombre,
+          score: r.score,
+          isCurrentUser: r.isCurrentUser,
+          posicion: r.posicion
+        }))
+      });
       
       if (rankings && rankings.length > 0) {
         // Encontrar la posición del usuario actual
         const userRanking = rankings.find(r => r.isCurrentUser);
         if (userRanking) {
-          console.log('User found in ranking:', userRanking.posicion, 'of', rankings.length);
+          console.log('✅ User found in ranking:', userRanking.posicion, 'of', rankings.length);
           setMateriaRanking({
             position: userRanking.posicion,
             total: rankings.length
           });
         } else {
           // Si el usuario no está en el ranking, mostrar como único participante
-          console.log('User not found in ranking, showing 1 de 1');
+          console.log('⚠️ User not found in ranking, showing 1 de 1. Rankings:', rankings);
           setMateriaRanking({
             position: 1,
             total: 1
@@ -1165,14 +1184,14 @@ const StudyModePage = () => {
         }
       } else {
         // Si no hay ranking, mostrar como único participante
-        console.log('No ranking found, showing 1 de 1');
+        console.log('❌ No ranking found, showing 1 de 1');
         setMateriaRanking({
           position: 1,
           total: 1
         });
       }
     } catch (error) {
-      console.error('Error loading materia ranking:', error);
+      console.error('💥 Error loading materia ranking:', error);
       setMateriaRanking(null);
     } finally {
       setMateriaRankingLoading(false);
