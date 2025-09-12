@@ -36,7 +36,7 @@ import TeacherRequestModal from './TeacherRequestModal';
 import { teacherService } from '../services/teacherService';
 
 interface HeaderWithHamburgerProps {
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: string;
   showBackButton?: boolean;
   onBackClick?: () => void;

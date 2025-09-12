@@ -27,11 +27,9 @@
   grid-column: unset !important;
 }
 
-/* Remove all top margin from daily metrics in desktop */
-@media (min-width: 1025px) {
-  .study-mode-container .daily-metrics {
-    margin-top: 0 !important;
-  }
+/* Remove all top margin from daily metrics in ALL screen sizes */
+.study-mode-container .daily-metrics {
+  margin-top: 0 !important;
 }
 
 :root {
@@ -69,6 +67,8 @@
 body:has(.study-mode-container) {
   overflow-y: auto;
   min-height: 100vh;
+  /* Fix iOS rubber band scrolling */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Main Container */
@@ -77,7 +77,8 @@ body:has(.study-mode-container) {
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  /* Remove overflow from container to prevent double scrollbar */
+  overflow: visible;
   position: relative;
 }
 
@@ -89,9 +90,12 @@ body:has(.study-mode-container) {
   width: 100%;
   box-sizing: border-box;
   background-color: #ffffff;
-  overflow-y: auto;
+  /* Remove overflow to prevent scrolling issues */
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  /* Add padding bottom for mobile to ensure last content is visible */
+  padding-bottom: 100px;
 }
 
 /* Loading State */
@@ -1109,6 +1113,9 @@ body:has(.study-mode-container) {
   z-index: 9998;
   backdrop-filter: blur(2px);
   animation: fadeIn 0.2s ease-out;
+  /* Fix iOS scroll blocking */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Mobile dropdown overlay */
@@ -1121,6 +1128,9 @@ body:has(.study-mode-container) {
   background-color: rgba(0, 0, 0, 0.4);
   z-index: 1000;
   animation: fadeIn 0.3s ease-out;
+  /* Fix iOS scroll blocking */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 @keyframes fadeIn {
@@ -2226,11 +2236,14 @@ body:has(.study-mode-container) {
   .study-mode-main {
     padding: 0.75rem;
     max-width: 100%;
+    /* Extra padding bottom for mobile */
+    padding-bottom: 120px;
   }
   
   .main-study-module {
     padding: 1rem;
-    max-height: 500px;
+    /* Remove max-height restriction on mobile */
+    max-height: none;
     margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
@@ -2660,6 +2673,8 @@ body:has(.study-mode-container) {
 @media (max-width: 480px) {
   .study-mode-main {
     padding: 0.5rem;
+    /* Extra padding bottom for small mobile */
+    padding-bottom: 150px;
   }
   
   .study-functions {

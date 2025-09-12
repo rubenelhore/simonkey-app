@@ -85,6 +85,20 @@
   flex-direction: column;
 }
 
+/* Override body overflow-x for progress page only */
+body:has(.progress-container) {
+  overflow-x: auto !important;
+}
+
+/* Remove top spacing from daily metrics in progress page */
+.progress-container .daily-metrics,
+.progress-container .progress-modules-right .daily-metrics {
+  margin: 0 auto 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding: 0 1rem !important;
+}
+
 .progress-layout {
   min-height: calc(100vh - 70px);
   background-color: white;
@@ -119,6 +133,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  margin-top: 20px;
+  min-width: 0;
+  overflow-x: visible;
 }
 
 /* Para usuarios no escolares - ocupa todo el ancho cuando no hay side module */
@@ -565,6 +582,8 @@
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   flex: 1;
+  min-width: 0;
+  overflow-x: visible;
 }
 
 /* Charts Container */
@@ -621,10 +640,52 @@
 .notebooks-table {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: none !important;
+  width: 100%;
+}
+
+/* Sobrescribir la regla global específicamente para la tabla */
+.header-with-hamburger-container ~ * .notebooks-table,
+.header-with-hamburger-container ~ * .notebooks-table *,
+.header-with-hamburger-container ~ * .notebooks-table table,
+.notebooks-table-container .notebooks-table,
+.notebooks-table-container .notebooks-table *,
+.progress-bottom-module .notebooks-table,
+.progress-bottom-module .notebooks-table * {
+  max-width: none !important;
+}
+
+/* Asegurar que el contenedor padre permita overflow */
+.notebooks-table-container,
+.progress-bottom-module {
+  overflow-x: visible !important;
+  max-width: none !important;
+}
+
+.notebooks-table::-webkit-scrollbar {
+  height: 12px;
+}
+
+.notebooks-table::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.notebooks-table::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 6px;
+}
+
+.notebooks-table::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 
 .notebooks-table table {
   width: 100%;
+  min-width: 700px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -642,6 +703,7 @@
   border-right: 1px solid #e5e7eb;
   white-space: nowrap;
 }
+
 
 .notebooks-table th:last-child {
   border-right: none;
@@ -661,6 +723,7 @@
   color: #111827;
   border-right: 1px solid #e5e7eb;
 }
+
 
 .notebooks-table td:last-child {
   border-right: none;

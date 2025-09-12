@@ -155,10 +155,11 @@ export class KPIService {
       try {
         const quizResultsQuery = query(
           collection(db, 'users', userId, 'quizResults'),
-          orderBy('timestamp', 'desc')
+          orderBy('createdAt', 'desc')  // CORREGIDO: usar 'createdAt' en lugar de 'timestamp'
         );
         quizResultsSnap = await getDocs(quizResultsQuery);
       } catch (error) {
+        console.log('[KPIService] Error con orderBy, intentando consulta simple:', error);
         const quizResultsQuery = query(
           collection(db, 'users', userId, 'quizResults')
         );
@@ -540,9 +541,21 @@ export class KPIService {
       // Procesar resultados de quiz por cuaderno
       const quizStats = new Map<string, { scores: number[], totalTime: number }>();
       
+      console.log(`[KPIService] DEBUG: Procesando ${quizResultsSnap.size} resultados de quiz`);
+      console.log(`[KPIService] DEBUG: Consulta de quiz results para usuario: ${userId}`);
+      
       quizResultsSnap.forEach(doc => {
         const result = doc.data();
         const notebookId = result.notebookId;
+        
+        console.log(`[KPIService] DEBUG Quiz Result:`, {
+          docId: doc.id,
+          notebookId,
+          totalTime: result.totalTime,
+          timeRemaining: result.timeRemaining,
+          timestamp: result.timestamp?.toDate?.() || result.timestamp,
+          allFields: Object.keys(result)
+        });
         
         if (!notebookId) return;
 
@@ -558,6 +571,7 @@ export class KPIService {
         
         // Sumar tiempo del quiz
         if (result.totalTime) {
+          console.log(`[KPIService] DEBUG Quiz: ${notebookId}, totalTime: ${result.totalTime}s`);
           stats.totalTime += result.totalTime;
           
           // Agregar tiempo al estudio semanal (acumulado histórico)
@@ -809,6 +823,13 @@ export class KPIService {
         const tiempoQuizTotal = quizData.totalTime + miniQuizData.totalTime;
         const tiempoJuegosTotal = gameData.totalTime;
         const tiempoEstudioTotal = stats.tiempoEstudioLibre + stats.tiempoEstudioInteligente + tiempoQuizTotal + tiempoJuegosTotal;
+        
+        console.log(`[KPIService] DEBUG Cuaderno ${notebooksMap.get(notebookId)?.title || notebookId}:`);
+        console.log(`  - quizData.totalTime: ${quizData.totalTime}s`);
+        console.log(`  - miniQuizData.totalTime: ${miniQuizData.totalTime}s`);
+        console.log(`  - tiempoQuizTotal: ${tiempoQuizTotal}s`);
+        console.log(`  - tiempoEstudioTotal: ${tiempoEstudioTotal}s`);
+        console.log(`  - tiempoEstudioLocal (minutos): ${Math.round(tiempoEstudioTotal / 60)}`);
         
         // Calcular porcentaje de éxito de estudios inteligentes
         const porcentajeExito = stats.estudiosInteligentesTotal > 0 

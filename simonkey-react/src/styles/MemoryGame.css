@@ -30,16 +30,13 @@
   justify-content: space-between;
   align-items: center;
   max-width: 1200px;
-  margin: 100px auto 40px;
-  padding: 20px;
-  gap: 30px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  margin: 80px auto 30px;
+  padding: 0 20px 8px;
+  gap: 20px;
+  min-height: 60px;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.4);
   position: relative;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  min-height: 88px;
 }
 
 .game-title h1 {
@@ -124,22 +121,18 @@
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
 }
 
-.reset-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* Game Stats - Completamente rediseñado */
-.game-stats {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  margin: 0;
-  padding: 0;
-  flex: 1;
-  max-width: 500px;
+/* Game Stats - Individual Module Design */
+.memory-game-container .game-stats {
+  display: flex !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  padding: 12px 20px !important;
+  flex: 0 1 auto !important;
+  max-width: 600px !important;
+  width: auto !important;
   height: 48px;
+  align-self: center;
 }
 
 .stat {
@@ -177,9 +170,10 @@
 }
 
 /* Individual modules styling */
-.game-controls .game-stats {
-  margin: 0;
-  align-self: center;
+.memory-game-container .game-controls .game-stats {
+  margin: 0 !important;
+  width: auto !important;
+  max-width: 600px !important;
 }
 
 
@@ -1150,8 +1144,8 @@
   background: white;
   border-radius: 20px;
   padding: 1rem;
-  width: 650px;
-  height: 724px;
+  width: 600px;
+  height: 500px;
   overflow-y: auto;
   animation: modalSlideIn 0.3s ease-out;
 }
@@ -1174,17 +1168,17 @@
 }
 
 .intro-icon {
-  font-size: 3rem;
+  font-size: 2.5rem;
   color: #667eea;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   display: block;
 }
 
 .intro-header h2 {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.25rem 0;
 }
 
 .intro-content {
@@ -1192,13 +1186,11 @@
 }
 
 .memory-game-container .intro-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .memory-game-container .intro-section:first-child {
   margin-bottom: 0.5rem;
-  width: 570px;
-  height: 220px;
 }
 
 .memory-game-container .intro-section:last-child {
@@ -1315,7 +1307,7 @@
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
 }
 
 .action-button {
@@ -1370,6 +1362,8 @@
   .memory-intro-modal {
     padding: 1.5rem;
     margin: 1rem;
+    width: 90%;
+    max-width: 400px;
     height: auto;
     max-height: 90vh;
   }

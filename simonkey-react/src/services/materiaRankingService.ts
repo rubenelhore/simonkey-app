@@ -41,7 +41,7 @@ export class MateriaRankingService {
     isTeacherView?: boolean
   ): Promise<MateriaRanking[]> {
     try {
-      console.log('📊 Getting materia ranking for:', { materiaId, currentUserId, teacherId });
+      console.log('📊 [MateriaRankingService] Getting materia ranking for:', { materiaId, currentUserId, teacherId });
       
       // Check cache first
       const cacheKey = `${materiaId}-${teacherId || 'auto'}`;
@@ -80,8 +80,16 @@ export class MateriaRankingService {
       }
       
       // Get all active enrollments for this materia
-      console.log('📊 Querying enrollments with:', { materiaId, effectiveTeacherId });
+      console.log('📊 Querying enrollments with:', { 
+        materiaId, 
+        effectiveTeacherId,
+        currentUserId,
+        isTeacherView 
+      });
       
+      // Clean implementation without debugging
+      
+      // Get all active enrollments for this materia
       const enrollmentsQuery = query(
         collection(db, 'enrollments'),
         where('materiaId', '==', materiaId),
@@ -103,6 +111,12 @@ export class MateriaRankingService {
         const enrollment = doc.data();
         studentIds.push(enrollment.studentId);
       });
+      
+      // Always include current user if not already in the list
+      if (!studentIds.includes(currentUserId)) {
+        console.log(`📝 Adding current user ${currentUserId} to ranking (not in enrollments)`);
+        studentIds.push(currentUserId);
+      }
       
       if (studentIds.length === 0) {
         console.log('⚠️ No students enrolled in this materia');
@@ -132,11 +146,14 @@ export class MateriaRankingService {
           const score = await PointsCalculationService.calculateMateriaScore(materiaId, studentId);
           console.log(`✅ Calculated dynamic score for ${studentName}: ${score}`);
           
+          const isCurrentUserFlag = studentId === currentUserId;
+          console.log(`📌 Comparing IDs: studentId="${studentId}" vs currentUserId="${currentUserId}" => isCurrentUser=${isCurrentUserFlag}`);
+          
           return {
             posicion: 0, // Will be set after sorting
-            nombre: (studentId === currentUserId && !isTeacherView) ? 'Tú' : studentName,
+            nombre: (isCurrentUserFlag && !isTeacherView) ? 'Tú' : studentName,
             score: score,
-            isCurrentUser: studentId === currentUserId
+            isCurrentUser: isCurrentUserFlag
           };
           
         } catch (error) {

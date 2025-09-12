@@ -1,4 +1,112 @@
 /* src/styles/StudySessionPage.css */
+:root {
+  color-scheme: light only;
+}
+
+/* Force white text in all color schemes and modes */
+@media (prefers-color-scheme: light) {
+  .intro-header-compact h2 {
+    color: #fefefe !important;
+    -webkit-text-fill-color: #fefefe !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .intro-header-compact h2 {
+    color: #fefefe !important;
+    -webkit-text-fill-color: #fefefe !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .intro-header-compact h2 {
+    color: CanvasText !important;
+    -webkit-text-fill-color: CanvasText !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .intro-header-compact h2 {
+    color: #fefefe !important;
+    -webkit-text-fill-color: #fefefe !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+/* Force intro-section colors in all modes */
+@media (prefers-color-scheme: light) {
+  .intro-section h3::before {
+    color: #1C1C1E !important;
+    -webkit-text-fill-color: #1C1C1E !important;
+  }
+  .intro-section p::before {
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .intro-section h3::before {
+    color: #1C1C1E !important;
+    -webkit-text-fill-color: #1C1C1E !important;
+  }
+  .intro-section p::before {
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .intro-section h3::before {
+    color: #1C1C1E !important;
+    -webkit-text-fill-color: #1C1C1E !important;
+  }
+  .intro-section p::before {
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .intro-section h3::before {
+    color: #1C1C1E !important;
+    -webkit-text-fill-color: #1C1C1E !important;
+  }
+  .intro-section p::before {
+    color: #48484A !important;
+    -webkit-text-fill-color: #48484A !important;
+  }
+  .intro-content {
+    background-color: white !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+/* Force white background in all color modes */
+@media (prefers-color-scheme: light) {
+  .intro-content {
+    background-color: white !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .intro-content {
+    background-color: white !important;
+    forced-color-adjust: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .intro-content {
+    background-color: Canvas !important;
+    forced-color-adjust: none !important;
+  }
+}
+
 .study-session-container {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -243,17 +351,83 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
-  color: white;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
   position: relative;
   z-index: 1;
+  forced-color-adjust: none !important;
+}
+
+.intro-header-compact h2::before {
+  content: "Repaso Inteligente";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #fefefe !important;
+  -webkit-text-fill-color: #fefefe !important;
+  forced-color-adjust: none !important;
+  z-index: 2;
+}
+
+.header-icon-compact i {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  forced-color-adjust: none !important;
+}
+
+.header-icon-compact i::before {
+  content: "\f5dc";
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fefefe !important;
+  -webkit-text-fill-color: #fefefe !important;
+  forced-color-adjust: none !important;
+  z-index: 2;
+}
+
+.action-button-compact.primary {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  forced-color-adjust: none !important;
+  position: relative;
+}
+
+.action-button-compact.primary::before {
+  content: "▶ Comenzar";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  forced-color-adjust: none !important;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+.action-button-compact.primary i {
+  visibility: hidden !important;
 }
 
 .intro-content {
   margin-bottom: 0;
+  background-color: white !important;
+  forced-color-adjust: none !important;
+  padding: 1rem;
+  border-radius: 8px;
 }
 
 .intro-section {
   margin-bottom: 1.5rem;
+  background: transparent !important;
+  forced-color-adjust: none !important;
 }
 
 .intro-section:last-child {
@@ -264,15 +438,42 @@
   margin: 0 0 0.75rem 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1C1C1E;
-  -webkit-text-fill-color: #1C1C1E; /* iOS text color fix */
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  forced-color-adjust: none !important;
+  position: relative;
+}
+
+.intro-section h3::before {
+  content: "¿Qué es el Estudio Libre?";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #1C1C1E !important;
+  -webkit-text-fill-color: #1C1C1E !important;
+  forced-color-adjust: none !important;
+  z-index: 2;
 }
 
 .intro-section p {
   margin: 0;
-  color: #48484A;
-  -webkit-text-fill-color: #48484A; /* iOS text color fix */
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  forced-color-adjust: none !important;
   line-height: 1.6;
+  position: relative;
+}
+
+.intro-section p::before {
+  content: "Repasa todos los conceptos del cuaderno sin restricciones. Disponible una vez al día.";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #48484A !important;
+  -webkit-text-fill-color: #48484A !important;
+  forced-color-adjust: none !important;
+  line-height: 1.6;
+  z-index: 2;
 }
 
 .intro-section ul {
@@ -928,11 +1129,27 @@
   
   .intro-header-compact h2 {
     font-size: 1.25rem;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: none !important;
+    filter: none !important;
+    background: transparent !important;
+    forced-color-adjust: none !important;
+  }
+  
+  .intro-header-compact h2::before {
+    font-size: 1.25rem;
   }
   
   .header-icon-compact {
     width: 40px;
     height: 40px;
+    position: relative;
+  }
+  
+  .header-icon-compact i::before {
+    font-size: 1.5rem;
+  }
   }
   
   .header-icon-compact i {

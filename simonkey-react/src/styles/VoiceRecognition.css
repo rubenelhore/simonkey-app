@@ -1969,7 +1969,11 @@ div.scoring-breakdown {
 }
 
 .intro-header-compact h2 {
-  color: #333;
+  color: #fefefe !important;
+  -webkit-text-fill-color: #fefefe !important;
+  text-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
   margin: 0;
   font-size: 1.5rem;
 }

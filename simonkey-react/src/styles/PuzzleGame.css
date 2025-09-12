@@ -307,6 +307,13 @@
   background: rgba(156, 163, 175, 0.1);
 }
 
+.fragment-slot.drag-over {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.4);
+}
+
 /* Fragment */
 .fragment {
   width: 100%;
@@ -317,6 +324,9 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
   overflow: hidden;
 }
 
@@ -324,6 +334,15 @@
   cursor: grabbing;
   transform: scale(1.05);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Dragging clone for touch devices */
+.dragging-clone {
+  touch-action: none;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  cursor: grabbing;
 }
 
 .fragment.correct-concept {
@@ -731,6 +750,16 @@
     font-size: 1rem;
   }
 
+  /* Hide back button on mobile since header already has navigation */
+  .back-button {
+    display: none !important;
+  }
+
+  /* Hide section labels on mobile to reduce clutter */
+  .section-label {
+    display: none !important;
+  }
+
   .reset-button {
     width: auto;
     padding: 8px 12px;
@@ -787,6 +816,7 @@
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .fragment span {

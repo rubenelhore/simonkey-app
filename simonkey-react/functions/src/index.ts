@@ -2704,9 +2704,23 @@ export const generateConceptsFromFile = onCall(
           }
         }
         
-        // Detectar caracteres especiales del español
+        // ================================
+        // CANDADO #3: DETECCIÓN ULTRA-ROBUSTA POR PATRONES
+        // ================================
+        
+        // Detectar caracteres especiales del español (ampliado)
         if (/[áéíóúñü¿¡]/i.test(sample)) {
           scores.spanish += 10; // Bonus significativo por caracteres españoles
+        }
+        
+        // Detectar patrones específicos del español (CANDADO #3)
+        if (/\b(ción|sión|dad|idad|mente|ando|iendo|ería|aría)\b/i.test(sample)) {
+          scores.spanish += 25; // Bonus extra fuerte por terminaciones típicas del español
+        }
+        
+        // Detectar artículos y preposiciones españolas juntas (CANDADO #3)
+        if (/\b(del|al|por el|en la|de la|con el|para el|desde el)\b/i.test(sample)) {
+          scores.spanish += 20; // Fuerte indicador de español
         }
         
         // Detectar caracteres especiales del italiano
@@ -2714,14 +2728,55 @@ export const generateConceptsFromFile = onCall(
           scores.italian += 8; // Bonus por caracteres italianos
         }
         
-        // Detectar patrones de gramática inglesa
+        // Detectar patrones específicos del italiano (CANDADO #3)
+        if (/\b(zione|mente|ando|endo|iere|ere|ire)\b/i.test(sample)) {
+          scores.italian += 20; // Terminaciones típicas del italiano
+        }
+        
+        // Detectar patrones de gramática inglesa (mejorado - CANDADO #3)
         if (/\b(i'm|you're|it's|we're|they're|i've|you've|we've|they've|hasn't|haven't|doesn't|don't|won't|can't|couldn't|wouldn't|shouldn't)\b/i.test(sample)) {
           scores.english += 15; // Bonus por contracciones en inglés
+        }
+        
+        // Detectar patrones específicos del inglés (CANDADO #3)
+        if (/\b(ing|tion|sion|ness|ment|able|ible|ful|less)\b/i.test(sample)) {
+          scores.english += 20; // Terminaciones típicas del inglés
+        }
+        
+        // Detectar patrones gramaticales del inglés (CANDADO #3)
+        if (/\b(the\s+\w+\s+of|a\s+\w+\s+is|an\s+\w+\s+that|in\s+order\s+to|as\s+well\s+as)\b/i.test(sample)) {
+          scores.english += 30; // Patrones gramaticales muy específicos del inglés
+        }
+        
+        // Detectar orden de palabras típico del inglés (CANDADO #3)
+        if (/\b(many\s+\w+|some\s+\w+|several\s+\w+|various\s+\w+|different\s+\w+)\b/i.test(sample)) {
+          scores.english += 25; // Adjetivos cuantificadores típicos del inglés
         }
         
         // Detectar terminaciones latinas comunes
         if (/\b\w+(us|um|am|ae|arum|is|ibus|orum|ibus)\b/gi.test(sample)) {
           scores.latin += 10; // Bonus por terminaciones latinas
+        }
+        
+        // CANDADO #3: Penalización por mezcla de idiomas
+        let mixedLanguageScore = 0;
+        if (scores.english > 0 && scores.spanish > 0) {
+          mixedLanguageScore = -50; // Penalización fuerte por mezcla inglés-español
+          logger.warn("⚠️ CANDADO #3: Posible mezcla de idiomas detectada", {
+            englishScore: scores.english,
+            spanishScore: scores.spanish,
+            penalty: mixedLanguageScore
+          });
+        }
+        
+        // Aplicar penalización
+        if (mixedLanguageScore < 0) {
+          // Reducir ambos scores y dejar que gane el más alto
+          if (scores.english > scores.spanish) {
+            scores.spanish = Math.max(0, scores.spanish + mixedLanguageScore);
+          } else {
+            scores.english = Math.max(0, scores.english + mixedLanguageScore);
+          }
         }
         
         // Log para debug
@@ -2793,7 +2848,7 @@ export const generateConceptsFromFile = onCall(
       // ================================
       
       // Obtener el prompt apropiado según el idioma detectado
-      const prompt = getPromptByLanguage(detectedLanguage);
+      let prompt = getPromptByLanguage(detectedLanguage);
       
       logger.info("📝 Usando prompt para idioma", { 
         detectedLanguage,
@@ -2824,6 +2879,82 @@ export const generateConceptsFromFile = onCall(
             });
           }
           
+          // ================================
+          // CANDADO ADICIONAL #1: DETECCIÓN PRE-PROCESAMIENTO
+          // ================================
+          // Para archivos PDF, intentar detectar idioma ANTES del procesamiento principal
+          // usando un prompt específico de detección de idioma
+          
+          const languageDetectionPrompt = `
+🔍 LANGUAGE DETECTION TASK 🔍
+
+Analyze this document and determine its primary language ONLY from these options:
+- english
+- spanish  
+- italian
+- greek
+- latin
+
+Look at:
+1. Text content and words used
+2. Grammar patterns
+3. Special characters (ñ, á, é, í, ó, ú for Spanish; α, β, γ for Greek, etc.)
+
+Respond with ONLY ONE WORD - the detected language:
+english, spanish, italian, greek, or latin
+
+If uncertain, respond with "unknown"
+`;
+
+          // Crear el archivo para detección de idioma
+          const fileDataForDetection = {
+            inlineData: {
+              data: fileContent,
+              mimeType: mimeType
+            }
+          };
+          
+          logger.info("🔍 Detectando idioma desde contenido del archivo...");
+          
+          try {
+            const languageDetectionResult = await retryWithModelFallback(
+              async () => await primaryModel.generateContent([languageDetectionPrompt, fileDataForDetection]),
+              async () => await fallbackModel.generateContent([languageDetectionPrompt, fileDataForDetection])
+            );
+            
+            const languageDetectionResponse = await languageDetectionResult.response;
+            const detectedLanguageFromContent = languageDetectionResponse.text().toLowerCase().trim();
+            
+            logger.info("🔍 Idioma detectado desde contenido", { 
+              originalDetection: detectedLanguage,
+              contentBasedDetection: detectedLanguageFromContent,
+              fileName 
+            });
+            
+            // Si la detección desde contenido es válida y diferente, usarla
+            const validLanguages = ['english', 'spanish', 'italian', 'greek', 'latin'];
+            if (validLanguages.includes(detectedLanguageFromContent)) {
+              detectedLanguage = detectedLanguageFromContent;
+              logger.info("✅ Actualizando idioma detectado", { 
+                newDetectedLanguage: detectedLanguage,
+                source: 'content-analysis'
+              });
+              
+              // Actualizar el prompt con el idioma correcto
+              const updatedPrompt = getPromptByLanguage(detectedLanguage);
+              prompt = updatedPrompt;
+              logger.info("📝 Prompt actualizado para idioma correcto", { 
+                detectedLanguage,
+                promptLength: prompt.length 
+              });
+            }
+          } catch (detectionError) {
+            logger.warn("⚠️ Error en detección de idioma desde contenido, usando detección original", {
+              error: detectionError,
+              originalDetection: detectedLanguage
+            });
+          }
+          
           // Crear el archivo para Gemini
           const fileData = {
             inlineData: {
@@ -2836,6 +2967,7 @@ export const generateConceptsFromFile = onCall(
             fileName, 
             mimeType, 
             fileSize: fileBuffer.length,
+            finalDetectedLanguage: detectedLanguage,
             timestamp: new Date().toISOString()
           });
           
@@ -3021,6 +3153,172 @@ ${chunksToProcess[i]}`;
           logger.info("✅ Conceptos extraídos con método de respaldo", { concepts });
         } else {
           throw new HttpsError("internal", "Error procesando respuesta de IA");
+        }
+      }
+
+      // ================================
+      // CANDADO ADICIONAL #2: VALIDADOR INMEDIATO POST-EXTRACCIÓN
+      // ================================
+      
+      if (detectedLanguage !== 'unknown' && concepts.conceptos && concepts.conceptos.length > 0) {
+        logger.info("🛡️ Aplicando candado #2: Validación inmediata de idioma post-extracción");
+        
+        // Para documentos en inglés, verificar INMEDIATAMENTE si hay palabras en español
+        if (detectedLanguage === 'english') {
+          const prohibitedSpanishWords = [
+            'proceso', 'sistema', 'función', 'método', 'desarrollo', 'gobierno', 'organización',
+            'estructura', 'actividad', 'resultado', 'información', 'trabajo', 'problema',
+            'situación', 'condición', 'relación', 'diferencia', 'importancia', 'necesidad',
+            'posibilidad', 'capacidad', 'habilidad', 'conocimiento', 'experiencia', 'educación',
+            'sociedad', 'comunidad', 'población', 'persona', 'grupo', 'equipo', 'empresa',
+            'institución', 'escuela', 'universidad', 'hospital', 'centro', 'lugar', 'espacio'
+          ];
+          
+          let foundSpanishWords = [];
+          let hasSpanishWords = false;
+          
+          for (const concepto of concepts.conceptos.slice(0, 5)) { // Verificar primeros 5
+            const allText = `${concepto.termino} ${concepto.definicion}`.toLowerCase();
+            
+            for (const spanishWord of prohibitedSpanishWords) {
+              if (allText.includes(spanishWord)) {
+                foundSpanishWords.push({ 
+                  concepto: concepto.termino, 
+                  spanishWord, 
+                  fullText: allText 
+                });
+                hasSpanishWords = true;
+                break;
+              }
+            }
+          }
+          
+          if (hasSpanishWords) {
+            logger.error("🚨 CANDADO #2 ACTIVADO: Palabras en español detectadas en documento inglés", {
+              detectedLanguage,
+              fileName,
+              foundSpanishWords,
+              totalConcepts: concepts.conceptos.length
+            });
+            
+            // RECHAZO INMEDIATO Y REINTENTO ULTRA-AGRESIVO
+            const emergencyEnglishPrompt = `
+🚨🚨🚨 CRITICAL EMERGENCY - SPANISH TRANSLATION DETECTED 🚨🚨🚨
+
+YOUR RESPONSE WAS COMPLETELY UNACCEPTABLE!
+THE DOCUMENT IS IN ENGLISH - YOU TRANSLATED TO SPANISH!
+
+THIS IS ABSOLUTELY FORBIDDEN AND MUST BE CORRECTED IMMEDIATELY!
+
+FORBIDDEN SPANISH WORDS DETECTED: ${foundSpanishWords.map(f => f.spanishWord).join(', ')}
+
+MANDATORY CORRECTIONS:
+- "proceso" → "process"
+- "sistema" → "system"  
+- "función" → "function"
+- "método" → "method"
+- "desarrollo" → "development"
+- "información" → "information"
+- "organización" → "organization"
+- "estructura" → "structure"
+- "actividad" → "activity"
+
+🚫 ABSOLUTELY NO SPANISH WORDS ALLOWED 🚫
+
+THIS IS YOUR FINAL WARNING - EXTRACT CONCEPTS ONLY IN ENGLISH!
+
+Respond with valid JSON containing concepts ONLY in English:
+{
+  "conceptos": [
+    {
+      "termino": "ENGLISH TERM ONLY",
+      "definicion": "ENGLISH DEFINITION ONLY"
+    }
+  ]
+}
+
+FAILURE TO COMPLY WILL RESULT IN TERMINATION!
+`;
+
+            try {
+              let emergencyResult;
+              if (fileType === 'file' && fileContent) {
+                const emergencyFileData = {
+                  inlineData: {
+                    data: fileContent,
+                    mimeType: mimeType
+                  }
+                };
+                emergencyResult = await retryWithModelFallback(
+                  () => primaryModel.generateContent([emergencyEnglishPrompt, emergencyFileData]),
+                  () => fallbackModel.generateContent([emergencyEnglishPrompt, emergencyFileData])
+                );
+              } else {
+                const textForEmergency = Buffer.from(fileContent!, 'base64').toString('utf-8');
+                emergencyResult = await retryWithModelFallback(
+                  () => primaryModel.generateContent(emergencyEnglishPrompt + '\n\n' + textForEmergency),
+                  () => fallbackModel.generateContent(emergencyEnglishPrompt + '\n\n' + textForEmergency)
+                );
+              }
+              
+              const emergencyResponse = await emergencyResult.response;
+              const emergencyText = emergencyResponse.text();
+              
+              const emergencyJsonMatch = emergencyText.match(/\{[\s\S]*\}/);
+              if (emergencyJsonMatch) {
+                const emergencyConcepts = JSON.parse(emergencyJsonMatch[0]);
+                concepts = emergencyConcepts;
+                logger.info("✅ CANDADO #2: Conceptos corregidos con reintento de emergencia", { 
+                  newConcepts: concepts,
+                  correctedSpanishWords: foundSpanishWords.length
+                });
+              }
+            } catch (emergencyError) {
+              logger.error("❌ CANDADO #2: Reintento de emergencia falló", {
+                error: emergencyError,
+                foundSpanishWords: foundSpanishWords
+              });
+              // No hacer throw aqui para que continue con las validaciones originales
+            }
+          } else {
+            logger.info("✅ CANDADO #2: Documento en inglés validado - no se encontraron palabras en español");
+          }
+        }
+        
+        // Para documentos en español, verificar que no haya palabras en inglés
+        else if (detectedLanguage === 'spanish') {
+          const prohibitedEnglishWords = [
+            'process', 'system', 'function', 'method', 'development', 'government', 'organization',
+            'structure', 'activity', 'result', 'information', 'work', 'problem', 'situation',
+            'condition', 'relationship', 'difference', 'importance', 'necessity', 'possibility',
+            'capacity', 'ability', 'knowledge', 'experience', 'education', 'society', 'community'
+          ];
+          
+          let foundEnglishWords = [];
+          let hasEnglishWords = false;
+          
+          for (const concepto of concepts.conceptos.slice(0, 3)) {
+            const allText = `${concepto.termino} ${concepto.definicion}`.toLowerCase();
+            
+            for (const englishWord of prohibitedEnglishWords) {
+              if (allText.includes(englishWord)) {
+                foundEnglishWords.push({ 
+                  concepto: concepto.termino, 
+                  englishWord, 
+                  fullText: allText 
+                });
+                hasEnglishWords = true;
+                break;
+              }
+            }
+          }
+          
+          if (hasEnglishWords) {
+            logger.warn("⚠️ CANDADO #2: Palabras en inglés detectadas en documento español", {
+              foundEnglishWords: foundEnglishWords.length,
+              words: foundEnglishWords
+            });
+          }
         }
       }
 

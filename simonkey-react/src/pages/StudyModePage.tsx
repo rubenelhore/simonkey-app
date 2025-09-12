@@ -289,6 +289,7 @@ const StudyModePage = () => {
     return () => clearTimeout(timer);
   }, [selectedNotebook]);
 
+
   // Load effective user ID and user data - OPTIMIZADO
   useEffect(() => {
     const loadInitialData = async () => {
@@ -987,6 +988,7 @@ const StudyModePage = () => {
       
       // Obtener puntos de Fill in the Blank desde gameScores
       const fillBlankPoints = gameScores?.fillBlank || 0;
+      console.log('[StudyModePage] Fill in the Blank points:', fillBlankPoints, 'from gameScores.fillBlank:', gameScores?.fillBlank);
       setFillInTheBlankPoints(fillBlankPoints);
       
       
@@ -1123,13 +1125,18 @@ const StudyModePage = () => {
     setMateriaRankingLoading(true);
     
     try {
-      console.log('Loading materia ranking for:', materia.id, 'userId:', effectiveUserId);
+      console.log('🎯 Loading materia ranking for:', {
+        materiaId: materia.id,
+        materiaUserId: materia.userId,
+        currentUserId: effectiveUserId,
+        isOwner: materia.userId === effectiveUserId
+      });
       
       // Verificar si soy el profesor de esta materia
       const isMateriaOwner = materia.userId === effectiveUserId;
       
       if (isMateriaOwner) {
-        console.log('User is owner of this materia, showing 1 de 1');
+        console.log('📚 User is owner of this materia, showing 1 de 1');
         setMateriaRanking({
           position: 1,
           total: 1
@@ -1138,24 +1145,38 @@ const StudyModePage = () => {
         return;
       }
       
+      console.log('👨‍🎓 User is enrolled student, fetching ranking...');
+      
       // Si no soy el profesor, obtener el ranking (podría ser estudiante enrollado)
+      // Pasar el teacherId explícitamente
       const rankings = await MateriaRankingService.getMateriaRanking(
         materia.id,
-        effectiveUserId
+        effectiveUserId,
+        materia.userId // teacherId
       );
+      
+      console.log('📊 Rankings received:', {
+        count: rankings?.length || 0,
+        rankings: rankings?.map(r => ({
+          nombre: r.nombre,
+          score: r.score,
+          isCurrentUser: r.isCurrentUser,
+          posicion: r.posicion
+        }))
+      });
       
       if (rankings && rankings.length > 0) {
         // Encontrar la posición del usuario actual
         const userRanking = rankings.find(r => r.isCurrentUser);
         if (userRanking) {
-          console.log('User found in ranking:', userRanking.posicion, 'of', rankings.length);
+          console.log('✅ User found in ranking:', userRanking.posicion, 'of', rankings.length);
           setMateriaRanking({
             position: userRanking.posicion,
             total: rankings.length
           });
         } else {
           // Si el usuario no está en el ranking, mostrar como único participante
-          console.log('User not found in ranking, showing 1 de 1');
+          console.log('⚠️ User not found in ranking, showing 1 de 1. Rankings:', rankings);
           setMateriaRanking({
             position: 1,
             total: 1
@@ -1163,14 +1184,14 @@ const StudyModePage = () => {
         }
       } else {
         // Si no hay ranking, mostrar como único participante
-        console.log('No ranking found, showing 1 de 1');
+        console.log('❌ No ranking found, showing 1 de 1');
         setMateriaRanking({
           position: 1,
           total: 1
         });
       }
     } catch (error) {
-      console.error('Error loading materia ranking:', error);
+      console.error('💥 Error loading materia ranking:', error);
       setMateriaRanking(null);
     } finally {
       setMateriaRankingLoading(false);
@@ -2313,7 +2334,7 @@ const StudyModePage = () => {
               <div className="header-icon-compact">
                 <FontAwesomeIcon icon={faPencilAlt} />
               </div>
-              <h2>Selecciona la Dificultad</h2>
+              <h2>Instrucciones</h2>
             </div>
             
             <div className="intro-content-compact">
@@ -2325,56 +2346,6 @@ const StudyModePage = () => {
                     <li>🎯 <strong>Escribe</strong> la respuesta correcta en cada espacio</li>
                     <li>⭐ <strong>Gana puntos</strong> por cada respuesta correcta</li>
                   </ul>
-                </div>
-              </div>
-              
-              <div className="intensity-section-compact">
-                <h3 className="section-title-compact">Selecciona la intensidad de estudio</h3>
-                <div className="intensity-options-horizontal">
-                  <div 
-                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'easy' ? 'selected' : ''}`}
-                    onClick={() => setSelectedFillBlankDifficulty('easy')}
-                  >
-                    <FontAwesomeIcon icon={faSmile} />
-                    <div className="intensity-content">
-                      <h4>Calentamiento</h4>
-                      <span>5 conceptos</span>
-                      <p>Repaso ligero</p>
-                    </div>
-                    {selectedFillBlankDifficulty === 'easy' && (
-                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
-                    )}
-                  </div>
-                  
-                  <div 
-                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'medium' ? 'selected' : ''}`}
-                    onClick={() => setSelectedFillBlankDifficulty('medium')}
-                  >
-                    <FontAwesomeIcon icon={faChartLine} />
-                    <div className="intensity-content">
-                      <h4>Progreso</h4>
-                      <span>10 conceptos</span>
-                      <p>Sesión balanceada</p>
-                    </div>
-                    {selectedFillBlankDifficulty === 'medium' && (
-                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
-                    )}
-                  </div>
-                  
-                  <div 
-                    className={`intensity-item-horizontal ${selectedFillBlankDifficulty === 'hard' ? 'selected' : ''}`}
-                    onClick={() => setSelectedFillBlankDifficulty('hard')}
-                  >
-                    <FontAwesomeIcon icon={faRocket} />
-                    <div className="intensity-content">
-                      <h4>Cohete</h4>
-                      <span>20 conceptos</span>
-                      <p>Intensivo</p>
-                    </div>
-                    {selectedFillBlankDifficulty === 'hard' && (
-                      <FontAwesomeIcon icon={faCheckCircle} className="check-icon" />
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
