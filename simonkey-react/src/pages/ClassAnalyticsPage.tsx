@@ -2977,7 +2977,7 @@ const ProgressPage: React.FC = () => {
                         marginBottom: '0.5rem'
                       }}>
                         {studentsInNotebook.length > 0 
-                          ? Math.round((studentsInNotebook.filter(student => (student.score === 0 || student.score === '0' || !student.score || Math.ceil(student.score) === 0)).length / studentsInNotebook.length) * 100)
+                          ? Math.round((studentsInNotebook.filter(student => (student.score === 0 || String(student.score) === '0' || !student.score || Math.ceil(student.score) === 0)).length / studentsInNotebook.length) * 100)
                           : '0'
                         }%
                       </div>
@@ -3045,7 +3045,7 @@ const ProgressPage: React.FC = () => {
                         studentsInNotebook.map((student) => (
                           <tr 
                             key={student.id} 
-                            className={(student.score === 0 || student.score === '0' || !student.score || Math.ceil(student.score) === 0) ? 'student-zero-points' : ''}
+                            className={(student.score === 0 || String(student.score) === '0' || !student.score || Math.ceil(student.score) === 0) ? 'student-zero-points' : ''}
                           >
                             <td className="notebook-name">{student.nombre}</td>
                             <td className="score-cell">{Math.ceil(student.score).toLocaleString('es-ES')}</td>
