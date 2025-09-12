@@ -27,11 +27,9 @@
   grid-column: unset !important;
 }
 
-/* Remove all top margin from daily metrics in desktop */
-@media (min-width: 1025px) {
-  .study-mode-container .daily-metrics {
-    margin-top: 0 !important;
-  }
+/* Remove all top margin from daily metrics in ALL screen sizes */
+.study-mode-container .daily-metrics {
+  margin-top: 0 !important;
 }
 
 :root {

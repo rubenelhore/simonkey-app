@@ -807,10 +807,18 @@ const QuizModePage: React.FC = () => {
       });
       
       // Actualizar sesión con resultados finales
+      const calculatedTotalTime = 600 - timeRemainingValue;
+      
+      console.log('🕐 DEBUG TIEMPO DEL QUIZ:', {
+        timeRemainingValue,
+        calculatedTotalTime,
+        formula: `600 - ${timeRemainingValue} = ${calculatedTotalTime}`
+      });
+      
       const completedSession: QuizSession = {
         ...quizSession,
         endTime: new Date(),
-        totalTime: 600 - timeRemainingValue,
+        totalTime: calculatedTotalTime,
         timeRemaining: timeRemainingValue,
         score: correctAnswers,
         accuracy,
@@ -911,7 +919,10 @@ const QuizModePage: React.FC = () => {
         cleanQuizResultData.endTime = Timestamp.fromDate(session.endTime);
       }
       if (session.totalTime !== undefined && session.totalTime !== null) {
+        console.log('🕐 Guardando totalTime en Firestore:', session.totalTime);
         cleanQuizResultData.totalTime = session.totalTime;
+      } else {
+        console.log('⚠️ totalTime es undefined o null:', session.totalTime);
       }
       if (session.timeRemaining !== undefined && session.timeRemaining !== null) {
         cleanQuizResultData.timeRemaining = session.timeRemaining;

@@ -90,6 +90,15 @@ body:has(.progress-container) {
   overflow-x: auto !important;
 }
 
+/* Remove top spacing from daily metrics in progress page */
+.progress-container .daily-metrics,
+.progress-container .progress-modules-right .daily-metrics {
+  margin: 0 auto 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding: 0 1rem !important;
+}
+
 .progress-layout {
   min-height: calc(100vh - 70px);
   background-color: white;
@@ -124,7 +133,7 @@ body:has(.progress-container) {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin-top: 50px;
+  margin-top: 20px;
   min-width: 0;
   overflow-x: visible;
 }
