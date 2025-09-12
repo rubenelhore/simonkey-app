@@ -33,6 +33,14 @@ const TutorialsInternal: React.FC = () => {
         youtubeId: 'm4uK3pX5jxs',
         duration: '1:41',
         category: '🚀 Primeros Pasos'
+      },
+      {
+        id: '3',
+        title: 'Como compartir una materia de Simonkey con alumnos',
+        description: 'Aprende a invitar estudiantes y gestionar el acceso a tus materias',
+        youtubeId: '4dyb5rrmjYY',
+        duration: '0:50',
+        category: '🚀 Primeros Pasos'
       }
     ],
     '🎵 ¡Ahora un poco de buena música! 🎶✨': [
