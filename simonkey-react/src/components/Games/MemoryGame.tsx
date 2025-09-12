@@ -419,6 +419,7 @@ const MemoryGame: React.FC<MemoryGameProps> = ({ notebookId, notebookTitle, onBa
           <span>Juegos</span>
         </button>
         
+
         <div className="game-stats">
           <div className="stat">
             <span><FontAwesomeIcon icon={faClock} /> {formatTime(elapsedTime)}</span>

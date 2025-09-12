@@ -24,29 +24,22 @@
   text-align: center;
 }
 
-/* Game Controls Layout */
+/* Game Controls Layout - Rediseñado */
 .game-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
   max-width: 1200px;
-  margin: 20px auto 30px;
-  padding: 0 20px 8px;
-  gap: 20px;
-  min-height: 60px;
-  border-bottom: 1px solid rgba(203, 213, 225, 0.4);
+  margin: 100px auto 40px;
+  padding: 20px;
+  gap: 30px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   position: relative;
-}
-
-.game-controls::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  min-height: 88px;
 }
 
 .game-title h1 {
@@ -76,98 +69,103 @@
   align-items: center;
   justify-content: center;
   width: 48px;
-  height: 48px;
+  height: auto;
 }
 
 
 .back-to-games-button {
-  background: rgba(59, 130, 246, 0.1);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-  box-sizing: border-box;
-  min-width: 100px;
+  gap: 10px;
+  height: 48px;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+  align-self: center;
 }
 
 .back-to-games-button:hover {
-  background: rgba(59, 130, 246, 0.2);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+
+.back-to-games-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .reset-button {
-  background: rgba(16, 185, 129, 0.1);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(16, 185, 129, 0.3);
-  color: #10b981;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-  box-sizing: border-box;
-  min-width: 100px;
+  gap: 10px;
+  height: 48px;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+  align-self: center;
 }
 
 .reset-button:hover {
-  background: rgba(16, 185, 129, 0.2);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
 }
 
-/* Game Stats - Individual Module Design */
+.reset-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Game Stats - Completamente rediseñado */
 .game-stats {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  align-items: center;
+  gap: 15px;
   margin: 0;
-  padding: 12px 20px;
-  flex: 0 1 auto;
-  max-width: 600px;
+  padding: 0;
+  flex: 1;
+  max-width: 500px;
+  height: 48px;
 }
 
 .stat {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  backdrop-filter: blur(15px);
-  padding: 18px 24px;
+  background: white;
+  padding: 12px 20px;
   color: #1f2937;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 2px solid #e5e7eb;
   position: relative;
-  overflow: hidden;
   flex: 1;
-  min-width: 160px;
+  min-width: 140px;
   box-sizing: border-box;
   text-align: center;
-  height: 60px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
+  height: 48px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-.stat {
-  border-radius: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.6);
-  margin: 0 4px;
+.stat:hover {
+  border-color: #6366f1;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  transform: translateY(-1px);
 }
 
 .stat:first-child {
@@ -181,33 +179,33 @@
 /* Individual modules styling */
 .game-controls .game-stats {
   margin: 0;
+  align-self: center;
 }
 
 
 .stat span {
   color: #374151;
-  text-shadow: none;
   font-weight: 600;
-  letter-spacing: -0.2px;
-  font-size: 1rem;
-  line-height: 1.2;
+  font-size: 0.9rem;
+  line-height: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
+  white-space: nowrap;
 }
 
 .stat span svg {
-  width: 16px;
-  height: 16px;
-  color: #667eea;
+  width: 20px;
+  height: 20px;
+  color: #6366f1;
   flex-shrink: 0;
 }
 
 .stat svg {
-  width: 18px;
-  height: 18px;
-  color: #667eea;
+  width: 20px;
+  height: 20px;
+  color: #6366f1;
   flex-shrink: 0;
 }
 

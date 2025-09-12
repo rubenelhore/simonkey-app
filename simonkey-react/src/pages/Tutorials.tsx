@@ -18,30 +18,22 @@ const Tutorials: React.FC = () => {
 
   // Videos organizados por categorías
   const tutorialsByCategory = {
-    'Primeros Pasos': [
+    '🚀 Primeros Pasos': [
       {
         id: '1',
-        title: 'Bienvenido a Simonkey',
-        description: 'Introducción a la plataforma',
-        youtubeId: 'dQw4w9WgXcQ',
-        duration: '3:45',
-        category: 'Primeros Pasos'
+        title: 'Como crear una cuenta en Simonkey',
+        description: 'Paso a paso para registrarte y empezar',
+        youtubeId: '2_gO37mDvG8',
+        duration: '0:30',
+        category: '🚀 Primeros Pasos'
       },
       {
         id: '2',
-        title: 'Configurar tu perfil',
-        description: 'Personaliza tu experiencia',
-        youtubeId: 'dQw4w9WgXcQ',
+        title: 'Como crear mi primer materia y subir contenido',
+        description: 'Guía completa para crear materias y agregar conceptos',
+        youtubeId: 'm4uK3pX5jxs',
         duration: '5:30',
-        category: 'Primeros Pasos'
-      },
-      {
-        id: '3',
-        title: 'Navegación básica',
-        description: 'Conoce la interfaz',
-        youtubeId: 'dQw4w9WgXcQ',
-        duration: '4:15',
-        category: 'Primeros Pasos'
+        category: '🚀 Primeros Pasos'
       }
     ],
     '🎵 ¡Ahora un poco de buena música! 🎶✨': [
