@@ -26,24 +26,17 @@ import {
   CircularProgress,
   TablePagination,
   InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Grid
 } from '@mui/material';
 import {
   Delete,
-  Visibility,
   Search,
   PersonAdd,
   AccessTime,
   CheckCircle,
-  Cancel,
   School,
   Email,
-  CalendarToday,
-  FilterList
+  CalendarToday
 } from '@mui/icons-material';
 import { Enrollment, EnrollmentStatus, UserProfile, SchoolSubject } from '../types/interfaces';
 import { 
@@ -67,11 +60,13 @@ import { es } from 'date-fns/locale';
 interface EnrolledStudentsManagerProps {
   materiaId?: string;
   showTitle?: boolean;
+  onStatsChange?: (stats: { total: number; active: number; inactive: number; pending: number; completed: number }) => void;
 }
 
 const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
   materiaId,
-  showTitle = true
+  showTitle = true,
+  onStatsChange
 }) => {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -80,7 +75,6 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<Enrollment | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<EnrollmentStatus | 'all'>('all');
   const [materias, setMaterias] = useState<SchoolSubject[]>([]);
   const [selectedMateria, setSelectedMateria] = useState(materiaId || '');
   
@@ -283,9 +277,7 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
       enrollment.studentEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       enrollment.studentName?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || enrollment.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Calcular estadísticas
@@ -296,6 +288,13 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
     pending: enrollments.filter(e => e.status === EnrollmentStatus.PENDING).length,
     completed: enrollments.filter(e => e.status === EnrollmentStatus.COMPLETED).length
   };
+
+  // Notificar cambios en las estadísticas
+  useEffect(() => {
+    if (onStatsChange) {
+      onStatsChange(stats);
+    }
+  }, [enrollments.length, onStatsChange]);
 
   if (loading) {
     return (
@@ -309,7 +308,7 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
     <Box>
       {showTitle && (
         <Typography variant="h5" gutterBottom>
-          Estudiantes Inscritos
+          Estudiantes Inscritos ({stats.total})
         </Typography>
       )}
 
@@ -331,42 +330,9 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
         </FormControl>
       )}
 
-      {/* Estadísticas */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4">{stats.total}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Estudiantes
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 6, sm: 4 }}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="success.main">{stats.active}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Activos
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 6, sm: 4 }}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="warning.main">{stats.pending}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Pendientes
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* Filtros */}
-      <Box display="flex" gap={2} mb={2}>
+      <Box display="flex" gap={2} mb={0}>
         <TextField
           placeholder="Buscar estudiante..."
           value={searchTerm}
@@ -378,30 +344,30 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
               </InputAdornment>
             )
           }}
-          sx={{ flexGrow: 1 }}
+          sx={{ 
+            flexGrow: 1,
+            margin: 0,
+            marginBottom: '0 !important',
+            '& .MuiOutlinedInput-root': {
+              height: '56px !important',
+              fontSize: '1rem !important',
+              marginBottom: '0 !important',
+              '& .MuiOutlinedInput-input': {
+                padding: '12px 14px !important',
+                fontSize: '1rem !important',
+                height: 'auto !important',
+                marginBottom: '0 !important'
+              }
+            }
+          }}
         />
-        
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel>Estado</InputLabel>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as EnrollmentStatus | 'all')}
-            label="Estado"
-            startAdornment={<FilterList sx={{ mr: 1, ml: 1 }} />}
-          >
-            <MenuItem value="all">Todos</MenuItem>
-            <MenuItem value={EnrollmentStatus.ACTIVE}>Activos</MenuItem>
-            <MenuItem value={EnrollmentStatus.INACTIVE}>Inactivos</MenuItem>
-            <MenuItem value={EnrollmentStatus.PENDING}>Pendientes</MenuItem>
-          </Select>
-        </FormControl>
       </Box>
 
       {/* Tabla de estudiantes */}
       {filteredEnrollments.length === 0 ? (
         <Alert severity="info">
-          {searchTerm || statusFilter !== 'all' 
-            ? 'No se encontraron estudiantes con los filtros aplicados'
+          {searchTerm 
+            ? 'No se encontraron estudiantes con el filtro aplicado'
             : 'No hay estudiantes inscritos en esta materia. Comparte el código de invitación para que se unan.'}
         </Alert>
       ) : (
@@ -465,29 +431,6 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
                       </TableCell>
                       <TableCell align="center">
                         <Box display="flex" justifyContent="center" gap={1}>
-                          <Tooltip title="Ver detalles">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setSelectedStudent(enrollment);
-                                setDetailsDialogOpen(true);
-                              }}
-                            >
-                              <Visibility />
-                            </IconButton>
-                          </Tooltip>
-                          
-                          {enrollment.status === EnrollmentStatus.ACTIVE && (
-                            <Tooltip title="Marcar como inactivo">
-                              <IconButton
-                                size="small"
-                                color="warning"
-                                onClick={() => handleUpdateStatus(enrollment.id, EnrollmentStatus.INACTIVE)}
-                              >
-                                <Cancel />
-                              </IconButton>
-                            </Tooltip>
-                          )}
                           
                           {enrollment.status === EnrollmentStatus.INACTIVE && (
                             <Tooltip title="Marcar como activo">

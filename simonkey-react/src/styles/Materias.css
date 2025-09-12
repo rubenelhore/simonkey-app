@@ -678,6 +678,9 @@ div.modal-overlay div.modal-content.invite-modal-content {
   border: 0 !important;
   border: none !important;
   outline: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  background: white !important;
 }
 
 /* Modales */
