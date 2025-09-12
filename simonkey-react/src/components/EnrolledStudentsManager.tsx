@@ -26,6 +26,10 @@ import {
   CircularProgress,
   TablePagination,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Grid
 } from '@mui/material';
 import {
@@ -92,21 +96,7 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
       
       // Si no hay materia específica, cargar todas las materias del profesor
       if (!materiaId && user) {
-        const materiasQuery = query(
-          collection(db, 'schoolSubjects'),
-          where('idProfesor', '==', user.uid)
-        );
-        const materiasSnapshot = await getDocs(materiasQuery);
-        const materiasData = materiasSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as SchoolSubject));
-        setMaterias(materiasData);
-        
-        // Si no hay materia seleccionada y hay materias disponibles, seleccionar la primera
-        if (!selectedMateria && materiasData.length > 0) {
-          setSelectedMateria(materiasData[0].id);
-        }
+        await loadTeacherMaterias();
       }
       
       // Cargar inscripciones
@@ -117,6 +107,30 @@ const EnrolledStudentsManager: React.FC<EnrolledStudentsManagerProps> = ({
       console.error('Error cargando datos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTeacherMaterias = async () => {
+    if (!user) return;
+    
+    try {
+      const q = query(
+        collection(db, 'schoolSubjects'),
+        where('idProfesor', '==', user.uid)
+      );
+      const snapshot = await getDocs(q);
+      const materiasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as SchoolSubject));
+      setMaterias(materiasData);
+      
+      // Si no hay materia seleccionada y hay materias disponibles, seleccionar la primera
+      if (!selectedMateria && materiasData.length > 0) {
+        setSelectedMateria(materiasData[0].id);
+      }
+    } catch (error) {
+      console.error('Error cargando materias:', error);
     }
   };
 
