@@ -104,6 +104,7 @@ const Materias: React.FC = () => {
   const [unenrollMateriaTitle, setUnenrollMateriaTitle] = useState<string>('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMateriaForInvite, setSelectedMateriaForInvite] = useState<{id: string, title: string} | null>(null);
+  const [enrollmentStats, setEnrollmentStats] = useState<{total: number; active: number; inactive: number; pending: number; completed: number} | null>(null);
   
   // Color presets para las materias
   const colorPresets = [
@@ -1024,6 +1025,7 @@ const Materias: React.FC = () => {
 
   const handleManageInvites = useCallback((materiaId: string, materiaTitle: string) => {
     setSelectedMateriaForInvite({ id: materiaId, title: materiaTitle });
+    setEnrollmentStats(null);
     setShowInviteModal(true);
   }, []);
 
@@ -1710,14 +1712,18 @@ const Materias: React.FC = () => {
       
       {/* Modal para gestionar invitaciones */}
       {showInviteModal && selectedMateriaForInvite && (
-        <div className="modal-overlay" style={{ zIndex: 998 }} onClick={() => setShowInviteModal(false)}>
-          <div className="modal-content invite-modal-content" style={{ maxWidth: '900px', width: '90%', maxHeight: '90vh', overflow: 'auto', position: 'relative', border: 'none' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" style={{ zIndex: 998 }} onClick={() => {
+          setShowInviteModal(false);
+          setEnrollmentStats(null);
+        }}>
+          <div className="modal-content invite-modal-content" style={{ maxWidth: '900px', width: '90%', maxHeight: '90vh', overflow: 'auto', position: 'relative', border: 'none', boxShadow: 'none', outline: 'none' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-simple">
               <button 
                 className="close-button-simple" 
                 onClick={() => {
                   setShowInviteModal(false);
                   setSelectedMateriaForInvite(null);
+                  setEnrollmentStats(null);
                 }}
               >
                 <i className="fas fa-times"></i>
@@ -1747,11 +1753,12 @@ const Materias: React.FC = () => {
                 <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: '40px' }}>
                   <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', color: '#333' }}>
                     <i className="fas fa-users" style={{ marginRight: '8px', color: '#6147FF' }}></i>
-                    Estudiantes Inscritos
+                    Estudiantes Inscritos {enrollmentStats ? `(${enrollmentStats.total})` : ''}
                   </h3>
                   <EnrolledStudentsManager 
                     materiaId={selectedMateriaForInvite.id}
                     showTitle={false}
+                    onStatsChange={setEnrollmentStats}
                   />
                 </div>
               </div>

@@ -17,12 +17,6 @@ import {
   DialogActions,
   Alert,
   Snackbar,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel,
   List,
   ListItem,
   ListItemText,
@@ -38,12 +32,10 @@ import {
   QrCode,
   Add,
   Link,
-  People,
-  Timer,
   Block,
   CheckCircle
 } from '@mui/icons-material';
-import { InviteCode, SchoolSubject } from '../types/interfaces';
+import { InviteCode } from '../types/interfaces';
 import {
   createInviteCode,
   getTeacherInviteCodes,
@@ -73,29 +65,13 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
   
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [selectedCode, setSelectedCode] = useState<InviteCode | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
-  
-  // Estado para el formulario de creación
-  const [formData, setFormData] = useState({
-    selectedMateria: materiaId || '',
-    materiaName: materiaName || '',
-    expiresInDays: 0,
-    maxUses: 0,
-    hasExpiration: false,
-    hasMaxUses: false
-  });
-  
-  const [materias, setMaterias] = useState<SchoolSubject[]>([]);
 
   useEffect(() => {
     loadInviteCodes();
-    if (!materiaId) {
-      loadTeacherMaterias();
-    }
   }, [materiaId]);
 
   const loadInviteCodes = async () => {
@@ -124,93 +100,34 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
     }
   };
 
-  const loadTeacherMaterias = async () => {
-    if (!user) return;
-    
-    try {
-      const q = query(
-        collection(db, 'schoolSubjects'),
-        where('idProfesor', '==', user.uid)
-      );
-      const snapshot = await getDocs(q);
-      const materiasData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as SchoolSubject));
-      setMaterias(materiasData);
-    } catch (error) {
-      console.error('Error cargando materias:', error);
-    }
-  };
-
   const handleCreateCode = async () => {
-    console.log('🟦 handleCreateCode called');
-    console.log('🟦 Usuario actual:', user);
-    console.log('🟦 Props recibidas:', { materiaId, materiaName });
-    console.log('🟦 FormData:', formData);
-    console.log('🟦 Materias disponibles:', materias);
-    
     if (!user) {
       console.error('❌ No hay usuario autenticado');
       return;
     }
     
-    const selectedMateriaId = formData.selectedMateria || materiaId;
-    // Arreglar el problema: el componente recibe 'materiaName' pero busca 'nombre'
-    const selectedMateriaName = materiaName || 
-      formData.materiaName || 
-      materias.find(m => m.id === selectedMateriaId)?.nombre || 
-      '';
-    
-    console.log('🟦 Materia seleccionada:', { 
-      id: selectedMateriaId, 
-      nombre: selectedMateriaName,
-      formData: formData 
-    });
+    const selectedMateriaId = materiaId;
+    const selectedMateriaName = materiaName || 'Materia sin nombre';
     
     if (!selectedMateriaId) {
       console.error('❌ Falta ID de la materia');
       setSnackbar({
         open: true,
-        message: 'Por favor selecciona una materia',
+        message: 'No se pudo identificar la materia',
         severity: 'error'
       });
       return;
     }
     
-    // Si no tenemos el nombre, usar un valor por defecto
-    const finalMateriaName = selectedMateriaName || 'Materia sin nombre';
-    
     try {
-      const options: any = {};
-      
-      if (formData.hasExpiration && formData.expiresInDays > 0) {
-        options.expiresInDays = formData.expiresInDays;
-      }
-      
-      if (formData.hasMaxUses && formData.maxUses > 0) {
-        options.maxUses = formData.maxUses;
-      }
-      
-      console.log('🟦 Llamando a createInviteCode con:', {
-        userId: user.uid,
-        materiaId: selectedMateriaId,
-        materiaName: finalMateriaName,
-        options
-      });
-      
       const newCode = await createInviteCode(
         user.uid,
         selectedMateriaId,
-        finalMateriaName,
-        options
+        selectedMateriaName,
+        {} // Sin opciones adicionales
       );
       
-      console.log('✅ Código creado exitosamente:', newCode);
-      
       setInviteCodes([newCode, ...inviteCodes]);
-      setCreateDialogOpen(false);
-      resetForm();
       
       setSnackbar({
         open: true,
@@ -218,16 +135,12 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         severity: 'success'
       });
     } catch (error: any) {
-      console.error('❌ Error completo:', error);
-      console.error('❌ Mensaje de error:', error?.message);
-      console.error('❌ Código de error:', error?.code);
-      console.error('❌ Stack:', error?.stack);
+      console.error('❌ Error creando código:', error);
       
-      // Mensaje más descriptivo basado en el error
       let errorMessage = 'Error al crear el código de invitación';
       
       if (error?.code === 'permission-denied') {
-        errorMessage = 'No tienes permisos para crear códigos de invitación. Asegúrate de ser un profesor.';
+        errorMessage = 'No tienes permisos para crear códigos de invitación.';
       } else if (error?.message) {
         errorMessage = `Error: ${error.message}`;
       }
@@ -238,17 +151,6 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         severity: 'error'
       });
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      selectedMateria: materiaId || '',
-      materiaName: materiaName || '',
-      expiresInDays: 0,
-      maxUses: 0,
-      hasExpiration: false,
-      hasMaxUses: false
-    });
   };
 
   const handleCopyLink = async (code: string) => {
@@ -370,9 +272,7 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => {
-            setCreateDialogOpen(true);
-          }}
+          onClick={handleCreateCode}
         >
           Crear Código de Invitación
         </Button>
@@ -397,9 +297,6 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
                       <Box>
                         <Typography variant="h6" component="div">
                           {inviteCode.code}
-                        </Typography>
-                        <Typography color="text.secondary" variant="body2">
-                          {inviteCode.materiaName}
                         </Typography>
                       </Box>
                       <Box>
@@ -429,34 +326,6 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
                         {inviteCode.metadata.description}
                       </Typography>
                     )}
-
-                    <Box display="flex" gap={2} mb={2}>
-                      <Chip
-                        icon={<People />}
-                        label={`${inviteCode.currentUses} usos`}
-                        size="small"
-                        variant="outlined"
-                      />
-                      
-                      {inviteCode.maxUses && (
-                        <Chip
-                          icon={<People />}
-                          label={`Máx: ${inviteCode.maxUses}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                      
-                      {inviteCode.expiresAt && (
-                        <Chip
-                          icon={<Timer />}
-                          label={`Expira: ${formatDate(inviteCode.expiresAt)}`}
-                          size="small"
-                          variant="outlined"
-                          color={expired ? 'error' : 'default'}
-                        />
-                      )}
-                    </Box>
 
                     <Box display="flex" gap={1}>
                       <Tooltip title="Copiar enlace">
@@ -555,156 +424,6 @@ const InviteCodeManager: React.FC<InviteCodeManagerProps> = ({
         </Grid>
       )}
 
-      {/* Dialog para crear nuevo código */}
-      {createDialogOpen && ReactDOM.createPortal(
-        <div style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          zIndex: 100000,
-          pointerEvents: 'auto'
-        }}>
-          <Dialog
-            open={createDialogOpen}
-            onClose={() => setCreateDialogOpen(false)}
-            maxWidth="sm"
-            fullWidth
-            sx={{ 
-              zIndex: '100004 !important',
-              '& .MuiBackdrop-root': {
-                zIndex: '100001 !important'
-              },
-              '& .MuiDialog-container': {
-                zIndex: '100002 !important'
-              },
-              '& .MuiPaper-root': {
-                zIndex: '100003 !important'
-              }
-            }}
-            slotProps={{
-              backdrop: {
-                sx: { zIndex: '100001 !important' }
-              }
-            }}
-          >
-          <DialogTitle sx={{ 
-            textAlign: 'center', 
-            fontFamily: 'Poppins, sans-serif',
-            color: '#6147FF',
-            fontWeight: 600
-          }}>
-            Crear Código de Invitación
-          </DialogTitle>
-        <DialogContent>
-          <Box sx={{ 
-            pt: 2,
-            '& .MuiInputBase-root': {
-              fontFamily: 'Poppins, sans-serif'
-            },
-            '& .MuiInputLabel-root': {
-              fontFamily: 'Poppins, sans-serif'
-            },
-            '& .MuiFormHelperText-root': {
-              fontFamily: 'Poppins, sans-serif'
-            }
-          }}>
-            {!materiaId && (
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Materia</InputLabel>
-                <Select
-                  value={formData.selectedMateria}
-                  onChange={(e) => setFormData({ ...formData, selectedMateria: e.target.value })}
-                  label="Materia"
-                  required
-                >
-                  {materias.map((materia) => (
-                    <MenuItem key={materia.id} value={materia.id}>
-                      {materia.nombre}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.hasExpiration}
-                  onChange={(e) => setFormData({ ...formData, hasExpiration: e.target.checked })}
-                />
-              }
-              label="Establecer fecha de expiración"
-              sx={{ 
-                '& .MuiFormControlLabel-label': {
-                  fontFamily: 'Poppins, sans-serif'
-                }
-              }}
-            />
-            
-            {formData.hasExpiration && (
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Días hasta expiración"
-                type="number"
-                value={formData.expiresInDays}
-                onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) || 0 })}
-                InputProps={{ inputProps: { min: 1 } }}
-              />
-            )}
-            
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.hasMaxUses}
-                  onChange={(e) => setFormData({ ...formData, hasMaxUses: e.target.checked })}
-                />
-              }
-              label="Establecer límite de usos"
-              sx={{ 
-                '& .MuiFormControlLabel-label': {
-                  fontFamily: 'Poppins, sans-serif'
-                }
-              }}
-            />
-            
-            {formData.hasMaxUses && (
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Número máximo de usos"
-                type="number"
-                value={formData.maxUses}
-                onChange={(e) => setFormData({ ...formData, maxUses: parseInt(e.target.value) || 0 })}
-                InputProps={{ inputProps: { min: 1 } }}
-              />
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => {
-              setCreateDialogOpen(false);
-              resetForm();
-            }}
-            sx={{ fontFamily: 'Poppins, sans-serif' }}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleCreateCode} 
-            variant="contained"
-            sx={{ fontFamily: 'Poppins, sans-serif' }}
-          >
-            Crear Código
-          </Button>
-        </DialogActions>
-        </Dialog>
-        </div>,
-        document.body
-      )}
 
       {/* Dialog para mostrar código QR */}
       {qrDialogOpen && ReactDOM.createPortal(
