@@ -76,6 +76,7 @@ const ConceptProgressChart = lazy(() => import('../components/Charts/ConceptProg
 interface Materia {
   id: string;
   nombre: string;
+  teacherId?: string;
 }
 
 interface PositionData {
@@ -528,6 +529,7 @@ const ProgressPage: React.FC = () => {
         });
         
         // 2. Buscar materias donde está inscrito
+        console.log('[ProgressPage] Buscando enrollments para userId:', userId);
         const enrollmentsQuery = query(
           collection(db, 'enrollments'),
           where('studentId', '==', userId),
@@ -536,6 +538,40 @@ const ProgressPage: React.FC = () => {
         const enrollmentsSnap = await getDocs(enrollmentsQuery);
         
         console.log('[ProgressPage] Enrollments activos encontrados:', enrollmentsSnap.size);
+        
+        // Si no se encontraron enrollments activos, buscar TODOS los enrollments del usuario
+        if (enrollmentsSnap.size === 0) {
+          console.log('[ProgressPage] No hay enrollments activos. Buscando TODOS los enrollments...');
+          const allEnrollmentsQuery = query(
+            collection(db, 'enrollments'),
+            where('studentId', '==', userId)
+          );
+          const allEnrollmentsSnap = await getDocs(allEnrollmentsQuery);
+          console.log('[ProgressPage] TODOS los enrollments encontrados:', allEnrollmentsSnap.size);
+          
+          allEnrollmentsSnap.docs.forEach(doc => {
+            const data = doc.data();
+            console.log(`[ProgressPage] Enrollment (cualquier status):`, {
+              id: doc.id,
+              materiaId: data.materiaId,
+              studentId: data.studentId,
+              teacherId: data.teacherId,
+              status: data.status
+            });
+          });
+        }
+        
+        // Debug: Mostrar todos los enrollments encontrados
+        enrollmentsSnap.docs.forEach(doc => {
+          const data = doc.data();
+          console.log(`[ProgressPage] Enrollment encontrado:`, {
+            id: doc.id,
+            materiaId: data.materiaId,
+            studentId: data.studentId,
+            teacherId: data.teacherId,
+            status: data.status
+          });
+        });
         
         // Para cada enrollment, obtener la materia del profesor
         for (const enrollmentDoc of enrollmentsSnap.docs) {
@@ -547,10 +583,11 @@ const ProgressPage: React.FC = () => {
             const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
             if (materiaDoc.exists()) {
               const materiaData = materiaDoc.data();
-              console.log('[ProgressPage] Materia inscrita:', { id: materiaId, data: materiaData });
+              console.log('[ProgressPage] Materia inscrita:', { id: materiaId, data: materiaData, teacherId: enrollmentData.teacherId });
               materiasArray.push({
                 id: materiaId,
-                nombre: materiaData.nombre || materiaData.title || 'Sin nombre'
+                nombre: materiaData.nombre || materiaData.title || 'Sin nombre',
+                teacherId: enrollmentData.teacherId
               });
             }
           }
@@ -674,10 +711,38 @@ const ProgressPage: React.FC = () => {
       
       setMaterias(materiasArray);
       
-      // Seleccionar la primera materia por defecto
+      // Priorizar materias inscritas sobre materias propias
       if (materiasArray.length > 0 && !selectedMateria) {
-        console.log('[ProgressPage] Seleccionando primera materia por defecto:', materiasArray[0]);
-        setSelectedMateria(materiasArray[0].id);
+        // Buscar si hay materias donde el usuario está inscrito como estudiante
+        let materiaToSelect = materiasArray[0]; // fallback
+        
+        // Verificar enrollments para priorizar materias inscritas
+        try {
+          const enrollmentsQuery = query(
+            collection(db, 'enrollments'),
+            where('studentId', '==', userId),
+            where('status', '==', 'active')
+          );
+          const enrollmentsSnap = await getDocs(enrollmentsQuery);
+          
+          if (enrollmentsSnap.size > 0) {
+            // Buscar la primera materia inscrita que esté en nuestra lista
+            for (const enrollmentDoc of enrollmentsSnap.docs) {
+              const enrollmentData = enrollmentDoc.data();
+              const inscribedMateria = materiasArray.find(m => m.id === enrollmentData.materiaId);
+              if (inscribedMateria) {
+                materiaToSelect = inscribedMateria;
+                console.log('[ProgressPage] Priorizando materia inscrita:', materiaToSelect);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          console.log('[ProgressPage] Error verificando enrollments para selección:', error);
+        }
+        
+        console.log('[ProgressPage] Seleccionando materia por defecto:', materiaToSelect);
+        setSelectedMateria(materiaToSelect.id);
       }
     } catch (error) {
       console.error('[ProgressPage] Error cargando materias:', error);
@@ -1211,72 +1276,46 @@ const ProgressPage: React.FC = () => {
       console.log('[ProgressPage] Calculando ranking para materia:', selectedMateria);
       console.log('[ProgressPage] Es usuario escolar:', isSchoolUser);
       
-      // Para usuarios regulares, intentar obtener ranking basado en enrollments
-      if (!isSchoolUser) {
-        console.log('[ProgressPage] Usuario regular, verificando enrollments');
-        
-        if (!selectedMateria || selectedMateria === 'general') {
-          // Para vista general, mostrar el score global
-          const globalScore = kpisData?.global?.scoreGlobal || 0;
-          setRankingData([{ 
-            posicion: 1, 
-            nombre: 'Tú', 
-            score: Math.ceil(globalScore) 
-          }]);
-        } else {
-          // Para una materia específica, intentar obtener ranking basado en enrollments
-          console.log('[ProgressPage] Intentando obtener ranking de enrollments para materia:', selectedMateria);
-          
-          try {
-            const enrollmentRanking = await MateriaRankingService.getMateriaRanking(
-              selectedMateria,
-              userId
-            );
-            
-            if (enrollmentRanking && enrollmentRanking.length > 0) {
-              console.log('[ProgressPage] Ranking de enrollments encontrado:', enrollmentRanking);
-              setRankingData(enrollmentRanking);
-            } else {
-              // Si no hay ranking de enrollments, calcular score basado en cuadernos reales
-              let calculatedMateriaScore = 0;
-              if (cuadernosReales && cuadernosReales.length > 0) {
-                // Sumar los scores de todos los cuadernos de esta materia
-                calculatedMateriaScore = cuadernosReales.reduce((sum, cuaderno) => sum + (cuaderno.score || 0), 0);
-                console.log(`[ProgressPage] Score calculado para materia ${selectedMateria}:`, calculatedMateriaScore);
-                console.log(`[ProgressPage] Cuadernos incluidos:`, cuadernosReales.map(c => ({name: c.nombre, score: c.score})));
-              } else {
-                // Fallback al score de KPIs si no hay cuadernos calculados
-                calculatedMateriaScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
-                console.log(`[ProgressPage] Usando score de KPIs como fallback:`, calculatedMateriaScore);
-              }
-              
-              setRankingData([{ 
-                posicion: 1, 
-                nombre: 'Tú', 
-                score: Math.ceil(calculatedMateriaScore) 
-              }]);
-            }
-          } catch (error) {
-            console.error('[ProgressPage] Error obteniendo ranking de enrollments:', error);
-            // Fallback: intentar usar cuadernos reales, si no están disponibles usar KPIs
-            let fallbackScore = 0;
-            if (cuadernosReales && cuadernosReales.length > 0) {
-              fallbackScore = cuadernosReales.reduce((sum, cuaderno) => sum + (cuaderno.score || 0), 0);
-              console.log(`[ProgressPage] Fallback usando cuadernos reales:`, fallbackScore);
-            } else {
-              fallbackScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
-              console.log(`[ProgressPage] Fallback usando KPIs:`, fallbackScore);
-            }
-            
-            setRankingData([{ 
-              posicion: 1, 
-              nombre: 'Tú', 
-              score: Math.ceil(fallbackScore) 
-            }]);
-          }
-        }
+      // Primero intentar obtener ranking basado en enrollments (funciona para todos los usuarios)
+      if (!selectedMateria || selectedMateria === 'general') {
+        // Para vista general, mostrar el score global
+        const globalScore = kpisData?.global?.scoreGlobal || 0;
+        setRankingData([{ 
+          posicion: 1, 
+          nombre: 'Tú', 
+          score: Math.ceil(globalScore) 
+        }]);
         return;
       }
+
+      // Para una materia específica, intentar obtener ranking basado en enrollments
+      console.log('[ProgressPage] Intentando obtener ranking de enrollments para materia:', selectedMateria);
+      
+      // Buscar el objeto materia para obtener el teacherId
+      const materiaObj = materias.find(m => m.id === selectedMateria);
+      const teacherId = materiaObj?.teacherId;
+      
+      console.log('[ProgressPage] Materia encontrada:', materiaObj);
+      console.log('[ProgressPage] TeacherId para ranking:', teacherId);
+      
+      try {
+        const enrollmentRanking = await MateriaRankingService.getMateriaRanking(
+          selectedMateria,
+          userId,
+          teacherId
+        );
+        
+        if (enrollmentRanking && enrollmentRanking.length > 1) {
+          console.log('[ProgressPage] Ranking de enrollments encontrado:', enrollmentRanking);
+          setRankingData(enrollmentRanking);
+          return;
+        }
+      } catch (error) {
+        console.log('[ProgressPage] Error obteniendo ranking de enrollments:', error);
+      }
+
+      // Si no hay ranking de enrollments o solo hay un usuario, intentar lógica de institución
+      console.log('[ProgressPage] Intentando lógica de institución como fallback...');
 
       // Obtener el documento del usuario para tener la institución
       const userDoc = await getDoc(doc(db, 'users', userId));
@@ -1290,16 +1329,14 @@ const ProgressPage: React.FC = () => {
       const institutionId = userData.idInstitucion;
       
       if (!institutionId) {
-        console.log('[ProgressPage] Usuario sin institución');
-        setRankingData([]);
-        return;
-      }
-
-      // Si no hay materia seleccionada o es general, no mostrar ranking
-      // (porque decidimos no hacer ranking global)
-      if (!selectedMateria || selectedMateria === 'general') {
-        console.log('[ProgressPage] No hay ranking global disponible');
-        setRankingData([]);
+        console.log('[ProgressPage] Usuario sin institución, mostrando solo score personal');
+        // Fallback: mostrar solo el score personal
+        const personalScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
+        setRankingData([{ 
+          posicion: 1, 
+          nombre: 'Tú', 
+          score: Math.ceil(personalScore) 
+        }]);
         return;
       }
 
@@ -2309,18 +2346,6 @@ const ProgressPage: React.FC = () => {
                 </div>
               </div>
               <div className="metric-card">
-                <div className="metric-info-icon" data-tooltip="Número total de conceptos que has dominado">
-                  <i className="fas fa-info-circle"></i>
-                </div>
-                <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="brain" className="svg-inline--fa fa-brain metric-icon concepts" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                  <path fill="currentColor" d="M184 0c30.9 0 56 25.1 56 56l0 400c0 30.9-25.1 56-56 56c-28.9 0-52.7-21.9-55.7-50.1c-5.2 1.4-10.7 2.1-16.3 2.1c-35.3 0-64-28.7-64-64c0-7.4 1.3-14.6 3.6-21.2C21.4 367.4 0 338.2 0 304c0-31.9 18.7-59.5 45.8-72.3C37.1 220.8 32 207 32 192c0-30.7 21.6-56.3 50.4-62.6C80.8 123.9 80 118 80 112c0-29.9 20.6-55.1 48.3-62.1C131.3 21.9 155.1 0 184 0zM328 0c28.9 0 52.6 21.9 55.7 49.9c27.8 7 48.3 32.1 48.3 62.1c0 6-.8 11.9-2.4 17.4c28.8 6.2 50.4 31.9 50.4 62.6c0 15-5.1 28.8-13.8 39.7C493.3 244.5 512 272.1 512 304c0 34.2-21.4 63.4-51.6 74.8c2.3 6.6 3.6 13.8 3.6 21.2c0 35.3-28.7 64-64 64c-5.6 0-11.1-.7-16.3-2.1c-3 28.2-26.8 50.1-55.7 50.1c-30.9 0-56-25.1-56-56l0-400c0-30.9 25.1-56 56-56z"></path>
-                </svg>
-                <div className="metric-content">
-                  <span className="metric-label">Conceptos Dominados</span>
-                  <span className="metric-value">{loading ? '...' : conceptsDominated}</span>
-                </div>
-              </div>
-              <div className="metric-card">
                 <div className="metric-info-icon" data-tooltip="Tiempo total acumulado de estudio">
                   <i className="fas fa-info-circle"></i>
                 </div>
@@ -2369,10 +2394,10 @@ const ProgressPage: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Cuaderno</th>
-                        <th>Score General</th>
-                        <th>Repaso Inteligente</th>
-                        <th>Estudio Activo</th>
-                        <th>Estudio Libre</th>
+                        <th>TOTAL</th>
+                        <th>Repaso</th>
+                        <th>Activo</th>
+                        <th>Libre</th>
                         <th>Quiz</th>
                         <th>Juegos</th>
                         <th>% Dominio</th>

@@ -41,7 +41,7 @@ export class MateriaRankingService {
     isTeacherView?: boolean
   ): Promise<MateriaRanking[]> {
     try {
-      console.log('📊 Getting materia ranking for:', { materiaId, currentUserId, teacherId });
+      console.log('📊 [MateriaRankingService] Getting materia ranking for:', { materiaId, currentUserId, teacherId });
       
       // Check cache first
       const cacheKey = `${materiaId}-${teacherId || 'auto'}`;
