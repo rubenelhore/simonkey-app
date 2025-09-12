@@ -31,7 +31,7 @@ const TutorialsInternal: React.FC = () => {
         title: 'Como crear mi primer materia y subir contenido',
         description: 'Guía completa para crear materias y agregar conceptos',
         youtubeId: 'm4uK3pX5jxs',
-        duration: '5:30',
+        duration: '1:41',
         category: '🚀 Primeros Pasos'
       }
     ],
