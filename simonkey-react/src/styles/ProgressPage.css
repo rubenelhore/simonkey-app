@@ -739,6 +739,17 @@ body:has(.progress-container) {
   color: #8b5cf6;
 }
 
+.student-zero-points {
+  background-color: #fef2f2 !important;
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
+
+.student-zero-points td {
+  background-color: #fef2f2 !important;
+  color: #374151 !important;
+}
+
 .position-cell {
   color: #6b7280;
 }
