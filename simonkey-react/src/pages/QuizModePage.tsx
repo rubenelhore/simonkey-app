@@ -581,9 +581,10 @@ const QuizModePage: React.FC = () => {
       
       if (quizStatsDoc.exists()) {
         const stats = quizStatsDoc.data();
-        const maxScore = stats.maxScore || 0;
-        console.log('🏆 Score más alto desde quizStats:', maxScore);
-        return maxScore;
+        // Usar totalScore si existe, sino usar maxScore por compatibilidad
+        const score = stats.totalScore !== undefined ? stats.totalScore : (stats.maxScore || 0);
+        console.log('🏆 Score total desde quizStats:', score);
+        return score;
       }
       
       // Si no existe en quizStats, buscar en quizResults como fallback
@@ -948,7 +949,8 @@ const QuizModePage: React.FC = () => {
         totalQuizzes: 1,
         totalQuestions: session.questions?.length || 0,
         correctAnswers: session.score || 0,
-        maxScore: session.finalScore || 0,
+        maxScore: session.finalScore || 0,  // Mantener por compatibilidad
+        totalScore: session.finalScore || 0,  // Nueva propiedad para suma total
         lastQuizDate: Timestamp.now(),
         updatedAt: Timestamp.now()
       };
@@ -960,14 +962,17 @@ const QuizModePage: React.FC = () => {
           totalQuizzes: (currentStats.totalQuizzes || 0) + 1,
           totalQuestions: (currentStats.totalQuestions || 0) + (session.questions?.length || 0),
           correctAnswers: (currentStats.correctAnswers || 0) + (session.score || 0),
-          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore || 0)
+          maxScore: Math.max(currentStats.maxScore || 0, session.finalScore || 0),  // Mantener por compatibilidad
+          totalScore: (currentStats.totalScore || currentStats.maxScore || 0) + (session.finalScore || 0)  // Sumar todos los scores
         };
         
-        console.log('🏆 ACTUALIZANDO MAX SCORE:', {
+        console.log('🏆 ACTUALIZANDO SCORES:', {
           currentMaxScore: currentStats.maxScore || 0,
+          currentTotalScore: currentStats.totalScore || currentStats.maxScore || 0,
           newFinalScore: session.finalScore || 0,
           newMaxScore: Math.max(currentStats.maxScore || 0, session.finalScore || 0),
-          formula: `Math.max(${currentStats.maxScore || 0}, ${session.finalScore || 0}) = ${Math.max(currentStats.maxScore || 0, session.finalScore || 0)}`
+          newTotalScore: (currentStats.totalScore || currentStats.maxScore || 0) + (session.finalScore || 0),
+          formula: `Total: ${currentStats.totalScore || currentStats.maxScore || 0} + ${session.finalScore || 0} = ${(currentStats.totalScore || currentStats.maxScore || 0) + (session.finalScore || 0)}`
         });
         
         console.log('📊 Actualizando estadísticas existentes:', {

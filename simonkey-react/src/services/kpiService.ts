@@ -802,17 +802,21 @@ export class KPIService {
         const quizData = quizStats.get(notebookId) || { scores: [], totalTime: 0 };
         const miniQuizData = miniQuizStats.get(notebookId) || { totalTime: 0, successCount: 0, totalCount: 0 };
         const gameData = gameStats.get(notebookId) || { gamesPlayed: 0, totalTime: 0, totalPoints: 0 };
-        let maxScore = quizData.scores.length > 0 ? Math.max(...quizData.scores) : 0;
+        // Calcular suma total de scores del quiz
+        let totalQuizScore = quizData.scores.reduce((sum, score) => sum + score, 0);
         
         // Si no hay scores en quizResults, intentar obtener de quizStats
-        if (maxScore === 0) {
+        if (totalQuizScore === 0) {
           try {
             const quizStatsRef = doc(db, 'users', userId, 'quizStats', notebookId);
             const quizStatsDoc = await getDoc(quizStatsRef);
             if (quizStatsDoc.exists()) {
               const statsData = quizStatsDoc.data();
-              if (statsData.maxScore) {
-                maxScore = statsData.maxScore;
+              // Usar totalScore si existe, sino usar maxScore por compatibilidad
+              if (statsData.totalScore !== undefined) {
+                totalQuizScore = statsData.totalScore;
+              } else if (statsData.maxScore) {
+                totalQuizScore = statsData.maxScore;
               }
             }
           } catch (error) {
@@ -852,7 +856,7 @@ export class KPIService {
           
           for (const classroomUserId of classroomUsers) {
             if (classroomUserId === userId) {
-              classroomScores.push(maxScore);
+              classroomScores.push(totalQuizScore);
             } else {
               // Obtener el score máximo del otro usuario para este cuaderno
               const otherUserQuizQuery = query(
@@ -873,7 +877,7 @@ export class KPIService {
           classroomScores.sort((a, b) => b - a);
           
           // Encontrar posición del usuario
-          posicionRanking = classroomScores.findIndex(score => score === maxScore) + 1;
+          posicionRanking = classroomScores.findIndex(score => score === totalQuizScore) + 1;
           
           // Calcular percentil
           percentil = Math.round(((classroomUsers.length - posicionRanking + 1) / classroomUsers.length) * 100);
@@ -897,11 +901,11 @@ export class KPIService {
           voiceRecognitionPoints = userVoiceCache.get(notebookId)!;
         }
         
-        const freeStudyPoints = stats.estudiosLibresTotal * 0.1; // Cada estudio libre vale 0.1
+        const freeStudyPoints = stats.estudiosLibresTotal * 0.05; // Cada estudio libre vale 0.05 (50 puntos finales)
         const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionPoints * 1000) + (freeStudyPoints * 1000);
         
         // Calcular puntos multiplicadores
-        const maxQuizScore = maxScore > 0 ? maxScore : 0;
+        const maxQuizScore = totalQuizScore > 0 ? totalQuizScore : 0;
         const gamePoints = gameData.totalPoints || 0;
         const totalMultiplierPoints = maxQuizScore + gamePoints + streakBonus;
         
@@ -927,7 +931,7 @@ export class KPIService {
         
         kpis.cuadernos[notebookId] = {
           scoreCuaderno,
-          scoreMaxCuaderno: maxScore,
+          scoreMaxCuaderno: totalQuizScore,  // Ahora es la suma total, no el máximo
           posicionRanking,
           percentilCuaderno: percentil,
           numeroConceptos,

@@ -33,6 +33,7 @@ import StudyModePage from './pages/StudyModePage';
 import QuizModePage from './pages/QuizModePage';
 import ProgressPage from './pages/ProgressPage';
 import ClassAnalyticsPage from './pages/ClassAnalyticsPage';
+import SuperAdminAnalyticsPage from './pages/SuperAdminAnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import GamesPage from './pages/GamesPage';
 import VoiceRecognitionPage from './pages/VoiceRecognitionPage';
@@ -710,6 +711,17 @@ const AppContent: React.FC = () => {
               isAuthenticated ? (
                 <EmailVerificationGuard>
                   <ClassAnalyticsPage />
+                </EmailVerificationGuard>
+              ) : <Navigate to="/login" replace />
+            }
+          />
+          {/* Nueva ruta para analítica de super admin - Solo para super admins */}
+          <Route
+            path="/superAdminAnalytics"
+            element={
+              isAuthenticated ? (
+                <EmailVerificationGuard>
+                  {isSuperAdmin ? <SuperAdminAnalyticsPage /> : <Navigate to="/inicio" replace />}
                 </EmailVerificationGuard>
               ) : <Navigate to="/login" replace />
             }

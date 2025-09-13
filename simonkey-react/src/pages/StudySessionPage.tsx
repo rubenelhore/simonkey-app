@@ -622,14 +622,14 @@ const StudySessionPage = () => {
         const effectiveUserData = await getEffectiveUserId();
         const userKey = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
         
-        // Check if session lasted at least 1 minute (60 seconds)
+        // Todas las sesiones de estudio libre son válidas (sin tiempo mínimo)
         const sessionDurationMinutes = metrics.timeSpent / 60;
-        const sessionValid = sessionDurationMinutes >= 1;
+        const sessionValid = true; // Siempre válida, sin importar la duración
         
         await studyService.logStudyActivity(
           userKey,
           'session_completed',
-          `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, duración: ${sessionDurationMinutes.toFixed(1)} minutos${sessionValid ? ' (válida)' : ' (muy corta)'}`
+          `Sesión de estudio libre completada: ${reviewedConceptIds.size} conceptos revisados, duración: ${sessionDurationMinutes.toFixed(1)} minutos`
         );
         
         // Store session validation status for display
@@ -1072,9 +1072,9 @@ const StudySessionPage = () => {
                     : studyMode === StudyMode.SMART && !miniQuizPassed
                     ? `Obtuviste ${miniQuizScore}/10. Necesitas 8/10 para validar.`
                     : studyMode === StudyMode.FREE && freeStudySessionValid
-                    ? `¡Genial! Estudiaste ${freeStudySessionDuration.toFixed(1)} minutos y ganaste 0.1 sesiones de estudio`
+                    ? `¡Genial! Estudiaste ${freeStudySessionDuration.toFixed(1)} minutos y ganaste 50 puntos`
                     : studyMode === StudyMode.FREE && !freeStudySessionValid
-                    ? `Solo estudiaste ${freeStudySessionDuration.toFixed(1)} minutos. Necesitas al menos 1 minuto para ganar sesiones de estudio.`
+                    ? `Sesión completada en ${freeStudySessionDuration.toFixed(1)} minutos`
                     : '¡Buen trabajo! Sigue así.'
                   }
                 </div>
@@ -1103,7 +1103,7 @@ const StudySessionPage = () => {
                   {studyMode === StudyMode.FREE && freeStudySessionValid && (
                     <div className="stat-card highlighted">
                       <i className="fas fa-star"></i>
-                      <div className="stat-value">+100</div>
+                      <div className="stat-value">+50</div>
                       <div className="stat-label">Puntos Ganados</div>
                     </div>
                   )}

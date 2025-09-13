@@ -119,7 +119,7 @@ interface CuadernoData {
   puntosJuegos: number;
 }
 
-const ProgressPage: React.FC = () => {
+const SuperAdminAnalyticsPage: React.FC = () => {
   const { isSchoolUser, isSchoolStudent, isTeacher, isSchoolAdmin, isSuperAdmin } = useUserType();
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
@@ -129,6 +129,11 @@ const ProgressPage: React.FC = () => {
   const [cuadernosReales, setCuadernosReales] = useState<CuadernoData[]>([]);
   const [progress, setProgress] = useState(0);
   const [effectiveUserId, setEffectiveUserId] = useState<string>('');
+  
+  // Estados para selector de profesor (para super admin)
+  const [selectedTeacher, setSelectedTeacher] = useState<{id: string, nombre: string} | null>(null);
+  const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
+  const [teachers, setTeachers] = useState<Array<{id: string, nombre: string}>>([]);
   
   // Estados para selector de estudiante (solo para profesores)
   const [selectedStudent, setSelectedStudent] = useState<{id: string, nombre: string} | null>(null);
@@ -154,7 +159,8 @@ const ProgressPage: React.FC = () => {
   // Cargar todo al montar el componente
   useEffect(() => {
     loadAllData();
-  }, []);
+    loadAllTeachers(); // Cargar profesores si es super admin
+  }, [isSuperAdmin]);
 
   // Actualizar cuadernos cuando cambie la materia seleccionada o el estudiante seleccionado
   useEffect(() => {
@@ -163,14 +169,23 @@ const ProgressPage: React.FC = () => {
     }
   }, [selectedMateria, selectedStudent, kpisData]);
 
+  // Recargar materias cuando cambie el profesor seleccionado
+  useEffect(() => {
+    if (selectedTeacher && kpisData && effectiveUserId) {
+      console.log('[SuperAdminAnalytics] Profesor seleccionado cambió, recargando materias...');
+      const effectiveUserData = { isSchoolUser: true }; // Asumir usuario escolar para el análisis
+      loadMaterias(effectiveUserId, true, kpisData, selectedTeacher.id);
+    }
+  }, [selectedTeacher, kpisData, effectiveUserId]);
+
   // Cargar estudiantes enrollados cuando cambie la materia seleccionada
   useEffect(() => {
-    console.log('[ClassAnalytics] useEffect loadEnrolledStudents - selectedMateria:', selectedMateria);
+    console.log('[SuperAdminAnalytics] useEffect loadEnrolledStudents - selectedMateria:', selectedMateria);
     if (selectedMateria) {
-      console.log('[ClassAnalytics] Calling loadEnrolledStudents...');
+      console.log('[SuperAdminAnalytics] Calling loadEnrolledStudents...');
       loadEnrolledStudents();
     } else {
-      console.log('[ClassAnalytics] No selectedMateria, clearing enrolled students');
+      console.log('[SuperAdminAnalytics] No selectedMateria, clearing enrolled students');
       setEnrolledStudents([]);
     }
   }, [selectedMateria]);
@@ -188,19 +203,19 @@ const ProgressPage: React.FC = () => {
 
   // Cargar estudiantes cuando se seleccione un cuaderno
   useEffect(() => {
-    console.log('[ClassAnalytics] useEffect loadStudentsInNotebook - selectedNotebook:', selectedNotebook);
+    console.log('[SuperAdminAnalytics] useEffect loadStudentsInNotebook - selectedNotebook:', selectedNotebook);
     if (selectedNotebook && selectedMateria) {
-      console.log('[ClassAnalytics] Loading students for notebook:', selectedNotebook.id);
+      console.log('[SuperAdminAnalytics] Loading students for notebook:', selectedNotebook.id);
       loadStudentsInNotebook(selectedNotebook.id);
     } else {
-      console.log('[ClassAnalytics] No notebook selected, clearing students list');
+      console.log('[SuperAdminAnalytics] No notebook selected, clearing students list');
       setStudentsInNotebook([]);
     }
   }, [selectedNotebook, selectedMateria]);
 
   // Función para exportar a PDF (imprimir toda la pantalla)
   const exportToPDF = () => {
-    console.log('[ClassAnalytics] 🖨️ Exportando página a PDF...');
+    console.log('[SuperAdminAnalytics] 🖨️ Exportando página a PDF...');
     
     // Obtener el nombre de la materia para el nombre del archivo
     const materiaName = materias.find(m => m.id === selectedMateria)?.nombre || 'ClassAnalytics';
@@ -286,7 +301,7 @@ const ProgressPage: React.FC = () => {
         elementsToHide.forEach(el => {
           (el as HTMLElement).style.display = '';
         });
-        console.log('[ClassAnalytics] ✅ Exportación PDF completada');
+        console.log('[SuperAdminAnalytics] ✅ Exportación PDF completada');
       }, 1000);
 
     } catch (error) {
@@ -297,8 +312,8 @@ const ProgressPage: React.FC = () => {
 
   // Función para exportar tabla a Excel
   const exportToExcel = () => {
-    console.log('[ClassAnalytics] 📊 Exportando tabla a Excel...');
-    console.log('[ClassAnalytics] Datos de estudiantes:', studentsInNotebook);
+    console.log('[SuperAdminAnalytics] 📊 Exportando tabla a Excel...');
+    console.log('[SuperAdminAnalytics] Datos de estudiantes:', studentsInNotebook);
     
     try {
       // Preparar los datos de la tabla con debugging
@@ -328,7 +343,7 @@ const ProgressPage: React.FC = () => {
         };
       });
       
-      console.log('[ClassAnalytics] Datos procesados para Excel:', tableData);
+      console.log('[SuperAdminAnalytics] Datos procesados para Excel:', tableData);
       
       // Crear libro de Excel
       const ws = XLSX.utils.json_to_sheet(tableData);
@@ -346,7 +361,7 @@ const ProgressPage: React.FC = () => {
       // Descargar el archivo
       XLSX.writeFile(wb, fileName);
       
-      console.log('[ClassAnalytics] ✅ Exportación Excel completada:', fileName);
+      console.log('[SuperAdminAnalytics] ✅ Exportación Excel completada:', fileName);
     } catch (error) {
       console.error('[ClassAnalytics] ❌ Error exportando Excel:', error);
       alert('Error al exportar Excel. Por favor intenta de nuevo.');
@@ -370,6 +385,28 @@ const ProgressPage: React.FC = () => {
     }
   }, [loading, kpisData]);
 
+  // Función para cargar todos los profesores (solo para super admin)
+  const loadAllTeachers = async () => {
+    if (!isSuperAdmin) return;
+    
+    try {
+      console.log('[SuperAdminAnalytics] Cargando todos los profesores...');
+      const teachersRef = collection(db, 'users');
+      const teachersQuery = query(teachersRef, where('isTeacher', '==', true));
+      const teachersSnapshot = await getDocs(teachersQuery);
+      
+      const teachersList = teachersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        nombre: doc.data().displayName || doc.data().email || 'Profesor sin nombre'
+      }));
+      
+      console.log('[SuperAdminAnalytics] Profesores encontrados:', teachersList.length);
+      setTeachers(teachersList);
+    } catch (error) {
+      console.error('[SuperAdminAnalytics] Error cargando profesores:', error);
+    }
+  };
+
   const loadAllData = async () => {
     if (!auth.currentUser) {
       setLoading(false);
@@ -384,7 +421,7 @@ const ProgressPage: React.FC = () => {
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       setEffectiveUserId(userId);
       
-      console.log('[ProgressPage] Cargando datos para usuario:', userId);
+      console.log('[SuperAdminAnalytics] Cargando datos para usuario:', userId);
       
       // Cargar KPIs en paralelo con verificación de última actualización
       const kpisPromise = loadKPIsData(userId);
@@ -407,7 +444,7 @@ const ProgressPage: React.FC = () => {
           setStreakBonus(streakBonusValue);
           setHasStudiedToday(studiedToday);
           
-          console.log('[ProgressPage] Racha cargada:', streakData.currentStreak, 'Bonus:', streakBonusValue, 'Estudiado hoy:', studiedToday);
+          console.log('[SuperAdminAnalytics] Racha cargada:', streakData.currentStreak, 'Bonus:', streakBonusValue, 'Estudiado hoy:', studiedToday);
         } catch (error) {
           console.error('[ProgressPage] Error cargando racha:', error);
           setCurrentStreak(0);
@@ -421,7 +458,7 @@ const ProgressPage: React.FC = () => {
         try {
           const conceptStats = await kpiService.getTotalDominatedConceptsByUser(userId);
           setConceptsDominated(conceptStats.conceptosDominados || 0);
-          console.log('[ProgressPage] Conceptos dominados cargados:', conceptStats.conceptosDominados);
+          console.log('[SuperAdminAnalytics] Conceptos dominados cargados:', conceptStats.conceptosDominados);
         } catch (error) {
           console.error('[ProgressPage] Error cargando conceptos dominados:', error);
           setConceptsDominated(0);
@@ -485,7 +522,7 @@ const ProgressPage: React.FC = () => {
           setMateriasActivas(totalMaterias);
           setCuadernosActivos(activeNotebooks);
           
-          console.log('[ProgressPage] Materias activas:', totalMaterias, 'Cuadernos activos:', activeNotebooks);
+          console.log('[SuperAdminAnalytics] Materias activas:', totalMaterias, 'Cuadernos activos:', activeNotebooks);
         } catch (error) {
           console.error('[ProgressPage] Error cargando estadísticas activas:', error);
           setMateriasActivas(0);
@@ -506,9 +543,9 @@ const ProgressPage: React.FC = () => {
             // Obtener tiempo total de los KPIs
             const totalMinutes = kpis.global?.tiempoEstudioGlobal || 0;
             setTotalTime(totalMinutes);
-            console.log('[ProgressPage] Tiempo total cargado:', totalMinutes);
+            console.log('[SuperAdminAnalytics] Tiempo total cargado:', totalMinutes);
             // Cargar materias inmediatamente después de KPIs
-            await loadMaterias(userId, effectiveUserData?.isSchoolUser || false, kpis);
+            await loadMaterias(userId, effectiveUserData?.isSchoolUser || false, kpis, selectedTeacher?.id);
           }
         })()
       ]);
@@ -522,9 +559,9 @@ const ProgressPage: React.FC = () => {
 
   // Función para cargar estudiantes de un cuaderno específico
   const loadStudentsInNotebook = async (notebookId: string) => {
-    console.log('[ClassAnalytics] 🔍 loadStudentsInNotebook called - notebookId:', notebookId);
+    console.log('[SuperAdminAnalytics] 🔍 loadStudentsInNotebook called - notebookId:', notebookId);
     if (!selectedMateria || !notebookId) {
-      console.log('[ClassAnalytics] ❌ No selectedMateria or notebookId');
+      console.log('[SuperAdminAnalytics] ❌ No selectedMateria or notebookId');
       setStudentsInNotebook([]);
       return;
     }
@@ -533,7 +570,7 @@ const ProgressPage: React.FC = () => {
       // Obtener todos los estudiantes enrolados en la materia
       const materiaDoc = await getDoc(doc(db, 'materias', selectedMateria));
       if (!materiaDoc.exists()) {
-        console.log('[ClassAnalytics] Materia no encontrada:', selectedMateria);
+        console.log('[SuperAdminAnalytics] Materia no encontrada:', selectedMateria);
         setStudentsInNotebook([]);
         return;
       }
@@ -543,7 +580,7 @@ const ProgressPage: React.FC = () => {
       
       // Solo permitir acceso si el usuario actual es el dueño de la materia o es SUPER_ADMIN
       if (materiaOwnerId !== auth.currentUser?.uid && !isSuperAdmin) {
-        console.log('[ClassAnalytics] Usuario no autorizado para ver estudiantes de esta materia');
+        console.log('[SuperAdminAnalytics] Usuario no autorizado para ver estudiantes de esta materia');
         setStudentsInNotebook([]);
         return;
       }
@@ -560,7 +597,7 @@ const ProgressPage: React.FC = () => {
       console.log(`[ClassAnalytics] 📚 Found ${enrollmentsSnapshot.size} enrolled students`);
       
       if (enrollmentsSnapshot.empty) {
-        console.log('[ClassAnalytics] No students enrolled in this materia');
+        console.log('[SuperAdminAnalytics] No students enrolled in this materia');
         setStudentsInNotebook([]);
         return;
       }
@@ -653,45 +690,51 @@ const ProgressPage: React.FC = () => {
 
   // Función para cargar estudiantes enrollados
   const loadEnrolledStudents = async () => {
-    console.log('[ClassAnalytics] 🔍 loadEnrolledStudents called - selectedMateria:', selectedMateria);
+    console.log('[SuperAdminAnalytics] 🔍 loadEnrolledStudents called - selectedMateria:', selectedMateria);
     if (!selectedMateria) {
-      console.log('[ClassAnalytics] ❌ No selectedMateria, returning');
+      console.log('[SuperAdminAnalytics] ❌ No selectedMateria, returning');
       setEnrolledStudents([]);
       return;
     }
 
     try {
-      console.log('[ClassAnalytics] ✅ Cargando estudiantes enrollados para materia:', selectedMateria);
+      console.log('[SuperAdminAnalytics] ✅ Cargando estudiantes enrollados para materia:', selectedMateria);
       
-      // Primero obtener la información de la materia para saber quien es el profesor
-      const materiaDoc = await getDoc(doc(db, 'materias', selectedMateria));
-      if (!materiaDoc.exists()) {
-        console.log('[ClassAnalytics] Materia no encontrada:', selectedMateria);
-        setEnrolledStudents([]);
-        return;
+      // Si hay un profesor seleccionado, usar ese; sino obtener de la materia
+      let teacherIdToUse = selectedTeacher?.id;
+      
+      if (!teacherIdToUse) {
+        // Primero obtener la información de la materia para saber quien es el profesor
+        const materiaDoc = await getDoc(doc(db, 'materias', selectedMateria));
+        if (!materiaDoc.exists()) {
+          console.log('[SuperAdminAnalytics] Materia no encontrada:', selectedMateria);
+          setEnrolledStudents([]);
+          return;
+        }
+        
+        const materiaData = materiaDoc.data();
+        teacherIdToUse = materiaData.userId;
       }
       
-      const materiaData = materiaDoc.data();
-      const materiaOwnerId = materiaData.userId;
-      console.log('[ClassAnalytics] Materia owner:', materiaOwnerId, 'Current user:', auth.currentUser?.uid);
+      console.log('[SuperAdminAnalytics] Using teacherId:', teacherIdToUse, 'Current user:', auth.currentUser?.uid);
       
       // Solo permitir acceso si el usuario actual es el dueño de la materia o es SUPER_ADMIN
-      if (materiaOwnerId !== auth.currentUser?.uid && !isSuperAdmin) {
-        console.log('[ClassAnalytics] Usuario no autorizado para ver estudiantes de esta materia');
+      if (teacherIdToUse !== auth.currentUser?.uid && !isSuperAdmin) {
+        console.log('[SuperAdminAnalytics] Usuario no autorizado para ver estudiantes de esta materia');
         setEnrolledStudents([]);
         return;
       }
       
       // Log para SUPER_ADMIN access
-      if (isSuperAdmin && materiaOwnerId !== auth.currentUser?.uid) {
-        console.log('[ClassAnalytics] SUPER_ADMIN accediendo a materia de otro profesor:', materiaOwnerId);
+      if (isSuperAdmin && teacherIdToUse !== auth.currentUser?.uid) {
+        console.log('[SuperAdminAnalytics] SUPER_ADMIN accediendo a materia de otro profesor:', teacherIdToUse);
       }
       
       // Obtener enrollments para esta materia (buscar por materiaId y teacherId)
       const enrollmentsQuery = query(
         collection(db, 'enrollments'),
         where('materiaId', '==', selectedMateria),
-        where('teacherId', '==', materiaOwnerId),
+        where('teacherId', '==', teacherIdToUse),
         where('status', '==', 'active')
       );
       
@@ -735,7 +778,7 @@ const ProgressPage: React.FC = () => {
       students.sort((a, b) => a.nombre.localeCompare(b.nombre));
       
       setEnrolledStudents(students);
-      console.log('[ClassAnalytics] Estudiantes cargados:', students.length);
+      console.log('[SuperAdminAnalytics] Estudiantes cargados:', students.length);
       
     } catch (error) {
       console.error('[ClassAnalytics] Error cargando estudiantes enrollados:', error);
@@ -745,7 +788,7 @@ const ProgressPage: React.FC = () => {
 
   const loadKPIsData = async (userId: string) => {
     try {
-      console.log('[ProgressPage] Cargando KPIs para usuario:', userId);
+      console.log('[SuperAdminAnalytics] Cargando KPIs para usuario:', userId);
       
       // Primero intentar obtener KPIs existentes
       let kpis = await kpiService.getUserKPIs(userId);
@@ -758,20 +801,20 @@ const ProgressPage: React.FC = () => {
       
       if (shouldUpdate) {
         if (hasNoCuadernos) {
-          console.log('[ProgressPage] KPIs sin cuadernos, forzando actualización...');
+          console.log('[SuperAdminAnalytics] KPIs sin cuadernos, forzando actualización...');
         } else {
-          console.log('[ProgressPage] Actualizando KPIs...');
+          console.log('[SuperAdminAnalytics] Actualizando KPIs...');
         }
         await kpiService.updateUserKPIs(userId);
         // Obtener KPIs actualizados
         kpis = await kpiService.getUserKPIs(userId);
-        console.log('[ProgressPage] KPIs actualizados:', kpis);
+        console.log('[SuperAdminAnalytics] KPIs actualizados:', kpis);
       } else {
-        console.log('[ProgressPage] Usando KPIs existentes (actualizados hace menos de 1 hora)');
+        console.log('[SuperAdminAnalytics] Usando KPIs existentes (actualizados hace menos de 1 hora)');
       }
       
-      console.log('[ProgressPage] KPIs obtenidos:', kpis);
-      console.log('[ProgressPage] Cuadernos en KPIs:', Object.keys(kpis?.cuadernos || {}));
+      console.log('[SuperAdminAnalytics] KPIs obtenidos:', kpis);
+      console.log('[SuperAdminAnalytics] Cuadernos en KPIs:', Object.keys(kpis?.cuadernos || {}));
       
       return kpis;
       
@@ -781,25 +824,73 @@ const ProgressPage: React.FC = () => {
     }
   };
 
-  const loadMaterias = async (userId: string, isSchoolUser: boolean, kpis: any) => {
+  const loadMaterias = async (userId: string, isSchoolUser: boolean, kpis: any, teacherId?: string) => {
     try {
-      console.log('[ProgressPage] Cargando materias, usuario escolar:', isSchoolUser);
+      console.log('[SuperAdminAnalytics] Cargando materias, usuario escolar:', isSchoolUser, 'teacherId:', teacherId);
       
       const materiasArray: Materia[] = [];
       
+      // Si hay un teacherId seleccionado, buscar materias basándose en enrollments
+      if (teacherId) {
+        console.log('[SuperAdminAnalytics] Buscando materias del profesor seleccionado via enrollments:', teacherId);
+        
+        // Buscar enrollments donde este profesor es el teacherId
+        const enrollmentsQuery = query(
+          collection(db, 'enrollments'),
+          where('teacherId', '==', teacherId),
+          where('status', '==', 'active')
+        );
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        
+        console.log('[SuperAdminAnalytics] Enrollments encontrados para el profesor:', enrollmentsSnap.size);
+        
+        // Extraer materiaIds únicos
+        const materiaIds = new Set<string>();
+        enrollmentsSnap.forEach(doc => {
+          const enrollmentData = doc.data();
+          if (enrollmentData.materiaId) {
+            materiaIds.add(enrollmentData.materiaId);
+          }
+        });
+        
+        console.log('[SuperAdminAnalytics] Materias únicas encontradas:', Array.from(materiaIds));
+        
+        // Cargar información de cada materia
+        for (const materiaId of materiaIds) {
+          try {
+            const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
+            if (materiaDoc.exists()) {
+              const materiaData = materiaDoc.data();
+              materiasArray.push({
+                id: materiaId,
+                nombre: materiaData.nombre || materiaData.title || 'Sin nombre'
+              });
+              console.log('[SuperAdminAnalytics] Materia agregada:', { id: materiaId, nombre: materiaData.nombre || materiaData.title });
+            }
+          } catch (error) {
+            console.error('[SuperAdminAnalytics] Error cargando materia:', materiaId, error);
+          }
+        }
+        
+        console.log('[SuperAdminAnalytics] Materias finales del profesor:', materiasArray);
+        setMaterias(materiasArray);
+        return;
+      }
+      
       if (isSchoolUser) {
         // Para usuarios escolares, verificar el rol del usuario
-        const userDoc = await getDoc(doc(db, 'users', userId));
+        const targetUserId = teacherId || userId; // Usar teacherId si está disponible
+        const userDoc = await getDoc(doc(db, 'users', targetUserId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           
-          if (userData.schoolRole === 'teacher') {
+          if (userData.schoolRole === 'teacher' || teacherId) {
             // Para profesores, buscar las materias de sus notebooks
-            console.log('[ProgressPage] Usuario es profesor, buscando materias de sus notebooks');
+            console.log('[SuperAdminAnalytics] Usuario es profesor, buscando materias de sus notebooks para:', targetUserId);
             
             const notebooksQuery = query(
               collection(db, 'schoolNotebooks'),
-              where('idProfesor', '==', userId)
+              where('idProfesor', '==', targetUserId)
             );
             const notebooksSnap = await getDocs(notebooksQuery);
             
@@ -811,7 +902,7 @@ const ProgressPage: React.FC = () => {
               }
             });
             
-            console.log('[ProgressPage] IDs de materias encontradas:', Array.from(materiaIds));
+            console.log('[SuperAdminAnalytics] IDs de materias encontradas:', Array.from(materiaIds));
             
             // Cargar información de cada materia
             for (const materiaId of materiaIds) {
@@ -831,7 +922,7 @@ const ProgressPage: React.FC = () => {
             
             // Si no se encontraron materias, crear una materia genérica para mostrar progreso general
             if (materiasArray.length === 0) {
-              console.log('[ProgressPage] No se encontraron materias, creando vista general');
+              console.log('[SuperAdminAnalytics] No se encontraron materias, creando vista general');
               materiasArray.push({
                 id: 'general',
                 nombre: 'Progreso General'
@@ -839,20 +930,20 @@ const ProgressPage: React.FC = () => {
             }
           } else if (userData.schoolRole === 'student') {
             // Para estudiantes escolares, buscar sus materias asignadas
-            console.log('[ProgressPage] Usuario escolar (estudiante), buscando materias asignadas');
-            console.log('[ProgressPage] Datos del usuario:', userData);
+            console.log('[SuperAdminAnalytics] Usuario escolar (estudiante), buscando materias asignadas');
+            console.log('[SuperAdminAnalytics] Datos del usuario:', userData);
             
             let materiaIds = new Set<string>();
             
             // Primero verificar si el usuario tiene subjectIds (este es el campo correcto para estudiantes)
             if (userData.subjectIds && Array.isArray(userData.subjectIds)) {
-              console.log('[ProgressPage] subjectIds encontrados en usuario:', userData.subjectIds);
+              console.log('[SuperAdminAnalytics] subjectIds encontrados en usuario:', userData.subjectIds);
               userData.subjectIds.forEach((id: string) => materiaIds.add(id));
             }
             
             // También verificar idMaterias (otro posible campo)
             if (userData.idMaterias && Array.isArray(userData.idMaterias)) {
-              console.log('[ProgressPage] idMaterias encontrados en usuario:', userData.idMaterias);
+              console.log('[SuperAdminAnalytics] idMaterias encontrados en usuario:', userData.idMaterias);
               userData.idMaterias.forEach((id: string) => materiaIds.add(id));
             }
             
@@ -866,7 +957,7 @@ const ProgressPage: React.FC = () => {
               
               if (!studentSnap.empty) {
                 const studentData = studentSnap.docs[0].data();
-                console.log('[ProgressPage] Datos de schoolStudents:', studentData);
+                console.log('[SuperAdminAnalytics] Datos de schoolStudents:', studentData);
                 
                 if (studentData.idMaterias && Array.isArray(studentData.idMaterias)) {
                   studentData.idMaterias.forEach((id: string) => materiaIds.add(id));
@@ -879,7 +970,7 @@ const ProgressPage: React.FC = () => {
             
             // Si aún no hay materias, buscar en las asignaciones del admin/profesor
             if (materiaIds.size === 0 && userData.idAdmin) {
-              console.log('[ProgressPage] Buscando materias asignadas por admin:', userData.idAdmin);
+              console.log('[SuperAdminAnalytics] Buscando materias asignadas por admin:', userData.idAdmin);
               
               // Buscar materias donde el estudiante esté asignado
               const subjectsQuery = query(
@@ -889,7 +980,7 @@ const ProgressPage: React.FC = () => {
               const subjectsSnap = await getDocs(subjectsQuery);
               
               subjectsSnap.forEach(doc => {
-                console.log('[ProgressPage] Materia donde estudiante está asignado:', doc.id);
+                console.log('[SuperAdminAnalytics] Materia donde estudiante está asignado:', doc.id);
                 materiaIds.add(doc.id);
               });
             }
@@ -901,7 +992,7 @@ const ProgressPage: React.FC = () => {
               });
             }
             
-            console.log('[ProgressPage] IDs de materias encontradas:', Array.from(materiaIds));
+            console.log('[SuperAdminAnalytics] IDs de materias encontradas:', Array.from(materiaIds));
             
             // Cargar información de cada materia
             for (const materiaId of materiaIds) {
@@ -921,32 +1012,55 @@ const ProgressPage: React.FC = () => {
             
             // Si no se encontraron materias, crear una materia genérica para mostrar progreso general
             if (materiasArray.length === 0) {
-              console.log('[ProgressPage] No se encontraron materias, creando vista general');
+              console.log('[SuperAdminAnalytics] No se encontraron materias, creando vista general');
               materiasArray.push({
                 id: 'general',
                 nombre: 'Progreso General'
               });
             }
           } else {
-            console.log('[ProgressPage] Rol de usuario escolar no reconocido:', userData.schoolRole);
+            console.log('[SuperAdminAnalytics] Rol de usuario escolar no reconocido:', userData.schoolRole);
           }
         }
-        console.log('[ProgressPage] Materias procesadas para usuario escolar:', materiasArray);
+        
+        // Si hay un profesor seleccionado, también buscar sus materias propias
+        if (teacherId) {
+          console.log('[SuperAdminAnalytics] Buscando materias propias del profesor seleccionado:', teacherId);
+          const teacherMateriasQuery = query(
+            collection(db, 'materias'),
+            where('userId', '==', teacherId)
+          );
+          const teacherMateriasSnap = await getDocs(teacherMateriasQuery);
+          
+          console.log('[SuperAdminAnalytics] Materias propias del profesor encontradas:', teacherMateriasSnap.size);
+          
+          teacherMateriasSnap.forEach((doc: any) => {
+            const data = doc.data();
+            console.log('[SuperAdminAnalytics] Materia propia del profesor:', { id: doc.id, data });
+            materiasArray.push({
+              id: doc.id,
+              nombre: data.nombre || data.title || 'Sin nombre'
+            });
+          });
+        }
+        
+        console.log('[SuperAdminAnalytics] Materias procesadas para usuario escolar:', materiasArray);
       } else {
         // Para usuarios regulares, buscar materias propias y materias inscritas
         // 1. Buscar materias propias
+        const userIdToSearch = teacherId || userId; // Usar teacherId si está disponible
         const materiasQuery = query(
           collection(db, 'materias'),
-          where('userId', '==', userId)
+          where('userId', '==', userIdToSearch)
         );
         const materiasSnap = await getDocs(materiasQuery);
         
-        console.log('[ProgressPage] Materias propias encontradas:', materiasSnap.size);
+        console.log('[SuperAdminAnalytics] Materias propias encontradas:', materiasSnap.size);
         
         // Agregar materias propias
         materiasSnap.forEach((doc: any) => {
           const data = doc.data();
-          console.log('[ProgressPage] Materia propia:', { id: doc.id, data });
+          console.log('[SuperAdminAnalytics] Materia propia:', { id: doc.id, data });
           materiasArray.push({
             id: doc.id,
             nombre: data.nombre || data.title || 'Sin nombre'
@@ -961,7 +1075,7 @@ const ProgressPage: React.FC = () => {
         );
         const enrollmentsSnap = await getDocs(enrollmentsQuery);
         
-        console.log('[ProgressPage] Enrollments activos encontrados:', enrollmentsSnap.size);
+        console.log('[SuperAdminAnalytics] Enrollments activos encontrados:', enrollmentsSnap.size);
         
         // Para cada enrollment, obtener la materia del profesor
         for (const enrollmentDoc of enrollmentsSnap.docs) {
@@ -973,7 +1087,7 @@ const ProgressPage: React.FC = () => {
             const materiaDoc = await getDoc(doc(db, 'materias', materiaId));
             if (materiaDoc.exists()) {
               const materiaData = materiaDoc.data();
-              console.log('[ProgressPage] Materia inscrita:', { id: materiaId, data: materiaData });
+              console.log('[SuperAdminAnalytics] Materia inscrita:', { id: materiaId, data: materiaData });
               materiasArray.push({
                 id: materiaId,
                 nombre: materiaData.nombre || materiaData.title || 'Sin nombre'
@@ -984,7 +1098,7 @@ const ProgressPage: React.FC = () => {
         
         if (materiasArray.length === 0) {
           // Si no hay materias directas, intentar extraerlas de los cuadernos
-          console.log('[ProgressPage] No hay materias directas, buscando en cuadernos...');
+          console.log('[SuperAdminAnalytics] No hay materias directas, buscando en cuadernos...');
           
           const notebooksQuery = query(
             collection(db, 'notebooks'),
@@ -992,14 +1106,14 @@ const ProgressPage: React.FC = () => {
           );
           const notebooksSnap = await getDocs(notebooksQuery);
           
-          console.log('[ProgressPage] Cuadernos encontrados:', notebooksSnap.size);
+          console.log('[SuperAdminAnalytics] Cuadernos encontrados:', notebooksSnap.size);
         
           // Extraer materias únicas de los cuadernos
           const materiasMap = new Map<string, string>();
           
           notebooksSnap.forEach((doc: any) => {
             const data = doc.data();
-            console.log('[ProgressPage] Notebook completo:', { id: doc.id, ...data });
+            console.log('[SuperAdminAnalytics] Notebook completo:', { id: doc.id, ...data });
             
             // Buscar el ID de la materia en diferentes campos posibles
             const materiaId = data.materiaId || data.subjectId || data.subject?.id || null;
@@ -1013,7 +1127,7 @@ const ProgressPage: React.FC = () => {
                                  data.subject ||
                                  null;
             
-            console.log('[ProgressPage] Materia extraída:', { materiaId, materiaNombre });
+            console.log('[SuperAdminAnalytics] Materia extraída:', { materiaId, materiaNombre });
             
             // Si encontramos nombre pero no ID, usar el nombre como ID
             if (materiaNombre && !materiaId) {
@@ -1035,7 +1149,7 @@ const ProgressPage: React.FC = () => {
           
           // Si no se encontraron materias pero hay cuadernos, crear una materia "General"
           if (materiasArray.length === 0 && notebooksSnap.size > 0) {
-            console.log('[ProgressPage] No se encontraron materias, creando materia General...');
+            console.log('[SuperAdminAnalytics] No se encontraron materias, creando materia General...');
             materiasArray.push({
               id: 'general',
               nombre: 'Todos los Cuadernos'
@@ -1046,7 +1160,7 @@ const ProgressPage: React.FC = () => {
       
       // Si no se encontraron materias pero hay cuadernos en los KPIs, crear opción general
       if (materiasArray.length === 0 && isSchoolUser && kpisData?.cuadernos && Object.keys(kpisData.cuadernos).length > 0) {
-        console.log('[ProgressPage] No se encontraron materias pero hay cuadernos, creando opción general');
+        console.log('[SuperAdminAnalytics] No se encontraron materias pero hay cuadernos, creando opción general');
         materiasArray.push({
           id: 'general',
           nombre: 'Todos los Cuadernos'
@@ -1055,7 +1169,7 @@ const ProgressPage: React.FC = () => {
       
       // Para usuarios regulares, si no hay materias pero hay KPIs de materias, extraerlas de ahí
       if (!isSchoolUser && materiasArray.length === 0 && kpisData?.materias) {
-        console.log('[ProgressPage] Extrayendo materias de KPIs para usuario regular...');
+        console.log('[SuperAdminAnalytics] Extrayendo materias de KPIs para usuario regular...');
         const materiasFromKpis = Object.keys(kpisData.materias);
         for (const materiaId of materiasFromKpis) {
           // Intentar obtener el nombre de la materia desde Firestore
@@ -1087,21 +1201,21 @@ const ProgressPage: React.FC = () => {
       
       // Si aún no hay materias pero hay un score global, crear una materia general
       if (materiasArray.length === 0 && kpisData?.global?.scoreGlobal > 0) {
-        console.log('[ProgressPage] Creando materia general basada en score global');
+        console.log('[SuperAdminAnalytics] Creando materia general basada en score global');
         materiasArray.push({
           id: 'general',
           nombre: 'General'
         });
       }
       
-      console.log('[ProgressPage] Materias finales:', materiasArray);
-      console.log('[ProgressPage] Total de materias encontradas:', materiasArray.length);
+      console.log('[SuperAdminAnalytics] Materias finales:', materiasArray);
+      console.log('[SuperAdminAnalytics] Total de materias encontradas:', materiasArray.length);
       materiasArray.forEach(m => console.log(`[ProgressPage] - Materia: ${m.nombre} (ID: ${m.id})`));
       
       setMaterias(materiasArray);
       
       // No seleccionar automáticamente ninguna materia
-      console.log('[ProgressPage] Materias cargadas:', materiasArray.length, 'materias disponibles');
+      console.log('[SuperAdminAnalytics] Materias cargadas:', materiasArray.length, 'materias disponibles');
     } catch (error) {
       console.error('[ProgressPage] Error cargando materias:', error);
     }
@@ -1420,14 +1534,14 @@ const ProgressPage: React.FC = () => {
   };
 
   const processCuadernosData = async () => {
-    console.log('[ProgressPage] processCuadernosData called');
+    console.log('[SuperAdminAnalytics] processCuadernosData called');
     if (!auth.currentUser || !kpisData) return;
     
     try {
-      console.log('[ProgressPage] === PROCESANDO DATOS DE CUADERNOS ===');
-      console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
-      console.log('[ProgressPage] Estudiante seleccionado:', selectedStudent?.id || 'ninguno');
-      console.log('[ProgressPage] KPIs cuadernos:', kpisData.cuadernos);
+      console.log('[SuperAdminAnalytics] === PROCESANDO DATOS DE CUADERNOS ===');
+      console.log('[SuperAdminAnalytics] Materia seleccionada:', selectedMateria);
+      console.log('[SuperAdminAnalytics] Estudiante seleccionado:', selectedStudent?.id || 'ninguno');
+      console.log('[SuperAdminAnalytics] KPIs cuadernos:', kpisData.cuadernos);
     
       // Usar el ID del estudiante seleccionado si existe, sino usar el usuario actual
       let userId: string;
@@ -1441,12 +1555,12 @@ const ProgressPage: React.FC = () => {
           const studentUserData = studentUserDoc.data();
           isSchoolUser = studentUserData.isSchoolUser || false;
         }
-        console.log('[ProgressPage] Usando datos del estudiante seleccionado:', userId, 'isSchoolUser:', isSchoolUser);
+        console.log('[SuperAdminAnalytics] Usando datos del estudiante seleccionado:', userId, 'isSchoolUser:', isSchoolUser);
       } else {
         const effectiveUserData = await getEffectiveUserId();
         isSchoolUser = effectiveUserData?.isSchoolUser || false;
         userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
-        console.log('[ProgressPage] Usando datos del usuario actual:', userId, 'isSchoolUser:', isSchoolUser);
+        console.log('[SuperAdminAnalytics] Usando datos del usuario actual:', userId, 'isSchoolUser:', isSchoolUser);
       }
       
       const cuadernosTemp: CuadernoData[] = [];
@@ -1455,14 +1569,14 @@ const ProgressPage: React.FC = () => {
       const notebookNames = new Map<string, string>();
       const notebookMaterias = new Map<string, string>();
       
-      console.log('[ProgressPage] 🔍 DEBUG: Estado actual');
-      console.log('[ProgressPage] 🔍 selectedMateria:', selectedMateria);
-      console.log('[ProgressPage] 🔍 selectedStudent:', selectedStudent);
-      console.log('[ProgressPage] 🔍 userId que se va a usar:', userId);
+      console.log('[SuperAdminAnalytics] 🔍 DEBUG: Estado actual');
+      console.log('[SuperAdminAnalytics] 🔍 selectedMateria:', selectedMateria);
+      console.log('[SuperAdminAnalytics] 🔍 selectedStudent:', selectedStudent);
+      console.log('[SuperAdminAnalytics] 🔍 userId que se va a usar:', userId);
       
       // Si hay materia y estudiante seleccionado, buscar todos los notebooks de esa materia
       if (selectedMateria && selectedMateria !== 'general' && selectedStudent) {
-        console.log('[ProgressPage] 🎯 ESTUDIANTE SELECCIONADO - Buscando todos los notebooks de la materia:', selectedMateria);
+        console.log('[SuperAdminAnalytics] 🎯 ESTUDIANTE SELECCIONADO - Buscando todos los notebooks de la materia:', selectedMateria);
         const materiaNotebooksQuery = query(
           collection(db, 'notebooks'),
           where('materiaId', '==', selectedMateria)
@@ -1487,7 +1601,7 @@ const ProgressPage: React.FC = () => {
           
           // Para profesores, buscar notebooks por idProfesor
           if (userData.schoolRole === 'teacher') {
-            console.log('[ProgressPage] Usuario es profesor, buscando notebooks por idProfesor');
+            console.log('[SuperAdminAnalytics] Usuario es profesor, buscando notebooks por idProfesor');
             const notebooksQuery = query(
               collection(db, 'schoolNotebooks'),
               where('idProfesor', '==', userId)
@@ -1504,11 +1618,11 @@ const ProgressPage: React.FC = () => {
             });
           } else {
             // Para estudiantes, buscar notebooks de varias formas
-            console.log('[ProgressPage] Usuario es estudiante, buscando notebooks');
+            console.log('[SuperAdminAnalytics] Usuario es estudiante, buscando notebooks');
             
             // Primero intentar con idCuadernos si existe
             const idCuadernos = userData.idCuadernos || [];
-            console.log('[ProgressPage] idCuadernos del estudiante:', idCuadernos);
+            console.log('[SuperAdminAnalytics] idCuadernos del estudiante:', idCuadernos);
             
             if (idCuadernos.length > 0) {
               for (const cuadernoId of idCuadernos) {
@@ -1524,7 +1638,7 @@ const ProgressPage: React.FC = () => {
             
             // Si no hay idCuadernos o está vacío, buscar notebooks de la materia seleccionada
             if (notebookNames.size === 0 && selectedMateria && selectedMateria !== 'general') {
-              console.log('[ProgressPage] Buscando notebooks de la materia:', selectedMateria);
+              console.log('[SuperAdminAnalytics] Buscando notebooks de la materia:', selectedMateria);
               
               // Buscar notebooks de la materia que sean del profesor
               const materiaNotebooksQuery = query(
@@ -1596,7 +1710,7 @@ const ProgressPage: React.FC = () => {
       
       if (!selectedMateria || selectedMateria === 'general') {
         // Mostrar todos los cuadernos del estudiante
-        console.log('[ProgressPage] Vista general - buscando todos los cuadernos del estudiante');
+        console.log('[SuperAdminAnalytics] Vista general - buscando todos los cuadernos del estudiante');
         
         // Para estudiantes escolares, buscar todos sus notebooks de estudio
         const userDoc = await getDoc(doc(db, 'users', userId));
@@ -1620,7 +1734,7 @@ const ProgressPage: React.FC = () => {
               }
             });
             
-            console.log('[ProgressPage] Notebooks estudiados por el estudiante:', Array.from(studiedNotebooks));
+            console.log('[SuperAdminAnalytics] Notebooks estudiados por el estudiante:', Array.from(studiedNotebooks));
             
             // Para cada notebook estudiado, obtener sus datos
             for (const notebookId of studiedNotebooks) {
@@ -1689,8 +1803,8 @@ const ProgressPage: React.FC = () => {
         }
       } else {
         // Filtrar por materia seleccionada
-        console.log('[ProgressPage] Filtrando cuadernos por materia:', selectedMateria);
-        console.log('[ProgressPage] Notebooks con materias:', Array.from(notebookMaterias.entries()));
+        console.log('[SuperAdminAnalytics] Filtrando cuadernos por materia:', selectedMateria);
+        console.log('[SuperAdminAnalytics] Notebooks con materias:', Array.from(notebookMaterias.entries()));
         
         // Primero, procesar cuadernos que están en KPIs
         Object.entries(kpisData.cuadernos || {}).forEach(([cuadernoId, cuadernoData]: [string, any]) => {
@@ -1782,14 +1896,14 @@ const ProgressPage: React.FC = () => {
         });
       }
       
-      console.log('[ProgressPage] Cuadernos procesados:', cuadernosTemp.length);
+      console.log('[SuperAdminAnalytics] Cuadernos procesados:', cuadernosTemp.length);
       cuadernosTemp.forEach(c => {
         console.log(`[ProgressPage] - ${c.nombre}: score=${c.score}, pos=${c.posicion}, tiempo=${c.tiempoEstudio}min`);
       });
       
       // Calculate points for each notebook (same as StudyModePage)
-      console.log('[ProgressPage] Calculating points for each notebook...');
-      console.log('[ProgressPage] 🎯 Using userId for points calculation:', userId);
+      console.log('[SuperAdminAnalytics] Calculating points for each notebook...');
+      console.log('[SuperAdminAnalytics] 🎯 Using userId for points calculation:', userId);
       const pointsUserId = userId; // Use the already determined userId (student selected or current user)
       
       // Use Promise.all to calculate all points in parallel for better performance
@@ -1808,7 +1922,7 @@ const ProgressPage: React.FC = () => {
         })
       );
       
-      console.log('[ProgressPage] All notebooks with calculated points:', notebooksWithPoints);
+      console.log('[SuperAdminAnalytics] All notebooks with calculated points:', notebooksWithPoints);
       
       setCuadernosReales(notebooksWithPoints);
     } catch (error) {
@@ -1827,12 +1941,12 @@ const ProgressPage: React.FC = () => {
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       const isSchoolUser = effectiveUserData?.isSchoolUser || false;
       
-      console.log('[ProgressPage] Calculando ranking para materia:', selectedMateria);
-      console.log('[ProgressPage] Es usuario escolar:', isSchoolUser);
+      console.log('[SuperAdminAnalytics] Calculando ranking para materia:', selectedMateria);
+      console.log('[SuperAdminAnalytics] Es usuario escolar:', isSchoolUser);
       
       // Para usuarios regulares, intentar obtener ranking basado en enrollments
       if (!isSchoolUser) {
-        console.log('[ProgressPage] Usuario regular, verificando enrollments');
+        console.log('[SuperAdminAnalytics] Usuario regular, verificando enrollments');
         
         if (!selectedMateria || selectedMateria === 'general') {
           // Para vista general, mostrar el score global
@@ -1844,12 +1958,12 @@ const ProgressPage: React.FC = () => {
           }]);
         } else {
           // Para una materia específica, intentar obtener ranking basado en enrollments
-          console.log('[ProgressPage] Intentando obtener ranking de enrollments para materia:', selectedMateria);
+          console.log('[SuperAdminAnalytics] Intentando obtener ranking de enrollments para materia:', selectedMateria);
           
           try {
             // Usar el ID del estudiante seleccionado como "usuario actual" para el ranking
             const currentUserForRanking = selectedStudent ? selectedStudent.id : userId;
-            console.log('[ProgressPage] 🎯 Calculando ranking con usuario actual:', currentUserForRanking);
+            console.log('[SuperAdminAnalytics] 🎯 Calculando ranking con usuario actual:', currentUserForRanking);
             
             const enrollmentRanking = await MateriaRankingService.getMateriaRanking(
               selectedMateria,
@@ -1859,7 +1973,7 @@ const ProgressPage: React.FC = () => {
             );
             
             if (enrollmentRanking && enrollmentRanking.length > 0) {
-              console.log('[ProgressPage] Ranking de enrollments encontrado:', enrollmentRanking);
+              console.log('[SuperAdminAnalytics] Ranking de enrollments encontrado:', enrollmentRanking);
               setRankingData(enrollmentRanking);
             } else {
               // Si no hay ranking de enrollments, calcular score basado en cuadernos reales
@@ -1906,7 +2020,7 @@ const ProgressPage: React.FC = () => {
       // Obtener el documento del usuario para tener la institución
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (!userDoc.exists()) {
-        console.log('[ProgressPage] Usuario no encontrado');
+        console.log('[SuperAdminAnalytics] Usuario no encontrado');
         setRankingData([]);
         return;
       }
@@ -1915,7 +2029,7 @@ const ProgressPage: React.FC = () => {
       const institutionId = userData.idInstitucion;
       
       if (!institutionId) {
-        console.log('[ProgressPage] Usuario sin institución');
+        console.log('[SuperAdminAnalytics] Usuario sin institución');
         setRankingData([]);
         return;
       }
@@ -1923,7 +2037,7 @@ const ProgressPage: React.FC = () => {
       // Si no hay materia seleccionada o es general, no mostrar ranking
       // (porque decidimos no hacer ranking global)
       if (!selectedMateria || selectedMateria === 'general') {
-        console.log('[ProgressPage] No hay ranking global disponible');
+        console.log('[SuperAdminAnalytics] No hay ranking global disponible');
         setRankingData([]);
         return;
       }
@@ -1932,7 +2046,7 @@ const ProgressPage: React.FC = () => {
       const ranking = await rankingService.getSubjectRanking(institutionId, selectedMateria);
       
       if (!ranking) {
-        console.log('[ProgressPage] No se encontró ranking pre-calculado, calculando en tiempo real...');
+        console.log('[SuperAdminAnalytics] No se encontró ranking pre-calculado, calculando en tiempo real...');
         console.log(`[ProgressPage] Usuario actual tiene KPIs con ID: ${userId}`);
         
         // Calcular ranking en tiempo real
@@ -2085,7 +2199,7 @@ const ProgressPage: React.FC = () => {
         return;
       }
 
-      console.log('[ProgressPage] Ranking pre-calculado encontrado:', ranking);
+      console.log('[SuperAdminAnalytics] Ranking pre-calculado encontrado:', ranking);
       console.log(`[ProgressPage] Total estudiantes en ranking: ${ranking.totalStudents}`);
       console.log(`[ProgressPage] Última actualización: ${ranking.lastUpdated.toDate().toLocaleString()}`);
 
@@ -2119,7 +2233,7 @@ const ProgressPage: React.FC = () => {
 
       // Si no hay estudiantes en el ranking, mostrar mensaje
       if (rankingToShow.length === 0) {
-        console.log('[ProgressPage] No hay estudiantes con puntuación en esta materia');
+        console.log('[SuperAdminAnalytics] No hay estudiantes con puntuación en esta materia');
         const userScore = kpisData?.materias?.[selectedMateria]?.scoreMateria || 0;
         if (userScore > 0) {
           rankingToShow.push({ 
@@ -2130,12 +2244,12 @@ const ProgressPage: React.FC = () => {
         }
       }
 
-      console.log('[ProgressPage] Ranking a mostrar:', rankingToShow);
+      console.log('[SuperAdminAnalytics] Ranking a mostrar:', rankingToShow);
       setRankingData(rankingToShow);
       
       // Verificar si el ranking necesita actualización
       if (rankingService.needsUpdate(ranking)) {
-        console.log('[ProgressPage] ⚠️ El ranking tiene más de 10 minutos, considerar actualización');
+        console.log('[SuperAdminAnalytics] ⚠️ El ranking tiene más de 10 minutos, considerar actualización');
       }
       
     } catch (error) {
@@ -2154,9 +2268,9 @@ const ProgressPage: React.FC = () => {
       const isSchoolUser = effectiveUserData?.isSchoolUser || false;
       const userId = effectiveUserData ? effectiveUserData.id : auth.currentUser.uid;
       
-      console.log('[ProgressPage] === CALCULANDO HISTORIAL DE POSICIONES ===');
-      console.log('[ProgressPage] Usuario escolar:', isSchoolUser);
-      console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
+      console.log('[SuperAdminAnalytics] === CALCULANDO HISTORIAL DE POSICIONES ===');
+      console.log('[SuperAdminAnalytics] Usuario escolar:', isSchoolUser);
+      console.log('[SuperAdminAnalytics] Materia seleccionada:', selectedMateria);
       
       // Si es usuario escolar y hay datos de materia, buscar historial real
       if (isSchoolUser && selectedMateria && selectedMateria !== 'general') {
@@ -2164,7 +2278,7 @@ const ProgressPage: React.FC = () => {
         const history = await getPositionHistory(userId, selectedMateria, 8);
         
         if (history && history.length > 0) {
-          console.log('[ProgressPage] Historial real encontrado:', history);
+          console.log('[SuperAdminAnalytics] Historial real encontrado:', history);
           const historyData = history.map(h => ({
             semana: h.semana,
             posicion: h.posicion
@@ -2174,7 +2288,7 @@ const ProgressPage: React.FC = () => {
         }
         
         // Si no hay historial, generar datos basados en la posición actual
-        console.log('[ProgressPage] No hay historial real, generando datos...');
+        console.log('[SuperAdminAnalytics] No hay historial real, generando datos...');
       }
       
       // Generar datos por defecto o para usuarios no escolares
@@ -2201,7 +2315,7 @@ const ProgressPage: React.FC = () => {
                 const userPosition = rankingService.getStudentPosition(ranking, userId);
                 if (userPosition) {
                   currentPosition = userPosition;
-                  console.log('[ProgressPage] Posición actual:', currentPosition);
+                  console.log('[SuperAdminAnalytics] Posición actual:', currentPosition);
                 }
               }
             }
@@ -2225,7 +2339,7 @@ const ProgressPage: React.FC = () => {
         });
       }
       
-      console.log('[ProgressPage] Historial generado:', weeksData);
+      console.log('[SuperAdminAnalytics] Historial generado:', weeksData);
       setPositionHistoryData(weeksData);
       
     } catch (error) {
@@ -2255,10 +2369,10 @@ const ProgressPage: React.FC = () => {
   const calculateWeeklyStudyTime = async () => {
     if (!auth.currentUser || !kpisData) return;
     
-    console.log('[ProgressPage] === CALCULANDO TIEMPO DE ESTUDIO SEMANAL ===');
-    console.log('[ProgressPage] KPIs disponibles:', kpisData);
-    console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
-    console.log('[ProgressPage] Cuadernos reales:', cuadernosReales);
+    console.log('[SuperAdminAnalytics] === CALCULANDO TIEMPO DE ESTUDIO SEMANAL ===');
+    console.log('[SuperAdminAnalytics] KPIs disponibles:', kpisData);
+    console.log('[SuperAdminAnalytics] Materia seleccionada:', selectedMateria);
+    console.log('[SuperAdminAnalytics] Cuadernos reales:', cuadernosReales);
 
     try {
       const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -2295,11 +2409,11 @@ const ProgressPage: React.FC = () => {
         const currentWeekEnd = new Date(currentWeekStart);
         currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
         
-        console.log('[ProgressPage] Hoy es:', today.toISOString(), 'Día de la semana:', today.getDay());
-        console.log('[ProgressPage] Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+        console.log('[SuperAdminAnalytics] Hoy es:', today.toISOString(), 'Día de la semana:', today.getDay());
+        console.log('[SuperAdminAnalytics] Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-        console.log('[ProgressPage] Buscando sesiones desde:', currentWeekStart.toISOString());
-        console.log('[ProgressPage] Hasta:', currentWeekEnd.toISOString());
+        console.log('[SuperAdminAnalytics] Buscando sesiones desde:', currentWeekStart.toISOString());
+        console.log('[SuperAdminAnalytics] Hasta:', currentWeekEnd.toISOString());
         
         // Obtener todas las sesiones de estudio del usuario
         const studySessionsQuery = query(
@@ -2308,7 +2422,7 @@ const ProgressPage: React.FC = () => {
         );
         
         const allSessionsSnap = await getDocs(studySessionsQuery);
-        console.log('[ProgressPage] Total sesiones encontradas:', allSessionsSnap.size);
+        console.log('[SuperAdminAnalytics] Total sesiones encontradas:', allSessionsSnap.size);
         
         // Filtrar manualmente por fecha y cuaderno si es necesario
         allSessionsSnap.forEach((doc: any) => {
@@ -2360,8 +2474,8 @@ const ProgressPage: React.FC = () => {
         // Buscar tiempo de estudio por materia
         const materiaData = kpisData.materias?.[selectedMateria];
         if (materiaData?.tiempoEstudioSemanal) {
-          console.log('[ProgressPage] Tiempo de estudio semanal encontrado para materia:', selectedMateria, materiaData.tiempoEstudioSemanal);
-          console.log('[ProgressPage] Detalle del tiempo por día:', JSON.stringify(materiaData.tiempoEstudioSemanal, null, 2));
+          console.log('[SuperAdminAnalytics] Tiempo de estudio semanal encontrado para materia:', selectedMateria, materiaData.tiempoEstudioSemanal);
+          console.log('[SuperAdminAnalytics] Detalle del tiempo por día:', JSON.stringify(materiaData.tiempoEstudioSemanal, null, 2));
           
           // Usar los datos semanales de la materia específica
           Object.entries(materiaData.tiempoEstudioSemanal).forEach(([dia, tiempo]) => {
@@ -2376,18 +2490,18 @@ const ProgressPage: React.FC = () => {
           console.log(`[ProgressPage] Tiempo total en la semana para materia ${selectedMateria}: ${totalTimeInWeek} minutos`);
         } else {
           // Si no hay datos específicos de la materia, calcular desde las sesiones de los cuadernos
-          console.log('[ProgressPage] No hay tiempo semanal específico para la materia, calculando desde sesiones...');
+          console.log('[SuperAdminAnalytics] No hay tiempo semanal específico para la materia, calculando desde sesiones...');
           await calculateFromStudySessions(studyTimeByDay);
         }
       } else {
         // Vista general - usar datos globales si existen
-        console.log('[ProgressPage] Datos de KPIs completos:', kpisData);
-        console.log('[ProgressPage] tiempoEstudioSemanal existe?', !!kpisData.tiempoEstudioSemanal);
+        console.log('[SuperAdminAnalytics] Datos de KPIs completos:', kpisData);
+        console.log('[SuperAdminAnalytics] tiempoEstudioSemanal existe?', !!kpisData.tiempoEstudioSemanal);
         
         if (kpisData.tiempoEstudioSemanal) {
           const tiempoSemanal = kpisData.tiempoEstudioSemanal;
           
-          console.log('[ProgressPage] Usando tiempo de estudio global:', tiempoSemanal);
+          console.log('[SuperAdminAnalytics] Usando tiempo de estudio global:', tiempoSemanal);
           
           studyTimeByDay.set(0, tiempoSemanal.domingo || 0);
           studyTimeByDay.set(1, tiempoSemanal.lunes || 0);
@@ -2401,7 +2515,7 @@ const ProgressPage: React.FC = () => {
           const totalGlobalTime = Object.values(tiempoSemanal).reduce((sum: number, time: any) => sum + ((typeof time === 'number' ? time : 0) || 0), 0);
           console.log(`[ProgressPage] Tiempo total global en la semana: ${totalGlobalTime} minutos`);
         } else {
-          console.log('[ProgressPage] No hay datos de tiempo semanal en KPIs');
+          console.log('[SuperAdminAnalytics] No hay datos de tiempo semanal en KPIs');
           // Dejar vacío si no hay datos
         }
       }
@@ -2416,7 +2530,7 @@ const ProgressPage: React.FC = () => {
         console.log(`[ProgressPage] ${weekDays[i]}: ${timeForDay} minutos`);
       }
       
-      console.log('[ProgressPage] Tiempo de estudio por día (final):', JSON.stringify(chartData, null, 2));
+      console.log('[SuperAdminAnalytics] Tiempo de estudio por día (final):', JSON.stringify(chartData, null, 2));
       setStudyTimeData(chartData);
       
     } catch (error) {
@@ -2431,10 +2545,10 @@ const ProgressPage: React.FC = () => {
   const calculateConceptProgress = async () => {
     if (!effectiveUserId || !kpisData) return;
     
-    console.log('[ProgressPage] === CALCULANDO PROGRESO DE CONCEPTOS ===');
-    console.log('[ProgressPage] KPIs disponibles:', kpisData);
-    console.log('[ProgressPage] Materia seleccionada:', selectedMateria);
-    console.log('[ProgressPage] Cuadernos reales:', cuadernosReales);
+    console.log('[SuperAdminAnalytics] === CALCULANDO PROGRESO DE CONCEPTOS ===');
+    console.log('[SuperAdminAnalytics] KPIs disponibles:', kpisData);
+    console.log('[SuperAdminAnalytics] Materia seleccionada:', selectedMateria);
+    console.log('[SuperAdminAnalytics] Cuadernos reales:', cuadernosReales);
 
     try {
       const progressData: ConceptProgressData[] = [];
@@ -2442,7 +2556,7 @@ const ProgressPage: React.FC = () => {
       // Si hay una materia seleccionada, usar los datos de esa materia
       if (selectedMateria && kpisData.materias && kpisData.materias[selectedMateria]) {
         const materiaData = kpisData.materias[selectedMateria];
-        console.log('[ProgressPage] Datos de materia:', materiaData);
+        console.log('[SuperAdminAnalytics] Datos de materia:', materiaData);
         
         // Obtener el historial de conceptos de los últimos 30 días
         const endDate = new Date();
@@ -2478,7 +2592,7 @@ const ProgressPage: React.FC = () => {
       } else if (kpisData.global) {
         // Usar datos globales si no hay materia seleccionada
         const globalData = kpisData.global;
-        console.log('[ProgressPage] Usando datos globales:', globalData);
+        console.log('[SuperAdminAnalytics] Usando datos globales:', globalData);
         
         // Calcular totales sumando todas las materias
         let totalDominados = 0;
@@ -2521,7 +2635,7 @@ const ProgressPage: React.FC = () => {
         }
       }
       
-      console.log('[ProgressPage] Progreso de conceptos calculado:', progressData);
+      console.log('[SuperAdminAnalytics] Progreso de conceptos calculado:', progressData);
       setConceptProgressData(progressData);
       
     } catch (error) {
@@ -2569,7 +2683,7 @@ const ProgressPage: React.FC = () => {
         const conceptsWithMinReps = await kpiService.getConceptsWithMinRepetitions(userId, 2);
         setConceptsLearned(conceptsWithMinReps);
         
-        console.log('[ProgressPage] Concepts with min repetitions:', conceptsWithMinReps);
+        console.log('[SuperAdminAnalytics] Concepts with min repetitions:', conceptsWithMinReps);
       } catch (error) {
         console.error('[ProgressPage] Error loading concepts learned:', error);
       }
@@ -2742,7 +2856,7 @@ const ProgressPage: React.FC = () => {
   if (loading && !kpisData) {
     return (
       <div className="progress-container">
-        <HeaderWithHamburger title="Progreso" />
+        <HeaderWithHamburger title="Analítica de Super Admin" />
         <div className="loading-container">
           <div className="loading-spinner"></div>
           <p>Cargando...</p>
@@ -2753,7 +2867,7 @@ const ProgressPage: React.FC = () => {
 
   return (
     <>
-      <HeaderWithHamburger title="Mi Progreso" />
+      <HeaderWithHamburger title="Analítica de Super Admin" />
       
       {/* Contenido de la página de progreso */}
         <div>
@@ -2834,7 +2948,7 @@ const ProgressPage: React.FC = () => {
                     <tbody>
                       {cuadernosReales.length > 0 ? (
                         cuadernosReales.map((cuaderno) => {
-                          console.log('[ProgressPage] Renderizando cuaderno en tabla:', cuaderno);
+                          console.log('[SuperAdminAnalytics] Renderizando cuaderno en tabla:', cuaderno);
                           return (
                             <tr key={cuaderno.id}>
                               <td className="notebook-name">{cuaderno.nombre}</td>
@@ -2934,6 +3048,45 @@ const ProgressPage: React.FC = () => {
                   </div>
                 </div>
                 
+                {/* Selector de Profesor (solo para super admin) */}
+                {isSuperAdmin && (
+                  <div className="materia-dropdown-container" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>Profesor:</span>
+                    <button 
+                      className="materia-dropdown-btn"
+                      onClick={() => setShowTeacherDropdown(!showTeacherDropdown)}
+                      type="button"
+                    >
+                      <span>{selectedTeacher?.nombre || 'Seleccionar profesor'}</span>
+                      <FontAwesomeIcon icon={faChevronDown} className={`dropdown-icon ${showTeacherDropdown ? 'open' : ''}`} />
+                    </button>
+                
+                    {showTeacherDropdown && (
+                      <div className="materia-dropdown">
+                        {teachers.length === 0 ? (
+                          <div className="materia-option">No hay profesores disponibles</div>
+                        ) : (
+                          teachers.map(teacher => (
+                            <div 
+                              key={teacher.id}
+                              className={`materia-option ${selectedTeacher?.id === teacher.id ? 'selected' : ''}`}
+                              onClick={() => {
+                                console.log('[SuperAdminAnalytics] Profesor seleccionado:', teacher);
+                                setSelectedTeacher(teacher);
+                                setShowTeacherDropdown(false);
+                                // Reset materia selection when teacher changes
+                                setSelectedMateria('');
+                              }}
+                            >
+                              {teacher.nombre}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Selector de Materia */}
                 <div className="materia-dropdown-container" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>Materia:</span>
@@ -2956,7 +3109,7 @@ const ProgressPage: React.FC = () => {
                             key={materia.id}
                             className={`materia-option ${selectedMateria === materia.id ? 'selected' : ''}`}
                             onClick={() => {
-                              console.log('[ProgressPage] Materia seleccionada:', materia);
+                              console.log('[SuperAdminAnalytics] Materia seleccionada:', materia);
                               setSelectedMateria(materia.id);
                               setShowMateriaDropdown(false);
                             }}
@@ -3171,4 +3324,4 @@ const ProgressPage: React.FC = () => {
   );
 };
 
-export default ProgressPage;
+export default SuperAdminAnalyticsPage;

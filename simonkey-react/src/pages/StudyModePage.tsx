@@ -965,10 +965,10 @@ const StudyModePage = () => {
         ))
       ]);
       
-      // Actualizar valores secundarios
-      const maxQuizScoreValue = quizStatsDoc.exists() ? 
-        (quizStatsDoc.data().maxScore || 0) : 0;
-      setMaxQuizScore(maxQuizScoreValue);
+      // Actualizar valores secundarios (usar totalScore si existe, sino maxScore por compatibilidad)
+      const quizScoreValue = quizStatsDoc.exists() ? 
+        (quizStatsDoc.data().totalScore !== undefined ? quizStatsDoc.data().totalScore : (quizStatsDoc.data().maxScore || 0)) : 0;
+      setMaxQuizScore(quizScoreValue);
       
       const gamePointsValue = notebookPoints.totalPoints || 0;
       setGamePoints(gamePointsValue);
@@ -1045,8 +1045,8 @@ const StudyModePage = () => {
       console.log(`[StudyModePage] DEBUG: Total voice recognition earned: ${voiceRecognitionSessionsEarned}`);
       setVoiceRecognitionCount(voiceRecognitionSessionsEarned);
       
-      // Calculate accumulated study sessions from free study (0.1 per valid session)
-      const freeStudySessionsEarned = freeStudyCount * 0.1;
+      // Calculate accumulated study sessions from free study (0.05 per session = 50 puntos finales)
+      const freeStudySessionsEarned = freeStudyCount * 0.05;
       setFreeStudySessionsEarned(freeStudySessionsEarned);
       
       // Calculate final score with new formula:
@@ -1057,7 +1057,7 @@ const StudyModePage = () => {
       const totalStudyPoints = (smartStudyPoints * 1000) + (voiceRecognitionSessionsEarned * 1000) + (freeStudySessionsEarned * 1000);
       
       // Total puntos multiplicadores (quiz + juegos + bonus racha)
-      const totalMultiplierPoints = maxQuizScoreValue + gamePointsValue + streakBonus;
+      const totalMultiplierPoints = quizScoreValue + gamePointsValue + streakBonus;
       
       // Score final - NUEVA FÓRMULA: SUMA SIMPLE
       const totalScore = totalStudyPoints + totalMultiplierPoints;
@@ -1068,7 +1068,7 @@ const StudyModePage = () => {
       console.log('🔍 [StudyModePage] totalMultiplierPoints:', totalMultiplierPoints, 'vs KPI Service: 1212');
       console.log('🔍 [StudyModePage] totalScore:', totalScore, 'vs KPI Service scoreCuaderno: 6012');
       console.log('🔍 [StudyModePage] smartStudyPoints:', smartStudyPoints, 'vs KPI Service: 4.5');
-      console.log('🔍 [StudyModePage] maxQuizScoreValue:', maxQuizScoreValue, 'vs KPI Service maxQuizScore: 280');
+      console.log('🔍 [StudyModePage] quizScoreValue:', quizScoreValue, 'vs KPI Service maxQuizScore: 280');
       console.log('🔍 [StudyModePage] gamePointsValue:', gamePointsValue, 'vs KPI Service gamePoints: 732');
       console.log('🔍 [StudyModePage] streakBonus:', streakBonus, 'vs KPI Service streakBonus: 200');
       
@@ -1078,7 +1078,7 @@ const StudyModePage = () => {
       console.log('🎤 Voice Recognition Sessions:', voiceRecognitionSessionsEarned, '×1000 =', voiceRecognitionSessionsEarned * 1000);
       console.log('🆓 Free Study Sessions:', freeStudySessionsEarned, '×1000 =', freeStudySessionsEarned * 1000);
       console.log('📊 Total Study Points:', totalStudyPoints);
-      console.log('🏆 Max Quiz Score:', maxQuizScoreValue);
+      console.log('🏆 Quiz Score Total:', quizScoreValue);
       console.log('🎮 Game Points Value:', gamePointsValue);
       console.log('🔥 Streak Bonus:', streakBonus);
       console.log('📊 Total Multiplier Points:', totalMultiplierPoints);
@@ -1098,7 +1098,7 @@ const StudyModePage = () => {
         voiceRecognitionPoints: voiceRecognitionSessionsEarned * 1000,
         freeStudyPoints: freeStudySessionsEarned * 1000,
         totalMultiplierPoints,
-        maxQuizScore: maxQuizScoreValue,
+        maxQuizScore: quizScoreValue,
         gamePoints: gamePointsValue,
         streakBonus,
         finalScore: totalScore
@@ -1933,7 +1933,7 @@ const StudyModePage = () => {
               onClick={() => handleStudyMode('quiz')}
             >
               {selectedNotebook && maxQuizScore > 0 && (
-                <div className="quiz-score-badge">Max: {maxQuizScore}</div>
+                <div className="quiz-score-badge">Total: {maxQuizScore}</div>
               )}
               <div className="function-info-icon" data-tooltip="Evalúa tu conocimiento con preguntas">
                 <i className="fas fa-info-circle"></i>

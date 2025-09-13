@@ -98,8 +98,9 @@ const calculateNotebookPointsWithoutStreak = async (notebookId: string, userId: 
       return sum + (session.score || 0);
     }, 0);
 
-    // Get quiz points
-    const quizPoints = quizStatsDoc.exists() ? (quizStatsDoc.data().maxScore || 0) : 0;
+    // Get quiz points (usar totalScore si existe, sino maxScore por compatibilidad)
+    const quizPoints = quizStatsDoc.exists() ? 
+      (quizStatsDoc.data().totalScore !== undefined ? quizStatsDoc.data().totalScore : (quizStatsDoc.data().maxScore || 0)) : 0;
 
     // Get game points
     const gamePointsValue = notebookPoints.totalPoints || 0;

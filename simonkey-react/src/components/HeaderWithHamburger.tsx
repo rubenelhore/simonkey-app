@@ -846,6 +846,16 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
               <span>Súper Admin</span>
             </button>
           )}
+          {isSuperAdmin && (
+            <button 
+              className={`sidebar-icon-btn ${location.pathname === '/superAdminAnalytics' ? 'active' : ''}`} 
+              onClick={() => { setMobileSidebarOpen(false); navigate('/superAdminAnalytics'); }}
+              title="Analítica de Super Admin"
+            >
+              <FontAwesomeIcon icon={faBrain} />
+              <span>Analítica de Super Admin</span>
+            </button>
+          )}
         </div>
         
         {/* Botón de Modo Profesor */}
