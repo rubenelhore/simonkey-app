@@ -400,8 +400,13 @@ const SuperAdminAnalyticsPage: React.FC = () => {
         nombre: doc.data().displayName || doc.data().email || 'Profesor sin nombre'
       }));
       
-      console.log('[SuperAdminAnalytics] Profesores encontrados:', teachersList.length);
-      setTeachers(teachersList);
+      // Ordenar profesores alfabéticamente por nombre
+      const sortedTeachers = teachersList.sort((a, b) => 
+        a.nombre.toLowerCase().localeCompare(b.nombre.toLowerCase())
+      );
+      
+      console.log('[SuperAdminAnalytics] Profesores encontrados:', sortedTeachers.length);
+      setTeachers(sortedTeachers);
     } catch (error) {
       console.error('[SuperAdminAnalytics] Error cargando profesores:', error);
     }
