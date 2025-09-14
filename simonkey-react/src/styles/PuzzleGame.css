@@ -1098,25 +1098,131 @@
     padding: 1.5rem;
     margin: 1rem;
   }
-  
+
   .intro-icon {
     font-size: 2.5rem;
   }
-  
+
   .intro-header h2 {
     font-size: 1.5rem;
   }
-  
+
   .scoring-info {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }
-  
+
   .intro-actions {
     flex-direction: column;
   }
-  
+
   .action-button {
     width: 100%;
+  }
+
+  /* Game completed modal responsive */
+  .game-completed-modal .modal-content {
+    width: 90% !important;
+    max-width: 400px !important;
+    padding: 16px;
+    margin: 1rem;
+  }
+
+  .game-completed-modal .trophy-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+  }
+
+  .game-completed-modal h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 6px;
+    margin-top: 0.5rem !important;
+  }
+
+  .game-completed-modal > .modal-content > p {
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
+
+  .game-completed-modal .final-stats {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .game-completed-modal .final-stat {
+    padding: 12px;
+  }
+
+  .final-stat .value {
+    font-size: 1.25rem;
+  }
+
+  .final-stat.highlight .value {
+    font-size: 1.5rem;
+  }
+
+  .game-complete-buttons {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .back-to-games-btn,
+  .play-again-btn {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-completed-modal .modal-content {
+    width: 95% !important;
+    max-width: 350px !important;
+    padding: 12px;
+    margin: 0.5rem;
+  }
+
+  .game-completed-modal .trophy-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+  }
+
+  .game-completed-modal h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 4px;
+    margin-top: 0.25rem !important;
+  }
+
+  .game-completed-modal > .modal-content > p {
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+
+  .game-completed-modal .final-stats {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .game-completed-modal .final-stat {
+    padding: 10px;
+  }
+
+  .final-stat .label {
+    font-size: 0.8rem;
+  }
+
+  .final-stat .value {
+    font-size: 1.1rem;
+  }
+
+  .final-stat.highlight .value {
+    font-size: 1.3rem;
+  }
+
+  .back-to-games-btn,
+  .play-again-btn {
+    padding: 10px 12px;
+    font-size: 0.85rem;
   }
 }
