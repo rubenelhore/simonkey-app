@@ -1,0 +1,127 @@
+.study-mode-toggle-container {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0.75rem 0 0.75rem;
+  margin: 3rem auto 0 auto;
+  max-width: fit-content;
+  padding-top: 2rem;
+}
+
+.study-mode-toggle {
+  display: flex !important;
+  position: relative;
+  background: white !important;
+  border-radius: 30px !important;
+  padding: 4px !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+}
+
+.toggle-option {
+  position: relative !important;
+  z-index: 2;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 18px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #9ca3af !important;
+  cursor: pointer !important;
+  border-radius: 26px !important;
+  transition: all 0.3s ease !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  min-width: 110px !important;
+  justify-content: center !important;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+}
+
+.toggle-option.active {
+  color: #6147FF !important;
+  font-weight: 600 !important;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+}
+
+.toggle-option:hover:not(.active) {
+  color: #6b7280;
+}
+
+.toggle-icon {
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-option .toggle-icon {
+  color: #9ca3af;
+  transition: color 0.3s ease;
+}
+
+.toggle-option.active .toggle-icon {
+  color: #6147FF;
+}
+
+.toggle-option:hover:not(.active) .toggle-icon {
+  color: #6b7280;
+}
+
+.toggle-label {
+  letter-spacing: 0.01em;
+}
+
+.toggle-slider {
+  position: absolute !important;
+  top: 4px !important;
+  left: 4px !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: calc(50% - 4px) !important;
+  height: calc(100% - 8px) !important;
+  background: rgba(97, 71, 255, 0.1) !important;
+  background-color: rgba(97, 71, 255, 0.1) !important;
+  border-radius: 26px !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 3px rgba(97, 71, 255, 0.15) !important;
+  border: 1px solid rgba(97, 71, 255, 0.1) !important;
+  cursor: auto !important;
+}
+
+.toggle-slider[data-position="path"] {
+  transform: translateX(calc(100% + 4px)) !important;
+}
+
+@media (max-width: 768px) {
+  .study-mode-toggle-container {
+    padding: 0.5rem 0.5rem 0 0.5rem;
+    margin: 4rem auto 0 auto;
+    padding-top: 1.5rem;
+  }
+
+  .toggle-option {
+    padding: 7px 14px;
+    min-width: 95px;
+    font-size: 0.85rem;
+  }
+
+  .toggle-icon {
+    font-size: 0.95rem;
+  }
+
+  .study-mode-toggle {
+    padding: 3px;
+  }
+
+  .toggle-slider {
+    top: 3px;
+    left: 3px;
+    width: calc(50% - 5px);
+    height: calc(100% - 6px);
+  }
+
+  .toggle-slider[data-position="path"] {
+    transform: translateX(calc(100% + 3px));
+  }
+}

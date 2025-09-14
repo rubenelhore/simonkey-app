@@ -1213,6 +1213,7 @@ const QuizBattle: React.FC<QuizBattleProps> = ({ notebookId, notebookTitle, onBa
             
             {/* Action Button */}
             <button className="victory-back-button" onClick={handleExit}>
+              <i className="fas fa-arrow-left"></i>
               Volver a Estudio
             </button>
           </div>

@@ -1,0 +1,456 @@
+.study-path-container {
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  margin: 1rem auto 3rem auto;
+  max-width: 1200px;
+  min-height: 1000px;
+  padding-bottom: 3rem;
+}
+
+.path-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.path-header h2 {
+  font-size: 2rem;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.path-header p {
+  color: #718096;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.progress-indicator {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.progress-text {
+  display: block;
+  color: #4a5568;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50px;
+  transition: width 0.5s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);
+}
+
+.study-path {
+  position: relative;
+  height: 850px;
+  margin: 2rem 0;
+  overflow: hidden;
+  padding-bottom: 200px;
+}
+
+.path-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.path-line {
+  opacity: 0.3;
+}
+
+.path-progress {
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.path-modules {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.path-module {
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.path-module:hover {
+  transform: scale(1.1);
+}
+
+.path-module.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.path-module.locked:hover {
+  transform: scale(1);
+}
+
+.module-node {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.path-module.completed .module-node {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.path-module.available .module-node {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: pulse 2s infinite;
+}
+
+.path-module.locked .module-node {
+  background: #e2e8f0;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  }
+}
+
+.checkmark {
+  font-size: 1.5rem;
+  color: white;
+  animation: checkmarkPop 0.3s ease;
+}
+
+@keyframes checkmarkPop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.lock {
+  font-size: 1.2rem;
+}
+
+.sparkle {
+  font-size: 1.5rem;
+  animation: sparkle 1s ease infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
+}
+
+.module-content {
+  text-align: center;
+  min-width: 100px;
+}
+
+.module-icon {
+  margin-bottom: 0.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.module-name {
+  font-size: 0.85rem;
+  color: #4a5568;
+  font-weight: 600;
+  white-space: nowrap;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.banana-goal {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 3rem;
+  animation: float 3s ease-in-out infinite;
+  transition: all 0.5s ease;
+}
+
+.banana-goal.completed {
+  animation: bananaVictory 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px #FFD700);
+}
+
+@keyframes bananaVictory {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: drop-shadow(0 0 10px #FFD700);
+  }
+  25% {
+    transform: translateX(-50%) translateY(-15px) scale(1.2);
+    filter: drop-shadow(0 0 20px #FFD700) drop-shadow(0 0 30px #FF9500);
+  }
+  50% {
+    transform: translateX(-50%) translateY(0) scale(1.1);
+    filter: drop-shadow(0 0 15px #FFD700) drop-shadow(0 0 25px #FF9500);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-10px) scale(1.15);
+    filter: drop-shadow(0 0 18px #FFD700) drop-shadow(0 0 28px #FF9500);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-10px);
+  }
+}
+
+.simon-monkey {
+  position: absolute;
+  z-index: 3;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.simon-sprite {
+  font-size: 3rem;
+  animation: bounce 2s ease-in-out infinite;
+  transition: all 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.simon-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.simon-monkey.completed .simon-sprite {
+  animation: simonVictory 1.5s ease-in-out infinite;
+}
+
+.simon-monkey.completed .simon-logo {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2)) drop-shadow(0 0 15px #FFD700) drop-shadow(0 0 25px #FF9500);
+}
+
+@keyframes simonVictory {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(-8px) scale(1.1) rotate(-10deg);
+  }
+  50% {
+    transform: translateY(-15px) scale(1.2) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-8px) scale(1.1) rotate(10deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-5px);
+  }
+  75% {
+    transform: translateY(5px);
+  }
+}
+
+.simon-shadow {
+  width: 40px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  margin: -5px auto 0;
+  animation: shadowPulse 2s ease-in-out infinite;
+}
+
+@keyframes shadowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(0.8);
+    opacity: 0.2;
+  }
+}
+
+.motivational-message {
+  text-align: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 15px;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.motivational-message p {
+  color: #4a5568;
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.victory-message {
+  animation: victoryPulse 2s ease-in-out infinite;
+}
+
+.victory-message p {
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+
+.victory-message p:first-child {
+  color: #6147FF;
+  font-size: 1.3rem;
+}
+
+.victory-message p:last-child {
+  color: #f59e0b;
+  font-size: 1.1rem;
+}
+
+@keyframes victoryPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.reset-path-button {
+  background: linear-gradient(135deg, #6147FF 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(97, 71, 255, 0.3);
+}
+
+.reset-path-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(97, 71, 255, 0.4);
+}
+
+.reset-path-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(97, 71, 255, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .study-path-container {
+    padding: 1rem;
+    margin: 1rem auto 2rem auto;
+    min-height: 900px;
+    padding-bottom: 2rem;
+  }
+
+  .path-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .study-path {
+    height: 700px;
+    padding-bottom: 100px;
+  }
+
+  .motivational-message {
+    margin-top: 2rem;
+    padding: 1rem;
+  }
+
+  .module-node {
+    width: 50px;
+    height: 50px;
+  }
+
+  .module-icon {
+    font-size: 1.5rem;
+  }
+
+  .module-name {
+    font-size: 0.75rem;
+  }
+
+  .simon-sprite {
+    font-size: 2rem;
+  }
+
+  .banana-goal {
+    font-size: 2rem;
+  }
+}
+
+/* Animación de entrada */
+.study-path-container {
+  animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

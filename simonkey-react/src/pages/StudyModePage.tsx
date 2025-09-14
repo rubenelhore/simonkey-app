@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import HeaderWithHamburger from '../components/HeaderWithHamburger';
+import StudyModeToggle from '../components/StudyModeToggle';
+import StudyPath from '../components/StudyPath';
 import { Notebook } from '../types/interfaces';
 import '../styles/StudyModePage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -154,6 +156,11 @@ const StudyModePage = () => {
   });
   const [materiaRanking, setMateriaRanking] = useState<{ position: number; total: number } | null>(null);
   const [materiaRankingLoading, setMateriaRankingLoading] = useState<boolean>(false);
+  const [studyViewMode, setStudyViewMode] = useState<'games' | 'path'>(() => {
+    // Restaurar el modo de vista desde localStorage
+    const savedMode = localStorage.getItem('studyViewMode');
+    return (savedMode as 'games' | 'path') || 'games';
+  });
 
   // Load persisted selection on component mount ONLY if explicitly requested
   useEffect(() => {
@@ -165,6 +172,8 @@ const StudyModePage = () => {
         setSelectedMateria(persistedSelection.materia);
         setSelectedNotebook(persistedSelection.notebook);
       }
+      
+      // El sistema de puntos ahora maneja automáticamente el progreso en la ruta
     } else {
       // Clear persisted selection when coming from navigation menu
       console.log('Limpiando selección al venir desde menú de navegación');
@@ -1359,7 +1368,7 @@ const StudyModePage = () => {
   };
 
   // Handle study mode selection
-  const handleStudyMode = (mode: string) => {
+  const handleStudyMode = (mode: string, fromPath: boolean = false) => {
     if (!selectedNotebook) {
       setShowNotebookError(true);
       // Scroll to selector to make error visible
@@ -1422,7 +1431,8 @@ const StudyModePage = () => {
           state: { 
             mode: 'free',
             notebookId: selectedNotebook.id,
-            notebookTitle: selectedNotebook.title
+            notebookTitle: selectedNotebook.title,
+            skipNotebookSelection: fromPath
           }
         });
         break;
@@ -1522,6 +1532,16 @@ const StudyModePage = () => {
     <div className="study-mode-container">
       <HeaderWithHamburger title="Espacio de estudio" subtitle="" />
       
+      
+      {/* Study Mode Toggle */}
+      <StudyModeToggle 
+        mode={studyViewMode} 
+        onModeChange={(newMode) => {
+          setStudyViewMode(newMode);
+          // Guardar el modo seleccionado en localStorage
+          localStorage.setItem('studyViewMode', newMode);
+        }} 
+      />
       
       <main className="study-mode-main">
 
@@ -1733,7 +1753,8 @@ const StudyModePage = () => {
           </div>
         </div>
 
-          {/* Daily Metrics */}
+          {/* Daily Metrics - Solo mostrar en modo Juegos */}
+          {studyViewMode === 'games' && (
           <div 
             className="daily-metrics"
             style={{
@@ -1745,7 +1766,8 @@ const StudyModePage = () => {
               maxWidth: '1000px',
               justifyContent: 'center',
               flexWrap: 'nowrap',
-              margin: '1.5rem auto 0 auto',
+              margin: '0 auto',
+              marginTop: '0',
               width: 'auto',
               boxSizing: 'content-box',
               flexShrink: '0'
@@ -1824,8 +1846,10 @@ const StudyModePage = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Study Functions */}
+          {/* Study Functions - Solo mostrar en modo Juegos */}
+          {studyViewMode === 'games' && (
           <div className="study-functions">
           <div 
               className={`study-function-card ${!selectedNotebook || studyAvailability.totalConcepts === 0 ? 'disabled' : ''}`}
@@ -2076,6 +2100,98 @@ const StudyModePage = () => {
               )}
             </div>
           </div>
+          )}
+
+          {/* Study Path - Solo mostrar en modo Ruta */}
+          {studyViewMode === 'path' && (
+            <>
+              {selectedNotebook ? (
+                <StudyPath 
+                  notebook={selectedNotebook}
+                  onResetPath={() => {
+                    // Mostrar confirmación antes de reiniciar
+                    if (window.confirm('¿Estás seguro de que quieres reiniciar tu ruta de aprendizaje? Esto marcará todos los módulos como no completados.\n\nNO PERDERÁS NINGÚN PUNTO.')) {
+                      // Limpiar el progreso de la ruta específica de este cuaderno
+                      localStorage.removeItem(`studyPath_${selectedNotebook.id}`);
+                      // Recargar la página para reiniciar el estado
+                      window.location.reload();
+                    }
+                  }}
+                  onModuleClick={(moduleType) => {
+                    // Manejar el click en cada módulo según su tipo
+                    switch(moduleType) {
+                      case 'free':
+                        handleStudyMode('free', true);
+                        break;
+                      case 'fillblank':
+                        setShowFillBlankIntro(true);
+                        break;
+                      case 'puzzle':
+                        navigate('/games', {
+                          state: {
+                            notebookId: selectedNotebook?.id,
+                            notebookTitle: selectedNotebook?.title,
+                            selectedGame: 'puzzle'
+                          }
+                        });
+                        break;
+                      case 'smart':
+                        handleStudyMode('smart');
+                        break;
+                      case 'memory':
+                        navigate('/games', {
+                          state: {
+                            notebookId: selectedNotebook?.id,
+                            notebookTitle: selectedNotebook?.title,
+                            selectedGame: 'memory'
+                          }
+                        });
+                        break;
+                      case 'battle':
+                        navigate('/games', {
+                          state: {
+                            notebookId: selectedNotebook?.id,
+                            notebookTitle: selectedNotebook?.title,
+                            selectedGame: 'quiz'
+                          }
+                        });
+                        break;
+                      case 'voice':
+                        navigate('/voice-recognition', { state: { selectedNotebook, skipNotebookSelection: true } });
+                        break;
+                      case 'quiz':
+                        navigate('/quiz', { 
+                          state: { 
+                            notebookId: selectedNotebook.id,
+                            notebookTitle: selectedNotebook.title,
+                            skipNotebookSelection: true 
+                          } 
+                        });
+                        break;
+                    }
+                  }}
+                  studyProgress={{
+                    freeStudy: freeStudyCount > 0,
+                    fillBlank: fillInTheBlankPoints > 0,
+                    puzzle: puzzleGamePoints > 0,
+                    smart: smartStudyCount > 0,
+                    memory: memoryGamePoints > 0,
+                    battle: quizBattlePoints > 0,
+                    voice: voiceRecognitionCount > 0,
+                    quiz: maxQuizScore > 0
+                  }}
+                />
+              ) : (
+                <div className="path-no-notebook">
+                  <div className="path-no-notebook-content">
+                    <div className="path-no-notebook-icon">🗂️</div>
+                    <h3>Selecciona un cuaderno</h3>
+                    <p>Para ver tu ruta de aprendizaje, primero selecciona una materia y cuaderno arriba</p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {/* AI-Powered Study Section - HIDDEN
           <div className="ai-study-section">

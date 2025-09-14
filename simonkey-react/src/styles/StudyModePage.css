@@ -906,8 +906,8 @@ body:has(.study-mode-container) {
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 2rem;
-  margin-top: 2rem;
+  padding: 0 2rem 1rem 2rem;
+  margin-top: 0;
   margin-bottom: 0;
   border: none;
   box-shadow: none;
@@ -2356,8 +2356,9 @@ body:has(.study-mode-container) {
   
   /* Ensure dropdown header comes after medal module */
   .study-module-header {
-    margin-top: 0;
+    margin-top: 0 !important;
     margin-bottom: 0;
+    padding-top: 0 !important;
     position: relative;
     order: 2; /* Appears second */
   }
@@ -3329,6 +3330,41 @@ body:has(.study-mode-container) {
   }
 }
 
+/* Path No Notebook Styles */
+.path-no-notebook {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 1rem;
+  min-height: 300px;
+}
+
+.path-no-notebook-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.path-no-notebook-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.path-no-notebook h3 {
+  font-size: 1.5rem;
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+}
+
+.path-no-notebook p {
+  color: #718096;
+  font-size: 1rem;
+  line-height: 1.6;
+  font-family: 'Poppins', sans-serif;
+}
+
 /* Ranking Module Styles */
 .ranking-empty-state {
   text-align: center;
@@ -3990,8 +4026,8 @@ html body .header-with-hamburger-container ~ * .study-mode-container .daily-metr
   max-width: 1000px !important;
   justify-content: center !important;
   flex-wrap: nowrap !important;
-  margin: 1.5rem auto 0 auto !important;
-  margin-top: 1.5rem !important;
+  margin: 0 auto !important;
+  margin-top: 0 !important;
   width: auto !important;
   box-sizing: content-box !important;
   flex-shrink: 0 !important;
@@ -4042,8 +4078,8 @@ html body .header-with-hamburger-container ~ * .study-mode-container .daily-metr
     max-width: 1000px !important;
     justify-content: center !important;
     flex-wrap: nowrap !important;
-    margin: 1.5rem auto 0 auto !important;
-    margin-top: 1.5rem !important;
+    margin: 0 auto !important;
+    margin-top: 0 !important;
     width: auto !important;
     box-sizing: content-box !important;
     flex-shrink: 0 !important;

@@ -850,6 +850,19 @@ const QuizModePage: React.FC = () => {
         notebookId: completedSession.notebookId
       });
       
+      // ✨ MARCAR COMO COMPLETADO EN LA RUTA DE APRENDIZAJE
+      // Si se llegó desde la ruta de aprendizaje y se completó exitosamente, marcar progreso
+      if (location.state?.skipNotebookSelection && finalScoreResult.finalScore > 0) {
+        try {
+          if (typeof (window as any).completeStudyPathModule === 'function') {
+            (window as any).completeStudyPathModule('quiz');
+            console.log('🎯 Módulo Quiz marcado como completado en la ruta de aprendizaje');
+          }
+        } catch (error) {
+          console.error('Error marking quiz as completed in study path:', error);
+        }
+      }
+      
     } catch (error) {
       console.error('Error completing quiz session:', error);
     }

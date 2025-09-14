@@ -112,7 +112,13 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   }, [reviewMode, isLocked, canEvaluate, lockTimer]);
   
   const handleCardTap = (e: React.MouseEvent) => {
-    setFlipped(!flipped);
+    const newFlippedState = !flipped;
+    setFlipped(newFlippedState);
+    
+    // Si voltea la tarjeta para ver la definición, permitir evaluación
+    if (newFlippedState) {
+      setCanEvaluate(true);
+    }
   };
   
   // Disabled swipe functionality - only tap to flip
@@ -129,15 +135,10 @@ const SwipeableStudyCard: React.FC<SwipeableStudyCardProps> = ({
   };
   
   const renderEvaluationButtons = () => {
-    // Show buttons for both smart study (reviewMode) and free study modes
-    // For smart study: only when canEvaluate is true (after lock)
-    // For free study: always show buttons
-    if (reviewMode && !canEvaluate) return null;
-    
-    // For free study mode, we don't need the lock mechanism
-    const shouldShowButtons = reviewMode ? canEvaluate : true;
-    
-    if (!shouldShowButtons) return null;
+    // Los botones solo aparecen después de ver la definición (voltear la tarjeta)
+    // Para modo inteligente: además debe pasar el candado (canEvaluate)
+    // Para estudio libre: solo necesita haber volteado la tarjeta (canEvaluate se activa al voltear)
+    if (!canEvaluate) return null;
     
     return (
       <div className="evaluation-buttons">

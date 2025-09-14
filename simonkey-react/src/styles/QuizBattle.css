@@ -1799,24 +1799,33 @@
 
 .victory-back-button {
   position: relative;
-  background: transparent;
-  border: 3px solid #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 3px solid #ffd700;
+  border-radius: 16px;
   color: #ffffff;
-  padding: 0;
+  padding: 16px 32px;
   margin: 25px auto 0;
-  width: 200px;
-  height: 60px;
+  min-width: 220px;
+  height: 64px;
   cursor: pointer;
-  font-family: 'Arial', sans-serif;
-  font-size: 18px;
-  font-weight: bold;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  box-shadow:
+    0 8px 32px rgba(102, 126, 234, 0.4),
+    0 4px 16px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  transform: perspective(1px) translateZ(0);
+  backface-visibility: hidden;
 }
 
 .victory-back-button::before {
@@ -1826,18 +1835,83 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: #ffffff;
-  transition: left 0.3s ease;
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   z-index: -1;
+  border-radius: 13px;
 }
 
 .victory-back-button:hover {
-  color: #1f2937;
-  border-color: #ffffff;
+  color: #ffffff;
+  border-color: #ffd700;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 12px 48px rgba(102, 126, 234, 0.6),
+    0 8px 24px rgba(255, 215, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .victory-back-button:hover::before {
   left: 0;
+}
+
+.victory-back-button:active {
+  transform: translateY(-1px) scale(0.98);
+  transition: all 0.1s ease;
+  box-shadow:
+    0 4px 16px rgba(102, 126, 234, 0.4),
+    0 2px 8px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.victory-back-button:focus {
+  outline: none;
+  box-shadow:
+    0 8px 32px rgba(102, 126, 234, 0.4),
+    0 4px 16px rgba(255, 215, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 3px rgba(255, 215, 0, 0.5);
+}
+
+.victory-back-button i {
+  font-size: 16px;
+  margin-right: 4px;
+  transition: transform 0.3s ease;
+}
+
+.victory-back-button:hover i {
+  transform: translateX(-2px);
+}
+
+/* Responsive styles for victory-back-button */
+@media (max-width: 768px) {
+  .victory-back-button {
+    min-width: 200px;
+    height: 56px;
+    padding: 14px 24px;
+    font-size: 15px;
+    letter-spacing: 1.2px;
+    margin: 20px auto 0;
+  }
+
+  .victory-back-button i {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .victory-back-button {
+    min-width: 180px;
+    height: 52px;
+    padding: 12px 20px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin: 16px auto 0;
+  }
+
+  .victory-back-button i {
+    font-size: 13px;
+  }
 }
 
 /* Responsive */

@@ -638,6 +638,13 @@ const StudySessionPage = () => {
         
         setSessionComplete(true);
         setSessionActive(false);
+        
+        // ✨ PROGRESO EN RUTA DE APRENDIZAJE
+        // El sistema de puntos se encargará automáticamente de detectar el progreso
+        // cuando el usuario regrese a la ruta de aprendizaje
+        if (location.state?.skipNotebookSelection && sessionValid && studyMode === StudyMode.FREE) {
+          console.log('✅ Sesión completada desde ruta de aprendizaje - el aumento de puntos será detectado automáticamente');
+        }
       }
       
     } catch (error) {
