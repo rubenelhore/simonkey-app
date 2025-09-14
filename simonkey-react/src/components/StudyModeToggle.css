@@ -99,8 +99,11 @@
     margin: 4rem auto 0 auto;
     padding-top: 1.5rem;
     width: 100%;
+    max-width: none;
     display: flex;
     justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 
   .toggle-option {
@@ -135,8 +138,11 @@
     margin: 3rem auto 0 auto;
     padding-top: 1rem;
     width: 100%;
+    max-width: none;
     display: flex;
     justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 
   .toggle-option {

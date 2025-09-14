@@ -1878,9 +1878,9 @@ body:has(.study-mode-container) {
 
 /* Domain Progress Module */
 .domain-progress-module {
-  margin-top: 1rem;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .domain-progress-content {
