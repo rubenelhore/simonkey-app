@@ -41,11 +41,19 @@ const TutorialsInternal: React.FC = () => {
         youtubeId: '4dyb5rrmjYY',
         duration: '0:50',
         category: '🚀 Primeros Pasos'
+      },
+      {
+        id: '4',
+        title: 'Cómo convertir tu cuenta a una de profesor',
+        description: 'Aprende paso a paso a convertir una cuenta normal a una de profesor',
+        youtubeId: 'mLqgvGbTXo8',
+        duration: '2:00',
+        category: '🚀 Primeros Pasos'
       }
     ],
     '🎵 ¡Ahora un poco de buena música! 🎶✨': [
       {
-        id: '4',
+        id: '5',
         title: 'Rick Astley - Never Gonna Give You Up',
         description: 'Un clásico que nunca pasa de moda 🎶',
         youtubeId: 'dQw4w9WgXcQ',
@@ -53,7 +61,7 @@ const TutorialsInternal: React.FC = () => {
         category: '🎵 ¡Ahora un poco de buena música! 🎶✨'
       },
       {
-        id: '5',
+        id: '6',
         title: 'American Authors - Best Day Of My Life',
         description: 'Para empezar el día con energía y positividad ✨',
         youtubeId: 'Y66j_BUCBMY',
@@ -61,7 +69,7 @@ const TutorialsInternal: React.FC = () => {
         category: '🎵 ¡Ahora un poco de buena música! 🎶✨'
       },
       {
-        id: '6',
+        id: '7',
         title: 'Imagine Dragons - Bones',
         description: 'Para cuando necesites energía y motivación 🔥',
         youtubeId: 'TO-_3tck2tg',
