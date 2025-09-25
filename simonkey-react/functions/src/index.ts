@@ -214,9 +214,9 @@ async function retryWithModelFallback<T>(
   initialDelay: number = 1000
 ): Promise<T> {
   let lastError: any;
-  let currentModel = "gemini-1.5-flash";
-  
-  // Primero intentar con el modelo principal (gemini-1.5-flash)
+  let currentModel = "gemini-2.0-flash";
+
+  // Primero intentar con el modelo principal (gemini-2.0-flash)
   for (let i = 0; i < maxRetries; i++) {
     try {
       logger.info(`🤖 Intentando con modelo ${currentModel} (intento ${i + 1}/${maxRetries})`);
@@ -242,8 +242,8 @@ async function retryWithModelFallback<T>(
     }
   }
   
-  // Si el modelo principal falló, intentar con el modelo de fallback (gemini-2.0-flash)
-  currentModel = "gemini-2.0-flash";
+  // Si el modelo principal falló, intentar con el modelo de fallback (gemini-1.5-pro)
+  currentModel = "gemini-1.5-pro";
   logger.info(`🔄 Cambiando a modelo de respaldo: ${currentModel}`);
   
   for (let i = 0; i < maxRetries; i++) {
@@ -2601,11 +2601,11 @@ export const generateConceptsFromFile = onCall(
         maxOutputTokens: 8192,
       };
       const primaryModel = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash",
         generationConfig: generationConfig
       });
-      const fallbackModel = genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+      const fallbackModel = genAI.getGenerativeModel({
+        model: "gemini-1.5-pro",
         generationConfig: generationConfig
       });
 
@@ -3715,11 +3715,11 @@ export const explainConcept = onCall(
         maxOutputTokens: 8192,
       };
       const primaryModel = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash",
         generationConfig: generationConfig
       });
-      const fallbackModel = genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+      const fallbackModel = genAI.getGenerativeModel({
+        model: "gemini-1.5-pro",
         generationConfig: generationConfig
       });
 
@@ -3878,11 +3878,11 @@ export const generateContent = onCall(
         maxOutputTokens: 8192,
       };
       const primaryModel = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash",
         generationConfig: generationConfig
       });
-      const fallbackModel = genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash",
+      const fallbackModel = genAI.getGenerativeModel({
+        model: "gemini-1.5-pro",
         generationConfig: generationConfig
       });
 
