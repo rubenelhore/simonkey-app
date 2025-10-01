@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { redirectToCheckout, STRIPE_PRICES } from '../services/stripeService';
 import './Pricing.css'; // Estilos existentes
 
 const Pricing: React.FC = () => {
   const [showAnnual, setShowAnnual] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const togglePricing = () => {
     setShowAnnual(!showAnnual);
@@ -13,6 +19,32 @@ const Pricing: React.FC = () => {
 
   const toggleFAQ = (index: number) => {
     setActiveQuestion(activeQuestion === index ? null : index);
+  };
+
+  const handleGetStartedFree = () => {
+    if (user) {
+      navigate('/notebooks');
+    } else {
+      navigate('/signup');
+    }
+  };
+
+  const handleChoosePro = async () => {
+    if (!user) {
+      // Redirigir a login si no está autenticado
+      navigate('/login?redirect=/pricing');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const priceId = showAnnual ? STRIPE_PRICES.PRO_YEARLY : STRIPE_PRICES.PRO_MONTHLY;
+      await redirectToCheckout(priceId);
+    } catch (error) {
+      console.error('Error al procesar el pago:', error);
+      alert('Hubo un error al procesar tu solicitud. Por favor, intenta de nuevo.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,9 +108,9 @@ const Pricing: React.FC = () => {
                 </ul>
               </div>
               <div className="plan-footer">
-                <a href="#" className="btn btn-outline btn-block">
+                <button onClick={handleGetStartedFree} className="btn btn-outline btn-block">
                   Comenzar Gratis
-                </a>
+                </button>
               </div>
             </div>
             <div className="plan-card popular">
@@ -120,9 +152,13 @@ const Pricing: React.FC = () => {
                 </ul>
               </div>
               <div className="plan-footer">
-                <a href="#" className="btn btn-primary btn-block">
-                  Elegir Pro
-                </a>
+                <button
+                  onClick={handleChoosePro}
+                  className="btn btn-primary btn-block"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Procesando...' : 'Elegir Pro'}
+                </button>
               </div>
             </div>
             <div className="plan-card">

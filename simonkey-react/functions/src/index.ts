@@ -15,6 +15,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Stripe from 'stripe';
 const { getPromptByLanguage } = require('./prompt-nuclear');
 
 // Importar funciones de congelación programada
@@ -4313,3 +4314,293 @@ export const onNotebookDeletedMateria = functions.firestore
     }
     return null;
   });
+
+// ==================== STRIPE INTEGRATION ====================
+// Inicializar Stripe con la clave secreta
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-09-30.clover',
+});
+
+/**
+ * Crear una sesión de checkout de Stripe
+ */
+export const createStripeCheckoutSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Usuario no autenticado');
+  }
+
+  const { priceId, successUrl, cancelUrl } = request.data;
+
+  if (!priceId || !successUrl || !cancelUrl) {
+    throw new HttpsError('invalid-argument', 'Faltan parámetros requeridos');
+  }
+
+  try {
+    const userId = request.auth.uid;
+
+    // Obtener datos del usuario
+    const userDoc = await getDb().collection('users').doc(userId).get();
+    const userData = userDoc.data();
+
+    if (!userData) {
+      throw new HttpsError('not-found', 'Usuario no encontrado');
+    }
+
+    // Crear sesión de checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: userData.email,
+      metadata: {
+        userId: userId,
+        userEmail: userData.email,
+      },
+    });
+
+    logger.info(`Checkout session created for user ${userId}: ${session.id}`);
+
+    return {
+      sessionId: session.id,
+      url: session.url,
+    };
+  } catch (error: any) {
+    logger.error('Error creating checkout session:', error);
+    throw new HttpsError('internal', error.message);
+  }
+});
+
+/**
+ * Webhook para manejar eventos de Stripe
+ */
+export const stripeWebhook = onCall(async (request) => {
+  const sig = request.rawRequest.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!sig || !webhookSecret) {
+    throw new HttpsError('invalid-argument', 'Missing signature or webhook secret');
+  }
+
+  try {
+    const event = stripe.webhooks.constructEvent(
+      request.rawRequest.body,
+      sig,
+      webhookSecret
+    );
+
+    logger.info(`Stripe webhook event received: ${event.type}`);
+
+    // Manejar diferentes tipos de eventos
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutSessionCompleted(session);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionUpdated(subscription);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionDeleted(subscription);
+        break;
+      }
+
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentSucceeded(invoice);
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentFailed(invoice);
+        break;
+      }
+
+      default:
+        logger.info(`Unhandled event type: ${event.type}`);
+    }
+
+    return { received: true };
+  } catch (error: any) {
+    logger.error('Webhook error:', error);
+    throw new HttpsError('internal', error.message);
+  }
+});
+
+/**
+ * Manejar checkout completado
+ */
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.userId;
+
+  if (!userId) {
+    logger.error('No userId in session metadata');
+    return;
+  }
+
+  try {
+    // Actualizar usuario a PRO
+    await getDb().collection('users').doc(userId).update({
+      subscription: 'pro',
+      stripeCustomerId: session.customer,
+      stripeSubscriptionId: session.subscription,
+      subscriptionStatus: 'active',
+      subscriptionStartDate: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`User ${userId} upgraded to PRO`);
+  } catch (error) {
+    logger.error('Error updating user subscription:', error);
+    throw error;
+  }
+}
+
+/**
+ * Manejar actualización de suscripción
+ */
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  const customerId = subscription.customer as string;
+
+  try {
+    // Buscar usuario por stripeCustomerId
+    const usersRef = getDb().collection('users');
+    const querySnapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
+
+    if (querySnapshot.empty) {
+      logger.error(`No user found with stripeCustomerId: ${customerId}`);
+      return;
+    }
+
+    const userDoc = querySnapshot.docs[0];
+
+    // Actualizar estado de suscripción
+    await userDoc.ref.update({
+      subscriptionStatus: subscription.status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`Subscription updated for customer ${customerId}: ${subscription.status}`);
+  } catch (error) {
+    logger.error('Error updating subscription:', error);
+    throw error;
+  }
+}
+
+/**
+ * Manejar cancelación de suscripción
+ */
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const customerId = subscription.customer as string;
+
+  try {
+    // Buscar usuario por stripeCustomerId
+    const usersRef = getDb().collection('users');
+    const querySnapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
+
+    if (querySnapshot.empty) {
+      logger.error(`No user found with stripeCustomerId: ${customerId}`);
+      return;
+    }
+
+    const userDoc = querySnapshot.docs[0];
+
+    // Degradar usuario a FREE
+    await userDoc.ref.update({
+      subscription: 'free',
+      subscriptionStatus: 'canceled',
+      subscriptionEndDate: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`User downgraded to FREE due to subscription cancellation: ${customerId}`);
+  } catch (error) {
+    logger.error('Error handling subscription deletion:', error);
+    throw error;
+  }
+}
+
+/**
+ * Manejar pago exitoso de factura
+ */
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  const customerId = invoice.customer as string;
+
+  try {
+    logger.info(`Payment succeeded for customer ${customerId}, invoice ${invoice.id}`);
+
+    // Aquí puedes agregar lógica adicional como enviar un email de confirmación
+  } catch (error) {
+    logger.error('Error handling invoice payment succeeded:', error);
+    throw error;
+  }
+}
+
+/**
+ * Manejar fallo de pago de factura
+ */
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const customerId = invoice.customer as string;
+
+  try {
+    logger.warn(`Payment failed for customer ${customerId}, invoice ${invoice.id}`);
+
+    // Aquí puedes agregar lógica adicional como enviar un email de aviso
+  } catch (error) {
+    logger.error('Error handling invoice payment failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Crear portal del cliente de Stripe para gestión de suscripciones
+ */
+export const createStripePortalSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Usuario no autenticado');
+  }
+
+  const { returnUrl } = request.data;
+
+  if (!returnUrl) {
+    throw new HttpsError('invalid-argument', 'returnUrl es requerido');
+  }
+
+  try {
+    const userId = request.auth.uid;
+
+    // Obtener datos del usuario
+    const userDoc = await getDb().collection('users').doc(userId).get();
+    const userData = userDoc.data();
+
+    if (!userData || !userData.stripeCustomerId) {
+      throw new HttpsError('not-found', 'No se encontró información de suscripción');
+    }
+
+    // Crear sesión del portal
+    const session = await stripe.billingPortal.sessions.create({
+      customer: userData.stripeCustomerId,
+      return_url: returnUrl,
+    });
+
+    return {
+      url: session.url,
+    };
+  } catch (error: any) {
+    logger.error('Error creating portal session:', error);
+    throw new HttpsError('internal', error.message);
+  }
+});

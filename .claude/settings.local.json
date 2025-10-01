@@ -199,7 +199,10 @@
       "Bash(open:*)",
       "Read(/C:\\Users\\ruben\\simonkey-app\\simonkey-react\\src\\pages/**)",
       "Bash(git restore:*)",
-      "Bash(firebase use:*)"
+      "Bash(firebase use:*)",
+      "Bash(firebase logout:*)",
+      "Bash(firebase login:*)",
+      "WebSearch"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

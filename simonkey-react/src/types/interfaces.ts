@@ -413,6 +413,13 @@ export interface UserProfile {
   uploadedBy?: string;
   hasChangedInitialPassword?: boolean;
   passwordLastChanged?: string;
+
+  // Campos de Stripe para suscripciones PRO
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing';
+  subscriptionStartDate?: Timestamp;
+  subscriptionEndDate?: Timestamp;
 }
 
 /**
