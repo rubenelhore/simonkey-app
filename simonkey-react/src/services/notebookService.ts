@@ -38,11 +38,12 @@ export const createNotebook = async (userId: string, title: string, color: strin
     title,
     userId,
     color,
+    type: 'personal', // Todos los cuadernos creados aquí son personales
     category: category || '', // Incluir categoría (vacía si no se proporciona)
     createdAt: serverTimestamp(), // Usar serverTimestamp para mejor consistencia
   };
-  
-  // Si se proporciona materiaId, incluirlo
+
+  // Si se proporciona materiaId, incluirlo (pero sigue siendo personal del usuario)
   if (materiaId) {
     notebookData.materiaId = materiaId;
   }

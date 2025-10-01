@@ -22,7 +22,7 @@ const SUBSCRIPTION_LIMITS: Record<UserSubscriptionType, SubscriptionLimits> = {
     },
   },
   [UserSubscriptionType.FREE]: {
-    maxNotebooks: 4,
+    maxNotebooks: 1, // Límite de 1 cuaderno personal (no incluye cuadernos enrolados)
     maxConceptsPerNotebook: 100,
     canDeleteAndRecreate: false, // No puede recrear cuadernos eliminados
     permissions: {
@@ -309,37 +309,56 @@ export const updateUserSubscription = async (
 };
 
 /**
- * Verifica si un usuario puede crear un nuevo cuaderno
+ * Verifica si un usuario puede crear un nuevo cuaderno PERSONAL
+ * IMPORTANTE: Solo cuenta cuadernos personales (type: 'personal')
+ * Los cuadernos enrolados (de materias de profesores) NO cuentan en el límite
  */
 export const canCreateNotebook = async (userId: string): Promise<{ canCreate: boolean; reason?: string }> => {
   try {
     const userProfile = await verifyAndFixUserProfile(userId);
-    
+
     if (!userProfile) {
       return { canCreate: false, reason: 'Usuario no encontrado' };
     }
 
     const limits = getSubscriptionLimits(userProfile.subscription);
 
-    // Super admin siempre puede crear
-    if (userProfile.subscription === UserSubscriptionType.SUPER_ADMIN) {
+    // Super admin, school, y university siempre pueden crear
+    if (userProfile.subscription === UserSubscriptionType.SUPER_ADMIN ||
+        userProfile.subscription === UserSubscriptionType.SCHOOL ||
+        userProfile.subscription === UserSubscriptionType.UNIVERSITY) {
       return { canCreate: true };
     }
 
-    // Verificar límite total de cuadernos
-    if (limits.maxNotebooks !== -1 && userProfile.notebookCount >= limits.maxNotebooks) {
-      return { canCreate: false, reason: 'Límite de cuadernos alcanzado' };
+    // Contar SOLO cuadernos personales (no enrolados)
+    // Los cuadernos personales están en la colección 'notebooks' con type: 'personal' o userId matching
+    const personalNotebooksQuery = query(
+      collection(db, 'notebooks'),
+      where('userId', '==', userId),
+      where('type', '==', 'personal')
+    );
+    const personalNotebooksSnapshot = await getDocs(personalNotebooksQuery);
+    const personalNotebookCount = personalNotebooksSnapshot.size;
+
+    logger.debug(`Usuario ${userId} tiene ${personalNotebookCount} cuadernos personales`);
+
+    // Verificar límite total de cuadernos PERSONALES
+    if (limits.maxNotebooks !== -1 && personalNotebookCount >= limits.maxNotebooks) {
+      return {
+        canCreate: false,
+        reason: `Límite de cuadernos personales alcanzado (${personalNotebookCount}/${limits.maxNotebooks}). Los cuadernos de profesores no cuentan en este límite.`
+      };
     }
 
     // Verificar límite semanal para usuarios PRO
     if (userProfile.subscription === UserSubscriptionType.PRO && limits.maxNotebooksPerWeek) {
       const currentWeek = new Date();
       currentWeek.setHours(0, 0, 0, 0);
-      
+
       if (userProfile.weekStartDate) {
         const weekStart = userProfile.weekStartDate.toDate();
         weekStart.setHours(0, 0, 0, 0);
-        
+
         // Si es una nueva semana, resetear contadores
         if (currentWeek.getTime() !== weekStart.getTime()) {
           await updateDoc(doc(db, 'users', userId), {
