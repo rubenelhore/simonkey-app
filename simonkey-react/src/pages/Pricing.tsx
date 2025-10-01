@@ -36,7 +36,7 @@ const Pricing: React.FC = () => {
             <span className={`toggle-label toggle-annually ${showAnnual ? 'active' : ''}`}>
               Anual
             </span>
-            <span className="savings-badge">Ahorra 25%</span>
+            <span className="savings-badge">Ahorra 33%</span>
           </div>
         </div>
       </section>
@@ -59,7 +59,7 @@ const Pricing: React.FC = () => {
                 <ul className="feature-list">
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text prominent">Acceso a 4 cuadernos</span>
+                    <span className="feature-text prominent">1 cuaderno personal</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
@@ -88,10 +88,10 @@ const Pricing: React.FC = () => {
                   <div className="plan-price">
                     <span className="plan-price-currency">$</span>
                     <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
-                    {showAnnual ? '78 USD' : '9 USD'}
+                    {showAnnual ? '1,199' : '149'}
                     </span>
-                    <span className="plan-price-period">{showAnnual ? '/año' : '/mes'}</span>
-                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($6.5 USD/mes)</span>}
+                    <span className="plan-price-period">{showAnnual ? ' MXN/año' : ' MXN/mes'}</span>
+                    {showAnnual && <span className="monthly-equivalent" style={{ fontSize: '0.40em', color: '#1DB173' }}>($99.9 MXN/mes)</span>}
                   </div>
                   <p className="plan-description">Ideal para estudiantes que quieren para maximizar el tiempo y eficiencia de estudio. </p>
                 </div>
@@ -99,7 +99,7 @@ const Pricing: React.FC = () => {
                 <ul className="feature-list">
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text prominent">10 Cuadernos por semana</span>
+                    <span className="feature-text prominent">Cuadernos personales ilimitados</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
@@ -182,10 +182,10 @@ const Pricing: React.FC = () => {
             </thead>
             <tbody>
               <tr>
-                <td>Cuadernos digitales</td>
-                <td>4</td>
-                <td>10 por semana</td>
-                <td>10 por semana</td>
+                <td>Cuadernos personales</td>
+                <td>1</td>
+                <td>Ilimitados</td>
+                <td>Ilimitados</td>
               </tr>
               <tr>
                 <td>Conceptos por cuaderno</td>
@@ -345,7 +345,7 @@ const Pricing: React.FC = () => {
                 className="faq-answer"
                 style={{ display: activeQuestion === 4 ? 'block' : 'none' }}
               >
-                En el plan Pro, cada cuaderno puede contener hasta 100 conceptos nuevos por día. Esto significa que puedes agregar hasta 100 conceptos a cada uno de tus 10 cuadernos semanales, permitiéndote un ritmo de estudio muy intensivo sin restricciones.
+                En el plan Pro, cada cuaderno puede contener hasta 100 conceptos nuevos por día. Esto significa que puedes agregar hasta 100 conceptos a cada uno de tus cuadernos ilimitados, permitiéndote un ritmo de estudio muy intensivo sin restricciones.
               </div>
             </div>
 
