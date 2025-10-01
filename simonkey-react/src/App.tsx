@@ -84,6 +84,8 @@ import JoinWithInvitePage from './pages/JoinWithInvitePage';
 import CookieManager from './components/CookieConsent/CookieManager';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
+// Importar página de éxito de pago de Stripe
+import PaymentSuccess from './pages/PaymentSuccess';
 // Importar el nuevo AuthProvider y useAuth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 // Importar el hook useUserType para detectar usuarios escolares
@@ -491,6 +493,7 @@ const AppContent: React.FC = () => {
             })()} 
           />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
