@@ -1,6 +1,6 @@
 # Configuración de Stripe para Simonkey
 
-Esta guía te ayudará a configurar Stripe para procesar pagos de suscripciones PRO en Simonkey.
+Esta guía te ayudará a configurar Stripe para procesar pagos de suscripciones Súper Simonkey.
 
 ## 📋 Requisitos Previos
 
@@ -20,12 +20,12 @@ Esta guía te ayudará a configurar Stripe para procesar pagos de suscripciones 
 
 ## 💰 Paso 2: Crear Productos y Precios en Stripe
 
-### 2.1 Crear Producto PRO
+### 2.1 Crear Producto Súper Simonkey
 
 1. En el Dashboard de Stripe, ve a **Products → Add product**
 2. Crea un producto con estos datos:
-   - **Nombre**: Simonkey PRO
-   - **Descripción**: Suscripción PRO con cuadernos ilimitados
+   - **Nombre**: Súper Simonkey
+   - **Descripción**: Suscripción Súper Simonkey con cuadernos ilimitados
 
 ### 2.2 Crear Precios
 
@@ -52,8 +52,8 @@ Crea o actualiza el archivo `.env` en la raíz del proyecto:
 \`\`\`env
 # Stripe - Frontend
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
-VITE_STRIPE_PRICE_PRO_MONTHLY=price_xxxxxxxxxxxxx
-VITE_STRIPE_PRICE_PRO_YEARLY=price_xxxxxxxxxxxxx
+VITE_STRIPE_PRICE_SUPER_SIMONKEY_MONTHLY=price_xxxxxxxxxxxxx
+VITE_STRIPE_PRICE_SUPER_SIMONKEY_YEARLY=price_xxxxxxxxxxxxx
 \`\`\`
 
 ### 3.2 Firebase Functions
@@ -140,7 +140,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 Después del pago exitoso:
 1. El usuario debe ser redirigido a `/payment-success`
 2. En Firestore, verifica que el documento del usuario tenga:
-   - `subscription: "pro"`
+   - `subscription: "pro"` (internamente se sigue llamando "pro")
    - `stripeCustomerId: "cus_..."`
    - `stripeSubscriptionId: "sub_..."`
    - `subscriptionStatus: "active"`
@@ -192,7 +192,7 @@ stripe listen --forward-to http://localhost:5001/tu-proyecto/us-central1/stripeW
 
 ## 📊 Gestión de Suscripciones
 
-Los usuarios PRO pueden gestionar su suscripción (cancelar, actualizar método de pago) usando el Customer Portal de Stripe, que se abre llamando a la función `createStripePortalSession`.
+Los usuarios de Súper Simonkey pueden gestionar su suscripción (cancelar, actualizar método de pago) usando el Customer Portal de Stripe, que se abre llamando a la función `createStripePortalSession`.
 
 ## 🌍 Modo Producción
 
@@ -208,7 +208,7 @@ Antes de ir a producción:
 ## 💡 Funcionalidades Implementadas
 
 - ✅ Checkout de Stripe para suscripciones mensuales y anuales
-- ✅ Actualización automática de usuarios a PRO al completar el pago
+- ✅ Actualización automática de usuarios a Súper Simonkey al completar el pago
 - ✅ Webhooks para manejar eventos de suscripción
 - ✅ Customer Portal para gestión de suscripciones
 - ✅ Degradación automática a FREE al cancelar suscripción

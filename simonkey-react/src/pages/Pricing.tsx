@@ -38,7 +38,7 @@ const Pricing: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const priceId = showAnnual ? STRIPE_PRICES.PRO_YEARLY : STRIPE_PRICES.PRO_MONTHLY;
+      const priceId = showAnnual ? STRIPE_PRICES.SUPER_SIMONKEY_YEARLY : STRIPE_PRICES.SUPER_SIMONKEY_MONTHLY;
       await redirectToCheckout(priceId);
     } catch (error) {
       console.error('Error al procesar el pago:', error);
@@ -116,7 +116,7 @@ const Pricing: React.FC = () => {
             <div className="plan-card popular">
               <div className="popular-badge">Más Popular</div>
                 <div className="plan-header">
-                  <h3 className="plan-name">Pro</h3>
+                  <h3 className="plan-name">Súper Simonkey</h3>
                   <div className="plan-price">
                     <span className="plan-price-currency">$</span>
                     <span className={showAnnual ? 'annual-price' : 'monthly-price'}>
@@ -139,7 +139,7 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Todo del plan Gratis</span>
+                    <span className="feature-text">Todo lo del plan Gratis</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
@@ -157,7 +157,7 @@ const Pricing: React.FC = () => {
                   className="btn btn-primary btn-block"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Procesando...' : 'Elegir Pro'}
+                  {isLoading ? 'Procesando...' : 'Elegir Súper Simonkey'}
                 </button>
               </div>
             </div>
@@ -181,7 +181,7 @@ const Pricing: React.FC = () => {
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
-                    <span className="feature-text">Todo del plan Pro para los alumnos</span>
+                    <span className="feature-text">Todo lo del plan Súper Simonkey para los alumnos</span>
                   </li>
                   <li className="feature-item">
                     <span className="feature-icon">✔</span>
@@ -212,7 +212,7 @@ const Pricing: React.FC = () => {
               <tr>
                 <th></th>
                 <th>Gratis</th>
-                <th>Pro</th>
+                <th>Súper Simonkey</th>
                 <th>Escolar</th>
               </tr>
             </thead>
@@ -374,14 +374,14 @@ const Pricing: React.FC = () => {
                 onClick={() => toggleFAQ(4)}
               >
                 <span className="faq-question-text">
-                  ¿Qué significa "100 conceptos por día" en el plan Pro?
+                  ¿Qué significa "100 conceptos por día" en el plan Súper Simonkey?
                 </span>
               </div>
               <div
                 className="faq-answer"
                 style={{ display: activeQuestion === 4 ? 'block' : 'none' }}
               >
-                En el plan Pro, cada cuaderno puede contener hasta 100 conceptos nuevos por día. Esto significa que puedes agregar hasta 100 conceptos a cada uno de tus cuadernos ilimitados, permitiéndote un ritmo de estudio muy intensivo sin restricciones.
+                En el plan Súper Simonkey, cada cuaderno puede contener hasta 100 conceptos nuevos por día. Esto significa que puedes agregar hasta 100 conceptos a cada uno de tus cuadernos ilimitados, permitiéndote un ritmo de estudio muy intensivo sin restricciones.
               </div>
             </div>
 

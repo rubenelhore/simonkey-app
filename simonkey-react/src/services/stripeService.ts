@@ -23,8 +23,8 @@ export const getStripe = () => {
  * IMPORTANTE: Debes crear estos precios en tu Dashboard de Stripe y reemplazar estos IDs
  */
 export const STRIPE_PRICES = {
-  PRO_MONTHLY: import.meta.env.VITE_STRIPE_PRICE_PRO_MONTHLY || 'price_xxx_monthly',
-  PRO_YEARLY: import.meta.env.VITE_STRIPE_PRICE_PRO_YEARLY || 'price_xxx_yearly',
+  SUPER_SIMONKEY_MONTHLY: import.meta.env.VITE_STRIPE_PRICE_SUPER_SIMONKEY_MONTHLY || 'price_xxx_monthly',
+  SUPER_SIMONKEY_YEARLY: import.meta.env.VITE_STRIPE_PRICE_SUPER_SIMONKEY_YEARLY || 'price_xxx_yearly',
 };
 
 /**

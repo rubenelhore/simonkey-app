@@ -26,7 +26,7 @@ const PaymentSuccess: React.FC = () => {
           <div className="success-icon">✓</div>
           <h1 className="success-title">¡Pago Exitoso!</h1>
           <p className="success-message">
-            Bienvenido a Simonkey <span className="pro-badge">PRO</span>
+            Bienvenido a <span className="pro-badge">Súper Simonkey</span>
           </p>
           <div className="success-details">
             <p>Tu suscripción ha sido activada exitosamente.</p>
