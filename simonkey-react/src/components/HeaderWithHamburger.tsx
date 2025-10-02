@@ -857,7 +857,26 @@ const HeaderWithHamburger: React.FC<HeaderWithHamburgerProps> = ({
             </button>
           )}
         </div>
-        
+
+        {/* Botón de Súper Simonkey */}
+        {!isSchoolAdmin && !isTeacher && !isSchoolStudent && !isSchoolTutor && !isUniversityUser && (
+          <button
+            className={`sidebar-icon-btn super-simonkey-btn ${subscription === UserSubscriptionType.PRO ? 'active' : ''}`}
+            onClick={() => {
+              setMobileSidebarOpen(false);
+              if (subscription === UserSubscriptionType.PRO) {
+                navigate('/profile');
+              } else {
+                navigate('/pricing');
+              }
+            }}
+            title={subscription === UserSubscriptionType.PRO ? 'Súper Simonkey Activo' : 'Súper Simonkey'}
+          >
+            <FontAwesomeIcon icon={faCrown} />
+            {showSidebarText && <span>{subscription === UserSubscriptionType.PRO ? 'Súper Simonkey Activo' : 'Súper Simonkey'}</span>}
+          </button>
+        )}
+
         {/* Botón de Modo Profesor */}
         {!isSchoolAdmin && !isTeacher && !isSchoolStudent && !isSchoolTutor && !isUniversityUser && !isTeacher && (
           <button
