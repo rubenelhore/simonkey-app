@@ -1,6 +1,7 @@
 {
   "name": "stripe-functions",
   "version": "1.0.0",
+  "description": "Funciones de Stripe para Simonkey desplegadas en Cloud Run",
   "main": "index.js",
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
@@ -8,6 +9,8 @@
     "firebase-admin": "^13.0.2"
   },
   "scripts": {
-    "start": "functions-framework --target=createStripeCheckoutSession --port=8080"
+    "start": "functions-framework --target=createStripeCheckoutSession --port=8080",
+    "start:webhook": "functions-framework --target=stripeWebhook --port=8080",
+    "start:portal": "functions-framework --target=createStripePortalSession --port=8080"
   }
 }
