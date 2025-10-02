@@ -37,3 +37,11 @@ dist-ssr
 serviceAccountKey.json
 **/serviceAccountKey.json
 firebase-admin-*.json
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Stripe functions
+stripe-functions-manual/.env
