@@ -1,4 +1,7 @@
-// src/services/stripeService.ts
+/**
+ * Servicio de Stripe
+ * Maneja la integración con Stripe para pagos y suscripciones
+ */
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { auth } from './firebase';
 
