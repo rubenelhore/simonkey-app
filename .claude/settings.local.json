@@ -202,7 +202,14 @@
       "Bash(firebase use:*)",
       "Bash(firebase logout:*)",
       "Bash(firebase login:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(firebase functions:list:*)",
+      "Bash(firebase login:ci:*)",
+      "Bash(gcloud functions deploy:*)",
+      "Bash(gcloud config set:*)",
+      "Bash(gcloud run deploy:*)",
+      "Bash(gcloud iam service-accounts list:*)",
+      "Bash(gcloud run services update:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

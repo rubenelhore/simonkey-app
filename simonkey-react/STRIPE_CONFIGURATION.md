@@ -1,5 +1,7 @@
 # Configuración de Stripe para Simonkey
 
+> Última actualización: 2025-10-01
+
 Esta guía te ayudará a configurar Stripe para procesar pagos de suscripciones Súper Simonkey.
 
 ## 📋 Requisitos Previos
