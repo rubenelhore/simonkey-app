@@ -1,7 +1,6 @@
 // src/services/stripeService.ts
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
+import { auth } from './firebase';
 
 // Inicializar Stripe (usa la clave pública de Stripe)
 let stripePromise: Promise<Stripe | null>;
@@ -32,18 +31,39 @@ export const STRIPE_PRICES = {
  */
 export const createCheckoutSession = async (priceId: string): Promise<{ url: string }> => {
   try {
-    const createCheckout = httpsCallable(functions, 'createStripeCheckoutSession');
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    const idToken = await user.getIdToken();
 
     const successUrl = `${window.location.origin}/payment-success`;
     const cancelUrl = `${window.location.origin}/pricing`;
 
-    const result = await createCheckout({
-      priceId,
-      successUrl,
-      cancelUrl,
+    const response = await fetch('https://createstripecheckoutsession-235501879490.us-central1.run.app', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          priceId,
+          successUrl,
+          cancelUrl,
+        },
+        auth: {
+          uid: user.uid,
+          token: idToken,
+        },
+      }),
     });
 
-    const data = result.data as { sessionId: string; url: string };
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
 
     return { url: data.url };
   } catch (error) {
@@ -73,12 +93,35 @@ export const redirectToCheckout = async (priceId: string): Promise<void> => {
  */
 export const createPortalSession = async (): Promise<{ url: string }> => {
   try {
-    const createPortal = httpsCallable(functions, 'createStripePortalSession');
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
 
+    const idToken = await user.getIdToken();
     const returnUrl = `${window.location.origin}/profile`;
 
-    const result = await createPortal({ returnUrl });
-    const data = result.data as { url: string };
+    const response = await fetch('https://createstripeportalsession-235501879490.us-central1.run.app', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          returnUrl,
+        },
+        auth: {
+          uid: user.uid,
+          token: idToken,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
 
     return { url: data.url };
   } catch (error) {

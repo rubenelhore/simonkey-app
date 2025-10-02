@@ -1,0 +1,13 @@
+{
+  "name": "stripe-functions",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "stripe": "^17.5.0",
+    "firebase-admin": "^13.0.2"
+  },
+  "scripts": {
+    "start": "functions-framework --target=createStripeCheckoutSession --port=8080"
+  }
+}

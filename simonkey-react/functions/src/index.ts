@@ -4316,10 +4316,16 @@ export const onNotebookDeletedMateria = functions.firestore
   });
 
 // ==================== STRIPE INTEGRATION ====================
-// Inicializar Stripe con la clave secreta
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-09-30.clover',
-});
+// Función para obtener instancia de Stripe (lazy initialization)
+const getStripe = () => {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY no está configurada');
+  }
+  return new Stripe(secretKey, {
+    apiVersion: '2025-09-30.clover',
+  });
+};
 
 /**
  * Crear una sesión de checkout de Stripe
@@ -4337,6 +4343,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
 
   try {
     const userId = request.auth.uid;
+    const stripe = getStripe();
 
     // Obtener datos del usuario
     const userDoc = await getDb().collection('users').doc(userId).get();
@@ -4389,6 +4396,7 @@ export const stripeWebhook = onCall(async (request) => {
   }
 
   try {
+    const stripe = getStripe();
     const event = stripe.webhooks.constructEvent(
       request.rawRequest.body,
       sig,
@@ -4581,6 +4589,7 @@ export const createStripePortalSession = onCall(async (request) => {
 
   try {
     const userId = request.auth.uid;
+    const stripe = getStripe();
 
     // Obtener datos del usuario
     const userDoc = await getDb().collection('users').doc(userId).get();
