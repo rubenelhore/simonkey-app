@@ -217,6 +217,8 @@ Antes de ir a producción:
 - ✅ Degradación automática a FREE al cancelar suscripción
 - ✅ Manejo de pagos fallidos
 - ✅ Página de éxito de pago personalizada
+- ✅ Funciones desplegadas en Cloud Run para mejor rendimiento
+- ✅ Variables de entorno seguras
 
 ## 🆘 Soporte
 
