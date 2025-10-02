@@ -346,7 +346,7 @@ export const canCreateNotebook = async (userId: string): Promise<{ canCreate: bo
     if (limits.maxNotebooks !== -1 && personalNotebookCount >= limits.maxNotebooks) {
       return {
         canCreate: false,
-        reason: `Límite de cuadernos personales alcanzado (${personalNotebookCount}/${limits.maxNotebooks}). Los cuadernos de profesores no cuentan en este límite.`
+        reason: `Alcanzaste el límite de cuadernos en Simonkey Free. Hazte Súper Simonkey para acceder al Súper Aprendizaje (y más cuadernos).`
       };
     }
 

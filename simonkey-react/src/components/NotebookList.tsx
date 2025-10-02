@@ -140,7 +140,9 @@ const NotebookList: React.FC<NotebookListProps> = ({
     notebookTitle: string;
     isFrozen: boolean;
   } | null>(null);
-  
+
+  // Estado para el modal de upgrade
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // console.log('🔍 DEBUG - Estados inicializados, continuando con lógica...');
 
@@ -280,13 +282,20 @@ const NotebookList: React.FC<NotebookListProps> = ({
       setShowCreateModal(false);
     } catch (error: any) {
       console.error("❌ Error creating notebook:", error);
-      // Mostrar el mensaje de error específico
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else if (typeof error === 'string') {
-        setErrorMessage(error);
+      // Si es un error de límite, mostrar el modal de upgrade
+      const errorMsg = error?.message || error || 'Error al crear el cuaderno';
+      if (errorMsg.includes('límite') || errorMsg.includes('Alcanzaste')) {
+        setShowCreateModal(false);
+        setShowUpgradeModal(true);
       } else {
-        setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');
+        // Mostrar el mensaje de error específico en el modal de creación
+        if (error?.message) {
+          setErrorMessage(error.message);
+        } else if (typeof error === 'string') {
+          setErrorMessage(error);
+        } else {
+          setErrorMessage('Error al crear el cuaderno. Por favor, intenta de nuevo.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -1259,6 +1268,55 @@ const NotebookList: React.FC<NotebookListProps> = ({
           }}
           onConfirm={handleFreezeConfirm}
         />
+      )}
+
+      {/* Modal de Upgrade a Súper Simonkey */}
+      {showUpgradeModal && (
+        <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
+          <div className="modal-content upgrade-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="close-button-simple"
+              onClick={() => setShowUpgradeModal(false)}
+            >
+              <i className="fas fa-times"></i>
+            </button>
+
+            <div className="upgrade-modal-content">
+              <div className="upgrade-icon">
+                <i className="fas fa-crown" style={{ color: '#fbbf24', fontSize: '3rem' }}></i>
+              </div>
+              <h2 className="upgrade-title">¡Alcanzaste el límite!</h2>
+              <p className="upgrade-message">
+                Alcanzaste el límite de cuadernos en Simonkey Free.<br />
+                <strong>Hazte Súper Simonkey</strong> para acceder al <strong>Súper Aprendizaje</strong> (y más cuadernos).
+              </p>
+              <div className="upgrade-benefits">
+                <div className="benefit-item">
+                  <i className="fas fa-check-circle" style={{ color: '#10b981' }}></i>
+                  <span>Cuadernos ilimitados</span>
+                </div>
+                <div className="benefit-item">
+                  <i className="fas fa-check-circle" style={{ color: '#10b981' }}></i>
+                  <span>Súper Aprendizaje con IA</span>
+                </div>
+                <div className="benefit-item">
+                  <i className="fas fa-check-circle" style={{ color: '#10b981' }}></i>
+                  <span>Sin límites de conceptos</span>
+                </div>
+              </div>
+              <button
+                className="btn-upgrade"
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  navigate('/pricing');
+                }}
+              >
+                <i className="fas fa-crown"></i>
+                Ver Planes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
