@@ -206,6 +206,7 @@ Antes de ir a producción:
 4. ✅ Prueba el flujo completo con una tarjeta real
 5. ✅ Verifica que los webhooks estén funcionando
 6. ✅ Configura alertas de errores
+7. ✅ Habilita 3D Secure para mayor seguridad
 
 ## 💡 Funcionalidades Implementadas
 
