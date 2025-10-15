@@ -13,7 +13,7 @@
 
 Simonkey is an AI-powered EdTech platform serving Mexican students that transforms how they study and memorize concepts. Upload study materials, automatically extract key concepts, and use advanced mnemonic techniques to improve retention.
 
-**🎥 [Watch Demo Video - Coming Soon](#)**
+**🎥 [Watch Demo Video - Coming Soon](https://www.loom.com/share/2a9e4e054a554876a95e58b4ad7142cd?sid=b5e08eda-afb7-459a-9a97-e0af1fb3c56d)**
 
 ---
 
