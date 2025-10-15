@@ -5,7 +5,7 @@
 [![Live Demo](https://img.shields.io/badge/Demo-Live-success)](https://simonkey.app)
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen)]()
 
-![Simonkey Dashboard](https://via.placeholder.com/800x400?text=Add+Dashboard+Screenshot)
+![Simonkey Home Page](https://imgur.com/a/T7NVdtC.png))
 
 ---
 
