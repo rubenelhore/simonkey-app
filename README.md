@@ -123,13 +123,16 @@ Open http://localhost:5173
 ## 📸 Screenshots
 
 ### Notebook Dashboard
-![Dashboard](https://via.placeholder.com/600x300?text=Dashboard+Screenshot)
+![Dashboard](https://imgur.com/pMEBkOA.png)
 
 ### Concept Extraction
-![Extraction](https://via.placeholder.com/600x300?text=Extraction+Screenshot)
+![Extraction](https://imgur.com/CpikqTY.png)
 
-### Flashcard Study Mode
-![Flashcards](https://via.placeholder.com/600x300?text=Flashcards+Screenshot)
+### Study Mode
+![Study](https://imgur.com/auHEX93.png)
+
+### Progress Module
+![Progress](https://imgur.com/NBbi8ES.png)
 
 ---
 
