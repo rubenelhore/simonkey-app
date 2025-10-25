@@ -209,7 +209,11 @@
       "Bash(gcloud config set:*)",
       "Bash(gcloud run deploy:*)",
       "Bash(gcloud iam service-accounts list:*)",
-      "Bash(gcloud run services update:*)"
+      "Bash(gcloud run services update:*)",
+      "Bash(gcloud run services logs read:*)",
+      "Bash(gcloud run services describe:*)",
+      "Bash(gcloud projects add-iam-policy-binding:*)",
+      "Bash(gcloud run services add-iam-policy-binding:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
