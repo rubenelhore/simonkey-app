@@ -22,9 +22,9 @@ import {
 import { kpiService } from '../services/kpiService';
 import { rankingService } from '../services/rankingService';
 import { MateriaRankingService } from '../services/materiaRankingService';
-import '../scripts/fixUserNotebooks';
+import '../maintenance/fixUserNotebooks';
 import * as XLSX from 'xlsx';
-import '../scripts/verifyNotebookIds';
+import '../maintenance/verifyNotebookIds';
 import '../utils/forceReloadKPIs';
 import { auth, db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
