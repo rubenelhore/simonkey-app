@@ -1,3 +1,0 @@
-constraint: constraints/cloudbuild.useBuildServiceAccount
-booleanPolicy:
-  enforced: false
